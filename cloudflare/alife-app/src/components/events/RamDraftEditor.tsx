@@ -7,7 +7,7 @@ import { ramChanges, ramDraftFingerprint, ramSuggestionFields } from '../../util
 import RamAssessmentFields from './RamAssessmentFields'
 import RamRequiredQuestions from './RamRequiredQuestions'
 import { RamEditingLanguage, RamLevelBadge, ramInput } from './RamFields'
-import { EventToolSection } from './ArrangementTileDeck'
+import { EventToolSection, revealArrangementControl } from './ArrangementTileDeck'
 import AppActionButton from '../layout/AppActionButton'
 import useConfirmation from '../../hooks/useConfirmation'
 
@@ -45,10 +45,9 @@ export default function RamDraftEditor({ eventId, groupId, draft, update, editab
     const elements = Array.from(container?.querySelectorAll<HTMLElement>('[data-ram-field]') || [])
     const element = elements.find(el => target === el.dataset.ramField) || elements.find(el => target.startsWith(`${el.dataset.ramField}.`))
     if (!element) return
-    const panel = element.closest<HTMLElement>('[data-tool-panel]')
-    if (panel?.hidden) Array.from(document.querySelectorAll<HTMLButtonElement>('[aria-controls]')).find(button => button.getAttribute('aria-controls') === panel.id)?.click()
     element.querySelectorAll('details').forEach(details => { details.open = true })
     if (element instanceof HTMLDetailsElement) element.open = true
+    revealArrangementControl(element.querySelector<HTMLElement>('input,textarea,select,button') || element)
     requestAnimationFrame(() => { element.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }); element.querySelector<HTMLElement>('input,textarea,select,button')?.focus({ preventScroll: true }) })
     }))
   }
@@ -71,7 +70,7 @@ export default function RamDraftEditor({ eventId, groupId, draft, update, editab
     setSuggestion({ ...suggestion, riskId: id, signature: ramDraftFingerprint(nextDraft, `${conditionsKey}:${contextVersion}`), result: { ...suggestion.result, suggestions: remaining } })
   }
   return <RamEditingLanguage.Provider value={zh}><div ref={root} className="space-y-4">
-    <EventToolSection title={zh ? '起草助手与检查' : 'Draft assistance and checks'} summary={currentCheck ? `${currentCheck.issues.length}` : undefined}>
+    <EventToolSection title={zh ? '起草助手与检查' : 'Draft assistance and checks'} summary={error ? (zh ? '操作失败，请展开查看' : 'Action failed; expand for details') : busy ? (zh ? '正在处理…' : 'Working…') : currentCheck ? (zh ? `${currentCheck.issues.length} 项待处理问题` : `${currentCheck.issues.length} issues to address`) : check ? (zh ? '草稿已改变，请重新检查' : 'Draft changed; check again') : !context && (eventId || groupId) ? (zh ? '正在读取…' : 'Loading…') : (zh ? '可检查当前草稿' : 'Ready to check the draft')}>
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2"><AppActionButton disabled={busy || !editable} onClick={() => void run(async () => { const signature = fingerprint; const result = await ramService.check(scope, draft, policyVersionId); if (currentFingerprint.current === signature) setCheck({ result, signature }) })}>{zh ? '检查草稿及评分' : 'Check draft and ratings'}</AppActionButton>
           <AppActionButton variant="secondary" disabled={busy || !editable || !dirty || !changes.length} onClick={() => void requestConfirmation({ title: zh ? '撤销未保存修改' : 'Discard unsaved changes', description: zh ? '恢复到最近保存的 RAM；未采纳的 AI 建议也会清除。' : 'Restore the last saved RAM and clear unadopted suggestions.' }).then(ok => { if (ok) { update(structuredClone(savedDraft || initial.current)); setSuggestion(null); setCheck(null) } })}>{zh ? '撤销未保存修改' : 'Discard unsaved changes'}</AppActionButton>

@@ -32,7 +32,7 @@ export default function EventRegistrationWorkspace({ eventId, groupId, language 
   useEffect(() => { void load(); return () => { sequence.current++ } }, [load])
   return <div className="space-y-3">
     {loading ? <p role="status">{zh ? '正在读取报名资料……' : 'Loading enrollment…'}</p> : null}
-    {error ? <AppSectionCard title={zh ? '无法读取报名资料' : 'Unable to load enrollment'}><p role="alert">{error}</p><AppActionButton onClick={() => void load()}>{zh ? '重试' : 'Retry'}</AppActionButton></AppSectionCard> : null}
+    {error ? <AppSectionCard summary={zh ? '读取失败，请展开重试' : 'Loading failed; expand to retry'} title={zh ? '无法读取报名资料' : 'Unable to load enrollment'}><p role="alert">{error}</p><AppActionButton onClick={() => void load()}>{zh ? '重试' : 'Retry'}</AppActionButton></AppSectionCard> : null}
     {event ? <EventEnrollmentPanel event={event} eventDto={parseEventDto(event)} enrollments={enrollments} language={language} memberId={memberId} isGuest={viewer?.isGuest ?? true} loading={loading} onRefresh={load} /> : null}
   </div>
 }

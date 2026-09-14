@@ -35,7 +35,7 @@ const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: f
   try {
     for (const language of ['zh','en']) for (const width of [320,1280]) {
       const zh = language === 'zh', t = (en, cn) => zh ? cn : en;
-      const context = await browser.newContext({ viewport: { width, height: 950 } });
+      const context = await browser.newContext({ viewport: { width, height: 950 }, reducedMotion: 'reduce', serviceWorkers: 'block' });
       await context.addInitScript(language => localStorage.setItem('alife.language', language), language);
       const page = await context.newPage(); page.setDefaultTimeout(20000);
       const errors = [], writes = []; page.on('pageerror', e => errors.push(e.message));

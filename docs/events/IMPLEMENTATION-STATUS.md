@@ -1,5 +1,17 @@
 # Event Management Implementation Status
 
+## 2026-09-14 — Preparation module summary/detail cards
+
+Creation and saved preparation now share vertically stacked configuration cards inside each module. Settings and responsibilities opens initially; other areas start collapsed and can expand independently, including a module with only one area. Native summary controls retain mounted drafts and independent expansion across module/language switches and remain usable in read-only fieldsets. Summaries show current configuration, labelled counts and explicit loading/failure states. Invalid enabled fields reveal their enclosing details before focus. Module navigation, independent confirmation, operational saves, permissions, private caches and stored payloads remain unchanged; no dependency or migration was added.
+
+The browser fixtures now wait for module focus and selection autosaves instead of racing those asynchronous transitions, and block service workers so fixture API interception remains authoritative when exercising a production preview. An existing privacy assertion now accepts an omitted optional Event context while still checking that private RAM text is absent.
+
+Verification: the Event composition suite passes 72/72, and the final TypeScript/Vite/PWA production build passes with the existing idb-keyval mixed-import warning. Standalone RAM browser fixtures pass Chinese/English at 375/1280px, including signatures, AI outage isolation and protected printing. Browser APIs are fixtures; live accounts, providers, database behavior and deployment are not verified by this presentation change. No Git publication, deployment or database migration was performed.
+
+Creation and saved-module browser fixtures pass Chinese/English at 320/768/1280px against the rebuilt production preview. Coverage includes initial/single/multiple disclosure, keyboard and focus restoration, invalid collapsed-field reveal, disable/re-enable draft retention, asynchronous errors and retry, read-only business fieldsets, module/language switching, unchanged save payloads, confirmations, candidate groups, and isolated RAM/programme printing. Mobile and desktop screenshots were visually inspected. Event documentation generation/check validates 12 modules, 137 API contracts and three equivalent overview language structures.
+
+The final complete saved-preparation fixture also passes in Chinese at 1280px on the rebuilt artifact: repeated edits, automatic selection saves, role acceptance, return/amend/approve, frozen entry routes, poster adoption, publication and reopening/reapproval. The toggle test explicitly shows inactive modules and permits a restored original selection to be a no-op instead of requiring a redundant write.
+
 ## 2026-09-14 — AI details time-only corrections and zone binding
 
 Implemented on `codex/ai-details-timezone` from main containing #779. The existing offsetless-UTC read fix remains. The Details assistant now recognizes bounded time-only ranges using the current Event start date and zone, correcting stale/UTC-shaped AI values without device-zone conversion. Other missing/mismatched model zones block time adoption. Explicit zone changes require user evidence; server merge validates the time tuple atomically and the client checks it again before changing any draft fields. Invalid replies preserve input with bilingual feedback; missing dates require clarification. Wire shapes, provider, permissions, cache policies, database and historical Event data are unchanged.

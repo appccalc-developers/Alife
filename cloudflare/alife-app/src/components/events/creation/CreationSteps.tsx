@@ -6,11 +6,11 @@ import AppSectionCard from '../../layout/AppSectionCard'
 import AppBadge from '../../layout/AppBadge'
 import type { EventActivityType, EventArchetype, EventPlanProposal, ModuleDecision } from '../../../types/eventComposition'
 import { BilingualField, Field, creationInput, localText } from './CreationFields'
-import { CreationProgrammeEditor, CreationRosterEditor, CreationVenueEditor } from './CreationArrangementEditors'
-import { TileButtons, ModuleDraftBoundary, ToolTileDeck, ToolTileGroup, EventToolSection, focusTilePanel } from '../ArrangementTileDeck'
+import { CreationProgrammeEditor, CreationRosterEditor, CreationVenueEditor, creationRosterModule } from './CreationArrangementEditors'
+import { TileButtons, ModuleDraftBoundary, ToolTileDeck, ToolTileGroup, EventToolSection, focusTilePanel, revealArrangementControl } from '../ArrangementTileDeck'
 import { Users, UserRoundCheck, CalendarCheck, ShieldCheck, Baby, Music, MapPin, Tent, Bus, Utensils, Wallet, MessagesSquare, ArrowLeft } from 'lucide-react'
 import CreationArrangementSummary from './CreationArrangementSummary'
-import { validateCreationArrangements } from '../../../utils/eventCreationArrangements'
+import { creationSlots, validateCreationArrangements } from '../../../utils/eventCreationArrangements'
 export { creationInput, localText } from './CreationFields'
 import { ArrangementRoles } from '../EventArrangementRoles'
 import { arrangementGroups, creationModuleCodes, confirmArrangementModule, invalidateArrangementConfirmation, selectArrangementModule, creationSettings, selectCreationTemplate, type CreationDraft } from '../../../utils/eventCreationDraft'
@@ -125,14 +125,14 @@ function ArrangementModule({ draft, setDraft, zh, decision, current, type, group
   const selected = required || (draft.moduleOverrides[decision.moduleCode] ?? decision.status !== 'inactive')
   const editorProps = { draft, setDraft, zh, type, groupId }
   return <ToolTileDeck zh={zh}>
-    <EventToolSection title={zh ? '设置与职责' : 'Settings and responsibilities'} summary={selected ? (zh ? '已启用' : 'Enabled') : (zh ? '未启用' : 'Not enabled')}>
+    <EventToolSection defaultOpen title={zh ? '设置与职责' : 'Settings and responsibilities'} summary={selected ? (zh ? '已启用' : 'Enabled') : (zh ? '未启用' : 'Not enabled')}>
       <fieldset disabled={!current} className="space-y-3"><div className="flex flex-wrap items-center gap-3"><span className="text-sm font-semibold">{zh ? '本次活动需要此功能吗？' : 'Does this event need this tool?'}</span>{required ? <AppBadge variant="warning">{zh ? '必需' : 'Required'}</AppBadge> : <div role="group" aria-label={`${localText(decision.label, zh)} · ${zh ? '是否启用' : 'Enable'}`} className="flex gap-2">{[true, false].map(value => <button key={String(value)} type="button" disabled={!current || (saved && decision.moduleCode === 'SAFETY.RAM' && ramDirty)} aria-pressed={selected === value} className={choice(selected === value)} onClick={() => setDraft(previous => selectArrangementModule(previous, decision.moduleCode, value))}>{value ? (zh ? '是' : 'Yes') : (zh ? '否' : 'No')}</button>)}</div>}</div>
       <p className="text-sm text-[#66766f]">{moduleReason(decision, zh)}</p><EventCapabilityNotice code={decision.moduleCode} zh={zh} />
       <div hidden={!selected}>{rolePanels?.[decision.moduleCode]}</div></fieldset>
     </EventToolSection>
     <ToolTileGroup enabled={selected}><fieldset disabled={readOnly} className="min-w-0">
-      {decision.moduleCode === 'SAFETY.RAM' ? ramPanel : saved ? modulePanels?.[decision.moduleCode] ?? (!planningOnly ? <p className="text-sm text-[#66766f]">{zh ? '保存活动安排后，可配置有权限的功能。' : 'Save arrangements to configure tools available to your role.'}</p> : null) : decision.moduleCode === 'PROGRAM.PRODUCTION' ? <EventToolSection title={zh ? '节目安排' : 'Programme plan'} summary={`${draft.arrangements?.sessions?.length || 0}`}><CreationProgrammeEditor {...editorProps} /></EventToolSection> : decision.moduleCode === 'PLACE.RESOURCE' ? <EventToolSection title={zh ? '场地安排' : 'Venue plan'} summary={`${draft.arrangements?.venues?.length || 0}`}><CreationVenueEditor {...editorProps} /></EventToolSection> : null}
-      {!saved && activeModules.includes('SERVICE.ROSTER') ? <EventToolSection title={zh ? '岗位轮班' : 'Role shifts'}><CreationRosterEditor {...editorProps} moduleCode={decision.moduleCode} activeModules={activeModules} /></EventToolSection> : null}
+      {decision.moduleCode === 'SAFETY.RAM' ? ramPanel : saved ? modulePanels?.[decision.moduleCode] ?? (!planningOnly ? <p className="text-sm text-[#66766f]">{zh ? '保存活动安排后，可配置有权限的功能。' : 'Save arrangements to configure tools available to your role.'}</p> : null) : decision.moduleCode === 'PROGRAM.PRODUCTION' ? <EventToolSection title={zh ? '节目安排' : 'Programme plan'} summary={zh ? `${draft.arrangements?.sessions?.length || 0} 个环节 · ${draft.arrangements?.sessions?.reduce((count, session) => count + session.items.length, 0) || 0} 个节目` : `${draft.arrangements?.sessions?.length || 0} sessions · ${draft.arrangements?.sessions?.reduce((count, session) => count + session.items.length, 0) || 0} items`}><CreationProgrammeEditor {...editorProps} /></EventToolSection> : decision.moduleCode === 'PLACE.RESOURCE' ? <EventToolSection title={zh ? '场地安排' : 'Venue plan'} summary={zh ? `${draft.arrangements?.venues?.length || 0} 项场地安排` : `${draft.arrangements?.venues?.length || 0} venue bookings`}><CreationVenueEditor {...editorProps} /></EventToolSection> : null}
+      {!saved && activeModules.includes('SERVICE.ROSTER') ? <EventToolSection title={zh ? '岗位轮班' : 'Role shifts'} summary={zh ? `${creationSlots(draft, type).filter(slot => creationRosterModule(slot.roleCode, activeModules) === decision.moduleCode).length} 个岗位` : `${creationSlots(draft, type).filter(slot => creationRosterModule(slot.roleCode, activeModules) === decision.moduleCode).length} role slots`}><CreationRosterEditor {...editorProps} moduleCode={decision.moduleCode} activeModules={activeModules} /></EventToolSection> : null}
     </fieldset></ToolTileGroup>
   </ToolTileDeck>
 }
@@ -170,10 +170,10 @@ export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, 
   const confirm = (code: string, checked: boolean) => {
     if (checked && proposal) {
       const error = !saved ? validateCreationArrangements(draft, type, proposal, zh, code) : ''
-      if (error) { setConfirmationError(error); return }
       const controls = panelsRef.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input,select,textarea')
-      const invalid = Array.from(controls || []).find(control => !control.disabled && !control.closest('[hidden]') && !control.checkValidity())
-      if (!saved && invalid) { invalid.reportValidity(); return }
+      const invalid = Array.from(controls || []).find(control => !control.disabled && !control.closest('[hidden]') && !control.validity.valid)
+      if (error) { setConfirmationError(error); if (invalid) revealArrangementControl(invalid); return }
+      if (!saved && invalid) { revealArrangementControl(invalid); invalid.reportValidity(); return }
     }
     setConfirmationError(''); setDraft(previous => confirmArrangementModule(previous, code, checked, decisions))
   }

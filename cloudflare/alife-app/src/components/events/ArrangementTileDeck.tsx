@@ -1,5 +1,5 @@
-import { Children, isValidElement, createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
-import { ArrowLeft, CheckCircle2, Circle, LayoutGrid, Pencil } from 'lucide-react'
+import { Children, isValidElement, createContext, useCallback, useContext, useEffect, useId, useState, type ComponentProps, type ReactNode } from 'react'
+import { ChevronDown, CheckCircle2, Circle, LayoutGrid, Pencil } from 'lucide-react'
 import AppSectionCard from '../layout/AppSectionCard'
 import AppBadge from '../layout/AppBadge'
 
@@ -34,36 +34,10 @@ export function useArrangementFormDraft(value: unknown, ready = true) {
   return <T,>(result: T): T => { setBaseline(serialized); return result }
 }
 
-const shortWorkTitle = (title: string) => ({
-  'Settings and responsibilities': 'Settings & roles', 'Activities and conditions': 'Conditions',
-  'Personal confirmation and independent review': 'Personal review', 'Version and signature history': 'History',
-  'Programme and production': 'Programme', 'Venue and resources': 'Venues',
-  'Collaborators and historical assignments': 'Collaborators', 'Tasks & readiness': 'Tasks',
-  '本人确认与独立审核': '本人确认与审核', '版本与签署历史': '版本历史',
-}[title] || title)
-
-type Entry = { id: string; title: string; summary?: string }
-type Deck = { active: string | null; count: number; register: (entry: Entry) => void; unregister: (id: string) => void; zh: boolean }
-const ToolDeckContext = createContext<Deck | null>(null)
-const ToolVisibility = createContext(true)
-export function ToolTileGroup({ enabled, children }: { enabled: boolean; children: ReactNode }) { return <ToolVisibility.Provider value={enabled}><div hidden={!enabled}>{children}</div></ToolVisibility.Provider> }
+const ToolDeckContext = createContext<boolean | null>(null)
+export function ToolTileGroup({ enabled, children }: { enabled: boolean; children: ReactNode }) { return <div hidden={!enabled}>{children}</div> }
 export function ToolTileDeck({ children, zh }: { children: ReactNode; zh: boolean }) {
-  const [entries, setEntries] = useState<Entry[]>([]), [active, setActive] = useState<string | null>(null)
-  const nav = useRef<HTMLDivElement>(null)
-  const register = useCallback((entry: Entry) => setEntries(old => {
-    const found = old.find(item => item.id === entry.id)
-    return found?.title === entry.title && found?.summary === entry.summary ? old : found ? old.map(item => item.id === entry.id ? entry : item) : [...old, entry]
-  }), [])
-  const unregister = useCallback((id: string) => setEntries(old => old.some(item => item.id === id) ? old.filter(item => item.id !== id) : old), [])
-  const effective = entries.length === 1 ? entries[0].id : entries.some(item => item.id === active) ? active : null
-  const context = useMemo(() => ({ active: effective, count: entries.length, register, unregister, zh }), [effective, entries.length, register, unregister, zh])
-  const select = (id: string) => {
-    const next = active === id ? null : id; setActive(next)
-    requestAnimationFrame(() => next ? focusTilePanel(document.getElementById(`tile-heading-${next}`)) : nav.current?.querySelector<HTMLButtonElement>(`[data-arrangement-tile="${id}"]`)?.focus())
-  }
-  return <ToolDeckContext.Provider value={context}><div className="arrangement-tools" data-tool-deck>
-    {entries.length > 1 ? <div ref={nav}><TileButtons items={entries.map(entry => ({ ...entry, shortTitle: shortWorkTitle(entry.title), status: entry.summary }))} active={effective} onSelect={select} label={zh ? '模块内工作区' : 'Module work areas'} /></div> : null}
-    {entries.length > 1 && effective ? <button type="button" className="my-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#176b5a]" onClick={() => select(effective!)}><ArrowLeft size={16} />{zh ? '返回模块内总览' : 'Back to work areas'}</button> : null}
+  return <ToolDeckContext.Provider value={zh}><div className="arrangement-tools space-y-3" data-tool-deck>
     {children}
   </div></ToolDeckContext.Provider>
 }
@@ -75,17 +49,32 @@ function badgeSummary(node: ReactNode): string | undefined {
     if (summary) return summary
   }
 }
-// Opt-in adapter for Event editors only. Cards inside a selected section remain ordinary content.
-export function EventToolSection({ summary, ...props }: ComponentProps<typeof AppSectionCard> & { summary?: string }) {
-  const deck = useContext(ToolDeckContext), id = useId().replace(/:/g, '')
-  const available = useContext(ToolVisibility)
-  const register = deck?.register, unregister = deck?.unregister
-  const status = summary ?? badgeSummary(props.action)
-  useEffect(() => { if (available && props.title) register?.({ id, title: props.title, summary: status }); else unregister?.(id) }, [register, unregister, id, props.title, status, available])
-  useEffect(() => () => unregister?.(id), [unregister, id])
-  if (!deck || !props.title) return <AppSectionCard {...props} />
-  return <section id={`tile-panel-${id}`} hidden={deck.active !== id} data-tool-panel={id} className="arrangement-tool-panel">
-    <header className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-[#2f4b42]/15 pb-3"><div className="min-w-0"><h3 id={`tile-heading-${id}`} tabIndex={-1} className="scroll-mt-24 text-lg font-bold outline-none">{props.title}</h3>{props.subtitle ? <p className="mt-1 text-sm text-[#66766f]">{props.subtitle}</p> : null}</div>{props.action}</header>
-    <ToolDeckContext.Provider value={null}>{props.children}</ToolDeckContext.Provider>
-  </section>
+// Native disclosure keeps drafts mounted, including nested rows, and stays operable in disabled fieldsets.
+export function revealArrangementControl(control: HTMLElement) {
+  let parent = control.parentElement
+  while (parent) {
+    if (parent instanceof HTMLDetailsElement) parent.open = true
+    parent = parent.parentElement
+  }
+  requestAnimationFrame(() => control.focus())
+}
+
+// Opt-in adapter for preparation only. Repeated cards inside a detail remain ordinary content.
+export function EventToolSection({ summary, defaultOpen = false, ...props }: ComponentProps<typeof AppSectionCard> & { summary?: string; defaultOpen?: boolean }) {
+  const zh = useContext(ToolDeckContext), id = useId()
+  const [open, setOpen] = useState(defaultOpen)
+  if (zh === null || !props.title) return <AppSectionCard {...props} />
+  const badge = badgeSummary(props.action)
+  const readinessLabels: Record<string, string> = zh ? { ready: '已就绪', notReady: '待准备', incomplete: '待补充', notApplicable: '不适用', blocked: '有待处理事项' } : { ready: 'Ready', notReady: 'Not ready', incomplete: 'Incomplete', notApplicable: 'Not applicable', blocked: 'Blocked' }
+  const status = summary ?? (badge ? readinessLabels[badge] || badge : (zh ? '查看与配置' : 'Review and configure'))
+  return <details open={open} onToggle={event => { if (event.target === event.currentTarget) setOpen(event.currentTarget.open) }} data-tool-panel className="arrangement-tool-card" onInvalidCapture={event => revealArrangementControl(event.target as HTMLElement)}>
+    <summary aria-controls={id} className="arrangement-tool-summary">
+      <span className="min-w-0 flex-1"><span className="block font-bold text-[#18332d]">{props.title}</span><span className="mt-1 block text-sm font-normal text-[#66766f]" data-tool-summary>{status}</span></span>
+      <ChevronDown size={20} className="arrangement-tool-chevron shrink-0 text-[#176b5a]" aria-hidden="true" />
+    </summary>
+    <div id={id} className="arrangement-tool-detail">
+      {props.subtitle || props.action ? <div className="mb-4 flex flex-wrap items-start justify-between gap-3">{props.subtitle ? <p className="min-w-0 flex-1 text-sm text-[#66766f]">{props.subtitle}</p> : null}{props.action}</div> : null}
+      <ToolDeckContext.Provider value={null}>{props.children}</ToolDeckContext.Provider>
+    </div>
+  </details>
 }

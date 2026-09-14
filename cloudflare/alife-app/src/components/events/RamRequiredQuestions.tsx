@@ -11,7 +11,7 @@ export default function RamRequiredQuestions({ draft, update, policy, editable, 
   const [busy, setBusy] = useState(''), [error, setError] = useState('')
   const total = draft.activities.reduce((count, a) => count + (policy?.questions.filter(q => q.activityType === 'generic' || q.activityType === a.type).length ?? 0), 0)
   const completed = draft.activities.reduce((count, a) => count + (policy?.questions.filter(q => q.activityType === 'generic' || q.activityType === a.type).filter(q => { const value = draft.answers.find(x => x.activityId === a.id && x.questionCode === ramQuestionKey(q)); return value && text(value.notApplicable ? value.reason : value.answer, zh).trim() }).length ?? 0), 0)
-  return <EventToolSection summary={`${completed}/${total}`} title={zh ? '适用必答题' : 'Required questions'}>
+  return <EventToolSection summary={policy ? (zh ? `${completed} / ${total} 项已作答` : `${completed} / ${total} questions answered`) : (zh ? '题库尚未就绪' : 'Question library not ready')} title={zh ? '适用必答题' : 'Required questions'}>
     {!policy ? <p>{zh ? '教会政策发布后显示必答题；现在可保存草稿。' : 'Required questions appear after church policy publication. Drafts can still be saved.'}</p> : draft.activities.map(a => <section key={a.id} className="mb-6 space-y-3"><h3 className="font-bold">{text(a.name, zh)}</h3>{policy.questions.filter(q => q.activityType === 'generic' || q.activityType === a.type).map(q => {
       const key = ramQuestionKey(q), helpKey = `${a.id}:${key}:${zh}`
       const answer = draft.answers.find(r => r.activityId === a.id && r.questionCode === key) || { activityId: a.id, questionCode: key, answer: ramText(), notApplicable: false, reason: ramText() }

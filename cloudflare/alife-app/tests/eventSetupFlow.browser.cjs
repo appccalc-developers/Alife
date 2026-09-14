@@ -15,13 +15,13 @@ const catalogue = [{ code: 'simple-social', version: 1, name: text('Simple socia
 const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag: '"plan-new"', archetypeCode: 'simple-social', activityTypeCode: 'shared-meal', facts: { items: [], sourceHash: 'facts' }, roleRequirements: [], workflowContributions: [], navigation: [], warnings: [], readiness: { status: 'notReady', blockers: [], warnings: [] }, moduleDecisions: [{ moduleCode: 'TEAM.WORK', label: text('Team and tasks', '团队与任务'), status: 'required', reasonCodes: [], dependencies: [], dataClasses: [], integrationKey: '', surfaceKey: 'team.work', navigationOrder: 1 }] };
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true }); let lastPage = null;
   try {
     for (const language of (process.env.ALIFE_QA_LANGUAGES || 'zh,en').split(',')) for (const width of (process.env.ALIFE_QA_WIDTHS || '320,375,768,1280').split(',').map(Number)) {
       const zh = language === 'zh', t = (en, cn) => zh ? cn : en;
-      const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce', ...(timezoneCheck ? { timezoneId: process.env.ALIFE_QA_DEVICE_ZONE || 'America/Los_Angeles' } : {}) });
+      const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce', serviceWorkers: 'block', ...(timezoneCheck ? { timezoneId: process.env.ALIFE_QA_DEVICE_ZONE || 'America/Los_Angeles' } : {}) });
       await context.addInitScript(language => localStorage.setItem('alife.language', language), language);
-      const page = await context.newPage(); page.setDefaultTimeout(15000);
+      const page = await context.newPage(); lastPage = page; page.setDefaultTimeout(30000);
       const errors = [], creates = [], posterSaves = [], publishes = [], uploads = [], ai = [], detailSaves = [], acceptedPlans = [], taskSaves = [];
       let savedPlan = structuredClone(proposal), planRevision = 1;
       for (const [moduleCode, en, cn] of [['PEOPLE.REGISTRATION', 'Invitations and registration', '邀请与报名'], ['SERVICE.ROSTER', 'Roles and shifts', '岗位与轮班'], ['SAFETY.RAM', 'RAM and safety', 'RAM与安全'], ['SAFEGUARDING.CHILD', 'Child safeguarding', '儿童保护']]) {
@@ -41,12 +41,12 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         return selected === undefined || (selected && item.status === 'required') ? item : { ...item, status: selected ? 'selected' : 'inactive' };
       }) });
       savedPlan.moduleDecisions.push({ moduleCode: 'COMMS.FOLLOWUP', label: text('Communications', '活动沟通'), status: 'inactive', reasonCodes: [], dependencies: [], dataClasses: [], integrationKey: '', surfaceKey: 'comms.followup', navigationOrder: 2 });
-      let reads = 0, approved = false, submitted = false, returned = false, reopen = null, published = false, conflict = width === 1280;
+      let viewOnly = false, enrollmentFailure = false; let reads = 0, approved = false, submitted = false, returned = false, reopen = null, published = false, conflict = width === 1280;
       let info = { eventId: 'qa-event', groupId: 'qa-group', brief: { title: text('Community meal', '社区聚餐'), description: text('A meal together', '一同聚餐'), purpose: text('', ''), locationName: text('Hall', '礼堂'), startDate: '2026-10-04T10:00:00Z', endDate: '2026-10-04T12:00:00Z' }, posterImageUrl: null, visibility: width === 320 ? 'groupVisible' : width === 768 ? 'churchVisible' : 'public', registrationMode: 'none', eTag: '"poster-v1"', canManage: true };
       let ramAssessment = null; const ramRevision = { id: 'ram-version', version: 1, schemaVersion: 2, policyVersionId: null, contentHash: 'fixture-hash', residualLevel: 'Incomplete', authorMemberId: 'qa', onsiteMemberId: null, createdUtc: '2026-09-12T00:00:00Z' };
       let updatedUtc = '2026-09-11T00:00:00Z';
       const record = () => ({ id: 'qa-event', groupId: 'qa-group', accountableOwnerMemberId: 'qa', titleEn: info.brief.title.en, titleZh: info.brief.title.zh, startDate: apiTime(info.brief.startDate), endDate: apiTime(info.brief.endDate), updatedUtc, visibility: info.visibility, contactProfileIds: [], eventDataJson: JSON.stringify({ ...info.brief, ...(timezoneCheck ? { timeZone: 'Australia/Perth' } : {}), maxCapacity: 0, visibility: info.visibility, capacityUnit: 'People', currency: 'NZD', hardConstraints: [], optionalActivities: [], galleryUrls: [], privateContact: 'preserved' }) });
-      const preparation = () => ({ eventId: 'qa-event', isFrozen: approved, isApproved: approved, canManage: true, canEdit: !approved, approvedPackageId: approved ? 'qa-package' : null, reopenRequest: reopen });
+      const preparation = () => ({ eventId: 'qa-event', isFrozen: approved, isApproved: approved, canManage: true, canEdit: !approved && !viewOnly, approvedPackageId: approved ? 'qa-package' : null, reopenRequest: reopen });
       const item = () => ({ id: 'qa-package', eventId: 'qa-event', scopeType: 'event', coverageMode: 'explicitOccurrences', coveredOccurrenceIds: [], version: 1, eventPlanVersion: 1, packageSchemaVersion: '1.0', governancePolicyVersion: 'qa-policy', governanceTier: assessment.tier, status: approved ? 'approved' : returned ? 'returnedForAmendment' : submitted ? 'submitted' : 'draft', approvalValidityStatus: approved ? 'active' : 'notDecided', contentHash: 'qa-content-hash', sourceVectorHash: 'qa-source', manifest: { eventTitle: info.brief.title, legacyTransition: 'formalPackageRequired', modules: [], blockers: [], sections: [] }, sourceReferences: [], decisions: [], conditions: [], generatedUtc: '2026-09-11T00:00:00Z', eTag: '"package-v1"' });
       const lifecycle = () => ({ eventId: 'qa-event', publicationStatus: published ? 'published' : 'draft', publishGateSatisfied: approved, gateMode: 'enforced', reasonCodes: [], eTag: '"lifecycle-v1"', registrationStatus: 'closed', gates: [{ gate: 'publish', enforcementMode: 'enforced', allowed: approved, requirementsSatisfied: approved, blockers: approved ? [] : [{ code: 'approvalRequired', message: text('Formal approval is required.', '需要正式审批。'), responsibleRole: 'approver', nextAction: 'approve' }], warnings: [] }] });
       page.on('pageerror', error => { errors.push(error.message); console.error('PAGE ERROR', error.message) });
@@ -56,7 +56,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         const req = route.request(), pathname = new URL(req.url()).pathname; let data = [], status = 200;
         if (req.method() === 'GET') reads++;
         if (pathname === '/api/me') data = { id: 'qa', displayName: 'QA Leader', isGuest: false, isRegistered: true, platformRole: 'superadmin', permissions: ['admin.access'], memberships: [] };
-        else if (pathname === '/api/event-archetypes') data = catalogue;
+        else if (pathname.endsWith('/enrollments') && enrollmentFailure) { status = 503; data = { message: 'Enrollment temporarily unavailable' }; } else if (pathname === '/api/event-archetypes') data = catalogue;
         else if (pathname.endsWith('/compose') && !pathname.endsWith('/plan/recompose')) data = proposal;
         else if (pathname === '/api/groups/qa-group/events' && req.method() === 'POST') { creates.push(req.postDataJSON()); data = { id: 'qa-event', groupId: 'qa-group' }; }
         else if (pathname === '/api/groups/qa-group/events' && req.method() === 'GET') data = [record()];
@@ -72,7 +72,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
           else data = rosterGroups;
         }
         else if (pathname.endsWith('/roster/page')) data = { page: 1, pageSize: 4, total: 1, timeZone: 'Australia/Perth', canManage: true, canConfigure: true, isRecurring: false, defaultsVersion: null, defaultsETag: '"defaults-0"', groups: rosterGroups, people: [{ id: 'qa', displayName: 'QA Leader' }, { id: 'qa2', displayName: 'QA Helper' }], occurrences: [{ id: 'qa-occurrence', startUtc: arrangements.startUtc, endUtc: arrangements.endUtc, roster: { eventId: 'qa-event', occurrenceId: 'qa-occurrence', eTag: `"roster-${rosterRevision}"`, canManage: true, readinessBlockers: [], slots: [] } }] };
-        else if (pathname.endsWith('/roster')) data = { eventId: 'qa-event', occurrenceId: 'qa-occurrence', eTag: `"roster-${rosterRevision}"`, canManage: true, readinessBlockers: [], slots: arrangements.serviceSlots.map(row => ({ ...row.details, id: row.id, startUtc: arrangements.startUtc, endUtc: arrangements.endUtc, confirmedCount: 0, assignments: rosterAssignments, moduleCode: rosterGroups.find(g => g.roleCode === row.details.roleCode)?.moduleCode || 'SERVICE.ROSTER', candidateMemberIds: rosterGroups.find(g => g.roleCode === row.details.roleCode)?.memberIds || [] })) };
+        else if (pathname.endsWith('/roster')) data = { eventId: 'qa-event', occurrenceId: 'qa-occurrence', eTag: `"roster-${rosterRevision}"`, canManage: true, canConfigure: true, readinessBlockers: [], slots: arrangements.serviceSlots.map(row => ({ ...row.details, id: row.id, startUtc: arrangements.startUtc, endUtc: arrangements.endUtc, confirmedCount: 0, assignments: rosterAssignments, moduleCode: rosterGroups.find(g => g.roleCode === row.details.roleCode)?.moduleCode || 'SERVICE.ROSTER', candidateMemberIds: rosterGroups.find(g => g.roleCode === row.details.roleCode)?.memberIds || [] })) };
         else if (pathname.endsWith('/venues')) data = { managingGroupId: 'qa-group', venues: [venue], canManage: true };
         else if (pathname.endsWith('/occurrences')) data = [{ id: 'qa-occurrence', eventId: 'qa-event', startUtc: arrangements.startUtc, endUtc: arrangements.endUtc, status: 'scheduled' }, ...(width === 1280 ? [{ id: 'qa-occurrence-2', eventId: 'qa-event', startUtc: '2026-10-11T10:00:00Z', endUtc: '2026-10-11T12:00:00Z', status: 'scheduled' }] : [])];
         else if (pathname.endsWith('/preparation/arrangements')) data = new URL(req.url()).searchParams.get('occurrenceId') === 'qa-occurrence-2' ? { ...arrangements, occurrenceId: 'qa-occurrence-2', startUtc: '2026-10-11T10:00:00Z', endUtc: '2026-10-11T12:00:00Z' } : arrangements;
@@ -117,8 +117,8 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         await route.fulfill({ status, json: data });
       });
       const tile = code => page.locator(`[data-arrangement-tile="${code}"]`);
-      const open = async code => { if (!await tile(code).isVisible()) await page.getByRole('button', { name: /Show all modules|显示所有模块/ }).click(); await tile(code).waitFor(); if (await tile(code).getAttribute('aria-expanded') !== 'true') await tile(code).click(); return page.locator(`[data-module-editor="${code}"]`); };
-      const work = async (root, en, cn) => { const button = root.getByRole('button', { name: t(en,cn), exact: true }); const heading = root.locator('[data-tool-panel]:not([hidden])').getByRole('heading', { name: t(en,cn), exact: true }).first(); await button.or(heading).first().waitFor(); if (!await heading.isVisible()) await button.click({ force: true }); await heading.waitFor({ state: 'visible' }); };
+      const open = async code => { await page.waitForFunction(() => { const overview = document.querySelector('[data-arrangement-overview]'); return overview && !overview.closest('fieldset:disabled') && !overview.querySelector(':scope > [role="status"]')?.textContent?.trim(); }); if (!await tile(code).isVisible()) await page.getByRole('button', { name: /Show all modules|显示所有模块/ }).click(); await tile(code).waitFor(); const selecting = await tile(code).getAttribute('aria-expanded') !== 'true'; if (selecting) await tile(code).click(); const root = page.locator(`[data-module-editor="${code}"]`); await root.waitFor({ state: 'visible' }); if (selecting) await page.waitForFunction(code => document.activeElement === document.getElementById(`module-heading-${code}`), code); return root; };
+      const work = async (root, en, cn) => { const summary = root.locator('summary').filter({ has: page.getByText(t(en, cn), { exact: true }) }); await summary.waitFor(); const card = summary.locator('..'); if (await card.getAttribute('open') === null) await summary.click(); return card; };
 
       const settings = async code => { const root = await open(code); await work(root,'Settings and responsibilities','设置与职责'); return root; };
       const click = (en, cn) => page.getByRole('button', { name: t(en, cn), exact: true }).click();
@@ -133,12 +133,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         } else await page.getByText(t('Time updated in the event time zone.', '已按活动时区更新时间。'), { exact: true }).last().waitFor();
       };
       const clickWhenEnabled = async button => {
-        await button.waitFor({ state: 'visible' });
-        for (let attempt = 0; attempt < 150; attempt += 1) {
-          if (await button.isEnabled()) { await button.click({ force: true }); return; }
-          await page.waitForTimeout(100);
-        }
-        throw new Error('Timed out waiting for arrangement recomposition to finish.');
+        await button.click();
       };
       const waitForDetailsAutosave = async () => {
         const before = detailSaves.length;
@@ -221,6 +216,32 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         console.log(`PASS ${language} ${width}: ${aiTimezoneCheck ? 'AI 08:00–16:00, invalid/stale response retention, creation and saved editing' : '10:00–20:00'}, save/reload, offsetless SQL timestamps, ${process.env.ALIFE_QA_DEVICE_ZONE || 'America/Los_Angeles'}, no repeat writes`);
         await context.close(); continue;
       }
+      viewOnly = true; enrollmentFailure = true;
+      await page.reload();
+      const readOnlyTeam = await open('TEAM.WORK');
+      assert.equal(await readOnlyTeam.locator('details[data-tool-panel][open]').count(), 1);
+      const readOnlySettings = await work(readOnlyTeam, 'Settings and responsibilities', '设置与职责');
+      assert.equal(await readOnlySettings.getByRole('button', { name: t('Yes', '是'), exact: true }).isDisabled(), true);
+      await readOnlySettings.locator(':scope > summary').press('Enter');
+      assert.equal(await readOnlySettings.getAttribute('open'), null, 'read-only cards can collapse');
+      await readOnlySettings.locator(':scope > summary').press('Space');
+      assert.notEqual(await readOnlySettings.getAttribute('open'), null, 'read-only cards can expand');
+      const readOnlyTasks = await work(readOnlyTeam, 'Tasks & readiness', '任務與準備度');
+      assert.equal(await readOnlyTasks.getByRole('button', { name: t('Add task', '新增任務'), exact: true }).isDisabled(), true);
+      await readOnlyTasks.locator(':scope > summary').press('Enter');
+      assert.equal(await readOnlyTasks.getAttribute('open'), null, 'disclosure remains usable inside a disabled business fieldset');
+      await readOnlyTasks.locator(':scope > summary').press('Space');
+      assert.notEqual(await readOnlyTasks.getAttribute('open'), null);
+      viewOnly = false; await page.reload();
+      const failedEnrollment = await open('PEOPLE.REGISTRATION');
+      const failedSummary = failedEnrollment.locator('summary').filter({ hasText: /Loading failed|读取失败/ });
+      await failedSummary.waitFor();
+      assert.equal(await failedSummary.locator('..').getAttribute('open'), null, 'async error card starts closed');
+      await failedSummary.click(); enrollmentFailure = false;
+      await failedEnrollment.getByRole('button', { name: t('Retry', '重试'), exact: true }).click();
+      await failedSummary.waitFor({ state: 'detached' });
+      assert.equal(detailSaves.length, 0); assert.equal(acceptedPlans.length, 0); assert.equal(taskSaves.length, 0);
+      await page.reload();
       if (process.env.ALIFE_QA_DETAILS_ONLY === '1') {
         const card = tile('EVENT.DETAILS');
         assert.ok((await card.innerText()).includes('2026-10-04'));
@@ -251,6 +272,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       const team = page.getByRole('region', { name: t('Team and tasks', '团队与任务'), exact: true });
       const rosterModule = page.getByRole('region', { name: t('Roles and shifts', '岗位与轮班'), exact: true });
       await open('SERVICE.ROSTER'); await work(rosterModule, 'Role shifts', '岗位轮班');
+      await rosterModule.getByText(t('Position settings and personal availability by date', '单场次岗位设置与个人可用性'), { exact: true }).click();
       const groupEditor = rosterModule.locator('[data-roster-candidate-group]');
       await groupEditor.locator('summary').click();
 
@@ -265,6 +287,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await groupEditor.getByRole('button', { name: t('Save role candidate group', '保存岗位候选组'), exact: true }).click();
       const registration = page.getByRole('region', { name: t('Invitations and registration', '邀请与报名'), exact: true });
       await open('PEOPLE.REGISTRATION'); await work(registration, 'Role shifts', '岗位轮班');
+      await registration.getByText(t('Position settings and personal availability by date', '单场次岗位设置与个人可用性'), { exact: true }).click();
       await registration.locator('[data-roster-candidate-group]').waitFor();
       assert.equal(await rosterModule.locator('[data-roster-candidate-group]').count(), 0);
       assert.deepEqual(rosterGroups[0].memberIds, ['qa2','qa']);
@@ -347,9 +370,9 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       const originallyRequired = savedPlan.moduleDecisions.filter(item => item.status === 'required');
       assert.equal(originallyRequired.length, 5);
       for (const item of originallyRequired) {
-        await settings(item.moduleCode); const group = toolGroup(item);
+        const selectionSaves = acceptedPlans.length; await settings(item.moduleCode); const group = toolGroup(item);
         assert.equal(await group.getByRole('button', { name: t('Yes', '是'), exact: true }).getAttribute('aria-pressed'), 'true');
-        await clickWhenEnabled(group.getByRole('button', { name: t('No', '否'), exact: true }));
+        await clickWhenEnabled(group.getByRole('button', { name: t('No', '否'), exact: true })); await waitForArrangementAutosave(selectionSaves);
       }
       await settings('COMMS.FOLLOWUP'); await clickWhenEnabled(toolGroup(savedPlan.moduleDecisions.find(item => item.moduleCode === 'COMMS.FOLLOWUP')).getByRole('button', { name: t('Yes', '是'), exact: true }));
       const firstAccepted = await waitForArrangementAutosave(firstSaveCount);
@@ -365,10 +388,10 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       const secondSaveCount = acceptedPlans.length;
       await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=arrangements`);
       for (const item of originallyRequired) {
-        await settings(item.moduleCode); const group = toolGroup(item);
+        const selectionSaves = acceptedPlans.length; await settings(item.moduleCode); const group = toolGroup(item);
         await group.waitFor();
         assert.equal(await group.getByRole('button', { name: t('No', '否'), exact: true }).getAttribute('aria-pressed'), 'true');
-        await clickWhenEnabled(group.getByRole('button', { name: t('Yes', '是'), exact: true }));
+        await clickWhenEnabled(group.getByRole('button', { name: t('Yes', '是'), exact: true })); await waitForArrangementAutosave(selectionSaves);
       }
       await checkLayout('optional-tools');
       const secondAccepted = await waitForArrangementAutosave(secondSaveCount);
@@ -387,10 +410,12 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await settings('SAFETY.RAM'); const confirmed = ram.getByRole('checkbox', { name: t('Details confirmed','填写已确认'), exact: true });
       assert.equal(await confirmed.isChecked(), false);
       const confirmationSaveCount = acceptedPlans.length;
-      await confirmed.check({ force: true });
+      await confirmed.check();
       await waitForArrangementAutosave(confirmationSaveCount);
       assert.equal(acceptedPlans.at(-1).body.composition.moduleConfirmations['SAFETY.RAM'], true);
       await page.reload(); await settings('SAFETY.RAM'); await confirmed.waitFor(); assert.equal(await confirmed.isChecked(), true);
+      const showAllForToggle = page.getByRole('button', { name: /Show all modules|显示所有模块/ });
+      if (await showAllForToggle.isVisible()) await showAllForToggle.click();
       await clickWhenEnabled(ram.getByRole('button', { name: t('No', '否'), exact: true }));
       assert.equal(await confirmed.isChecked(), false);
       assert.equal(await ram.getByRole('heading', { name: t('RAM author', 'RAM 填表人'), exact: true }).count(), 0);
@@ -398,7 +423,8 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       for (let attempt = 0; attempt < 150 && !await confirmed.isEnabled(); attempt += 1) await page.waitForTimeout(100);
       assert.equal(await confirmed.isEnabled(), true);
       assert.equal(await confirmed.isChecked(), false);
-      await confirmed.check({ force: true });
+      // Restoring the original enabled/confirmed selection can be a no-op, so it need not produce another save.
+      await confirmed.check();
       await stage(/Create|确认创建/);
       await page.getByRole('heading', { name: t('Module confirmation and responsible roles', '模块确认与负责人'), exact: true }).waitFor();
       await page.getByRole('region', { name: t('Roster coordinator', '同工排班协调人'), exact: true }).getByText('QA Leader', { exact: true }).waitFor();
@@ -473,5 +499,5 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       console.log(`PASS ${language} ${width}: repeated edits, return/amend/approve, frozen routes, post-approval poster, publication, reopen/reapprove, same event, language and layout`);
       await context.close();
     }
-  } finally { await browser.close(); }
+  } catch (error) { if (lastPage && !lastPage.isClosed()) { await lastPage.screenshot({ path: path.join(os.tmpdir(), 'alife-setup-failure.png') }); console.error(await lastPage.evaluate(() => ({ url: location.href, language: document.documentElement.lang, modules: Array.from(document.querySelectorAll('[data-module-editor]:not([hidden])')).map(el => ({ code: el.getAttribute('data-module-editor'), text: el.textContent.slice(0, 1500), cards: Array.from(el.querySelectorAll('[data-tool-panel]')).map(card => ({ open: card.open, summary: card.querySelector('summary')?.textContent })) })) }))); } throw error; } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exit(1); });
