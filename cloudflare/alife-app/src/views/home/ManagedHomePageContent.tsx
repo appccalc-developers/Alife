@@ -27,7 +27,7 @@ const ManagedHomePageContent = ({ copy, pageId, navigationPending, navigationFai
   const statusMessage = pageFailed ? copy.homepageUnavailable : copy.homepageEmpty
 
   return (
-    <main className={pageSectionsCanvasClass} aria-busy={pagePending || undefined}>
+    <main className={`${pageSectionsCanvasClass} bg-[linear-gradient(180deg,#f3eee4_0%,#faf7f0_36%,#f3eee4_100%)]`} aria-busy={pagePending || undefined}>
       {pagePending ? <PageViewSkeleton label={copy.homepageLoading} /> : null}
       {!pagePending && page ? (
         <PageContentRenderer
@@ -42,7 +42,7 @@ const ManagedHomePageContent = ({ copy, pageId, navigationPending, navigationFai
       ) : null}
       {!pagePending && !page ? (
         <section className={`${pageSectionsChromeClass} flex min-h-[70vh] items-center justify-center pb-16 pt-28`} role={pageFailed ? 'alert' : 'status'}>
-          <p className="rounded-xl border border-home-border/60 bg-white/70 px-5 py-4 text-center text-sm text-home-muted shadow-sm">
+          <p className="max-w-md rounded-2xl border border-home-border/55 bg-[#fffaf2]/90 px-7 py-6 text-center text-sm leading-7 text-home-muted shadow-[0_20px_60px_rgba(58,42,24,0.08)] backdrop-blur">
             {statusMessage}
           </p>
         </section>

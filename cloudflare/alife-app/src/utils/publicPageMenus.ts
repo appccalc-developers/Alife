@@ -1,10 +1,11 @@
-import type { PageSummaryDto } from '../types'
+import type { PagePrimaryMenuHomePlacement, PageSummaryDto } from '../types'
 import { localizeText } from './localizedText'
 
 export type PublicPrimaryMenuOption = {
   id: string
   label: string
   sortOrder: number
+  homePlacement?: PagePrimaryMenuHomePlacement | null
 }
 
 const stableOrder = (value: number | null | undefined) =>
@@ -64,17 +65,24 @@ export const publicPrimaryMenuOptions = (
       id,
       label,
       sortOrder: stableOrder(page.primaryMenuSortOrder),
+      homePlacement: page.primaryMenuHomePlacement,
     }
     const existing = byId.get(id)
     const candidateHasLabel = candidate.label !== id
     const existingHasLabel = existing?.label !== id
-
-    if (
-      !existing ||
+    const candidateWins = !existing ||
       candidate.sortOrder < existing.sortOrder ||
       (candidate.sortOrder === existing.sortOrder && candidateHasLabel && !existingHasLabel)
-    ) {
+
+    if (!existing) {
       byId.set(id, candidate)
+      return
+    }
+
+    const selected = candidateWins ? candidate : existing
+    const homePlacement = selected.homePlacement ?? existing.homePlacement ?? candidate.homePlacement
+    if (candidateWins || homePlacement !== existing.homePlacement) {
+      byId.set(id, { ...selected, homePlacement })
     }
   })
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, PlayCircle } from 'lucide-react'
+import { ArrowDown, ArrowRight, PlayCircle } from 'lucide-react'
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion'
 import { createSectionHandler, homepageHeroVideo, media } from './homeUtils'
 import type { HomeCopy } from './homeCopy'
@@ -60,7 +60,8 @@ const HeroSection = ({ copy }: Props) => {
         aria-hidden="true"
       />
       <motion.div style={{ opacity: heroGlow }} className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(0deg,rgba(30,18,10,0.78)_0%,rgba(30,18,10,0.2)_50%,rgba(30,18,10,0.12)_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-48 bg-gradient-to-t from-home-surface to-transparent" />
+      <div className="alife-landing-hero__bottom-gradient" aria-hidden="true" />
+      <div className="alife-landing-hero__bottom-blur" aria-hidden="true" />
 
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-6xl items-end px-5 pb-24 pt-24 sm:px-8 lg:px-10">
         <motion.div style={{ y: heroTextY }} className="max-w-xl">
@@ -95,6 +96,20 @@ const HeroSection = ({ copy }: Props) => {
           </motion.div>
         </motion.div>
       </div>
+
+      <a
+        href="#visit"
+        className="alife-landing-hero__explore"
+        onClick={(event) => scrollToSection(event, '#visit')}
+      >
+        <span className="alife-landing-hero__explore-copy">
+          <small>SCROLL TO DISCOVER</small>
+          <strong>{copy.heroScroll}</strong>
+        </span>
+        <span className="alife-landing-hero__explore-indicator" aria-hidden="true">
+          <ArrowDown className="h-5 w-5" />
+        </span>
+      </a>
     </section>
   )
 }

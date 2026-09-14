@@ -11,6 +11,10 @@ import {
   publicPrimaryMenuOptions,
 } from '../../utils/publicPageMenus'
 import {
+  isReviewedPagePresentation,
+  resolveReviewedPagePresentation,
+} from '../../utils/reviewedPagePresentation'
+import {
   PropertyPanel,
   SelectInput,
   patchLocalizedSectionHeader,
@@ -54,6 +58,11 @@ const ReviewedPageCarouselSection = ({
     [auth.language, publicPages],
   )
   const selectedMenu = primaryMenuOptions.find((option) => option.id === selectedPrimaryMenuId)
+  const configuredPresentation = section.styleJson.presentation
+  const presentation = resolveReviewedPagePresentation(
+    configuredPresentation,
+    selectedMenu?.homePlacement,
+  )
   const menuPages = useMemo(
     () => publicPagesForPrimaryMenu(publicPages, selectedPrimaryMenuId),
     [publicPages, selectedPrimaryMenuId],
@@ -91,6 +100,29 @@ const ReviewedPageCarouselSection = ({
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
   const updateHeader = (field: 'title' | 'subtitle', value: string) =>
     onUpdate?.(patchLocalizedSectionHeader(section, auth.language, field, value))
+  const updatePresentation = (value: string) => {
+    const styleJson = { ...section.styleJson }
+    if (value === 'auto') delete styleJson.presentation
+    else styleJson.presentation = value
+    onUpdate?.({ ...section, styleJson })
+  }
+  const presentationOptions = auth.language === 'zh'
+    ? [
+      { value: 'auto', label: '自动匹配内容（推荐）' },
+      { value: 'floatingLoop', label: '浮动社区' },
+      { value: 'editorialEvents', label: '活动编辑画册' },
+      { value: 'cinematicEvents', label: '沉浸活动画廊（兼容）' },
+      { value: 'eventStage', label: '分栏活动舞台（兼容）' },
+      { value: 'editorialIndex', label: '编辑目录' },
+    ]
+    : [
+      { value: 'auto', label: 'Auto-match content (recommended)' },
+      { value: 'floatingLoop', label: 'Floating community' },
+      { value: 'editorialEvents', label: 'Editorial event spread' },
+      { value: 'cinematicEvents', label: 'Cinematic event gallery (legacy)' },
+      { value: 'eventStage', label: 'Split event stage (legacy)' },
+      { value: 'editorialIndex', label: 'Editorial index' },
+    ]
   const renderProperties = () => (
     <PropertyPanel>
       <SelectInput
@@ -101,6 +133,14 @@ const ReviewedPageCarouselSection = ({
         disabled={disabled || isLoading || isError}
         options={selectOptions}
         onChange={(value) => updateContent({ primaryMenuId: value })}
+      />
+      <SelectInput
+        focusKey="reviewed-carousel-presentation"
+        label={auth.language === 'zh' ? '展示方式' : 'Presentation'}
+        value={isReviewedPagePresentation(configuredPresentation) ? configuredPresentation : 'auto'}
+        disabled={disabled}
+        options={presentationOptions}
+        onChange={updatePresentation}
       />
       <p className="self-end text-xs leading-5 text-slate-500 md:col-span-2">
         {t('primaryMenuPublicPagesHelp')}
@@ -127,6 +167,7 @@ const ReviewedPageCarouselSection = ({
         emptyState={emptyState}
         badge={menuLabel}
         compact={compact}
+        presentation={presentation}
         ordered
         showAll
         shellClassName={`px-5 sm:px-8 lg:px-10 ${sectionSpacingClass(section)}`}
