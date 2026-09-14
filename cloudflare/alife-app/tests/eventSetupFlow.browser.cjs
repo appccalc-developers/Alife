@@ -4,6 +4,8 @@ const { chromium } = require(process.env.ALIFE_PLAYWRIGHT_MODULE || 'playwright'
 const path = require('node:path');
 const os = require('node:os');
 const base = process.env.ALIFE_BROWSER_BASE_URL || 'http://127.0.0.1:5173';
+const timezoneCheck = process.env.ALIFE_QA_TIMEZONE_ONLY === '1';
+const apiTime = value => timezoneCheck ? value.replace(/Z$/, '') : value;
 const text = (en, zh) => ({ en, zh });
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
 const file = { name: 'poster.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') };
@@ -16,7 +18,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
   try {
     for (const language of (process.env.ALIFE_QA_LANGUAGES || 'zh,en').split(',')) for (const width of (process.env.ALIFE_QA_WIDTHS || '320,375,768,1280').split(',').map(Number)) {
       const zh = language === 'zh', t = (en, cn) => zh ? cn : en;
-      const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+      const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce', ...(timezoneCheck ? { timezoneId: 'America/Los_Angeles' } : {}) });
       await context.addInitScript(language => localStorage.setItem('alife.language', language), language);
       const page = await context.newPage(); page.setDefaultTimeout(15000);
       const errors = [], creates = [], posterSaves = [], publishes = [], uploads = [], ai = [], detailSaves = [], acceptedPlans = [], taskSaves = [];
@@ -42,11 +44,12 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       let info = { eventId: 'qa-event', groupId: 'qa-group', brief: { title: text('Community meal', '社区聚餐'), description: text('A meal together', '一同聚餐'), purpose: text('', ''), locationName: text('Hall', '礼堂'), startDate: '2026-10-04T10:00:00Z', endDate: '2026-10-04T12:00:00Z' }, posterImageUrl: null, visibility: width === 320 ? 'groupVisible' : width === 768 ? 'churchVisible' : 'public', registrationMode: 'none', eTag: '"poster-v1"', canManage: true };
       let ramAssessment = null; const ramRevision = { id: 'ram-version', version: 1, schemaVersion: 2, policyVersionId: null, contentHash: 'fixture-hash', residualLevel: 'Incomplete', authorMemberId: 'qa', onsiteMemberId: null, createdUtc: '2026-09-12T00:00:00Z' };
       let updatedUtc = '2026-09-11T00:00:00Z';
-      const record = () => ({ id: 'qa-event', groupId: 'qa-group', accountableOwnerMemberId: 'qa', titleEn: info.brief.title.en, titleZh: info.brief.title.zh, startDate: info.brief.startDate, endDate: info.brief.endDate, updatedUtc, visibility: info.visibility, contactProfileIds: [], eventDataJson: JSON.stringify({ ...info.brief, maxCapacity: 0, visibility: info.visibility, capacityUnit: 'People', currency: 'NZD', hardConstraints: [], optionalActivities: [], galleryUrls: [], privateContact: 'preserved' }) });
+      const record = () => ({ id: 'qa-event', groupId: 'qa-group', accountableOwnerMemberId: 'qa', titleEn: info.brief.title.en, titleZh: info.brief.title.zh, startDate: apiTime(info.brief.startDate), endDate: apiTime(info.brief.endDate), updatedUtc, visibility: info.visibility, contactProfileIds: [], eventDataJson: JSON.stringify({ ...info.brief, ...(timezoneCheck ? { timeZone: 'Australia/Perth' } : {}), maxCapacity: 0, visibility: info.visibility, capacityUnit: 'People', currency: 'NZD', hardConstraints: [], optionalActivities: [], galleryUrls: [], privateContact: 'preserved' }) });
       const preparation = () => ({ eventId: 'qa-event', isFrozen: approved, isApproved: approved, canManage: true, canEdit: !approved, approvedPackageId: approved ? 'qa-package' : null, reopenRequest: reopen });
       const item = () => ({ id: 'qa-package', eventId: 'qa-event', scopeType: 'event', coverageMode: 'explicitOccurrences', coveredOccurrenceIds: [], version: 1, eventPlanVersion: 1, packageSchemaVersion: '1.0', governancePolicyVersion: 'qa-policy', governanceTier: assessment.tier, status: approved ? 'approved' : returned ? 'returnedForAmendment' : submitted ? 'submitted' : 'draft', approvalValidityStatus: approved ? 'active' : 'notDecided', contentHash: 'qa-content-hash', sourceVectorHash: 'qa-source', manifest: { eventTitle: info.brief.title, legacyTransition: 'formalPackageRequired', modules: [], blockers: [], sections: [] }, sourceReferences: [], decisions: [], conditions: [], generatedUtc: '2026-09-11T00:00:00Z', eTag: '"package-v1"' });
       const lifecycle = () => ({ eventId: 'qa-event', publicationStatus: published ? 'published' : 'draft', publishGateSatisfied: approved, gateMode: 'enforced', reasonCodes: [], eTag: '"lifecycle-v1"', registrationStatus: 'closed', gates: [{ gate: 'publish', enforcementMode: 'enforced', allowed: approved, requirementsSatisfied: approved, blockers: approved ? [] : [{ code: 'approvalRequired', message: text('Formal approval is required.', '需要正式审批。'), responsibleRole: 'approver', nextAction: 'approve' }], warnings: [] }] });
       page.on('pageerror', error => { errors.push(error.message); console.error('PAGE ERROR', error.message) });
+      page.on('console', message => { if (message.type() === 'error') console.error('BROWSER ERROR', message.text()); });
       await context.route('https://example.org/poster.png', route => route.fulfill({ contentType: 'image/png', body: Buffer.from(png, 'base64') }));
       await context.route('**/api/**', async route => {
         const req = route.request(), pathname = new URL(req.url()).pathname; let data = [], status = 200;
@@ -67,6 +70,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
           if (req.method() === 'PUT') { const body = req.postDataJSON(), old = rosterGroups.find(x => x.roleCode === body.roleCode); assert.equal(req.headers()['if-match'], old?.eTag || '"new"'); data = { ...body, eTag: `"group-${++rosterRevision}"` }; rosterGroups = [...rosterGroups.filter(x => x.roleCode !== body.roleCode), data]; }
           else data = rosterGroups;
         }
+        else if (pathname.endsWith('/roster/page')) data = { page: 1, pageSize: 4, total: 1, timeZone: 'Australia/Perth', canManage: true, canConfigure: true, isRecurring: false, defaultsVersion: null, defaultsETag: '"defaults-0"', groups: rosterGroups, people: [{ id: 'qa', displayName: 'QA Leader' }, { id: 'qa2', displayName: 'QA Helper' }], occurrences: [{ id: 'qa-occurrence', startUtc: arrangements.startUtc, endUtc: arrangements.endUtc, roster: { eventId: 'qa-event', occurrenceId: 'qa-occurrence', eTag: `"roster-${rosterRevision}"`, canManage: true, readinessBlockers: [], slots: [] } }] };
         else if (pathname.endsWith('/roster')) data = { eventId: 'qa-event', occurrenceId: 'qa-occurrence', eTag: `"roster-${rosterRevision}"`, canManage: true, readinessBlockers: [], slots: arrangements.serviceSlots.map(row => ({ ...row.details, id: row.id, startUtc: arrangements.startUtc, endUtc: arrangements.endUtc, confirmedCount: 0, assignments: rosterAssignments, moduleCode: rosterGroups.find(g => g.roleCode === row.details.roleCode)?.moduleCode || 'SERVICE.ROSTER', candidateMemberIds: rosterGroups.find(g => g.roleCode === row.details.roleCode)?.memberIds || [] })) };
         else if (pathname.endsWith('/venues')) data = { managingGroupId: 'qa-group', venues: [venue], canManage: true };
         else if (pathname.endsWith('/occurrences')) data = [{ id: 'qa-occurrence', eventId: 'qa-event', startUtc: arrangements.startUtc, endUtc: arrangements.endUtc, status: 'scheduled' }, ...(width === 1280 ? [{ id: 'qa-occurrence-2', eventId: 'qa-event', startUtc: '2026-10-11T10:00:00Z', endUtc: '2026-10-11T12:00:00Z', status: 'scheduled' }] : [])];
@@ -140,6 +144,19 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await page.goto(`${base}/events/new?groupId=qa-group`, { waitUntil: 'domcontentloaded', timeout: 45000 });
       await page.getByRole('button', { name: /轻松相聚|Simple social/ }).click();
       await page.getByRole('button', { name: /团契聚餐|Fellowship meal/ }).click(); await click('Start arranging', '开始安排'); await open('EVENT.DETAILS');
+      const checkDetailsHeader = async () => {
+        const card = page.locator('[data-event-details-card]');
+        const heading = card.locator('header').getByRole('heading', { name: t('Fellowship meal', '团契聚餐'), exact: true });
+        const toggle = card.locator('header').getByRole('button', { name: /Show (all|related) modules|显示(所有|相关)模块/ });
+        await heading.waitFor(); assert.equal(await toggle.count(), 1);
+        assert.equal(await card.getByText(t('Event details', '活动资料'), { exact: true }).count(), 0);
+        const headingBox = await heading.boundingBox(), toggleBox = await toggle.boundingBox();
+        assert.ok(toggleBox.x >= headingBox.x + headingBox.width - 1);
+        const expanded = await tile('EVENT.DETAILS').getAttribute('aria-expanded');
+        await toggle.click(); assert.equal(await tile('EVENT.DETAILS').getAttribute('aria-expanded'), expanded);
+        await toggle.click();
+      };
+      await checkDetailsHeader();
       for (const [label, en, cn] of [[t('Event title', '活动名称'), 'Community meal', '社区聚餐'], [t('Description', '活动说明'), 'A meal together', '一同聚餐']]) {
         const group = page.getByRole('group', { name: label, exact: true }); await group.getByLabel('English', { exact: true }).fill(en); await group.getByLabel('中文', { exact: true }).fill(cn);
       }
@@ -149,6 +166,29 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await page.waitForURL('**/qa-event/workspace?flow=setup&stage=arrangements');
       await tile('TEAM.WORK').waitFor(); assert.equal(await flow().locator('li').count(), 6); assert.equal(await page.getByLabel(t('Choose a tool to configure', '选择要设置的功能')).count(), 0); assert.equal(creates.length, 1);
       assert.equal(await flow().getByRole('button', { disabled: true }).count(), 3); await checkLayout('setup');
+      if (timezoneCheck) {
+        await checkDetailsHeader();
+        await open('EVENT.DETAILS');
+        const start = () => page.getByLabel(t('Start time', '开始时间'), { exact: true });
+        const end = () => page.getByLabel(t('End time', '结束时间'), { exact: true });
+        const saved = page.waitForResponse(response => response.url().endsWith('/api/events/qa-event') && response.request().method() === 'PUT' && response.ok() && response.request().postDataJSON().startDate === '2026-12-06T02:00:00.000Z');
+        await end().fill('2026-12-06T20:00'); await start().fill('2026-12-06T10:00');
+        await saved;
+        await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
+        assert.equal(detailSaves.at(-1).body.endDate, '2026-12-06T12:00:00.000Z');
+        assert.equal(JSON.parse(detailSaves.at(-1).body.eventDataJson).timeZone, 'Australia/Perth');
+        const writes = detailSaves.length;
+        for (let reload = 0; reload < 2; reload++) {
+          await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=details`, { waitUntil: 'domcontentloaded' });
+          try { await start().waitFor(); } catch (error) { console.error('Timezone reload failed', page.url(), errors, await page.locator('body').innerText()); throw error; }
+          assert.equal(await start().inputValue(), '2026-12-06T10:00');
+          assert.equal(await end().inputValue(), '2026-12-06T20:00');
+          await page.waitForTimeout(1300); assert.equal(detailSaves.length, writes);
+        }
+        await checkLayout('timezone'); assert.deepEqual(errors, []);
+        console.log(`PASS ${language} ${width}: template header and independent top-right toggle, 10:00–20:00 save/reload, offsetless SQL timestamps, different browser timezone, no repeat writes`);
+        await context.close(); continue;
+      }
       if (process.env.ALIFE_QA_DETAILS_ONLY === '1') {
         const card = tile('EVENT.DETAILS');
         assert.ok((await card.innerText()).includes('2026-10-04'));

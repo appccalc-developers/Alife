@@ -415,7 +415,7 @@ Roster roles have explicit, ordered Event candidate groups, each attached to one
 
 Series creation also requires ownership of its linked Event. Updating a series requires ownership of every affected Event; an empty series is editable only by its creator. Group leadership alone cannot use recurrence changes to bypass Event ownership.
 
-Event details is the first full-row Arrangements card, with retained form/AI child work areas and creator summary. It does not add a policy module or confirmation. The visible preparation rail omits the separate Details step; legacy stage identifiers remain compatible. The Arrangements footer only returns to the top; explicit save/create actions retain their existing validation.
+Event details is the first full-row Arrangements card, headed by the selected template's localized name. Its upper-right Show all/related modules control is independent of opening the retained form/AI child work areas; the creator summary remains visible. It does not add a policy module or confirmation. The visible preparation rail omits the separate Details step; legacy stage identifiers remain compatible. The Arrangements footer only returns to the top; explicit save/create actions retain their existing validation. Persisted Event/occurrence timestamps represent UTC instants, including legacy SQL responses without an offset suffix; preparation converts them once into the selected Event time zone and saves wall-clock edits back to explicit UTC.
 
 ## Personal Center duties and task approval
 

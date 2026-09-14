@@ -1,5 +1,11 @@
 # Event Management Implementation Status
 
+## 2026-09-14 — Preparation card heading and saved-time round trip
+
+Creation and saved Arrangements now place Show all/related modules at the upper right of the first card and use the selected template's bilingual name as its heading. The control remains independent of opening the details editor. Saved preparation previously passed offsetless SQL UTC timestamps directly to `new Date`, which interpreted them in the device time zone before converting them to the Event time zone. It now reuses the existing explicit-UTC parser for Event dates and occurrence-relative arrangement rows. Persistence still sends explicit UTC and retains the Event's IANA time zone; no stored dates, API shape, permissions, cache policy or database schema are changed.
+
+Verification after integrating current main: 74 frontend Event tests pass, including Event-time round trips with/without a UTC suffix across Los Angeles, Perth and Auckland device zones and Auckland DST boundaries. Browser fixtures pass Chinese/English at 320/1280px: creation/saved card heading and upper-right toggle, saving Perth 10:00–20:00 from a Los Angeles browser, two reloads of offsetless SQL-style responses and no repeat writes. Browser APIs are isolated fixtures; no production Event was edited. Production build and current-source Event documentation checks are included in this slice, tracked in [Issue #778](https://github.com/appccalc-developers/Alife/issues/778).
+
 ## 2026-09-13 — RAM authoring, capability status, capacity/waitlist and manual recurring roster
 
 Implemented locally in four acceptance slices:
