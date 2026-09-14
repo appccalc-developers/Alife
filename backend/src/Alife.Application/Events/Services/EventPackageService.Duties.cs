@@ -19,6 +19,7 @@ public sealed partial class EventPackageService
         var reopens = await db.EventPreparationReopenRequests.AsNoTracking().Where(x => ids.Contains(x.EventId) && x.Status == EventPreparationReopenStatus.Pending).ToListAsync(ct);
         var occurrences = await db.EventOccurrences.AsNoTracking().Where(x => ids.Contains(x.EventId)).ToListAsync(ct);
         var slots = await db.EventServiceSlots.AsNoTracking().Include(x => x.Assignments).Where(x => ids.Contains(x.Occurrence.EventId)).ToListAsync(ct);
+        var rosterGroups = await db.EventRosterGroups.AsNoTracking().Where(x => ids.Contains(x.EventId)).ToListAsync(ct);
         var plans = await db.EventPlanSnapshots.AsNoTracking().Where(x => ids.Contains(x.EventId) && x.IsActive).ToListAsync(ct);
         var policies = await db.EventPackageGovernancePolicyVersions.AsNoTracking().Where(x => x.IsPublished && x.EffectiveFromUtc <= now && (x.RetiredUtc == null || x.RetiredUtc > now)).ToListAsync(ct);
         var allTeams = await db.EventTeamMembers.AsNoTracking().Where(x => ids.Contains(x.EventId) && x.Status == EventTeamMemberStatus.Accepted && x.EndedUtc == null).ToListAsync(ct);
@@ -30,6 +31,7 @@ public sealed partial class EventPackageService
         var duties = new List<EventDuty>();
         foreach (var e in events)
         {
+            e.PlanSnapshots = plans.Where(x => x.EventId == e.Id).ToList();
             var access = await LoadViewableEvent(e.Id, memberId, ct);
             if (!access.IsSuccess) continue;
             var owner = await CanManageEventForDuties(e, memberId, ct);
@@ -61,7 +63,7 @@ public sealed partial class EventPackageService
             {
                 if (!captures.TryGetValue(p.Id, out var capture))
                 {
-                    try { var result = await CaptureAsync(e.Id, new(p.ScopeType, p.ScopeId, p.PackageSchemaVersion), ct); capture = result.IsSuccess ? result.Value : null; }
+                    try { var result = await CapturePackageAsync(p, ct); capture = result.IsSuccess ? result.Value : null; }
                     catch (JsonException) { capture = null; }
                     captures[p.Id] = capture;
                 }
@@ -118,9 +120,9 @@ public sealed partial class EventPackageService
             bool EligibleForSlot(EventServiceSlot slot, Guid actor) => EventDutyAccess.IsRosterEligible(slot.EligibilityCode,
                 activeMembers.Contains((e.GroupId, actor)), Participant(actor), roles.Where(r => r.EventId == e.Id && r.MemberId == actor).Select(r => r.RoleRequirementKey));
             var missingSlot = slots.FirstOrDefault(x => eventOccurrences.Any(o => o.Id == x.OccurrenceId) && x.EndUtc >= now &&
-                x.Assignments.Count(a => a.Status == EventRosterAssignmentStatus.Confirmed && a.EndedUtc == null && EligibleForSlot(x, a.MemberId)) < x.RequiredCount &&
-                !x.Assignments.Any(a => a.Status == EventRosterAssignmentStatus.Invited && a.EndedUtc == null && EligibleForSlot(x, a.MemberId)));
-            if (!eventEnded && missingSlot is not null && frozen is null && (owner || mine.Any(x => x.EndsWith(":roster.coordinator"))))
+                x.Assignments.Count(a => a.Status is EventRosterAssignmentStatus.Confirmed or EventRosterAssignmentStatus.Invited && a.EndedUtc == null && EligibleForSlot(x, a.MemberId)) < x.RequiredCount &&
+                (frozen is null || frozen.RosterRulesVersion >= EventRosterPolicy.CurrentVersion && !EventRosterPolicy.IsCritical(x.RoleCode, x.EligibilityCode, rosterGroups.FirstOrDefault(g => g.EventId == e.Id && g.RoleCode == x.RoleCode)?.ModuleCode)));
+            if (!eventEnded && missingSlot is not null && (owner || mine.Any(x => x.EndsWith(":roster.coordinator"))))
             {
                 if (owner) OwnerStep("event.roster.coordinate", "Fill required service positions", "补齐必要服事岗位", Workspace(), missingSlot.OccurrenceId);
                 else Add("rosterCoordination", missingSlot.OccurrenceId, occurrences.Single(x => x.Id == missingSlot.OccurrenceId).RosterConcurrencyToken.ToString("N"), "event.roster.coordinate", "Fill required service positions", "补齐必要服事岗位", "roster", e.UpdatedUtc, occurrence: missingSlot.OccurrenceId);

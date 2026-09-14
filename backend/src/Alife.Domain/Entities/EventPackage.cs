@@ -23,6 +23,7 @@ public sealed class EventPackageGovernancePolicyVersion
 
 public sealed class EventPackage
 {
+    public int RosterRulesVersion { get; set; } = 1;
     public Guid Id { get; set; }
     public Guid EventId { get; set; }
     public EventPackageScopeType ScopeType { get; set; } = EventPackageScopeType.Event;

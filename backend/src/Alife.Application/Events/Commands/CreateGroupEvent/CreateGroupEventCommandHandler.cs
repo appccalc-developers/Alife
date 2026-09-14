@@ -321,6 +321,8 @@ public sealed class CreateGroupEventCommandHandler(
                 NameZh = request.SeriesSetup.Name.Zh.Trim(),
                 RecurrenceRule = request.SeriesSetup.RecurrenceRule.Trim().ToUpperInvariant(),
                 TimeZone = request.SeriesSetup.TimeZone.Trim(),
+                FirstStartLocal = request.SeriesSetup.FirstStartLocal,
+                DurationMinutes = request.SeriesSetup.DurationMinutes,
                 ExceptionDatesJson = JsonSerializer.Serialize(request.SeriesSetup.ExceptionDates ?? []),
                 RollingOccurrenceWeeks = request.SeriesSetup.RollingOccurrenceWeeks,
                 CreatedUtc = now,
@@ -425,6 +427,8 @@ public sealed class CreateGroupEventCommandHandler(
             dbContext.EventSeries.Add(eventSeries);
         }
         dbContext.EventOccurrences.AddRange(occurrences);
+        if (eventSeries is not null && request.Arrangements?.ServiceSlots is { Count: > 0 } && occurrences.Count > 0)
+            EventOperationsService.CreateRosterDefaults(dbContext, groupEvent, occurrences.OrderBy(x => x.StartUtc).First(), presetServiceSlots, request.CurrentMemberId, 1, now);
         dbContext.EventServiceSlots.AddRange(presetServiceSlots);
         if (factSet is not null && planSnapshot is not null)
         {

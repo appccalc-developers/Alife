@@ -1870,6 +1870,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("datetime2")
                         .HasColumnName("created_utc");
@@ -1891,6 +1896,22 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("member_id");
 
+                    b.Property<DateTime?>("QueuedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("queued_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("confirmed")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("StatusChangedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("status_changed_utc");
+
                     b.Property<DateTime>("UpdatedUtc")
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_utc");
@@ -1908,7 +1929,53 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.HasIndex("GroupId", "UpdatedUtc")
                         .HasDatabaseName("ix_event_enrollments_group_id_updated_utc");
 
+                    b.HasIndex("EventId", "Status", "QueuedUtc")
+                        .HasDatabaseName("ix_event_enrollments_event_id_status_queued_utc");
+
                     b.ToTable("event_enrollments", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventEnrollmentHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("ArchivedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("archived_utc");
+
+                    b.Property<Guid>("EnrollmentId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("enrollment_id");
+
+                    b.Property<string>("EnrollmentJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("enrollment_json");
+
+                    b.Property<DateTime?>("QueuedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("queued_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("StatusChangedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("status_changed_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_enrollment_history");
+
+                    b.HasIndex("EnrollmentId", "ArchivedUtc")
+                        .HasDatabaseName("ix_event_enrollment_history_enrollment_id_archived_utc");
+
+                    b.ToTable("event_enrollment_history", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventFactSet", b =>
@@ -2206,6 +2273,12 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("package_schema_version");
+
+                    b.Property<int>("RosterRulesVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("roster_rules_version");
 
                     b.Property<Guid?>("ScopeId")
                         .HasColumnType("uniqueidentifier")
@@ -3472,6 +3545,44 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("event_operations_roster_availability", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventRosterDefaults", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("RequirementsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("requirements_json");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_roster_defaults");
+
+                    b.HasIndex("EventId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_roster_defaults_event_id_version");
+
+                    b.ToTable("event_roster_defaults", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventRosterGroup", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3738,10 +3849,18 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("default_team_json");
 
+                    b.Property<int?>("DurationMinutes")
+                        .HasColumnType("int")
+                        .HasColumnName("duration_minutes");
+
                     b.Property<string>("ExceptionDatesJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("exception_dates_json");
+
+                    b.Property<DateTime?>("FirstStartLocal")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("first_start_local");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit")
@@ -3806,6 +3925,10 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("created_utc");
 
+                    b.Property<int?>("DefaultRequirementIndex")
+                        .HasColumnType("int")
+                        .HasColumnName("default_requirement_index");
+
                     b.Property<string>("EligibilityCode")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -3834,6 +3957,10 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(120)")
                         .HasColumnName("role_code");
 
+                    b.Property<Guid?>("RosterDefaultsId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("roster_defaults_id");
+
                     b.Property<Guid?>("SessionId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("session_id");
@@ -3855,6 +3982,9 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProgramItemId")
                         .HasDatabaseName("ix_event_service_slots_program_item_id");
+
+                    b.HasIndex("RosterDefaultsId")
+                        .HasDatabaseName("ix_event_service_slots_roster_defaults_id");
 
                     b.HasIndex("SessionId")
                         .HasDatabaseName("ix_event_service_slots_session_id");
@@ -7739,6 +7869,18 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Member");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventEnrollmentHistory", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventEnrollment", "Enrollment")
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_enrollment_history_event_enrollments_enrollment_id");
+
+                    b.Navigation("Enrollment");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventFactSet", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
@@ -8250,6 +8392,18 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("ServiceSlot");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventRosterDefaults", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_roster_defaults_group_events_event_id");
+
+                    b.Navigation("Event");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventRosterGroup", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.GroupEvent", null)
@@ -8385,6 +8539,12 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ProgramItemId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_event_service_slots_event_program_items_program_item_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventRosterDefaults", null)
+                        .WithMany()
+                        .HasForeignKey("RosterDefaultsId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_service_slots_event_roster_defaults_roster_defaults_id");
 
                     b.HasOne("Alife.Domain.Entities.EventSession", "Session")
                         .WithMany("ServiceSlots")

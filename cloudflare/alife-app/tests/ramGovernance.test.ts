@@ -29,3 +29,18 @@ test('Alpha Demo bands and manual-derived bilingual scale definitions remain exa
   ])
   assert.ok([...ramDefaultScales.likelihood, ...ramDefaultScales.impact].every(scale => scale.description.en && scale.description.zh))
 })
+
+import { duplicateRamRisk, ramChanges, ramDraftFingerprint } from '../src/utils/ramAuthoring.ts'
+import { upgradeRam } from '../src/types/ramGovernance.ts'
+
+test('risk copying retains bilingual text while clearing authority and ratings', () => {
+  const draft = upgradeRam(undefined)
+  const risk = { id: 'old', activityId: 'a', categoryCode: 'environment', hazard: { en: 'Slip', zh: '滑倒' }, consequence: { en: 'Injury', zh: '受伤' }, controlMeasures: { en: 'Check', zh: '检查' }, additionalAction: { en: '', zh: '' }, personResponsible: 'Owner', likelihood: 2, impact: 3, residualLikelihood: 1, residualImpact: 2 }
+  const copy = duplicateRamRisk(risk, 'new')
+  assert.deepEqual(copy.hazard, risk.hazard); assert.equal(copy.personResponsible, ''); assert.equal(copy.likelihood, null)
+  copy.hazard.zh = '改变'; assert.equal(risk.hazard.zh, '滑倒')
+  const next = { ...draft, hazards: [copy] }
+  assert.equal(ramChanges(draft, next).length, 1)
+  assert.notEqual(ramDraftFingerprint(draft, 'old conditions'), ramDraftFingerprint(draft, 'new conditions'))
+  assert.notEqual(ramDraftFingerprint(next, 'same'), ramDraftFingerprint(draft, 'same'))
+});

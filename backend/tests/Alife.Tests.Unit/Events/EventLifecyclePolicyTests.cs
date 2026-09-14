@@ -48,6 +48,7 @@ public class EventLifecyclePolicyTests
         var now = new DateTime(2026, 7, 22, 0, 0, 0, DateTimeKind.Utc);
         var groupEvent = EventEndingAt(now.AddDays(2), "2026-07-23T00:00:00Z", 20);
         groupEvent.RamAssessment!.Status = EventRamStatus.AwaitingReview;
+        groupEvent.RamAssessment.ReviewRequested = true;
 
         var allowed = EventLifecyclePolicy.CanCreateEnrollment(groupEvent, now, out var error);
 

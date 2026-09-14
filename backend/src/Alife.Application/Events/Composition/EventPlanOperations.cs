@@ -575,7 +575,8 @@ public sealed class GetEventWorkspaceQueryHandler(
             items,
             nextSteps,
             canManage,
-            groupEvent.SponsorshipStatus));
+            groupEvent.SponsorshipStatus,
+            EventCapabilityAvailability.All));
     }
 
     private static bool CanSeeItem(

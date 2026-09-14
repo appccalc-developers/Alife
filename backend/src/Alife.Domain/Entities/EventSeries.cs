@@ -9,6 +9,8 @@ public sealed class EventSeries
     public string NameZh { get; set; } = string.Empty;
     public string RecurrenceRule { get; set; } = string.Empty;
     public string TimeZone { get; set; } = "UTC";
+    public DateTime? FirstStartLocal { get; set; }
+    public int? DurationMinutes { get; set; }
     public string ExceptionDatesJson { get; set; } = "[]";
     public string DefaultFactsJson { get; set; } = "{}";
     public string DefaultTeamJson { get; set; } = "[]";

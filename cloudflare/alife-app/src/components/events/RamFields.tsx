@@ -1,4 +1,7 @@
+import { createContext, useContext } from 'react'
 import type { RamLevel, RamPolicyData, RamText } from '../../types/ramGovernance'
+
+export const RamEditingLanguage = createContext<boolean | null>(null)
 
 export const ramInput = 'min-h-11 w-full rounded-xl border border-[#c7d9d1] bg-white px-3 py-2 text-sm text-[#18332d] focus:outline-none focus:ring-2 focus:ring-[#176b5a] disabled:bg-slate-50'
 export const levelLabels: Record<RamLevel, RamText> = { Green: { en: 'Green', zh: '绿色' }, Yellow: { en: 'Yellow', zh: '黄色' }, Red: { en: 'Red', zh: '红色' }, Incomplete: { en: 'Incomplete', zh: '未完成' } }
@@ -7,9 +10,9 @@ export function RamLevelBadge({ level = 'Incomplete', zh }: { level?: RamLevel; 
   return <span className={`inline-block rounded-lg px-2 py-1 text-sm font-bold ${levelClass[level]}`}>{levelLabels[level]?.[zh ? 'zh' : 'en']}</span>
 }
 export function RamTextField({ label, value, onChange, disabled = false }: { label: string; value?: RamText; onChange: (value: RamText) => void; disabled?: boolean }) {
-  return <fieldset className="min-w-0 space-y-2"><legend className="text-sm font-semibold">{label}</legend><div className="grid gap-2 sm:grid-cols-2">
-    {(['zh', 'en'] as const).map(lang => <label key={lang} className="min-w-0 text-xs text-[#66766f]">{lang === 'zh' ? '中文' : 'English'}<textarea className={ramInput} aria-label={`${label} (${lang})`} rows={2} disabled={disabled} value={value?.[lang] || ''} onChange={e => onChange({ en: value?.en || '', zh: value?.zh || '', [lang]: e.target.value })} /></label>)}
-  </div></fieldset>
+  const zh = useContext(RamEditingLanguage)
+  const input = (lang: 'zh' | 'en') => <label className="block min-w-0 text-xs text-[#66766f]">{lang === 'zh' ? '中文' : 'English'}<textarea className={ramInput} aria-label={`${label} (${lang})`} rows={2} disabled={disabled} value={value?.[lang] || ''} onChange={e => onChange({ en: value?.en || '', zh: value?.zh || '', [lang]: e.target.value })} /></label>
+  return <fieldset className="min-w-0 space-y-2"><legend className="text-sm font-semibold">{label}</legend>{zh === null ? <div className="grid gap-2 sm:grid-cols-2">{input('zh')}{input('en')}</div> : <>{input(zh ? 'zh' : 'en')}<details><summary className="min-h-10 cursor-pointer py-2 text-xs text-[#176b5a]">{zh ? '编辑英文' : 'Edit Chinese'}</summary>{input(zh ? 'en' : 'zh')}</details></>}</fieldset>
 }
 export function RamMatrix({ policy, zh, onChange }: { policy: RamPolicyData; zh: boolean; onChange?: (data: RamPolicyData) => void }) {
   return <div className="overflow-x-auto"><table className="w-full min-w-[310px] border-separate border-spacing-1 text-center text-sm"><caption className="mb-2 text-left text-sm font-semibold">{zh ? '可能性 × 影响程度；每格颜色由教会确认' : 'Likelihood × impact; each colour confirmed by the church'}</caption>

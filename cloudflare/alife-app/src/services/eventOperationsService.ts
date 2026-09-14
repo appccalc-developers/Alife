@@ -1,10 +1,23 @@
 import { http } from './http'
+import { queryClient } from '../db/queryClient'
 import type { LocalizedText } from '../types/eventComposition'
 import type { EventRosterGroup, EventAvailabilityStatus, EventOccurrence, EventProgramme, EventRoster, EventTask, EventTaskDetail, EventTaskStatus, EventTeamMember, EventTeamWorkspace } from '../types/eventOperations'
 
 const ifMatch = (eTag: string) => ({ headers: { 'If-Match': eTag } })
 
+const rosterChanged = async <T,>(eventId: string, value: T): Promise<T> => {
+  await Promise.all([
+    queryClient.invalidateQueries({ predicate: query => query.queryKey.some(key => key === eventId) }),
+    queryClient.invalidateQueries({ queryKey: ['notifications', 'current'] }),
+  ])
+  return value
+}
+
 export const eventOperationsService = {
+  rosterPage: async (eventId: string, page: number, focusOccurrenceId?: string | null) => (await http.get<import('../types/eventOperations').EventRosterPage>(`/api/events/${eventId}/roster/page`, { params: { page, focusOccurrenceId } })).data,
+  rosterBatch: async (eventId: string, changes: import('../types/eventOperations').EventRosterBatchChange[], key: string) => rosterChanged(eventId, (await http.post<EventRoster[]>(`/api/events/${eventId}/roster/batch`, { changes }, { headers: { 'Idempotency-Key': key } })).data),
+  adoptRosterDefaults: async (eventId: string, occurrenceId: string, occurrenceETag: string, defaultsETag: string) => (await http.post<import('../types/eventOperations').EventRosterPage>(`/api/events/${eventId}/roster/defaults`, { occurrenceId, occurrenceETag, defaultsETag })).data,
+  extendRoster: async (eventId: string, defaultsETag: string) => (await http.post<import('../types/eventOperations').EventRosterPage>(`/api/events/${eventId}/roster/extend`, {}, ifMatch(defaultsETag))).data,
   setTaskResponsibility: async (eventId: string, task: EventTask, assignedMemberId: string | null, reviewerMemberId: string | null) => (await http.put<EventTask>(`/api/events/${eventId}/tasks/${task.id}`, { ...task, assignedMemberId, reviewerMemberId, clearReviewer: !reviewerMemberId }, ifMatch(task.eTag))).data,
   getTask: async (eventId: string, taskId: string) => (await http.get<EventTaskDetail>(`/api/events/${eventId}/tasks/${taskId}`)).data,
   actOnTask: async (eventId: string, task: EventTask, action: string, reason: string, key: string) => (await http.post<EventTaskDetail>(`/api/events/${eventId}/tasks/${task.id}/${action}`, { reason }, { headers: { 'If-Match': task.eTag, 'Idempotency-Key': key } })).data,
@@ -38,5 +51,5 @@ export const eventOperationsService = {
   deleteSlot: async (eventId: string, occurrenceId: string, slotId: string, eTag: string) => (await http.delete<EventRoster>(`/api/events/${eventId}/occurrences/${occurrenceId}/roster/slots/${slotId}`, ifMatch(eTag))).data,
   setAvailability: async (eventId: string, occurrenceId: string, slotId: string, status: EventAvailabilityStatus) => (await http.put<EventRoster>(`/api/events/${eventId}/occurrences/${occurrenceId}/roster/slots/${slotId}/availability/me`, { status })).data,
   assignRosterMember: async (eventId: string, occurrenceId: string, slotId: string, eTag: string, memberId: string, replacesAssignmentId?: string) => (await http.post<EventRoster>(`/api/events/${eventId}/occurrences/${occurrenceId}/roster/slots/${slotId}/assignments`, { memberId, replacesAssignmentId }, ifMatch(eTag))).data,
-  respondToRosterAssignment: async (eventId: string, occurrenceId: string, assignmentId: string, confirm: boolean) => (await http.post<EventRoster>(`/api/events/${eventId}/occurrences/${occurrenceId}/roster/assignments/${assignmentId}/${confirm ? 'confirm' : 'decline'}`)).data,
+  respondToRosterAssignment: async (eventId: string, occurrenceId: string, assignmentId: string, confirm: boolean) => rosterChanged(eventId, (await http.post<EventRoster>(`/api/events/${eventId}/occurrences/${occurrenceId}/roster/assignments/${assignmentId}/${confirm ? 'confirm' : 'decline'}`)).data),
 }

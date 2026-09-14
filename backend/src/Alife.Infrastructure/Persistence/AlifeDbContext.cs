@@ -16,6 +16,21 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 			: null;
 
 	public DbSet<Group> Groups => Set<Group>();
+    // Call only inside the caller's transaction, before reading capacity or the queue.
+    public async Task LockEventRegistrationAsync(Guid eventId, CancellationToken cancellationToken = default)
+    {
+        if (Database.IsSqlServer())
+        {
+            if (Database.CurrentTransaction is null) throw new InvalidOperationException("Registration locking requires a transaction.");
+            var entity = Model.FindEntityType(typeof(GroupEvent))!;
+            var table = entity.GetTableName()!;
+            var schema = entity.GetSchema() ?? "dbo";
+            var column = entity.FindProperty(nameof(GroupEvent.Id))!.GetColumnName();
+            static string Quote(string value) => "[" + value.Replace("]", "]]", StringComparison.Ordinal) + "]";
+            var statement = $"SELECT {Quote(column)} FROM {Quote(schema)}.{Quote(table)} WITH (UPDLOCK, HOLDLOCK) WHERE {Quote(column)} = {{0}}";
+            await Database.ExecuteSqlRawAsync(statement, new object[] { eventId }, cancellationToken);
+        }
+    }
 	public DbSet<Member> Members => Set<Member>();
 	public DbSet<BibleReadingProgress> BibleReadingProgresses => Set<BibleReadingProgress>();
 	public DbSet<GroupMembership> GroupMemberships => Set<GroupMembership>();
@@ -76,6 +91,8 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 	public DbSet<EventIdempotencyRecord> EventIdempotencyRecords => Set<EventIdempotencyRecord>();
 	public DbSet<EventRamAssessment> EventRamAssessments => Set<EventRamAssessment>();
 	public DbSet<EventEnrollment> EventEnrollments => Set<EventEnrollment>();
+    public DbSet<EventEnrollmentHistory> EventEnrollmentHistory => Set<EventEnrollmentHistory>();
+    public DbSet<EventRosterDefaults> EventRosterDefaults => Set<EventRosterDefaults>();
 	public DbSet<EventReview> EventReviews => Set<EventReview>();
 	public DbSet<EventWorkflowTemplate> EventWorkflowTemplates => Set<EventWorkflowTemplate>();
 	public DbSet<EventWorkflowRun> EventWorkflowRuns => Set<EventWorkflowRun>();
@@ -1108,6 +1125,9 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 		{
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.EnrollmentJson).IsRequired();
+            cfg.Property(x => x.Status).HasMaxLength(16).HasDefaultValue("confirmed").IsRequired();
+            cfg.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
+            cfg.HasIndex(x => new { x.EventId, x.Status, x.QueuedUtc });
 
 			cfg.HasOne(x => x.Group)
 				.WithMany()
@@ -1127,6 +1147,22 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 			cfg.HasIndex(x => new { x.EventId, x.MemberId }).IsUnique();
 			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
 		});
+
+        modelBuilder.Entity<EventEnrollmentHistory>(cfg => {
+            cfg.HasKey(x => x.Id);
+            cfg.Property(x => x.Status).HasMaxLength(16).IsRequired();
+            cfg.Property(x => x.EnrollmentJson).IsRequired();
+            cfg.HasOne(x => x.Enrollment).WithMany().HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Restrict);
+            cfg.HasIndex(x => new { x.EnrollmentId, x.ArchivedUtc });
+        });
+        modelBuilder.Entity<EventRosterDefaults>(cfg => {
+            cfg.HasKey(x => x.Id);
+            cfg.HasIndex(x => new { x.EventId, x.Version }).IsUnique();
+            cfg.HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
+            cfg.Property(x => x.RequirementsJson).IsRequired();
+        });
+        modelBuilder.Entity<EventServiceSlot>().HasOne<EventRosterDefaults>().WithMany().HasForeignKey(x => x.RosterDefaultsId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<EventPackage>().Property(x => x.RosterRulesVersion).HasDefaultValue(1);
 
 		modelBuilder.Entity<EventReview>(cfg =>
 		{

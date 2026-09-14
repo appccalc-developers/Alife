@@ -8,20 +8,34 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using Alife.Api.Http;
+using Alife.Application.Common.Interfaces;
+using Alife.Application.Groups.Services;
+using Alife.Application.Events.Services;
 
 namespace Alife.Api.Controllers;
 
 [ApiController]
 [Route("api/events/{eventId:guid}/enrollments")]
 [Authorize]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class EventEnrollmentsController(
     IMediator mediator,
     ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
+    [HttpGet("capacity")]
+    public async Task<IActionResult> Capacity(Guid eventId, [FromServices] IAlifeDbContext db,
+        [FromServices] IGroupAuthorizationService authorization, CancellationToken ct)
+    {
+        this.ApplyPrivateNoStoreHeaders();
+        var actor = currentMemberAccessor.GetCurrentMemberId();
+        return actor.HasValue ? this.ToActionResult(await new EventEnrollmentCapacityService(db, authorization).GetCapacityAsync(eventId, actor.Value, ct)) : Unauthorized();
+    }
     [HttpGet]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> List(Guid eventId, CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
         {
@@ -38,6 +52,7 @@ public class EventEnrollmentsController(
     [HttpPost]
     public async Task<IActionResult> Create(Guid eventId, [FromBody] JsonElement enrollmentJson, CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
         {
@@ -55,7 +70,8 @@ public class EventEnrollmentsController(
         }
 
         var result = await mediator.Send(
-            new CreateEventEnrollmentCommand(eventId, currentMemberId.Value, enrollmentJson.GetRawText(), requestedEnrollmentId),
+            new CreateEventEnrollmentCommand(eventId, currentMemberId.Value, enrollmentJson.GetRawText(), requestedEnrollmentId,
+                Request.Headers["X-Enrollment-Waitlist"] == "1"),
             cancellationToken);
 
         if (!result.IsSuccess)
@@ -69,6 +85,7 @@ public class EventEnrollmentsController(
     [HttpPut("{enrollmentId:guid}")]
     public async Task<IActionResult> Update(Guid eventId, Guid enrollmentId, [FromBody] JsonElement enrollmentJson, CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
         {
@@ -90,6 +107,7 @@ public class EventEnrollmentsController(
     [HttpDelete("{enrollmentId:guid}")]
     public async Task<IActionResult> Delete(Guid eventId, Guid enrollmentId, CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
         {

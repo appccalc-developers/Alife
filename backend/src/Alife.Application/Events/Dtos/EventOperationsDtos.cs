@@ -52,12 +52,12 @@ public sealed record EventServiceSlotDto(Guid Id, Guid OccurrenceId, Guid? Sessi
     Guid? ZoneId, string RoleCode, DateTime StartUtc, DateTime EndUtc, int RequiredCount,
     string EligibilityCode, int ConfirmedCount, IReadOnlyList<EventRosterAssignmentDto> Assignments,
     EventAvailabilityStatus? MyAvailability, LocalizedTextDto? RoleLabel = null, string ModuleCode = "SERVICE.ROSTER",
-    IReadOnlyList<Guid>? CandidateMemberIds = null, bool IsRosterCandidate = false);
+    IReadOnlyList<Guid>? CandidateMemberIds = null, bool IsRosterCandidate = false, bool CanAssign = false);
 public sealed record EventRosterAssignmentDto(Guid Id, Guid ServiceSlotId, Guid MemberId,
     EventRosterAssignmentStatus Status, Guid? ReplacesAssignmentId, DateTime? ConfirmedUtc,
     DateTime? DeclinedUtc, DateTime? EndedUtc);
 public sealed record EventRosterDto(Guid EventId, Guid OccurrenceId, string ETag,
-    IReadOnlyList<EventServiceSlotDto> Slots, IReadOnlyList<LocalizedTextDto> ReadinessBlockers, bool CanManage);
+    IReadOnlyList<EventServiceSlotDto> Slots, IReadOnlyList<LocalizedTextDto> ReadinessBlockers, bool CanManage, bool CanConfigure = false);
 public sealed record SaveEventServiceSlotRequest(Guid? SessionId, Guid? ProgramItemId, Guid? ZoneId,
     string RoleCode, DateTime StartUtc, DateTime EndUtc, int RequiredCount, string EligibilityCode);
 public sealed record SetEventAvailabilityRequest(EventAvailabilityStatus Status);
@@ -65,3 +65,14 @@ public sealed record AssignEventRosterMemberRequest(Guid MemberId, Guid? Replace
 
 public sealed record EventRosterGroupDto(string RoleCode, string ModuleCode, IReadOnlyList<Guid> MemberIds, string ETag);
 public sealed record SaveEventRosterGroupRequest(string RoleCode, string ModuleCode, IReadOnlyList<Guid> MemberIds);
+
+public sealed record EventRosterBatchChange(Guid OccurrenceId, Guid SlotId, string OccurrenceETag, string CandidateGroupETag,
+    Guid? MemberId, Guid? ReplacesAssignmentId = null);
+public sealed record EventRosterBatchRequest(IReadOnlyList<EventRosterBatchChange> Changes);
+public sealed record EventRosterPageOccurrence(Guid Id, DateTime StartUtc, DateTime EndUtc, EventRosterDto Roster);
+public sealed record EventRosterPageDto(int Page, int PageSize, int Total, string TimeZone,
+    IReadOnlyList<EventRosterPageOccurrence> Occurrences, IReadOnlyList<EventRosterGroupDto> Groups,
+    IReadOnlyList<EventRosterPersonDto> People, bool CanManage, int? DefaultsVersion, string DefaultsETag, bool CanConfigure = false, bool IsRecurring = false);
+public sealed record EventRosterPersonDto(Guid Id, string DisplayName);
+public sealed record EventRosterDefaultRequirement(string RoleCode, int RequiredCount, int StartOffsetMinutes, int EndOffsetMinutes, string EligibilityCode);
+public sealed record AdoptEventRosterDefaultsRequest(Guid OccurrenceId, string OccurrenceETag, string DefaultsETag);

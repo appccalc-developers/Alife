@@ -20,9 +20,12 @@ public sealed partial class EventOperationsService
 
     public async Task<AppResult<EventRosterGroupDto>> SaveRosterGroupAsync(Guid eventId, Guid memberId, SaveEventRosterGroupRequest request, string? ifMatch, CancellationToken ct)
     {
+        await using var tx = await db.BeginSerializableTransactionAsync(ct);
+        await db.LockEventRegistrationAsync(eventId, ct);
         var e = await db.GroupEvents.FirstOrDefaultAsync(x => x.Id == eventId, ct);
         if (e is null) return AppResult<EventRosterGroupDto>.NotFound("Event not found.");
         if (!await CanCoordinate(e, memberId, "roster.coordinator", ct)) return AppResult<EventRosterGroupDto>.Forbidden("Roster coordinator access is required.");
+        if (await EventPreparationPolicy.IsFrozenAsync(db, eventId, ct)) return AppResult<EventRosterGroupDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         if (string.IsNullOrWhiteSpace(request.RoleCode) || request.RoleCode.Length > 120 || request.RoleCode != request.RoleCode.Trim() ||
             request.MemberIds is null || request.MemberIds.Count > 200 || request.MemberIds.Distinct().Count() != request.MemberIds.Count ||
             string.IsNullOrWhiteSpace(request.ModuleCode) || !EventCompositionDefinitions.ModulesByCode.ContainsKey(request.ModuleCode))
@@ -54,9 +57,10 @@ public sealed partial class EventOperationsService
             if (request.ModuleCode != "SERVICE.ROSTER")
                 await packageInvalidation.InvalidateForModuleChangeAsync(e, memberId, request.ModuleCode, "event.roster.groupSaved", "operational", ct);
         }
-        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventRosterGroupDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct, transactionAlreadyStarted: true)) return AppResult<EventRosterGroupDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventRosterGroupDto>.PreconditionFailed("The candidate group changed while saving."); }
         catch (DbUpdateException) { return AppResult<EventRosterGroupDto>.Conflict("The candidate group was concurrently created or changed; reload."); }
+        if (tx is not null) await tx.CommitAsync(ct);
         return AppResult<EventRosterGroupDto>.Success(GroupDto(group));
     }
 
@@ -78,15 +82,32 @@ public sealed partial class EventOperationsService
         var enabled = new HashSet<string>();
         foreach (var module in result.Slots.Select(slot => groups.FirstOrDefault(x => x.RoleCode == slot.RoleCode)?.ModuleCode ?? RosterModuleForRole(slot.RoleCode)).Distinct())
             if (await IsModuleEnabled(occurrence.EventId, module, ct)) enabled.Add(module);
-        return result with { Slots = result.Slots.Select(slot => {
+        var values = new List<EventServiceSlotDto>();
+        var frozen = await EventPreparationPolicy.IsFrozenAsync(db, occurrence.EventId, ct);
+        var ordinaryAllowed = await EventRosterPolicy.AllowsOrdinaryStaffingAsync(db, occurrence.EventId, ct);
+        foreach (var slot in result.Slots)
+        {
             var group = groups.FirstOrDefault(x => x.RoleCode == slot.RoleCode);
             var members = group is null ? [] : GroupMembers(group);
             var target = group?.ModuleCode ?? RosterModuleForRole(slot.RoleCode);
-            return slot with { ModuleCode = enabled.Contains(target) ? target : "SERVICE.ROSTER",
-                CandidateMemberIds = canManage ? members : [], IsRosterCandidate = members.Contains(memberId) };
-        }).ToArray() };
+            var entity = occurrence.ServiceSlots.Single(x => x.Id == slot.Id);
+            var eligible = new List<Guid>();
+            var confirmed = 0;
+            foreach (var candidate in members)
+            {
+                if (!enabled.Contains(target) || !await IsEligibleForSlot(occurrence.Event, entity, candidate, ct)) continue;
+                if (entity.Availability.Any(x => x.MemberId == candidate && x.Status == Alife.Domain.Enums.EventAvailabilityStatus.Unavailable)) continue;
+                if (entity.Assignments.Any(x => x.MemberId == candidate && x.Status == Alife.Domain.Enums.EventRosterAssignmentStatus.Confirmed && x.EndedUtc == null)) confirmed++;
+                eligible.Add(candidate);
+            }
+            values.Add(slot with { ModuleCode = enabled.Contains(target) ? target : "SERVICE.ROSTER", ConfirmedCount = confirmed,
+                CandidateMemberIds = canManage ? eligible : [], IsRosterCandidate = members.Contains(memberId),
+                CanAssign = canManage && enabled.Contains(target) && (!frozen || ordinaryAllowed && !EventRosterPolicy.IsCritical(slot.RoleCode, slot.EligibilityCode, target)) });
+        }
+        return result with { Slots = values, CanConfigure = canManage && !frozen, ReadinessBlockers = values.Where(x => x.ConfirmedCount < x.RequiredCount).Select(x => new LocalizedTextDto(
+            $"{x.RoleLabel?.En ?? x.RoleCode}: {x.ConfirmedCount}/{x.RequiredCount} eligible members confirmed.",
+            $"{x.RoleLabel?.Zh ?? x.RoleCode}：当前合资格且本人已确认 {x.ConfirmedCount}/{x.RequiredCount}。")).ToArray() };
     }
-
     public static string RosterModuleForRole(string role) => role switch
     {
         "welcome.team" or "checkin.team" or "registration.desk" or "front.of.house" => "PEOPLE.REGISTRATION",

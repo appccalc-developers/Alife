@@ -50,12 +50,12 @@ During saved preparation, the existing authorized tool is embedded directly in *
 
 ## Current implementation
 
-Current core flow. `EventEnrollment` persistence, CRUD APIs, self-versus-manager visibility, lifecycle and RAM gates, bilingual enrollment JSON, and reachable `EventEnrollmentView` exist.
+Current core flow includes server-owned confirmed/waitlisted/cancelled states, capacity summary, self queue position and manager lists, FIFO eligible promotion, transactional in-app notifications, retained cancellation/answer history, and serializable Event-lock concurrency. Existing enrollment IDs, bilingual JSON and linked child evidence survive cancellation/rejoining. Reopening and approved capacity increases reconcile the queue; closed/expired/blocked enrollment retains waiters. New clients explicitly opt into waiting; old full-capacity clients receive an upgrade conflict. RAM gating follows current Plan/safety requirements. See [the first-round contract](../EVENT-CONTRACT.md#preparation-first-round-contract-extension--2026-09-13).
 
 ## Open contract gaps
 
-Direct invitation, household/guest modelling, atomic capacity, waitlist promotion, tickets, general occurrence check-in, and attendance reconciliation remain open.
+Direct invitation, household/guest modelling, tickets, general occurrence check-in, and attendance reconciliation remain open. Enrollment remains one account per Event, not per occurrence.
 
 ## Next useful vertical slice
 
-`registration-capacity-waitlist`: implement a concurrency-safe capacity/waitlist state machine, manager and participant projections, notifications, and positive/negative role tests.
+General occurrence check-in and attendance reconciliation, after validating the current account-based capacity flow in an authorized environment.

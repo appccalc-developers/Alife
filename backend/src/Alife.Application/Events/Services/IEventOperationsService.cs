@@ -31,6 +31,10 @@ public interface IEventOperationsService
     Task<AppResult<IReadOnlyList<EventRosterGroupDto>>> GetRosterGroupsAsync(Guid eventId, Guid memberId, CancellationToken ct);
     Task<AppResult<EventRosterGroupDto>> SaveRosterGroupAsync(Guid eventId, Guid memberId, SaveEventRosterGroupRequest request, string? ifMatch, CancellationToken ct);
     Task<AppResult<EventRosterDto>> GetRosterAsync(Guid eventId, Guid occurrenceId, Guid memberId, CancellationToken ct);
+    Task<AppResult<EventRosterPageDto>> GetRosterPageAsync(Guid eventId, Guid memberId, int page, CancellationToken ct, Guid? focusOccurrenceId = null);
+    Task<AppResult<IReadOnlyList<EventRosterDto>>> ApplyRosterBatchAsync(Guid eventId, Guid memberId, EventRosterBatchRequest request, string? key, CancellationToken ct);
+    Task<AppResult<EventRosterPageDto>> AdoptRosterDefaultsAsync(Guid eventId, Guid memberId, AdoptEventRosterDefaultsRequest request, CancellationToken ct);
+    Task<AppResult<EventRosterPageDto>> ExtendRosterAsync(Guid eventId, Guid memberId, string? defaultsETag, CancellationToken ct);
     Task<AppResult<EventRosterDto>> CreateSlotAsync(Guid eventId, Guid occurrenceId, Guid memberId, SaveEventServiceSlotRequest request, string? ifMatch, CancellationToken ct);
     Task<AppResult<EventRosterDto>> UpdateSlotAsync(Guid eventId, Guid occurrenceId, Guid slotId, Guid memberId, SaveEventServiceSlotRequest request, string? ifMatch, CancellationToken ct);
     Task<AppResult<EventRosterDto>> DeleteSlotAsync(Guid eventId, Guid occurrenceId, Guid slotId, Guid memberId, string? ifMatch, CancellationToken ct);

@@ -70,6 +70,8 @@ public interface IAlifeDbContext
     DbSet<EventRamRevision> EventRamRevisions { get; }
     DbSet<EventRamAction> EventRamActions { get; }
     DbSet<EventEnrollment> EventEnrollments { get; }
+    DbSet<EventEnrollmentHistory> EventEnrollmentHistory { get; }
+    DbSet<EventRosterDefaults> EventRosterDefaults { get; }
     DbSet<EventReview> EventReviews { get; }
     DbSet<EventWorkflowTemplate> EventWorkflowTemplates { get; }
     DbSet<EventWorkflowRun> EventWorkflowRuns { get; }
@@ -100,6 +102,7 @@ public interface IAlifeDbContext
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task StageGroupDissolutionAsync(Guid groupId, Guid actorId, CancellationToken cancellationToken = default);
     Task<IAlifeTransaction?> BeginSerializableTransactionAsync(CancellationToken cancellationToken = default);
+    Task LockEventRegistrationAsync(Guid eventId, CancellationToken cancellationToken = default);
 }
 
 public interface IAlifeTransaction : IAsyncDisposable

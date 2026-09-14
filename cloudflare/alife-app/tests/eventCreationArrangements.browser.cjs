@@ -26,13 +26,23 @@ const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
         let data = [], status = 200;
         if (pathname === '/api/me') data = { id: 'qa', displayName: 'QA Leader', isGuest: false, isRegistered: true, platformRole: 'superadmin', permissions: ['admin.access'], memberships: [] };
         else if (pathname === '/api/event-archetypes') data = catalogue;
+        else if (pathname === '/api/events/ram-authoring/context') data = { policy: null, sourceVersion: 'new', title: label('', '') };
+        else if (pathname === '/api/events/ram-assistance') {
+          const input = request.postDataJSON();
+          assert.deepEqual(Object.keys(input).sort(), ['activityType', 'brief', 'category', 'groupId', 'language', 'mode', 'selectedText', 'sourceVersion']);
+          assert.equal(input.groupId, 'qa-group'); assert.equal(input.sourceVersion, 'new');
+          assert.equal(input.mode, 'draft'); assert.ok(!JSON.stringify(input).includes('Private RAM hazard'));
+          assert.equal(creates.length, 0);
+          data = { sourceVersion: 'new', suggestions: { controlMeasures: t('Keep the walkway clear', '保持通道畅通') }, questions: [] };
+        }
         else if (pathname.endsWith('/venues')) { venueLoads++; data = { managingGroupId: 'qa-group', canManage: true, venues: [venue] }; }
         else if (pathname.endsWith('/compose')) {
           composeLoads++; const input = request.postDataJSON();
           data = { schemaVersion: '1.1.0', proposalHash: JSON.stringify(input.humanSelections), baselineETag: '"plan-new"', facts: { items: [], sourceHash: 'facts' }, roleRequirements: [], workflowContributions: [], navigation: [], warnings: [], readiness: { status: 'notReady', blockers: [], warnings: [] },
             moduleDecisions: modules.map(([moduleCode, en, cn]) => ({ moduleCode, label: label(en, cn), status: moduleCode === 'TEAM.WORK' ? 'required' : (input.humanSelections.find(x => x.moduleCode === moduleCode)?.selected ?? moduleCode === 'SERVICE.ROSTER') ? 'selected' : 'inactive', reasonCodes: [], dependencies: [], dataClasses: [], integrationKey: '', surfaceKey: '', navigationOrder: 1 })) };
         } else if (pathname.endsWith('/events') && request.method() === 'POST') {
-          const body = request.postDataJSON(); assert.equal(JSON.parse(body.ramDataJson).hazards[0].hazard.en, 'Private RAM hazard'); assert.ok(!body.eventDataJson.includes('Private RAM hazard')); assert.ok(!JSON.stringify(body.eventContext).includes('Private RAM hazard'));
+          const body = request.postDataJSON(); assert.equal(JSON.parse(body.ramDataJson).hazards[0].hazard.en, 'Private RAM hazard');
+          const { ramDataJson, ...publicBody } = body; assert.ok(!JSON.stringify(publicBody).includes('Private RAM hazard'));
           creates.push({ body, key: request.headers()['idempotency-key'] });
           status = creates.length === 1 ? 409 : 503;
           data = { message: creates.length === 1 ? 'A venue conflicts with another booking.' : 'Temporary failure for retry test.' };
@@ -73,6 +83,8 @@ const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
       assert.equal((await modeButton.textContent() || '').trim(), zh ? `显示相关模块（${relatedCount}/${modules.length}）` : `Show related modules (${relatedCount}/${modules.length})`);
       assert.equal(await page.locator('[data-module-editor]:visible').count(), 0);
       assert.equal(await top.evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), width >= 1024 ? 6 : width >= 768 ? 4 : 3);
+      for (const code of ['MONEY.FINANCE', 'FOOD.HOSPITALITY', 'FESTIVAL.OPERATIONS']) assert.ok((await tile(code).innerText()).includes(t('Not yet available', '尚未提供')));
+      assert.ok((await tile('COMMS.FOLLOWUP').innerText()).includes(t('Partly available', '部分提供')));
       await page.screenshot({ path: path.join(os.tmpdir(), `alife-module-overview-${language}-${width}.png`) });
       const ram = await enable('SAFETY.RAM');
       await work(ram, 'Activities and conditions', '活动项目与条件');
@@ -80,15 +92,26 @@ const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
       await work(ram, 'Risk details', '风险明细');
       assert.equal(await ram.getByLabel(t('Participant count', '参与人数'), { exact: true }).isVisible(), false);
       await ram.getByRole('button', { name: t('Add risk', '添加风险'), exact: true }).click();
+      await ram.locator('[data-ram-risk] > summary').first().click();
+      if (zh) await ram.getByLabel('危害 (en)', { exact: true }).locator('..').locator('..').locator('summary').click();
       const privateText = 'Private RAM hazard';
       await ram.getByLabel(`${t('Hazard','危害')} (en)`, { exact: true }).fill(privateText);
       assert.ok(!(await page.evaluate(() => JSON.stringify(localStorage))).includes(privateText));
+      await work(ram, 'Draft assistance and checks', '起草助手与检查');
+      await ram.getByText(t('AI drafting / rewriting', 'AI 协助起草／改写'), { exact: true }).click();
+      await ram.getByLabel(t('Non-sensitive activity brief to send', '将发送的非敏感活动概要')).fill('An indoor community meal with walking between tables.');
+      await ram.getByLabel(t('This is the sending preview. I removed names, contacts, health and confidential information. The full RAM is not sent.', '以上为发送预览。我已移除姓名、联系方式、健康和保密信息；不会发送整份 RAM。'), { exact: true }).check();
+      await ram.getByRole('button', { name: t('Send preview and generate suggestions', '发送预览并生成建议'), exact: true }).click();
+      await ram.getByRole('button', { name: t('Adopt this suggestion into draft', '采纳此项到草稿'), exact: true }).click();
+      assert.equal(creates.length, 0);
+      assert.ok(!(await page.evaluate(() => JSON.stringify(localStorage))).includes('Keep the walkway clear'));
+      await work(ram, 'Risk details', '风险明细');
       await page.screenshot({ path: path.join(os.tmpdir(), `alife-inline-ram-risk-${language}-${width}.png`) });
       const roster = await open('SERVICE.ROSTER'); await work(roster, 'Role shifts', '岗位轮班');
       await roster.getByLabel(t('People needed', '所需人数'), { exact: true }).fill('4');
       assert.equal(await ram.isVisible(), false);
       await open('SAFETY.RAM');
-      assert.equal(await ram.getByLabel(`${t('Hazard','危害')} (en)`, { exact: true }).inputValue(), privateText);
+      assert.equal(await ram.getByLabel(`${t('Hazard','危害')} (en)`, { exact: true }).first().inputValue(), privateText);
       await ram.getByRole('button', { name: t('Back to modules','返回模块总览'), exact: true }).click();
       assert.equal(await page.locator('[data-module-editor]:visible').count(), 0);
       assert.equal(await tile('SAFETY.RAM').evaluate(el => el === document.activeElement), true);

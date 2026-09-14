@@ -23,7 +23,14 @@ export type EventEnrollmentRecord = {
   enrollmentJson: string
   createdUtc: string
   updatedUtc: string
+  status?: 'confirmed' | 'waitlisted' | 'cancelled'
+  queuedUtc?: string | null
+  statusChangedUtc?: string | null
+  waitlistPosition?: number | null
+  eTag?: string
 }
+
+export type EnrollmentCapacity = { capacity: number; confirmed: number; waitlisted: number; overCapacity: boolean; isOpen: boolean; canManage: boolean }
 
 export type EnrollmentCommitResponse = {
   status: 'completed'

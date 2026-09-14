@@ -121,6 +121,7 @@ export type GroupEventRecord = {
   updatedUtc?: string
   contactProfileIds?: string[]
   ramStatus?: EventRamStatus
+  ramRequired?: boolean | null
   visibility?: EventVisibility
   accountableOwnerMemberId?: string | null
   governanceMode?: 'private' | 'memberLed' | 'churchSponsored'

@@ -169,6 +169,7 @@ export type EventSeriesSetup = {
 }
 
 export type EventWorkspace = {
+  capabilities?: Array<{ moduleCode: string; status: 'coreAvailable' | 'partial' | 'unavailable'; description: LocalizedText }>
   eventId: string
   owningGroupId: string
   title: LocalizedText

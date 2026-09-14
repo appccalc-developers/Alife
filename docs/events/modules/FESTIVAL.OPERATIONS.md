@@ -55,3 +55,7 @@ Zone/stall operational state, crowd flow, first aid, lost-child handling, comman
 ## Next useful vertical slice
 
 `festival-zone-command`: zone plan and lead, open/paused/closed state, command-level incident escalation, and overall readiness; a live map remains deferred.
+
+## Availability presentation — 2026-09-13
+
+Current catalogue status is `unavailable` (**尚未提供 / Not yet available**) at all preparation and direct entries. Existing foundation records do not imply a delivered operations flow. Enabled/details-confirmed/readiness states remain distinct and required unavailable capability blocks formal approval.

@@ -55,3 +55,7 @@ Budget, fees, purchasing, claims, refunds, reconciliation, close-out, approval e
 ## Next useful vertical slice
 
 `event-budget-expense-closeout`: minor-unit budget lines, expense claim, independent approval, reconciliation, role-restricted no-store responses, and no payment-provider dependency.
+
+## Availability presentation — 2026-09-13
+
+Current catalogue status is `unavailable` (**尚未提供 / Not yet available**) in creation, Workspace overview and the module/direct entry. Enabling or confirming details does not create financial readiness, and a required unavailable finance module still blocks formal approval. Historical selections and records remain intact.

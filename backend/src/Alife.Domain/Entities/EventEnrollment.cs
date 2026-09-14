@@ -9,6 +9,10 @@ public class EventEnrollment
     public string EnrollmentJson { get; set; } = "{}";
     public DateTime CreatedUtc { get; set; }
     public DateTime UpdatedUtc { get; set; }
+    public string Status { get; set; } = "confirmed";
+    public DateTime? QueuedUtc { get; set; }
+    public DateTime? StatusChangedUtc { get; set; }
+    public Guid ConcurrencyToken { get; set; } = Guid.NewGuid();
 
     public Group Group { get; set; } = null!;
     public GroupEvent Event { get; set; } = null!;

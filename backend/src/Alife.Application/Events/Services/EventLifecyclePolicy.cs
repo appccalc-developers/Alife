@@ -2,11 +2,19 @@ using System.Globalization;
 using System.Text.Json;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
+using Alife.Application.Events.Composition;
 
 namespace Alife.Application.Events.Services;
 
 public static class EventLifecyclePolicy
 {
+    public static bool HasRequiredRamApproval(GroupEvent groupEvent)
+    {
+        var snapshot = groupEvent.PlanSnapshots.Where(x => x.IsActive).OrderByDescending(x => x.Version).FirstOrDefault();
+        var plan = snapshot is null ? null : EventCompositionPersistence.ToSnapshotDto(snapshot).Plan;
+        return !EventRamGovernanceService.IsRequired(groupEvent, plan) || groupEvent.RamAssessment is { Status: EventRamStatus.Approved } ram &&
+            (ram.SchemaVersion != 2 || ram.Validity == "Valid");
+    }
     public static bool CanCreateEnrollment(GroupEvent groupEvent, DateTime utcNow, out string error)
     {
         if (!CanOpenRegistration(groupEvent, utcNow, out error)) return false;
@@ -31,7 +39,7 @@ public static class EventLifecyclePolicy
     public static bool CanOpenRegistration(GroupEvent groupEvent, DateTime utcNow, out string error)
     {
         error = string.Empty;
-        if (groupEvent.RamAssessment?.Status != EventRamStatus.Approved)
+        if (!HasRequiredRamApproval(groupEvent))
         {
             error = "This event is still in planning because its RAM has not been approved.";
             return false;
@@ -47,11 +55,11 @@ public static class EventLifecyclePolicy
         {
             using var document = JsonDocument.Parse(groupEvent.EventDataJson);
             var root = document.RootElement;
-            var hasCapacity = root.TryGetProperty("maxCapacity", out var capacityElement) &&
+            var hasCapacity = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("maxCapacity", out var capacityElement) && capacityElement.ValueKind == JsonValueKind.Number &&
                 capacityElement.TryGetInt32(out var capacity) &&
                 capacity > 0;
             var deadline = default(DateTimeOffset);
-            var hasDeadline = root.TryGetProperty("registrationDeadline", out var deadlineElement) &&
+            var hasDeadline = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("registrationDeadline", out var deadlineElement) &&
                 deadlineElement.ValueKind == JsonValueKind.String &&
                 DateTimeOffset.TryParse(
                     deadlineElement.GetString(),

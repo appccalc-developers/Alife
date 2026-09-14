@@ -3,7 +3,8 @@ import EventRegistrationWorkspace from './EventRegistrationWorkspace'
 import type { Language } from '../../i18n/locale'
 import type { EventSurfaceKey, EventWorkspaceItem } from '../../types/eventComposition'
 import AppBadge from '../layout/AppBadge'
-import AppEmptyState from '../layout/AppEmptyState'
+import { Link } from 'react-router-dom'
+import EventCapabilityNotice, { capabilityStatusText, useEventCapabilities } from './EventCapabilityNotice'
 import { EventToolSection as AppSectionCard } from './ArrangementTileDeck'
 import { resolveEventSurface } from './eventSurfaceRegistry'
 import { EventProgrammePanel, EventRosterWorkspace, EventTeamPanel } from './EventOperationsSurfaces'
@@ -27,17 +28,19 @@ export type EventSurfaceProps = {
 const localize = (item: EventWorkspaceItem, language: Language) =>
   item.label[language] || item.label.en || item.label.zh
 
-const GenericSurface = ({ item, language }: EventSurfaceProps) => {
+const GenericSurface = ({ item, language, eventBasePath }: EventSurfaceProps) => {
   const zh = language === 'zh'
   const title = localize(item, language)
+  const capability = useEventCapabilities().find(x => x.moduleCode === item.moduleCode)
   return (
     <AppSectionCard
       title={title}
       subtitle={zh
-        ? '此功能已纳入活动安排，可在这里核对准备情况。'
-        : 'This tool is included in event arrangements. Review its readiness here.'}
-      action={<AppBadge variant={item.readiness === 'ready' ? 'success' : 'warning'}>{item.readiness}</AppBadge>}
+        ? '请核对当前已提供的能力及未完成事项。'
+        : 'Review available capabilities and outstanding work.'}
+      action={<AppBadge variant="warning">{capability ? capabilityStatusText(capability.status, zh) : (zh ? '准备情况' : 'Preparation')}</AppBadge>}
     >
+      <EventCapabilityNotice code={item.moduleCode || ''} zh={zh} />
       {item.blockers.length ? (
         <ul className="space-y-2 text-sm text-amber-900" aria-label={zh ? '阻塞项' : 'Blockers'}>
           {item.blockers.map((blocker, index) => (
@@ -46,14 +49,8 @@ const GenericSurface = ({ item, language }: EventSurfaceProps) => {
             </li>
           ))}
         </ul>
-      ) : (
-        <AppEmptyState
-          title={zh ? '模块已启用' : 'Module enabled'}
-          description={zh
-            ? '目前没有阻塞项。后续资料在对应活动功能中逐步补齐。'
-            : 'There are no current blockers. Continue the remaining work in the corresponding event capability.'}
-        />
-      )}
+      ) : null}
+      {item.moduleCode === 'COMMS.FOLLOWUP' ? <p className="mt-3 text-sm"><Link className="inline-flex min-h-11 items-center text-[#176b5a] underline" to={`${eventBasePath}/workspace?flow=setup&stage=poster`}>{zh ? '前往海报准备（批准后）' : 'Poster preparation (after approval)'}</Link><br /><Link className="inline-flex min-h-11 items-center text-[#176b5a] underline" to={`${eventBasePath}/workspace?flow=setup&stage=publish`}>{zh ? '前往发布检查' : 'Publication checks'}</Link></p> : null}
     </AppSectionCard>
   )
 }
