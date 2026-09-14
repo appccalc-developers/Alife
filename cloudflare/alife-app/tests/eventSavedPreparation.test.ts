@@ -3,6 +3,31 @@ import test from 'node:test'
 import { arrangementSignature, detailSignature, savedArrangementDraft, savedCreationDraft, type SavedArrangements } from '../src/utils/eventSavedPreparation.ts'
 import type { GroupEventRecord } from '../src/types/event.ts'
 import type { EventPlanSnapshot } from '../src/types/eventComposition.ts'
+import { localTimeToUtc } from '../../shared/eventDetails.ts'
+
+test('saved UTC timestamps without offsets round-trip event wall times independently of the device timezone', () => {
+  const previous = process.env.TZ
+  try {
+    for (const deviceZone of ['America/Los_Angeles', 'Australia/Perth', 'Pacific/Auckland']) {
+      process.env.TZ = deviceZone
+      for (const [timeZone, day] of [['Australia/Perth', '2026-12-06'], ['Pacific/Auckland', '2026-09-27'], ['Pacific/Auckland', '2026-04-05']]) {
+        const startLocal = `${day}T10:00`, endLocal = `${day}T20:00`
+        const startUtc = localTimeToUtc(startLocal, timeZone), endUtc = localTimeToUtc(endLocal, timeZone)
+        for (const stripOffset of [false, true]) {
+          const startDate = stripOffset ? startUtc.replace(/Z$/, '') : startUtc
+          const endDate = stripOffset ? endUtc.replace(/Z$/, '') : endUtc
+          const draft = savedCreationDraft({ titleEn: 'Meal', titleZh: '聚餐', startDate, endDate, eventDataJson: JSON.stringify({ timeZone }) } as GroupEventRecord, null)
+          assert.equal(draft.startLocal, startLocal, `${deviceZone} → ${timeZone}`)
+          assert.equal(draft.endLocal, endLocal)
+          assert.equal(localTimeToUtc(draft.startLocal, draft.timeZone), startUtc)
+          const rows = savedArrangementDraft({ startUtc: startDate, serviceSlots: [{ id: 'slot', details: { roleCode: 'welcome', requiredCount: 1, eligibilityCode: 'approvedGroupMember', startOffsetMinutes: 0, endOffsetMinutes: 600 } }], sessions: [], venueBookings: [] } as unknown as SavedArrangements, timeZone)
+          assert.equal(rows.slots![0].startLocal, startLocal)
+          assert.equal(rows.slots![0].endLocal, endLocal)
+        }
+      }
+    }
+  } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous }
+})
 
 test('saved creation form preserves bilingual copy, timezone and explicit No selections', () => {
   const record = { titleEn: 'Meal', titleZh: '聚餐', startDate: '2026-09-27T01:00:00Z', endDate: '2026-09-27T03:00:00Z', visibility: 'churchVisible',

@@ -1,4 +1,5 @@
 import { initialCreationDraft, creationFacts, type CreationDraft } from './eventCreationDraft.ts'
+import { parseUtcInstant } from './eventOperationsState.ts'
 import type { EventDto, GroupEventRecord } from '../types/event'
 import type { EventActivityType, EventPlanSnapshot, EventSeriesSetup } from '../types/eventComposition'
 import type { EventCreationArrangementsRequest } from './eventCreationArrangements'
@@ -17,7 +18,7 @@ export type SavedArrangements = {
 export type SavePreparationArrangements = { occurrenceId: string; eTag: string } & Partial<Pick<SavedArrangements, 'serviceSlots' | 'sessions' | 'venueBookings'>>
 
 export const localPreparationDate = (date: string, timeZone: string) => {
-  const values = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(date)).map(x => [x.type, x.value]))
+  const values = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(parseUtcInstant(date)).map(x => [x.type, x.value]))
   return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`
 }
 export function savedCreationDraft(record: GroupEventRecord, plan: EventPlanSnapshot | null): CreationDraft {
@@ -39,7 +40,7 @@ export function savedTemplate(draft: CreationDraft, template?: EventActivityType
     defaults: { visibility: draft.overrides.visibility || 'groupVisible', registrationMode: draft.overrides.registrationMode || 'none', capacityUnit: 'People' }, preselectedModules: [], presetServiceSlots: [] }
 }
 export function savedArrangementDraft(data: SavedArrangements, timeZone: string): CreationArrangements {
-  const time = (offset: number) => localPreparationDate(new Date(Date.parse(data.startUtc) + offset * 60000).toISOString(), timeZone)
+  const time = (offset: number) => localPreparationDate(new Date(parseUtcInstant(data.startUtc).getTime() + offset * 60000).toISOString(), timeZone)
   return {
     slots: data.serviceSlots.map(row => ({ id: row.id!, roleCode: row.details.roleCode, requiredCount: String(row.details.requiredCount), eligibilityCode: row.details.eligibilityCode, startLocal: time(row.details.startOffsetMinutes), endLocal: time(row.details.endOffsetMinutes) })),
     sessions: data.sessions.map(row => ({ id: row.id!, title: row.details.title, startLocal: time(row.details.startOffsetMinutes), endLocal: time(row.details.endOffsetMinutes),
