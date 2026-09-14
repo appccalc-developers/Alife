@@ -53,7 +53,7 @@ const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
   if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
   if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
   if (type === 'CollectionShowcase') return isZh ? '列表视图' : 'List View'
-  if (type === 'ReviewedPageCarousel') return isZh ? '审核页面轮播' : 'Reviewed Page Carousel'
+  if (type === 'ReviewedPageCarousel') return isZh ? '审核页面展示' : 'Reviewed Page Showcase'
   if (type === 'Album') return isZh ? '相册' : 'Album'
   return type
 }

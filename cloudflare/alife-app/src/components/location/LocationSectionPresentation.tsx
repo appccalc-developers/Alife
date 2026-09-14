@@ -54,13 +54,13 @@ const LocationSectionPresentation = ({
 
   return (
     <section id={id} className={sectionClassName}>
-      <motion.div {...entrance} className="mx-auto grid max-w-6xl overflow-hidden rounded-2xl bg-home-dark text-white lg:grid-cols-[0.36fr_0.64fr]">
-        <div className="flex items-center px-6 py-10 sm:px-10 lg:px-12">
+      <motion.div {...entrance} className="mx-auto grid max-w-7xl overflow-hidden rounded-[2rem] bg-[#211812] text-white shadow-[0_28px_90px_rgba(34,25,17,0.18)] lg:grid-cols-[0.4fr_0.6fr]">
+        <div className="flex items-center px-7 py-12 sm:px-10 lg:px-14 lg:py-16">
           <div>
-            <MapPin className="h-7 w-7 text-home-gold" />
-            <div className="mt-5 text-2xl font-bold leading-tight tracking-tight">{locationName}</div>
-            <div className="mt-3 max-w-sm text-[0.94rem] leading-7 text-white/55">{streetAddress}</div>
-            {locationAddress ? <div className="mt-2 max-w-sm text-sm leading-6 text-white/40">{locationAddress}</div> : null}
+            <MapPin className="h-8 w-8 text-home-gold" strokeWidth={1.7} />
+            <div className="mt-6 text-3xl font-semibold leading-tight tracking-[-0.03em]">{locationName}</div>
+            <div className="mt-4 max-w-sm text-[0.95rem] leading-7 text-white/64">{streetAddress}</div>
+            {locationAddress ? <div className="mt-2 max-w-sm text-sm leading-6 text-white/45">{locationAddress}</div> : null}
             {contactName || contactPhone ? (
               <div className="mt-6 grid gap-4 border-t border-white/10 pt-5">
                 {contactName ? (
@@ -93,7 +93,7 @@ const LocationSectionPresentation = ({
               </div>
             ) : null}
             <a
-              className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-white/60 transition hover:text-white"
+              className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold text-white/76 transition duration-300 hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/[0.06] hover:text-white"
               href={mapUrl || undefined}
               target={mapUrl ? '_blank' : undefined}
               rel={mapUrl ? 'noreferrer' : undefined}
@@ -103,11 +103,11 @@ const LocationSectionPresentation = ({
             </a>
           </div>
         </div>
-        <div className="m-2 min-h-[24rem] overflow-hidden rounded-xl bg-[#d9ddd8] sm:m-3">
+        <div className="m-2 min-h-[26rem] overflow-hidden rounded-[1.55rem] bg-[#d9ddd8] sm:m-3 lg:min-h-[34rem]">
           {mapEmbedUrl ? (
-            <iframe title={locationTitle} src={mapEmbedUrl} className="h-full min-h-[24rem] w-full border-0" loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
+            <iframe title={locationTitle} src={mapEmbedUrl} className="h-full min-h-[26rem] w-full border-0 lg:min-h-[34rem]" loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
           ) : (
-            <div className="flex h-full min-h-[24rem] items-center justify-center px-6 text-center text-sm font-semibold text-slate-600">
+            <div className="flex h-full min-h-[26rem] items-center justify-center px-6 text-center text-sm font-semibold text-slate-600 lg:min-h-[34rem]">
               {mapPlaceholder || locationTitle}
             </div>
           )}

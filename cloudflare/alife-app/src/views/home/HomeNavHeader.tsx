@@ -49,19 +49,19 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
       return (
         <div key={item.key} className="group relative">
           <button
-            className="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 text-[0.95rem] font-semibold text-white/85 transition hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap border-b border-transparent px-3 py-2 text-[0.9rem] font-semibold text-white/78 transition duration-300 hover:border-white/55 hover:text-white focus:border-white/55 focus:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             type="button"
             aria-haspopup="true"
           >
             {item.label}
             <ChevronDown className="h-4 w-4 transition group-hover:rotate-180 group-focus-within:rotate-180" />
           </button>
-          <div className="invisible absolute left-1/2 top-full mt-2 min-w-60 -translate-x-1/2 rounded-xl border border-white/15 bg-home-dark/95 p-2 opacity-0 shadow-[0_22px_70px_rgba(0,0,0,0.28)] backdrop-blur-xl transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+          <div className="invisible absolute left-1/2 top-full mt-3 min-w-64 -translate-x-1/2 rounded-2xl border border-white/10 bg-[#241a13]/96 p-2.5 opacity-0 shadow-[0_24px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl transition duration-300 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
             <div className="grid gap-1">
               {item.items.map((child) => (
                 <Link
                   key={child.to}
-                  className="rounded-lg px-3.5 py-2.5 text-[0.94rem] font-medium text-white/80 transition hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70"
+                  className="rounded-xl px-4 py-3 text-[0.92rem] font-medium text-white/75 transition hover:bg-white/[0.08] hover:text-white focus:bg-white/[0.08] focus:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70"
                   to={child.to}
                   onClick={(event) => closeDropdownNavigation(event.currentTarget)}
                 >
@@ -78,7 +78,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
       return (
         <Link
           key={item.to}
-          className="inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-3.5 py-2 text-[0.95rem] font-semibold text-white/85 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          className="inline-flex min-h-11 items-center whitespace-nowrap border-b border-transparent px-3 py-2 text-[0.9rem] font-semibold text-white/78 transition duration-300 hover:border-white/55 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           to={item.to}
         >
           {item.label}
@@ -87,7 +87,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
     }
 
     return (
-      <a key={item.href} className="inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-3.5 py-2 text-[0.95rem] font-semibold text-white/85 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70" href={item.href} onClick={(event) => scrollToSection(event, item.href)}>
+      <a key={item.href} className="inline-flex min-h-11 items-center whitespace-nowrap border-b border-transparent px-3 py-2 text-[0.9rem] font-semibold text-white/78 transition duration-300 hover:border-white/55 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70" href={item.href} onClick={(event) => scrollToSection(event, item.href)}>
         {item.label}
       </a>
     )
@@ -125,24 +125,24 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
   }
 
   return (
-    <header className={`fixed inset-x-0 top-[env(safe-area-inset-top)] z-50 transition-[background-color,box-shadow] duration-500 ${solid || scrolled ? 'bg-home-dark/80 shadow-[0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl' : ''}`}>
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 text-white sm:px-8 lg:px-10">
-        <Link className="flex shrink-0 items-center gap-3" to="/">
-          <img src={logo} alt="" className="h-9 w-9 rounded-full bg-white/90 object-contain p-1" />
-          <span className="hidden text-base font-semibold tracking-tight sm:block">{copy.churchName}</span>
+    <header className={`fixed inset-x-0 top-[env(safe-area-inset-top)] z-50 border-b border-transparent transition-[background-color,border-color,box-shadow] duration-500 ${solid || scrolled ? 'border-white/[0.07] bg-[#211812]/95 shadow-[0_12px_40px_rgba(17,11,7,0.18)] backdrop-blur-xl' : 'bg-gradient-to-b from-black/35 to-transparent'}`}>
+      <div className="mx-auto flex h-[5.5rem] max-w-7xl items-center justify-between px-5 text-white sm:px-8 lg:px-10">
+        <Link className="group flex shrink-0 items-center gap-3" to="/">
+          <img src={logo} alt="" className="h-10 w-10 rounded-full bg-white/95 object-contain p-1 shadow-[0_8px_24px_rgba(0,0,0,0.16)] transition duration-300 group-hover:scale-105" />
+          <span className="hidden max-w-56 text-[0.92rem] font-semibold leading-tight tracking-tight text-white/92 sm:block">{copy.churchName}</span>
         </Link>
 
-        <nav aria-label="Primary" className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-0.5 rounded-xl border border-white/10 bg-black/20 p-1 shadow-[0_12px_36px_rgba(0,0,0,0.14)] backdrop-blur-md lg:flex">
+        <nav aria-label="Primary" className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 lg:flex">
           {navItems.map(renderDesktopNavItem)}
         </nav>
 
         <div className="flex items-center gap-3">
           <LanguageSelector language={language} onChange={auth.updateLanguage} variant="home" />
-          <Link className="hidden whitespace-nowrap rounded-lg border border-white/15 px-4 py-1.5 text-[0.84rem] font-semibold text-white/90 transition hover:border-white/25 hover:bg-white/[0.06] sm:inline-flex" to={accountTo}>
+          <Link className="hidden min-h-10 items-center whitespace-nowrap rounded-full border border-white/25 bg-white/[0.04] px-5 py-2 text-[0.82rem] font-semibold text-white/90 transition duration-300 hover:border-white/45 hover:bg-white/[0.1] sm:inline-flex" to={accountTo}>
             {accountLabel}
           </Link>
           <button
-            className="grid h-11 w-11 place-items-center rounded-xl border border-white/30 bg-black/20 text-white shadow-sm backdrop-blur-md transition hover:border-white/45 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 lg:hidden"
+            className="grid h-11 w-11 place-items-center rounded-full border border-white/30 bg-black/20 text-white shadow-sm backdrop-blur-md transition hover:border-white/50 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 lg:hidden"
             type="button"
             aria-label="Menu"
             aria-expanded={menuOpen}
@@ -154,7 +154,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
       </div>
 
       {menuOpen ? (
-        <div className="max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain border-t border-white/10 bg-home-dark/95 px-5 pb-6 pt-4 shadow-[0_24px_50px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:px-8 lg:hidden">
+        <div className="max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain border-t border-white/10 bg-[#211812]/98 px-5 pb-7 pt-5 shadow-[0_24px_50px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:px-8 lg:hidden">
           <nav aria-label="Primary" className="grid gap-1">
             {navItems.map((item) => isDropdownNavItem(item) ? renderMobileDropdown(item) : isRouteNavItem(item) ? (
               <Link

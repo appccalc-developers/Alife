@@ -20,7 +20,7 @@ const HomeView = () => {
     : []
 
   return (
-    <div className="min-h-screen overflow-hidden bg-home-surface text-home-gold-text">
+    <div className="min-h-screen overflow-hidden bg-[#f3eee4] text-home-gold-text selection:bg-home-green selection:text-white">
       <HomeNavHeader copy={copy} language={language} navItems={headerNavItems} />
       <ManagedHomePageContent
         copy={copy}

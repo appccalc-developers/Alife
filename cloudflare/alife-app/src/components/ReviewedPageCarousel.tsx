@@ -1,8 +1,12 @@
-import { useCallback, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Sparkles } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
-import FeaturedCarousel from './FeaturedCarousel'
+import CinematicEventGallery from './CinematicEventGallery'
+import EditorialPageIndex from './EditorialPageIndex'
+import EventEditorialShowcase from './EventEditorialShowcase'
+import EventPageStage from './EventPageStage'
+import FloatingCardLoop from './FloatingCardLoop'
 import { localizeText } from '../utils/localizedText'
 import {
   getPublicReviewedPages,
@@ -11,6 +15,7 @@ import {
   sortPublicReviewedPages,
 } from '../utils/publicPageMenus'
 import type { PageSummaryDto } from '../types'
+import type { ReviewedPagePresentation } from '../utils/reviewedPagePresentation'
 import { EditableText } from './page-sections/sectionUtils'
 
 const entranceAnimation = (prefersReducedMotion: boolean | null) =>
@@ -34,6 +39,7 @@ type Props = {
   emptyState: string
   badge: string
   compact?: boolean
+  presentation?: ReviewedPagePresentation
   ordered?: boolean
   showAll?: boolean
   shellClassName?: string
@@ -53,6 +59,7 @@ const ReviewedPageCarousel = ({
   emptyState,
   badge,
   compact = false,
+  presentation = 'floatingLoop',
   ordered = false,
   showAll = false,
   shellClassName,
@@ -73,6 +80,11 @@ const ReviewedPageCarousel = ({
     badge,
   }))
   const [activeItemId, setActiveItemId] = useState(carouselItems[0]?.id ?? '')
+  useEffect(() => {
+    if (!carouselItems.some((item) => item.id === activeItemId)) {
+      setActiveItemId(carouselItems[0]?.id ?? '')
+    }
+  }, [activeItemId, carouselItems])
   const activePath = carouselItems.find((item) => item.id === activeItemId)?.to ?? carouselItems[0]?.to ?? ''
   const updateActiveItem = useCallback((item: { id: string }) => setActiveItemId(item.id), [])
   const preventEditorNavigation = (event: MouseEvent<HTMLAnchorElement>) => {
@@ -82,6 +94,14 @@ const ReviewedPageCarousel = ({
     ? 'px-4 py-8 sm:px-5 lg:py-10'
     : 'px-5 py-20 sm:px-8 lg:px-10 lg:py-28')
   const carouselMargin = compact ? 'mt-6' : 'mt-10'
+  const showcaseProps = {
+    items: carouselItems,
+    ariaLabel: eyebrow,
+    actionLabel: action,
+    compact,
+    linksDisabled: interactionDisabled,
+    onActiveItemChange: updateActiveItem,
+  }
 
   const heading = (
     <div>
@@ -106,7 +126,7 @@ const ReviewedPageCarousel = ({
 
   if (carouselItems.length === 0) {
     return (
-      <section id={sectionId} className={shellClass}>
+      <section id={sectionId} className={`${shellClass} alife-reviewed-showcase ${compact ? 'alife-reviewed-showcase--compact' : ''}`}>
         <div className="mx-auto max-w-6xl">
           <motion.div {...entrance} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             {heading}
@@ -123,8 +143,8 @@ const ReviewedPageCarousel = ({
   }
 
   return (
-    <section id={sectionId} className={shellClass}>
-      <div className="mx-auto max-w-6xl">
+    <section id={sectionId} className={`${shellClass} alife-reviewed-showcase ${compact ? 'alife-reviewed-showcase--compact' : ''}`}>
+      <div className="alife-reviewed-showcase__header mx-auto max-w-6xl">
         <motion.div {...entrance} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           {heading}
           <Link
@@ -136,19 +156,23 @@ const ReviewedPageCarousel = ({
             {action} <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </motion.div>
-
-        <motion.div {...entrance} className={carouselMargin}>
-          <FeaturedCarousel
-            items={carouselItems}
-            ariaLabel={eyebrow}
-            previousLabel={language === 'zh' ? `上一项${eyebrow}` : `Previous ${eyebrow}`}
-            nextLabel={language === 'zh' ? `下一项${eyebrow}` : `Next ${eyebrow}`}
-            compact={compact}
-            linksDisabled={interactionDisabled}
-            onActiveItemChange={updateActiveItem}
-          />
-        </motion.div>
       </div>
+
+      <motion.div {...entrance} className={carouselMargin}>
+        <div className="alife-reviewed-showcase__stage">
+          {presentation === 'editorialEvents' ? (
+            <EventEditorialShowcase {...showcaseProps} language={language} />
+          ) : presentation === 'cinematicEvents' ? (
+            <CinematicEventGallery {...showcaseProps} language={language} />
+          ) : presentation === 'eventStage' ? (
+            <EventPageStage {...showcaseProps} language={language} />
+          ) : presentation === 'editorialIndex' ? (
+            <EditorialPageIndex {...showcaseProps} />
+          ) : (
+            <FloatingCardLoop {...showcaseProps} />
+          )}
+        </div>
+      </motion.div>
     </section>
   )
 }

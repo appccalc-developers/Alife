@@ -564,8 +564,8 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
   }
 
   return (
-    <section id={domId} className="scroll-mt-24 px-5 py-20 text-home-gold-text sm:px-8 lg:px-10 lg:py-28">
-      <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.36fr_0.64fr]">
+    <section id={domId} className="scroll-mt-24 px-5 py-16 text-home-gold-text sm:px-8 sm:py-20 lg:px-10 lg:py-28">
+      <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.34fr_0.66fr] lg:gap-16">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-home-accent">{leftEyebrow}</p>
           <EditableText
@@ -574,7 +574,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
             value={leftTitle}
             fallback={label(language, 'Countdown title', '倒数标题')}
             disabled={!editable || isEventBound}
-            className="mt-4 block text-3xl font-bold leading-tight tracking-tight sm:text-4xl"
+            className="mt-5 block text-4xl font-semibold leading-[1.06] tracking-[-0.035em] [text-wrap:balance] sm:text-5xl"
             onChange={updateLeftTitle}
           />
           <EditableText
@@ -586,10 +586,10 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
             className="mt-4 block max-w-[50ch] text-[0.94rem] leading-7 text-home-muted"
             onChange={updateLeftBody}
           />
-          <div className="mt-6 grid gap-2.5">
+          <div className="mt-8 grid gap-1 border-l border-home-border pl-5">
             {items.map((item, index) => (
-              <article key={`${item}-${index}`} className="flex gap-3 rounded-xl border border-home-border/60 bg-white/60 p-3.5">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-home-green text-xs font-semibold text-white">{index + 1}</span>
+              <article key={`${item}-${index}`} className="flex gap-4 py-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-home-green/25 bg-home-green/10 text-xs font-semibold text-home-green">{index + 1}</span>
                 <EditableText
                   as="p"
                   multiline
@@ -605,7 +605,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
         </div>
 
         <div className="grid gap-5">
-          <article className="overflow-hidden rounded-2xl border border-home-border bg-home-dark text-white shadow-[0_16px_48px_rgba(30,18,10,0.18)]">
+          <article className="overflow-hidden rounded-[2rem] border border-white/5 bg-[#211812] text-white shadow-[0_28px_90px_rgba(34,25,17,0.2)]">
             <div className="grid lg:grid-cols-[0.58fr_0.42fr]">
               <CountdownMedia
                 src={imageUrl}
@@ -615,7 +615,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                 targetDateTimeAttribute={targetDateTimeAttribute}
                 targetDateTimeLabel={metaLabel}
               />
-              <div className="flex flex-col justify-between gap-6 p-6 sm:p-8">
+              <div className="flex flex-col justify-between gap-7 p-7 sm:p-9">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-home-gold">{cardEyebrow}</p>
                   <EditableText
@@ -638,7 +638,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                   />
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/[0.06] p-4">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-sm">
                   <p className="text-xs font-medium uppercase tracking-[0.15em] text-home-gold">{statusLabel}</p>
                   <div className="mt-4 grid grid-cols-4 gap-2 text-center">
                     {[
@@ -647,7 +647,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                       { label: label(language, 'M', '分'), value: countdown.minutes },
                       { label: label(language, 'S', '秒'), value: countdown.seconds },
                     ].map((item) => (
-                      <div key={item.label} className="rounded-xl bg-white/[0.06] px-2 py-3">
+                      <div key={item.label} className="rounded-xl bg-black/15 px-2 py-3">
                         <span className="block text-2xl font-bold tabular-nums">
                           {countdown.hasTarget ? String(item.value).padStart(2, '0') : '--'}
                         </span>
@@ -661,7 +661,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                   <p className="text-xs font-semibold leading-5 text-white/52">{footerText}</p>
                   {linkUrl || mode === 'edit' ? (
                     <a
-                      className="mt-5 inline-flex items-center gap-2 rounded-lg bg-home-gold px-4 py-2.5 text-sm font-semibold text-home-gold-text transition hover:-translate-y-0.5"
+                      className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-home-gold px-5 py-2.5 text-sm font-semibold text-home-gold-text transition duration-300 hover:-translate-y-0.5 hover:bg-[#ffe6a8]"
                       href={mode === 'render' && linkUrl ? linkUrl : undefined}
                       target={mode === 'render' && isExternalLink ? '_blank' : undefined}
                       rel={mode === 'render' && isExternalLink ? 'noopener noreferrer' : undefined}

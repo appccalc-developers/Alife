@@ -99,7 +99,7 @@ const RichTextSection = ({ section, mode, domId, disabled, headingLevel, propert
   if (!overlay) {
     return (
       <section id={domId} className={pageSectionShellClass}>
-        <div className={`mx-auto max-w-6xl ${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-slate-50 px-4 text-slate-700`}>
+        <div className={`mx-auto max-w-5xl ${sectionSpacingClass(section)} rounded-[1.75rem] border border-home-border/55 bg-[#fffaf2]/80 px-6 text-home-gold-text shadow-[0_20px_70px_rgba(58,42,24,0.07)] sm:px-10 lg:px-16`}>
           {hasSectionHeader ? (
             <SectionHeader
               header={section.contentJson.header}
@@ -126,9 +126,9 @@ const RichTextSection = ({ section, mode, domId, disabled, headingLevel, propert
 
   return (
     <section id={domId} className={pageSectionShellClass}>
-      <div className="mx-auto max-w-6xl overflow-hidden rounded-lg border border-slate-200">
-        <div className={`relative overflow-hidden px-5 text-white ${sectionSpacingClass(section)}`}>
-          <BackgroundMedia src={bg} overlayClassName="bg-slate-950/70" />
+      <div className="mx-auto max-w-7xl overflow-hidden rounded-[2rem] border border-home-border/30 shadow-[0_28px_80px_rgba(34,25,17,0.16)]">
+        <div className={`relative min-h-[28rem] overflow-hidden px-6 text-white sm:px-10 lg:px-16 ${sectionSpacingClass(section)}`}>
+          <BackgroundMedia src={bg} overlayClassName="bg-[linear-gradient(90deg,rgba(24,17,12,0.88),rgba(24,17,12,0.56))]" />
           <div className={`relative mx-auto max-w-4xl ${quoteOverlay ? 'text-center' : 'text-left'}`}>
             {hasSectionHeader ? (
               <SectionHeader
@@ -156,7 +156,7 @@ const RichTextSection = ({ section, mode, domId, disabled, headingLevel, propert
                   : `mx-auto mt-6 max-w-3xl sm:mt-8 ${richTextAppearanceClass.bodyOverlay}`}
               />
             )}
-            <EditableText as="p" value={author} fallback="" disabled={!editable} className="mt-4 block text-xl font-medium text-yellow-300 sm:text-3xl" onChange={(value) => updateLocalizedContent({ quoteAuthor: value })} />
+            <EditableText as="p" value={author} fallback="" disabled={!editable} className="mt-6 block text-lg font-semibold text-home-gold sm:text-2xl" onChange={(value) => updateLocalizedContent({ quoteAuthor: value })} />
           </div>
         </div>
         {mode === 'edit' && showProperties ? renderProperties() : null}

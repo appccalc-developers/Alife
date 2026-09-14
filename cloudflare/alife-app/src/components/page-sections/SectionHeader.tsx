@@ -24,18 +24,18 @@ type SectionHeaderProps = {
 
 const normalScaleClasses: Record<NonNullable<SectionHeaderModel['scale']>, { icon: string; title: string; subtitle: string }> = {
   compact: {
-    icon: 'h-8 w-8',
-    title: 'text-xl md:text-3xl',
+    icon: 'h-7 w-7',
+    title: 'text-2xl md:text-3xl',
     subtitle: 'text-sm md:text-base',
   },
   normal: {
-    icon: 'h-10 w-10',
-    title: 'text-2xl md:text-4xl',
-    subtitle: 'text-base md:text-lg',
+    icon: 'h-8 w-8',
+    title: 'text-3xl md:text-5xl',
+    subtitle: 'text-base md:text-[1.1rem]',
   },
   feature: {
-    icon: 'h-12 w-12',
-    title: 'text-3xl md:text-5xl',
+    icon: 'h-10 w-10',
+    title: 'text-4xl md:text-6xl',
     subtitle: 'text-lg md:text-xl',
   },
 }
@@ -60,29 +60,29 @@ const heroScaleClasses: Record<NonNullable<SectionHeaderModel['scale']>, { icon:
 
 const normalToneClasses: Record<NonNullable<SectionHeaderModel['tone']>, { icon: string; title: string; subtitle: string }> = {
   default: {
-    icon: 'text-slate-500',
-    title: 'text-slate-950',
-    subtitle: 'text-slate-600',
+    icon: 'text-home-accent',
+    title: 'text-home-gold-text',
+    subtitle: 'text-home-muted',
   },
   primary: {
-    icon: 'text-blue-600',
-    title: 'text-blue-950',
-    subtitle: 'text-blue-800',
+    icon: 'text-home-green',
+    title: 'text-home-gold-text',
+    subtitle: 'text-home-muted',
   },
   warm: {
-    icon: 'text-amber-600',
-    title: 'text-amber-950',
-    subtitle: 'text-amber-800',
+    icon: 'text-home-accent',
+    title: 'text-home-gold-text',
+    subtitle: 'text-home-muted',
   },
   fresh: {
-    icon: 'text-emerald-600',
-    title: 'text-emerald-950',
-    subtitle: 'text-emerald-800',
+    icon: 'text-home-green',
+    title: 'text-home-gold-text',
+    subtitle: 'text-home-muted',
   },
   rose: {
-    icon: 'text-rose-600',
-    title: 'text-rose-950',
-    subtitle: 'text-rose-800',
+    icon: 'text-[#b56d5b]',
+    title: 'text-home-gold-text',
+    subtitle: 'text-home-muted',
   },
 }
 
@@ -150,8 +150,8 @@ const SectionHeader = ({
   const alignmentClasses = align === 'left' ? 'items-start text-left' : 'items-center text-center'
   const containerClasses =
     variant === 'hero'
-      ? `mx-auto flex max-w-4xl flex-col gap-3 px-4 md:gap-4 md:px-5 ${alignmentClasses}`
-      : `mx-auto mb-5 flex max-w-3xl flex-col gap-2 px-3 md:mb-8 md:gap-3 md:px-4 ${alignmentClasses}`
+      ? `mx-auto flex max-w-4xl flex-col gap-4 px-4 md:gap-5 md:px-5 ${alignmentClasses}`
+      : `mx-auto mb-8 flex max-w-4xl flex-col gap-3 px-1 md:mb-12 md:gap-4 ${alignmentClasses}`
   const selectedIconLabel = header?.icon ? getSectionIconLabel(header.icon, auth.language) : t('none')
   const renderIcon = () => {
     if (!canEditIcon) {
@@ -233,7 +233,7 @@ const SectionHeader = ({
           value={title}
           fallback={titleFallback}
           disabled={disabled}
-          className={`block max-w-full break-words font-semibold leading-tight tracking-normal ${scaleClasses.title} ${toneClasses.title}`}
+          className={`block max-w-full break-words font-semibold leading-[1.06] tracking-[-0.035em] [text-wrap:balance] ${scaleClasses.title} ${toneClasses.title}`}
           onChange={onTitleChange}
         />
       ) : null}
@@ -244,7 +244,7 @@ const SectionHeader = ({
           value={subtitle}
           fallback={subtitleFallback}
           disabled={disabled}
-          className={`block max-w-2xl break-words leading-relaxed ${scaleClasses.subtitle} ${toneClasses.subtitle}`}
+          className={`block max-w-2xl break-words leading-8 ${scaleClasses.subtitle} ${toneClasses.subtitle}`}
           onChange={onSubtitleChange}
         />
       ) : null}

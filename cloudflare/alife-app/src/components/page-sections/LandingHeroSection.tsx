@@ -1,4 +1,5 @@
-import { ArrowRight, PlayCircle } from 'lucide-react'
+import { useRef } from 'react'
+import { ArrowDown, ArrowRight, PlayCircle } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
 import {
@@ -26,10 +27,10 @@ const LandingHeroMedia = ({ src, poster }: { src: string; poster: string }) => {
   const posterSource = poster.trim()
 
   return (
-    <div aria-hidden="true" className="absolute inset-0 z-0 overflow-hidden bg-home-dark">
+    <div aria-hidden="true" className="alife-landing-hero__media">
       {source && isVideoSource(source) ? (
         <video
-          className="absolute inset-0 h-full w-full scale-105 object-cover opacity-60"
+          className="alife-landing-hero__asset"
           src={source}
           poster={posterSource || undefined}
           autoPlay
@@ -40,14 +41,16 @@ const LandingHeroMedia = ({ src, poster }: { src: string; poster: string }) => {
           tabIndex={-1}
         />
       ) : source || posterSource ? (
-        <div className="absolute inset-0 scale-105 bg-cover bg-center opacity-60" style={{ backgroundImage: `url(${source || posterSource})` }} />
+        <div className="alife-landing-hero__asset bg-cover bg-center" style={{ backgroundImage: `url(${source || posterSource})` }} />
       ) : null}
-      <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(30,18,10,0.78)_0%,rgba(30,18,10,0.2)_50%,rgba(30,18,10,0.12)_100%)]" />
+      <div className="alife-landing-hero__veil" />
+      <div className="alife-landing-hero__texture" />
     </div>
   )
 }
 
 const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', headingLevel = 'h1', propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
+  const heroRef = useRef<HTMLElement>(null)
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -59,7 +62,12 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
   const primaryUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
   const secondaryLabel = readLocalizedText(section.contentJson, auth.language, 'secondaryLinkLabel', 'secondaryLabel', 'secondaryCtaLabel')
   const secondaryUrl = readText(section.contentJson, 'secondaryLinkUrl', 'secondaryUrl', 'secondaryCtaUrl')
-  const bottomFade = section.styleJson.bottomFade === true
+  const bottomFade = typeof section.styleJson.bottomFade === 'boolean'
+    ? section.styleJson.bottomFade
+    : true
+  const bottomGradient = typeof section.styleJson.bottomGradient === 'boolean'
+    ? section.styleJson.bottomGradient
+    : true
   const mediaGroupId = contextGroupId || page?.ownerGroupId || undefined
 
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
@@ -152,22 +160,74 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
         disabled={disabled}
         onChange={(value) => updateContent({ secondaryLinkUrl: value, secondaryUrl: value, secondaryCtaUrl: value })}
       />
-      <label
-        className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2"
+      <div
+        className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2"
         data-field-key="landing-hero-bottom-fade"
       >
-        <input
-          type="checkbox"
-          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#176b5a] focus:ring-[#176b5a]"
-          checked={bottomFade}
-          disabled={disabled}
-          onChange={(event) => updateStyle({ bottomFade: event.target.checked })}
-        />
-        <span>
-          <span className="block text-sm font-bold text-slate-900">{t('landingHeroBottomFade')}</span>
-          <span className="mt-1 block text-xs leading-5 text-slate-600">{t('landingHeroBottomFadeDescription')}</span>
-        </span>
-      </label>
+        <p className="text-sm font-bold text-slate-900">{t('landingHeroBottomFade')}</p>
+        <p className="mt-1 text-xs leading-5 text-slate-600">{t('landingHeroBottomFadeDescription')}</p>
+        <div
+          role="group"
+          aria-label={t('landingHeroBottomFade')}
+          className="mt-3 inline-flex rounded-lg bg-slate-200/70 p-1"
+        >
+          <button
+            type="button"
+            aria-pressed={bottomFade}
+            disabled={disabled}
+            className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${bottomFade ? 'bg-white text-[#176b5a] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            onClick={() => updateStyle({ bottomFade: true })}
+          >
+            {auth.language === 'zh' ? '显示虚化' : 'Show blur'}
+          </button>
+          <button
+            type="button"
+            aria-pressed={!bottomFade}
+            disabled={disabled}
+            className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${!bottomFade ? 'bg-white text-[#176b5a] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            onClick={() => updateStyle({ bottomFade: false })}
+          >
+            {auth.language === 'zh' ? '关闭虚化' : 'Hide blur'}
+          </button>
+        </div>
+      </div>
+      <div
+        className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2"
+        data-field-key="landing-hero-bottom-gradient"
+      >
+        <p className="text-sm font-bold text-slate-900">
+          {auth.language === 'zh' ? '底部过渡渐变' : 'Bottom transition gradient'}
+        </p>
+        <p className="mt-1 text-xs leading-5 text-slate-600">
+          {auth.language === 'zh'
+            ? '让首屏影像自然融入下一段页面，而不是在底部突然截断。'
+            : 'Blend the hero image naturally into the following section instead of ending abruptly.'}
+        </p>
+        <div
+          role="group"
+          aria-label={auth.language === 'zh' ? '底部过渡渐变' : 'Bottom transition gradient'}
+          className="mt-3 inline-flex rounded-lg bg-slate-200/70 p-1"
+        >
+          <button
+            type="button"
+            aria-pressed={bottomGradient}
+            disabled={disabled}
+            className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${bottomGradient ? 'bg-white text-[#176b5a] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            onClick={() => updateStyle({ bottomGradient: true })}
+          >
+            {auth.language === 'zh' ? '显示渐变' : 'Show gradient'}
+          </button>
+          <button
+            type="button"
+            aria-pressed={!bottomGradient}
+            disabled={disabled}
+            className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${!bottomGradient ? 'bg-white text-[#176b5a] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            onClick={() => updateStyle({ bottomGradient: false })}
+          >
+            {auth.language === 'zh' ? '关闭渐变' : 'Hide gradient'}
+          </button>
+        </div>
+      </div>
     </PropertyPanel>
   )
 
@@ -176,58 +236,92 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
   }
 
   const compactPreview = previewDensity === 'compact' || editorPreview === true
+  const showPrimaryAction = mode === 'edit' || Boolean(primaryUrl.trim())
+  const showSecondaryAction = mode === 'edit' || Boolean(secondaryUrl.trim())
+  const heroKicker = auth.language === 'zh' ? '基督城 · 丰盛生命' : 'Christchurch · Abundant Life'
+  const exploreLabel = auth.language === 'zh' ? '继续探索' : 'Continue exploring'
+  const scrollToNextSection = () => {
+    const nextSection = heroRef.current?.nextElementSibling
+    if (!(nextSection instanceof HTMLElement)) return
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    nextSection.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' })
+  }
 
   return (
     <section
+      ref={heroRef}
       id={domId}
       className={[
-        'relative isolate overflow-hidden bg-home-dark text-white',
-        compactPreview ? 'min-h-[30rem] rounded-2xl shadow-[0_14px_36px_rgba(31,56,48,0.12)]' : 'min-h-dvh',
+        'alife-landing-hero',
+        compactPreview ? 'alife-landing-hero--compact' : '',
       ].join(' ')}
     >
       <LandingHeroMedia src={mediaUrl} poster={posterUrl} />
-      {bottomFade && !compactPreview ? <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-48 bg-gradient-to-t from-home-surface to-transparent" /> : null}
+      {bottomGradient ? <div className="alife-landing-hero__bottom-gradient" aria-hidden="true" /> : null}
+      {bottomFade ? <div className="alife-landing-hero__bottom-blur" aria-hidden="true" /> : null}
 
-      <div className={['relative z-10 mx-auto flex max-w-6xl items-end px-5 sm:px-8 lg:px-10', compactPreview ? 'min-h-[30rem] pb-12 pt-20' : 'min-h-dvh pb-24 pt-24'].join(' ')}>
-        <div className="max-w-xl">
+      <div className="alife-landing-hero__content">
+        <div className="alife-landing-hero__intro">
+          <p className="alife-landing-hero__kicker">
+            {heroKicker}
+          </p>
           <EditableText
             as={headingLevel}
             multiline
             value={title}
             fallback={auth.language === 'zh' ? '在这里写下页面最重要的邀请。' : 'Write the page’s most important invitation here.'}
             disabled={!editable}
-            className="whitespace-pre-line text-4xl font-bold leading-[1.08] sm:text-5xl lg:text-[3.5rem]"
+            className="alife-landing-hero__title whitespace-pre-line"
             onChange={updateHeroTitle}
           />
-          <EditableText
-            as="p"
-            multiline
-            value={body}
-            fallback={t('noHeroContentYet')}
-            disabled={!editable}
-            className="mt-5 block max-w-md whitespace-pre-line text-base leading-7 text-white/70"
-            onChange={updateHeroBody}
-          />
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            {renderLink({
+          <div className="alife-landing-hero__body-row">
+            <EditableText
+              as="p"
+              multiline
+              value={body}
+              fallback={t('noHeroContentYet')}
+              disabled={!editable}
+              className="alife-landing-hero__body whitespace-pre-line"
+              onChange={updateHeroBody}
+            />
+          </div>
+          {showPrimaryAction || showSecondaryAction ? <div className="alife-landing-hero__actions">
+            {showPrimaryAction ? renderLink({
               label: primaryLabel,
               url: primaryUrl,
               fallback: auth.language === 'zh' ? '计划来访' : 'Plan a Visit',
-              className: 'inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-home-dark transition hover:bg-white/90',
+              className: 'inline-flex min-h-12 items-center gap-2 rounded-full bg-[#f4e4bf] px-6 py-3 text-sm font-semibold text-home-dark shadow-[0_12px_32px_rgba(0,0,0,0.16)] transition duration-300 hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
               icon: 'arrow',
               onLabelChange: (value) => updateLocalizedContent({ linkLabel: value, linkText: value, ctaLabel: value }),
-            })}
-            {renderLink({
+            }) : null}
+            {showSecondaryAction ? renderLink({
               label: secondaryLabel,
               url: secondaryUrl,
               fallback: auth.language === 'zh' ? '观看主日信息' : 'Watch Sermon',
-              className: 'inline-flex min-h-11 items-center gap-2 text-sm font-medium text-white/70 transition hover:text-white',
+              className: 'inline-flex min-h-12 items-center gap-2 rounded-full border border-white/30 bg-black/10 px-6 py-3 text-sm font-semibold text-white/82 backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-white/55 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
               icon: 'play',
               onLabelChange: (value) => updateLocalizedContent({ secondaryLinkLabel: value, secondaryLabel: value, secondaryCtaLabel: value }),
-            })}
-          </div>
+            }) : null}
+          </div> : null}
         </div>
       </div>
+
+      {!compactPreview ? (
+        <button
+          type="button"
+          className="alife-landing-hero__explore"
+          aria-label={exploreLabel}
+          onClick={scrollToNextSection}
+        >
+          <span className="alife-landing-hero__explore-copy">
+            <small>{auth.language === 'zh' ? 'SCROLL TO DISCOVER' : 'DISCOVER MORE'}</small>
+            <strong>{exploreLabel}</strong>
+          </span>
+          <span className="alife-landing-hero__explore-indicator" aria-hidden="true">
+            <ArrowDown className="h-5 w-5" />
+          </span>
+        </button>
+      ) : null}
 
       {mode === 'edit' && showProperties ? (
         <div className="relative z-20 border-t border-white/10 bg-white/95 p-3 text-slate-900">

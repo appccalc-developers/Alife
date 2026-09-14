@@ -483,12 +483,12 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
           onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
         />
       ) : null}
-      <div className="mx-auto grid max-w-6xl overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(30,18,10,0.08)] lg:grid-cols-[0.46fr_0.54fr]">
-        <div className={`relative min-h-[22rem] bg-slate-100 ${mediaPosition === 'right' ? 'lg:order-2' : 'lg:order-1'}`}>
+      <div className="mx-auto grid max-w-7xl items-center lg:grid-cols-[0.56fr_0.44fr]">
+        <div className={`relative min-h-[24rem] overflow-hidden rounded-[1.75rem] bg-slate-100 shadow-[0_22px_70px_rgba(46,34,22,0.12)] sm:min-h-[30rem] lg:min-h-[34rem] ${mediaPosition === 'right' ? 'lg:order-2' : 'lg:order-1'}`}>
           {renderMedia()}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-home-dark/50 to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(0deg,rgba(33,22,14,0.36),transparent_58%)]" />
         </div>
-        <div className={`flex items-center p-7 sm:p-10 lg:p-14 ${mediaPosition === 'right' ? 'lg:order-1' : 'lg:order-2'}`}>
+        <div className={`relative z-10 mx-4 -mt-10 flex items-center rounded-[1.75rem] border border-home-border/55 bg-[#fffaf2]/95 p-7 shadow-[0_24px_70px_rgba(46,34,22,0.12)] backdrop-blur-sm sm:mx-8 sm:p-10 lg:mx-0 lg:mt-0 lg:p-12 ${mediaPosition === 'right' ? 'lg:order-1 lg:-mr-14' : 'lg:order-2 lg:-ml-14'}`}>
           <div className="min-w-0 w-full">
             {spotlightBody}
             {!isContactUsSource && actions.length > 0 ? (
@@ -497,8 +497,8 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
                   action,
                   index,
                   index === 0
-                    ? 'inline-flex min-h-11 items-center gap-2 rounded-lg bg-home-green px-5 text-sm font-semibold text-white transition hover:bg-home-green-hover'
-                    : 'inline-flex min-h-11 items-center gap-2 rounded-lg border border-home-border bg-white px-5 text-sm font-semibold text-home-gold-text transition hover:-translate-y-0.5 hover:border-home-green/35 hover:bg-[#fffaf0] focus:outline-none focus:ring-2 focus:ring-home-green/30',
+                    ? 'inline-flex min-h-12 items-center gap-2 rounded-full bg-home-green px-6 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(47,111,98,0.18)] transition duration-300 hover:-translate-y-0.5 hover:bg-home-green-hover focus:outline-none focus:ring-2 focus:ring-home-green/30'
+                    : 'inline-flex min-h-12 items-center gap-2 rounded-full border border-home-border bg-white/70 px-6 text-sm font-semibold text-home-gold-text transition duration-300 hover:-translate-y-0.5 hover:border-home-green/35 hover:bg-white focus:outline-none focus:ring-2 focus:ring-home-green/30',
                   index === 0,
                 ))}
               </div>
