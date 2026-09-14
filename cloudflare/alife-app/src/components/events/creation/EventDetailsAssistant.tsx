@@ -62,8 +62,8 @@ export default function EventDetailsAssistant({ draft, setDraft, type, isSeries,
       }
       if (!response.result) throw new Error(zh ? 'AI 未返回资料草稿。' : 'AI returned no details draft.')
       const next = response.result
-      const nextDraft = invalidateArrangementConfirmation(applyDetailsResult(draft, next))
-      setDraft(current => JSON.stringify({ draft: current, type: type.code, isSeries }) === sentSignature ? invalidateArrangementConfirmation(applyDetailsResult(current, next)) : current)
+      const nextDraft = invalidateArrangementConfirmation(applyDetailsResult(draft, next, submitted))
+      setDraft(current => JSON.stringify({ draft: current, type: type.code, isSeries }) === sentSignature ? nextDraft : current)
       setResult(next); setResultSignature(JSON.stringify({ draft: nextDraft, type: type.code, isSeries }))
       setTurns(current => [...current, { id: crypto.randomUUID(), role: 'user', text: submitted }, { id: crypto.randomUUID(), role: 'assistant', text: next.assistantReply }].slice(-24) as Turn[])
       setPrompt('')

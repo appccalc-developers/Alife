@@ -1,5 +1,11 @@
 # Event Management Implementation Status
 
+## 2026-09-14 — AI details time-only corrections and zone binding
+
+Implemented on `codex/ai-details-timezone` from main containing #779. The existing offsetless-UTC read fix remains. The Details assistant now recognizes bounded time-only ranges using the current Event start date and zone, correcting stale/UTC-shaped AI values without device-zone conversion. Other missing/mismatched model zones block time adoption. Explicit zone changes require user evidence; server merge validates the time tuple atomically and the client checks it again before changing any draft fields. Invalid replies preserve input with bilingual feedback; missing dates require clarification. Wire shapes, provider, permissions, cache policies, database and historical Event data are unchanged.
+
+Verification: 76 frontend Event tests and 12 rebuilt Worker details tests pass; browser fixtures pass Chinese/English at 320/1280px in both Los Angeles and Perth zones (8 scenarios), exercising creation and saved AI edits, invalid/old reply retention, 08:00–16:00 → 00:00Z–08:00Z saves, offsetless reloads and no repeated writes. Production frontend and Worker dry-run builds and Event document generation/checks accompany the change. Browser/API and Gemini responses are fixtures; no live provider, database migration or deployment was exercised. Delivery is tracked in [Issue #780](https://github.com/appccalc-developers/Alife/issues/780); publication does not imply deployment.
+
 ## 2026-09-14 — Preparation card heading and saved-time round trip
 
 Creation and saved Arrangements now place Show all/related modules at the upper right of the first card and use the selected template's bilingual name as its heading. The control remains independent of opening the details editor. Saved preparation previously passed offsetless SQL UTC timestamps directly to `new Date`, which interpreted them in the device time zone before converting them to the Event time zone. It now reuses the existing explicit-UTC parser for Event dates and occurrence-relative arrangement rows. Persistence still sends explicit UTC and retains the Event's IANA time zone; no stored dates, API shape, permissions, cache policy or database schema are changed.

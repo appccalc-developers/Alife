@@ -5,6 +5,7 @@ const path = require('node:path');
 const os = require('node:os');
 const base = process.env.ALIFE_BROWSER_BASE_URL || 'http://127.0.0.1:5173';
 const timezoneCheck = process.env.ALIFE_QA_TIMEZONE_ONLY === '1';
+const aiTimezoneCheck = process.env.ALIFE_QA_AI_TIMEZONE === '1';
 const apiTime = value => timezoneCheck ? value.replace(/Z$/, '') : value;
 const text = (en, zh) => ({ en, zh });
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
@@ -18,7 +19,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
   try {
     for (const language of (process.env.ALIFE_QA_LANGUAGES || 'zh,en').split(',')) for (const width of (process.env.ALIFE_QA_WIDTHS || '320,375,768,1280').split(',').map(Number)) {
       const zh = language === 'zh', t = (en, cn) => zh ? cn : en;
-      const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce', ...(timezoneCheck ? { timezoneId: 'America/Los_Angeles' } : {}) });
+      const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce', ...(timezoneCheck ? { timezoneId: process.env.ALIFE_QA_DEVICE_ZONE || 'America/Los_Angeles' } : {}) });
       await context.addInitScript(language => localStorage.setItem('alife.language', language), language);
       const page = await context.newPage(); page.setDefaultTimeout(15000);
       const errors = [], creates = [], posterSaves = [], publishes = [], uploads = [], ai = [], detailSaves = [], acceptedPlans = [], taskSaves = [];
@@ -98,6 +99,12 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
             else { info = { ...info, posterImageUrl: req.postDataJSON().posterImageUrl, eTag: '"poster-saved"' }; data = info; }
           } else data = info;
         } else if (pathname.includes('/api/images/')) { uploads.push(pathname); data = { image: { url: 'https://example.org/poster.png' } }; }
+        else if (pathname.includes('/details-session/') && pathname.endsWith('/message')) {
+          const body = req.postDataJSON(), snapshot = body.appContext.knownFacts.snapshot;
+          const day = snapshot.form.startLocal.slice(0, 10);
+          const invalid = body.message === 'bad-zone', stale = body.message === 'stale';
+          data = { responseMode: 'result', result: { ...snapshot, revision: snapshot.revision - (stale ? 1 : 0), form: { ...snapshot.form, timeZone: invalid ? 'UTC' : snapshot.form.timeZone, startLocal: `${day}T08:00`, endLocal: `${day}T16:00` }, sources: { ...snapshot.sources, startLocal: 'explicit', endLocal: 'explicit' }, adoptedFields: ['startLocal', 'endLocal'], fieldAssessments: [], issues: [], assessment: { sufficiencyScore: 30, summary: text('Review details', '请核对资料') }, assistantReply: text('Time updated in the event time zone.', '已按活动时区更新时间。') } };
+        }
         else if (pathname === '/api/ai/event-poster') { ai.push(req.postData()); data = { imageBase64: png, mimeType: 'image/png', model: 'fixture', context: { groupName: text('Group', '小组'), churchName: text('Church', '教会') } }; }
         else if (pathname.endsWith('/packages/current')) data = item();
         else if (pathname.endsWith('/packages/generate') && req.method() === 'POST') { submitted = false; returned = false; data = item(); }
@@ -115,6 +122,16 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
 
       const settings = async code => { const root = await open(code); await work(root,'Settings and responsibilities','设置与职责'); return root; };
       const click = (en, cn) => page.getByRole('button', { name: t(en, cn), exact: true }).click();
+      const askTime = async (message = t('Change to 8am to 4pm', '改为早上八点到下午四点')) => {
+        const toggle = page.getByRole('button', { name: /^(AI details assistant|AI 资料助手)/ });
+        if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+        const input = page.locator('[data-module-editor="EVENT.DETAILS"] textarea[maxlength="8000"]:visible');
+        await input.fill(message); await click('Send and organise details', '发送并整理资料');
+        if (message === 'bad-zone' || message === 'stale') {
+          await page.getByText(message === 'stale' ? /old reply was not adopted|未采用旧回复/ : /Invalid AI time/).waitFor();
+          assert.equal(await input.inputValue(), message);
+        } else await page.getByText(t('Time updated in the event time zone.', '已按活动时区更新时间。'), { exact: true }).last().waitFor();
+      };
       const clickWhenEnabled = async button => {
         await button.waitFor({ state: 'visible' });
         for (let attempt = 0; attempt < 150; attempt += 1) {
@@ -161,7 +178,16 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         const group = page.getByRole('group', { name: label, exact: true }); await group.getByLabel('English', { exact: true }).fill(en); await group.getByLabel('中文', { exact: true }).fill(cn);
       }
       await page.getByLabel(t('Start time', '开始时间'), { exact: true }).fill('2026-10-04T18:00');
-      await page.getByLabel(t('End time', '结束时间'), { exact: true }).fill('2026-10-04T20:00'); await flow().getByRole('button', { name: /Create|确认创建/ }).click();
+      await page.getByLabel(t('End time', '结束时间'), { exact: true }).fill('2026-10-04T20:00');
+      if (aiTimezoneCheck) {
+        for (const message of ['bad-zone', 'stale']) {
+          await askTime(message);
+          assert.equal(await page.getByLabel(t('Start time', '开始时间'), { exact: true }).inputValue(), '2026-10-04T18:00');
+        }
+        await askTime();
+        assert.equal(await page.getByLabel(t('Start time', '开始时间'), { exact: true }).inputValue(), '2026-10-04T08:00');
+      }
+      await flow().getByRole('button', { name: /Create|确认创建/ }).click();
       await click('Confirm and create event', '确认创建活动');
       await page.waitForURL('**/qa-event/workspace?flow=setup&stage=arrangements');
       await tile('TEAM.WORK').waitFor(); assert.equal(await flow().locator('li').count(), 6); assert.equal(await page.getByLabel(t('Choose a tool to configure', '选择要设置的功能')).count(), 0); assert.equal(creates.length, 1);
@@ -177,16 +203,22 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
         assert.equal(detailSaves.at(-1).body.endDate, '2026-12-06T12:00:00.000Z');
         assert.equal(JSON.parse(detailSaves.at(-1).body.eventDataJson).timeZone, 'Australia/Perth');
+        if (aiTimezoneCheck) {
+          const aiSaved = page.waitForResponse(response => response.url().endsWith('/api/events/qa-event') && response.request().method() === 'PUT' && response.ok() && response.request().postDataJSON().startDate === '2026-12-06T00:00:00.000Z');
+          await askTime(); await aiSaved;
+          await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
+          assert.equal(detailSaves.at(-1).body.endDate, '2026-12-06T08:00:00.000Z');
+        }
         const writes = detailSaves.length;
         for (let reload = 0; reload < 2; reload++) {
           await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=details`, { waitUntil: 'domcontentloaded' });
           try { await start().waitFor(); } catch (error) { console.error('Timezone reload failed', page.url(), errors, await page.locator('body').innerText()); throw error; }
-          assert.equal(await start().inputValue(), '2026-12-06T10:00');
-          assert.equal(await end().inputValue(), '2026-12-06T20:00');
+          assert.equal(await start().inputValue(), aiTimezoneCheck ? '2026-12-06T08:00' : '2026-12-06T10:00');
+          assert.equal(await end().inputValue(), aiTimezoneCheck ? '2026-12-06T16:00' : '2026-12-06T20:00');
           await page.waitForTimeout(1300); assert.equal(detailSaves.length, writes);
         }
         await checkLayout('timezone'); assert.deepEqual(errors, []);
-        console.log(`PASS ${language} ${width}: template header and independent top-right toggle, 10:00–20:00 save/reload, offsetless SQL timestamps, different browser timezone, no repeat writes`);
+        console.log(`PASS ${language} ${width}: ${aiTimezoneCheck ? 'AI 08:00–16:00, invalid/stale response retention, creation and saved editing' : '10:00–20:00'}, save/reload, offsetless SQL timestamps, ${process.env.ALIFE_QA_DEVICE_ZONE || 'America/Los_Angeles'}, no repeat writes`);
         await context.close(); continue;
       }
       if (process.env.ALIFE_QA_DETAILS_ONLY === '1') {

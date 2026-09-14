@@ -3422,6 +3422,35 @@ test('details adopts explicit event-zone date/range even when AI quotes hours on
   }
 });
 
+test('details time-only correction binds to the existing date and zone despite missing or shifted AI zone', async () => {
+  for (const message of ['改为早上八点到下午四点', 'Change to 8am to 4pm']) for (const zone of [null, 'UTC', 'Australia/Perth']) {
+    const snapshot = detailsFixture(); Object.assign(snapshot.form, { timeZone: 'Australia/Perth', startLocal: '2026-12-06T10:00', endLocal: '2026-12-06T20:00' });
+    const result = detailsOutput(snapshot, { timeZone: zone, startLocal: '2026-12-06T00:00', endLocal: '2026-12-06T08:00' });
+    originResponses.push(detailsReply(result));
+    const response = await sendDetails(crypto.randomUUID(), snapshot, message);
+    assert.equal(response.status, 200);
+    const { result: merged } = await response.json();
+    assert.equal(merged.form.startLocal, '2026-12-06T08:00'); assert.equal(merged.form.endLocal, '2026-12-06T16:00');
+    assert.equal(merged.form.timeZone, 'Australia/Perth'); assert.ok(merged.adoptedFields.includes('startLocal'));
+  }
+});
+
+test('details rejects unbound model times and never adopts half an invalid range', async () => {
+  for (const changes of [{ timeZone: null }, { timeZone: 'UTC' }, { startLocal: '2026-09-19T08:00+12:00' }]) {
+    const snapshot = detailsFixture(), result = detailsOutput(snapshot, { startLocal: '2026-09-19T08:00', endLocal: '2026-09-19T16:00', ...changes });
+    result.fieldAssessments = [detailsAssessment('startLocal', '确认'), detailsAssessment('endLocal', '确认')];
+    originResponses.push(detailsReply(result));
+    const { result: merged } = await (await sendDetails(crypto.randomUUID(), snapshot, '确认')).json();
+    assert.equal(merged.form.startLocal, snapshot.form.startLocal); assert.equal(merged.form.endLocal, snapshot.form.endLocal);
+    assert.equal(merged.form.timeZone, snapshot.form.timeZone); assert.ok(merged.issues.some(x => x.question.zh && x.question.en));
+    assert.ok(!merged.adoptedFields.some(x => ['startLocal', 'endLocal', 'timeZone'].includes(x)));
+  }
+  const snapshot = detailsFixture(); snapshot.form.startLocal = null; snapshot.form.endLocal = null;
+  originResponses.push(detailsReply(detailsOutput(snapshot, { startLocal: '2026-12-06T08:00', endLocal: '2026-12-06T16:00' })));
+  const { result } = await (await sendDetails(crypto.randomUUID(), snapshot, '改为早上八点到下午四点')).json();
+  assert.equal(result.form.startLocal, null); assert.equal(result.form.endLocal, null);
+});
+
 test('RAM authoring authorizes both scopes and sends only the reviewed allowlist', async () => {
   for (const scope of [{ groupId: '11111111-1111-1111-1111-111111111111' }, { eventId: '22222222-2222-2222-2222-222222222222' }]) {
     const before = fetchCalls.length;
