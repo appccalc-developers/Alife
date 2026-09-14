@@ -2186,7 +2186,7 @@ select {
 .arrangement-editor .alife-panel { padding: .75rem 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
 .arrangement-editor .alife-panel > header { padding-bottom: .5rem; margin-bottom: .75rem; }
 .arrangement-tool-card { min-width: 0; width: 100%; border: 1px solid #18332d26; border-radius: 1rem; background: #fff; }
-.arrangement-tool-summary { display: flex; align-items: center; gap: .75rem; min-height: 3rem; padding: .875rem 1rem; cursor: pointer; list-style: none; overflow-wrap: anywhere; border-radius: inherit; }
+.arrangement-tool-summary { display: flex; align-items: center; gap: .75rem; min-height: 3rem; padding: .875rem 1rem; cursor: pointer; list-style: none; overflow-wrap: anywhere; border-radius: 1rem; }
 .arrangement-tool-summary::-webkit-details-marker { display: none; }
 .arrangement-tool-summary:hover { background: #f4f8f6; }
 .arrangement-tool-summary:focus-visible { outline: 3px solid #176b5a; outline-offset: 3px; }
