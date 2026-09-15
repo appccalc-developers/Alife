@@ -63,7 +63,7 @@ export default function EventRegistrationRulesEditor({ eventId, onDirty, onSaved
     {error ? <p role="alert" className="mb-4 text-sm text-rose-800">{error}</p> : null}
     {!query.data.canConfigure ? <p className="mb-3 text-sm">{zh ? '当前为只读。只有活动总负责人可在方案开放编辑时修改规则。' : 'Read only. The event owner can change rules while the plan is open for editing.'}</p> : null}
     {query.data.policy && base !== query.data.policy.eTag ? <p role="alert" className="mb-3 text-amber-900">{zh ? '服务端规则已改变。你的草稿仍保留，请核对后重新读取。' : 'The saved rules changed. Your draft is retained; review before reloading.'}</p> : null}
-    <DetailsWorkspace key={`${me?.id}:${eventId}`} zh={zh} active readOnly={busy || !query.data.canConfigure}
+    <DetailsWorkspace key={`${me?.id}:${eventId}`} zh={zh} active readOnly={busy || !query.data.canConfigure} limitAssistantHeight
       labels={{ workspace: zh ? '报名规则工作区' : 'Registration rules workspace', form: zh ? '报名规则表单' : 'Registration rules form', assistant: zh ? 'AI 报名资料助手' : 'AI registration assistant' }}
       assistant={active => <EventFormAssistant eventId={eventId} scope="registration" form={registrationAssistantForm(draft)} contextSignature={JSON.stringify([draft, base])} zh={zh} active={active} initiallyConfirmed={Boolean(query.data.policy)} onBusy={setAiBusy} onAdopt={(form, fields) => setDraft(current => current && JSON.stringify(current) === JSON.stringify(draft) ? applyRegistrationAssistantForm(current, form, fields, Intl.DateTimeFormat().resolvedOptions().timeZone) : current)} />}
       form={<form onInvalidCapture={e => revealArrangementControl(e.target as HTMLElement)} onSubmit={e => { e.preventDefault(); void save() }}><fieldset disabled={busy || !query.data.canConfigure} className="space-y-5">

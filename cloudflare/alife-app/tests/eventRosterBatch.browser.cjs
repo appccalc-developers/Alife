@@ -20,6 +20,13 @@ const text = (en, zh) => ({ en, zh });
         return { id: `date-${i}`, eventId, startUtc: start.toISOString(), endUtc: new Date(+start + 3600000).toISOString(), localDate: start.toISOString().slice(0, 10), status: 'planned', version: 1, assignments: [] };
       });
       const workspacePath = `/groups/${groupId}/events/${eventId}/workspace`;
+      const taskKey = `roster:${occurrences[0].id}:v1:${owner}`;
+      const coordinatorDuty = { id: `coord-${occurrences[0].id}`, taskKey, sourceType: 'rosterCoordination', sourceId: occurrences[0].id,
+        sourceVersion: 'v1', eventId, groupId, occurrenceId: occurrences[0].id, occurredUtc: new Date().toISOString(),
+        category: 'urgent', completionMode: 'workflow', actionType: 'event.roster.coordinate',
+        actionLabel: text('Schedule volunteers across dates', '多场次手工排班'),
+        actionUrl: `/events/${eventId}/duties/rosterCoordination/${occurrences[0].id}?taskKey=${encodeURIComponent(taskKey)}`,
+        actionDataJson: JSON.stringify({ title: text('Roster needs attention', '排班需要处理'), eventTitle: text('Weekly gathering', '每周聚会'), body: text('Fill a required position', '补齐必要岗位') }) };
       const roster = (date, actor) => ({ eventId, occurrenceId: date.id, eTag: `date-v${date.version}`, canManage: actor === owner, canConfigure: false, readinessBlockers: [], slots: [{
         id: `slot-${date.id}`, occurrenceId: date.id, roleCode: 'welcome', roleLabel: text('Welcome', '接待'), moduleCode: 'SERVICE.ROSTER', requiredCount: 1,
         startUtc: date.startUtc, endUtc: date.endUtc, eligibilityCode: 'approvedGroupMember', confirmedCount: date.assignments.filter(x => x.status === 'confirmed').length,
@@ -34,6 +41,11 @@ const text = (en, zh) => ({ en, zh });
           if (p === '/api/me') data = { id: actor, displayName: actor === owner ? 'Coordinator' : 'Volunteer', isRegistered: true, isGuest: false, memberships: [{ groupId, role: actor === owner ? 'leader' : 'member', status: 'approved' }] };
           else if (p === '/api/groups/visible') data = [{ id: groupId, name: text('Test group', '测试小组'), isChurch: true, accessType: 'public' }];
           else if (p.endsWith('/workspace')) data = { eventId, owningGroupId: groupId, title: text('Weekly gathering', '每周聚会'), canManage: false, sponsorshipStatus: 'none', eTag: 'plan', readiness: { status: 'notReady' }, nextSteps: [], items: [{ surfaceKey: 'workspace.overview', presentation: 'tab', sectionKey: 'overview', label: text('Overview', '总览'), order: 0, blockers: [] }, { surfaceKey: 'service.roster', presentation: 'page', pathSegment: 'roster', moduleCode: 'SERVICE.ROSTER', label: text('Service roster', '服事排班'), order: 1, readiness: 'notReady', blockers: [] }] };
+          else if (p.includes('/duties/rosterCoordination/')) { assert.equal(url.searchParams.get('taskKey'), taskKey); data = { task: coordinatorDuty, surface: 'roster', targetUrl: `${workspacePath}/roster?occurrenceId=${occurrences[0].id}` }; }
+          else if (p === `/api/events/${eventId}/work`) data = { event: { eventId, groupId, title: text('Weekly gathering', '每周聚会'), stage: 'registration', canManage: false, roles: ['SERVICE.ROSTER:roster.coordinator'] }, links: [
+            { key: 'published-event', stage: 'registration', title: text('Published event', '已公布的活动'), url: `/groups/${groupId}/events/${eventId}`, canEdit: false },
+            { key: 'roster:published', stage: 'registration', title: text('Schedule volunteers across dates', '多场次手工排班'), url: `${workspacePath}/roster`, canEdit: true },
+          ], occurrences: [], duties: [], plan: null, reports: [], occurrencePage: 1, hasMoreOccurrences: false };
           else if (p.endsWith('/roster/page')) {
             const page = Number(url.searchParams.get('page') || 1);
             data = { page, pageSize: 4, total: 6, timeZone: 'Australia/Perth', canManage: actor === owner, canConfigure: false, isRecurring: true, defaultsVersion: 1, defaultsETag: 'defaults-1',
@@ -64,7 +76,7 @@ const text = (en, zh) => ({ en, zh });
           else if (p.endsWith('/roster/groups')) data = [{ roleCode: 'welcome', moduleCode: 'SERVICE.ROSTER', memberIds: [member], eTag: `group-${groupVersion}` }];
           else if (p.endsWith('/team')) data = { eventId, members: [], roleRequirements: [], roleAssignments: [], tasks: [], canManage: false };
           else if (p.endsWith('/programme')) data = { sessions: [] };
-          else if (p === '/api/notifications/current') data = notices.filter(x => x.recipient === actor).map(x => ({ ...x, category: 'general', completionMode: 'read', occurredUtc: new Date().toISOString() }));
+          else if (p === '/api/notifications/current') data = [...(actor === owner ? [coordinatorDuty] : []), ...notices.filter(x => x.recipient === actor).map(x => ({ ...x, category: 'general', completionMode: 'read', occurredUtc: new Date().toISOString() }))];
           await route.fulfill({ status: 200, headers: { 'Cache-Control': 'private, no-store' }, json: data });
         });
         const page = await context.newPage(); page.setDefaultTimeout(15000); page.on('pageerror', e => errors.push(e.message));
@@ -72,6 +84,16 @@ const text = (en, zh) => ({ en, zh });
       };
       const leader = await actorContext(owner), volunteer = await actorContext(member);
       const page = leader.page;
+      await page.goto(`${base}/tasks`, { waitUntil: 'domcontentloaded' });
+      const currentDuty = page.locator('details').filter({ hasText: t('Roster needs attention', '排班需要处理') }).first();
+      await currentDuty.locator('summary').waitFor(); await currentDuty.locator('summary').click(); await currentDuty.getByRole('button').click();
+      await page.getByRole('link', { name: t('Open Event workspace', '进入活动处理'), exact: true }).click();
+      await page.waitForURL(`**${workspacePath}/roster?occurrenceId=${occurrences[0].id}*`);
+      await page.getByText(t('Schedule across dates', '多场次手工排班'), { exact: true }).waitFor();
+      assert.equal(reads.some(x => x === `${owner}:/api/events/${eventId}/preparation`), false);
+      assert.equal(await page.getByRole('link', { name: t('View event', '查看活动'), exact: true }).getAttribute('href'), `/groups/${groupId}/events/${eventId}`);
+      await page.getByRole('link', { name: t('View event stages', '查看活动阶段') }).click();
+      await page.getByText(t('Published event', '已公布的活动'), { exact: true }).waitFor();
       await page.goto(`${base}${workspacePath}/roster`, { waitUntil: 'domcontentloaded' });
       const candidates = () => page.locator('select:visible').filter({ has: page.locator(`option[value="${member}"]`) });
       await candidates().first().waitFor(); assert.equal(await candidates().count(), 4);
@@ -99,13 +121,17 @@ const text = (en, zh) => ({ en, zh });
         const notice = volunteer.page.locator('details').filter({ hasText: t('Roster invitation', '排班邀请') }).first();
         await notice.locator('summary').click(); await notice.getByRole('button').click();
       }
-      try { await volunteer.page.getByRole('button', { name: t('Accept', '接受排班'), exact: true }).filter({ visible: true }).first().click(); }
+      assert.equal(await volunteer.page.getByText(t('Schedule across dates', '多场次手工排班'), { exact: true }).count(), 0);
+      const ownDate = volunteer.page.locator('details').filter({ hasText: t('Position settings and personal availability by date', '单场次岗位设置与个人可用性') }).first();
+      await ownDate.locator('summary').click();
+      try { await ownDate.getByRole('button', { name: t('Confirm', '确认岗位'), exact: true }).click(); }
       catch (e) { console.error(volunteer.page.url(), (await volunteer.page.locator('body').innerText()).slice(-7000), errors, reads.slice(-20)); throw e; }
-      await volunteer.page.getByRole('button', { name: t('Decline', '拒绝'), exact: true }).filter({ visible: true }).first().click();
+      await ownDate.locator('select').first().selectOption(occurrences[1].id);
+      await ownDate.getByRole('button', { name: t('Decline', '婉拒'), exact: true }).click();
       assert.equal(notices.filter(x => x.recipient === owner).length, 2);
       await page.reload({ waitUntil: 'domcontentloaded' }); await candidates().first().waitFor();
       await page.getByText(t('Personally confirmed 1/1', '本人已确认 1/1'), { exact: true }).filter({ visible: true }).waitFor();
-      assert.equal(await page.getByRole('button', { name: t('Accept', '接受排班'), exact: true }).count(), 0);
+      assert.equal(await page.getByRole('button', { name: t('Confirm', '确认岗位'), exact: true }).count(), 0);
       await page.getByRole('button', { name: t('Next', '下一页'), exact: true }).first().click();
       await page.getByText(t('Page 2', '第 2 页'), { exact: true }).waitFor();
       await page.waitForFunction(id => Array.from(document.querySelectorAll('select')).filter(s => s.getClientRects().length && s.querySelector(`option[value="${id}"]`)).length === 2, member);

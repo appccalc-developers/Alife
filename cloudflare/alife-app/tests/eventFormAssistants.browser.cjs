@@ -29,7 +29,7 @@ async function pane(workspace, name) {
     if (name === 'assistant' && await workspace.getAttribute('data-assistant-open') !== 'true') await workspace.getByRole('button', { name: /Show assistant|展开助手/ }).click();
   } else await workspace.getByRole('tab', { name: name === 'assistant' ? /AI assistant|AI 助手/ : /Task form|任务表单|Registration rules form|报名规则表单/ }).click();
 }
-async function layout(page, workspace) {
+async function layout(page, workspace, scope) {
   await pane(workspace, 'assistant');
   const send = workspace.getByRole('button', { name: /Send and organise details|发送并整理资料/ }), voice = workspace.getByRole('button', { name: /Voice input|语音输入/, exact: true });
   const a = await send.boundingBox(), b = await voice.boundingBox(), input = await workspace.locator('textarea[maxlength="8000"]').boundingBox();
@@ -37,8 +37,17 @@ async function layout(page, workspace) {
   assert.ok(b.x > a.x && Math.abs(a.y - b.y) <= 2.5, JSON.stringify({ send: a, voice: b })); assert.ok(a.y >= input.y + input.height);
   if (await workspace.getAttribute('data-wide') === 'true') {
     const form = await workspace.locator('.event-details-form').boundingBox(), assistant = await workspace.locator('.event-details-assistant').boundingBox();
-    assert.ok(Math.abs(form.y + form.height - assistant.y - assistant.height) < 2, 'form/assistant bottoms align');
-    assert.ok(await workspace.locator('.event-assistant-content').evaluate(el => el.scrollHeight <= el.clientHeight + 2), 'only the conversation can overflow');
+    if (scope === 'tasks') {
+      assert.ok(Math.abs(form.y + form.height - assistant.y - assistant.height) < 2, 'task form/assistant bottoms align');
+      assert.ok(await workspace.locator('.event-assistant-content').evaluate(el => el.scrollHeight <= el.clientHeight + 2), 'only the task conversation can overflow');
+    }
+  }
+  if (scope === 'registration') {
+    const panel = workspace.locator('.event-details-assistant--viewport'), bounds = await panel.boundingBox();
+    assert.ok(bounds.height <= 1.5 * page.viewportSize().height + 2, 'registration assistant stays near one and a half viewport heights');
+    assert.equal(await panel.evaluate(el => getComputedStyle(el).overflowY), 'auto');
+    await panel.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    assert.ok(await workspace.locator('.event-assistant-completion').isVisible(), 'completion remains reachable inside the assistant');
   }
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 }
@@ -80,7 +89,7 @@ async function layout(page, workspace) {
    for (const scope of ['tasks', 'registration']) {
     await page.evaluate(scope => window.__setFormTab(scope), scope);
     const workspace = page.locator(`[data-fixture="${scope}"] .event-details-workspace`); await workspace.waitFor().catch(async error => { console.error({ errors, url: page.url(), content: (await page.content()).slice(0, 1600) }); throw error });
-    await layout(page, workspace);
+    await layout(page, workspace, scope);
     assert.equal(await workspace.getByRole('button', { name: /Back to event details form|回到活动资料表单/ }).count(), 0);
     const prompt = workspace.locator('textarea[maxlength="8000"]'), send = workspace.getByRole('button', { name: /Send and organise details|发送并整理资料/ });
     await prompt.fill('Prepare the draft'); const before = writes.length; await send.click(); await workspace.getByRole('log').getByText(/Draft updated|草稿已更新/).waitFor(); assert.equal(writes.length, before);
@@ -114,7 +123,7 @@ async function layout(page, workspace) {
     for (let attempt = 0; !release && attempt < 50; attempt++) await new Promise(resolve => setTimeout(resolve, 10));
     assert.ok(release, 'the delayed reply is ready'); release(); release = null;
     await pane(workspace, 'assistant'); await workspace.getByRole('alert').filter({ hasText: /old reply was not adopted|未采用旧回复/ }).waitFor(); assert.equal(await prompt.inputValue(), 'slow');
-    await prompt.fill('Retained after retry'); await layout(page, workspace); await workspace.screenshot({ path: path.join(output, `alife-form-assistant-${scope}-${language}-${width}.png`) });
+    await prompt.fill('Retained after retry'); await layout(page, workspace, scope); await workspace.screenshot({ path: path.join(output, `alife-form-assistant-${scope}-${language}-${width}.png`) });
     await pane(workspace, 'form');
     if (scope === 'tasks') {
       await workspace.locator('.event-details-form select[required]').selectOption(ownerId);

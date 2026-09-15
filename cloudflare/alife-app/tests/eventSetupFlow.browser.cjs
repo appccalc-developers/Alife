@@ -42,7 +42,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         return selected === undefined || (selected && item.status === 'required') ? item : { ...item, status: selected ? 'selected' : 'inactive' };
       }) });
       savedPlan.moduleDecisions.push({ moduleCode: 'COMMS.FOLLOWUP', label: text('Communications', '活动沟通'), status: 'inactive', reasonCodes: [], dependencies: [], dataClasses: [], integrationKey: '', surfaceKey: 'comms.followup', navigationOrder: 2 });
-      let viewOnly = false, enrollmentFailure = false; let reads = 0, approved = false, submitted = false, returned = false, reopen = null, published = false, conflict = width === 1280;
+      let viewOnly = false, enrollmentFailure = false, delayPreparationOnce = false; let reads = 0, approved = false, submitted = false, returned = false, reopen = null, published = false, conflict = width === 1280;
       let info = { eventId: 'qa-event', groupId: 'qa-group', brief: { title: text('Community meal', '社区聚餐'), description: text('A meal together', '一同聚餐'), purpose: text('', ''), locationName: text('Hall', '礼堂'), startDate: '2026-10-04T10:00:00Z', endDate: '2026-10-04T12:00:00Z' }, posterImageUrl: null, visibility: width === 320 ? 'groupVisible' : width === 768 ? 'churchVisible' : 'public', registrationMode: 'none', eTag: '"poster-v1"', canManage: true };
       let ramAssessment = null; const ramRevision = { id: 'ram-version', version: 1, schemaVersion: 2, policyVersionId: null, contentHash: 'fixture-hash', residualLevel: 'Incomplete', authorMemberId: 'qa', onsiteMemberId: null, createdUtc: '2026-09-12T00:00:00Z' };
       let updatedUtc = '2026-09-11T00:00:00Z';
@@ -78,7 +78,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         else if (pathname.endsWith('/occurrences')) data = [{ id: 'qa-occurrence', eventId: 'qa-event', startUtc: arrangements.startUtc, endUtc: arrangements.endUtc, status: 'scheduled' }, ...(width === 1280 ? [{ id: 'qa-occurrence-2', eventId: 'qa-event', startUtc: '2026-10-11T10:00:00Z', endUtc: '2026-10-11T12:00:00Z', status: 'scheduled' }] : [])];
         else if (pathname.endsWith('/preparation/arrangements')) data = new URL(req.url()).searchParams.get('occurrenceId') === 'qa-occurrence-2' ? { ...arrangements, occurrenceId: 'qa-occurrence-2', startUtc: '2026-10-11T10:00:00Z', endUtc: '2026-10-11T12:00:00Z' } : arrangements;
         else if (pathname.endsWith('/packages/assessment')) data = assessment;
-        else if (pathname.endsWith('/preparation')) data = preparation();
+        else if (pathname.endsWith('/preparation')) { if (delayPreparationOnce) { delayPreparationOnce = false; await new Promise(resolve => setTimeout(resolve, 650)); } data = preparation(); }
         else if (pathname.endsWith('/reopen-requests')) { reopen = { id: 'qa-reopen', eventPackageId: 'qa-package', status: 'pending', reason: req.postDataJSON().reason, eTag: '"reopen-v1"', canReview: true }; data = preparation(); }
         else if (pathname.endsWith('/qa-reopen/review')) { assert.equal(req.headers()['if-match'], '"reopen-v1"'); assert.ok(req.headers()['idempotency-key']); approved = false; published = false; submitted = false; reopen = { ...reopen, status: 'approved', canReview: false, reviewReason: req.postDataJSON().reason }; data = preparation(); }
         else if (pathname.endsWith('/ram') && req.method() === 'PUT') { const body = req.postDataJSON(); assert.equal(body.schemaVersion, 2); updatedUtc = new Date(Date.parse(updatedUtc) + 1000).toISOString(); ramAssessment = { eventId: 'qa-event', groupId: 'qa-group', schemaVersion: 2, eTag: 'ram-saved', validity: 'Draft', status: 'draft', residualLevel: 'Incomplete', ramDataJson: body.ramDataJson, policyVersionId: null }; data = ramAssessment; }
@@ -185,11 +185,27 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         await askTime();
         assert.equal(await page.getByLabel(t('Start time', '开始时间'), { exact: true }).inputValue(), '2026-10-04T08:00');
       }
+      await page.evaluate(label => { window.__rosterBatchFlashes = 0; new MutationObserver(() => {
+        if (location.pathname.endsWith('/workspace') && document.body.innerText.includes(label)) window.__rosterBatchFlashes++;
+      }).observe(document.body, { childList: true, subtree: true, characterData: true }); }, t('Schedule across dates', '多场次手工排班'));
+      delayPreparationOnce = true;
       await flow().getByRole('button', { name: /Create|确认创建/ }).click();
       await click('Confirm and create event', '确认创建活动');
       await page.waitForURL('**/qa-event/workspace?flow=setup&stage=arrangements');
       await tile('TEAM.WORK').waitFor(); assert.equal(await flow().locator('li').count(), 6); assert.equal(await page.getByLabel(t('Choose a tool to configure', '选择要设置的功能')).count(), 0); assert.equal(creates.length, 1);
+      assert.equal(await page.getByRole('heading', { name: t('RAM · Final risk review', 'RAM · 汇总风险核对') }).count(), 0);
+      assert.equal(await page.getByText(t('Schedule across dates', '多场次手工排班'), { exact: true }).count(), 0);
+      assert.equal(await page.evaluate(() => window.__rosterBatchFlashes), 0);
       assert.equal(await flow().getByRole('button', { disabled: true }).count(), 3); await checkLayout('setup');
+      const safetyPanel = page.getByRole('region', { name: t('RAM and safety', 'RAM与安全'), exact: true });
+      await open('SAFETY.RAM');
+      assert.equal(await safetyPanel.getByRole('heading', { name: t('RAM · Final risk review', 'RAM · 汇总风险核对') }).count(), 1);
+      await open('TEAM.WORK');
+      if (process.env.ALIFE_STAGE_ROLE_SMOKE === '1') {
+        assert.deepEqual(errors, []);
+        console.log(`PASS preparation ${language}/${width}: delayed status, no coordinator-batch flash, saved Event setup and layout`);
+        await context.close(); continue;
+      }
       if (timezoneCheck) {
         await checkDetailsHeader();
         await open('EVENT.DETAILS');
@@ -340,6 +356,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       assert.equal(await page.getByRole('button', { name: t('Open RAM assessment', '打开 RAM 评估表'), exact: true }).count(), 0);
       const ram = page.getByRole('region', { name: t('RAM and safety', 'RAM与安全'), exact: true });
       await open('SAFETY.RAM'); await work(ram, 'Activities and conditions','活动项目与条件');
+      assert.equal(await ram.getByRole('heading', { name: t('RAM · Final risk review', 'RAM · 汇总风险核对') }).count(), 1);
       await ram.getByLabel(t('Participant count','参与人数'), { exact: true }).fill('14');
       await open('TEAM.WORK'); await open('SAFETY.RAM');
       assert.equal(await ram.getByLabel(t('Participant count','参与人数'), { exact: true }).inputValue(), '14');

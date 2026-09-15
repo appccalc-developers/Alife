@@ -135,6 +135,8 @@
 .event-detail-field[data-ai-updated="true"] { outline: 2px solid #4f46e5; outline-offset: 5px; background: #eef2ff; animation: event-detail-update 260ms ease-out; }
 .event-details-readonly { margin-bottom: 12px; font-size: 13px; color: var(--event-text-secondary); }
 .event-details-assistant { min-width: 0; border: 1px solid #d7dfd7; border-radius: 18px; background: #fdfcf8; box-shadow: var(--event-shadow-inspector); padding: 14px; }
+.event-details-assistant--viewport { align-self: start; max-height: calc(150dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
+.event-details-assistant--viewport .event-assistant-content { height: auto; }
 .event-assistant-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
 .event-assistant-heading h3 { font-size: 16px; font-weight: 700; color: #18332d; }
 .event-assistant-heading > span { font-size: 12px; }
@@ -191,5 +193,6 @@
 .event-assistant-actions svg { flex-shrink: 0; }
 /* Only the conversation gives up height: its contents cannot enlarge the grid row. */
 .event-details-workspace[data-wide="true"] .event-assistant-content > .event-assistant-log { flex: 1 1 0; height: 0; min-height: 80px; max-height: none; }
+.event-details-workspace[data-wide="true"] .event-details-assistant--viewport .event-assistant-log { flex: 1 1 auto; height: auto; max-height: 320px; }
 
 .event-details-workspace [data-detail-field][data-ai-updated="true"] { outline: 2px solid var(--event-primary); outline-offset: 3px; background-color: #eef2ff; }

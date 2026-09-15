@@ -4,7 +4,7 @@
 
 ## Collaboration version 1
 
-The accepted **volunteer scheduling coordinator / 同工排班协调人** manually consolidates module needs, invites individuals, handles acceptance/decline and arranges replacements in an independent page. Preparation retains default demands and early arrangements; publication does not stop scheduling. Each occurrence has its own roster entry, including future twelve-week materialization. Demand is not confirmed personnel. Ordinary future shortages do not block plan approval; occurrence delivery still requires its applicable staff and specialist eligibility. Work and handoffs follow [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+The accepted **volunteer scheduling coordinator / 同工排班协调人** manually consolidates module needs, invites individuals, handles acceptance/decline and arranges replacements in an independent page. Preparation retains default demands, candidate configuration and early single-occurrence arrangements. The four-date batch scheduler is a version-1 coordinator responsibility after publication; ownership alone does not grant it. Publication does not stop scheduling. Version-0 owner/coordinator batch authority remains compatible on the independent route. Each occurrence has its own roster entry, including future twelve-week materialization. Demand is not confirmed personnel. Ordinary future shortages do not block plan approval; occurrence delivery still requires its applicable staff and specialist eligibility. Work and handoffs follow [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
 
 ## Purpose
 
@@ -58,7 +58,7 @@ During saved preparation, role candidate groups and shifts appear inside each ow
 
 ## Operational behavior
 
-Four-date pages provide role/response filters, desktop date/position tables and mobile date groups. Managers stage assignments, replacements and cancellations in memory. The [atomic manual scheduling contract](#atomic-manual-scheduling) owns batch versions, authorization, limits, conflict preservation and notifications. Reads/writes remain private/no-store.
+Four-date pages provide role/response filters, desktop date/position tables and mobile date groups. The tool waits for the server's current batch-authority projection before rendering, so an owner-only or assignee visit never flashes a coordinator tool. Coordinators stage assignments, replacements and cancellations in memory. Version-1 batch submission rechecks accepted coordinator status and publication; a revoked role or withdrawn publication rejects a stale link. The [atomic manual scheduling contract](#atomic-manual-scheduling) owns batch versions, authorization, limits, conflict preservation and notifications. Reads/writes remain private/no-store.
 
 ## Personal Center handoff
 

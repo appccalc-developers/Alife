@@ -2,7 +2,7 @@ import { http } from './http'
 import type { EventPlanSnapshot, LocalizedText } from '../types/eventComposition'
 export const reportModules = ['SAFEGUARDING.CHILD', 'PROGRAM.PRODUCTION', 'MOVE.STAY', 'FOOD.HOSPITALITY', 'COMMS.FOLLOWUP']
 export const workStages = ['preparation', 'registration', 'execution', 'followup'] as const
-export const workStageText = (stage: string, zh: boolean) => ({ preparation: zh ? '筹备' : 'Preparation', registration: zh ? '公开报名' : 'Registration', execution: zh ? '场次执行' : 'Delivery', followup: zh ? '善后' : 'Follow-up' }[stage] || stage)
+export const workStageText = (stage: string, zh: boolean) => ({ preparation: zh ? '筹备' : 'Preparation', registration: zh ? '公布' : 'Published', execution: zh ? '执行' : 'Delivery', followup: zh ? '收尾' : 'Follow-up' }[stage] || stage)
 export type WorkSummary = { eventId: string; groupId: string; title: LocalizedText; stage: string; canManage: boolean; roles: string[] }
 export type WorkPage = { preparationProgress?: import('../types/eventComposition').Readiness | null; planContext?: import('../types/ramGovernance').RamEventPlanContext | null; event: WorkSummary; links: { key: string; stage: string; title: LocalizedText; url: string; canEdit: boolean }[]; occurrences: { id: string; startUtc: string; endUtc: string; stage: string; status: string }[]; occurrencePage: number; hasMoreOccurrences: boolean; plan: EventPlanSnapshot | null; reports: ReportRevision[]; duties: { task: { taskKey: string; actionLabel: LocalizedText; actionUrl: string } }[] }
 export type ReportRevision = { id: string; version: number; text: LocalizedText; authorMemberId: string; planVersion: number | null; submittedUtc: string }

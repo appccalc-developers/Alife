@@ -7807,8 +7807,8 @@ public sealed record AcceptEventPlanRequest(
       "method": "GET",
       "path": "/api/events/{eventId}/roster/page",
       "request": "page (four future occurrences), optional focusOccurrenceId to resolve an invitation link to its future page",
-      "response": "EventRosterPageDto",
-      "auth": "current coordinator/candidate/assignee; private projection",
+      "response": "EventRosterPageDto; canManage indicates version-1 published accepted-coordinator batch authority (version-0 owner/coordinator compatibility), while canConfigure retains separate preparation configuration authority",
+      "auth": "current coordinator/owner/candidate/assignee; private viewer-filtered projection",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false
     },
@@ -7817,7 +7817,7 @@ public sealed record AcceptEventPlanRequest(
       "path": "/api/events/{eventId}/roster/batch",
       "request": "EventRosterBatchRequest + Idempotency-Key",
       "response": "EventRosterDto[] or atomic conflict",
-      "auth": "current roster coordinator/owner; frozen/critical rules",
+      "auth": "version 1: published Event and current accepted SERVICE.ROSTER:roster.coordinator role; version 0: current roster coordinator/owner compatibility; frozen/critical rules",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true
     },
