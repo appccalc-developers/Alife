@@ -14,7 +14,7 @@ These rules refine the repository-root `AGENTS.md` for `cloudflare/alife-app/`.
 
 ## Event Workspace design
 
-- For Event management UI, follow [Event Workspace design](../../docs/events/design/EVENT-WORKSPACE-DESIGN.md), its visual tokens and the relevant reference area. Colour, meaningful graphics, six-level depth and prompt interaction feedback are design requirements.
+- For Event management UI, use the [Event task reading matrix](../../docs/events/AGENTS.md#task-reading-matrix). Interaction/loading/routing repairs read relevant state and accessibility guidance; layout/material changes additionally read [Event Workspace design](../../docs/events/design/EVENT-WORKSPACE-DESIGN.md), visual tokens and the affected reference area. Colour, meaningful graphics, six-level depth and prompt feedback remain design requirements; a behavior repair does not require a visual redesign.
 - Event-specific guidance extends the general restrained green/coral workspace palette. Keep the global shell, bilingual behavior, accessibility, server authority and compatible routes.
 - Preparation is nonlinear; do not preserve a six-step wizard as a design requirement. Approval, publication and execution retain their actual business gates. Plan B is not planned.
 - Use graphics first, simple icons where helpful, and concise text where meaning or consequences need it. Start with one pilot area and evaluate its rendered behavior before wider rollout.

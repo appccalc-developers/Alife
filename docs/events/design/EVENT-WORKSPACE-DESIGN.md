@@ -6,7 +6,7 @@
 
 This is the visual and interaction direction for Event management workspaces: preparation, role-specific work, registration operations, occurrence delivery and follow-up. Member-facing Event Detail and public church pages retain their own design language.
 
-Read with [EVENT-CONTRACT.md](../EVENT-CONTRACT.md) and [event-contract.json](../event-contract.json). Those sources govern business meaning, authorization, readiness and exact machine values. This document governs Event-specific visual choices instead of the general workspace's restrained green/coral palette. It does not replace the global shell, existing framework, bilingual contracts or server authority.
+Use the [task reading matrix](../AGENTS.md#task-reading-matrix): read only the design sections affected by the task. The [core and delegated topics](../EVENT-CONTRACT.md) govern business meaning, authorization and readiness; inspect matching [machine-contract](../event-contract.json) entries only when exact values/interfaces are involved. This document governs Event-specific visual choices instead of the general workspace's restrained green/coral palette. It does not replace the global shell, existing framework, bilingual contracts or server authority.
 
 Supporting documents:
 

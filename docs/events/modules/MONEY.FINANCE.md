@@ -1,6 +1,6 @@
 # MONEY.FINANCE
 
-> Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
+> Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#money-finance) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
 ## Collaboration version 1
 
@@ -48,18 +48,21 @@ Contributes money-flow presence, currency, policy-safe aggregate budget/fee summ
 
 Owners prepare records; independent approvers review explicit versions. Participants see only their own fee/refund projection. Conflict, approval, and close-out states remain visible and auditable.
 
-## Current implementation
+## Operational behavior
 
 Partial registration-fee support: versioned rules, independent approval, manual receipts/refunds, current authorization, audit and a dedicated registration/finance work page. Broader finance capabilities below remain target work.
 
-## Open contract gaps
 
-Budget, purchasing, claims, ledger reconciliation and wider financial close-out remain deferred; registration fees, their approval and manual refund evidence are provided in version 1.
 
-## Next useful vertical slice
 
-`event-budget-expense-closeout`: minor-unit budget lines, expense claim, independent approval, reconciliation, role-restricted no-store responses, and no payment-provider dependency.
 
 ## Historical availability — 2026-09-13 (superseded by version 1)
 
 Before collaboration version 1, catalogue status was `unavailable` (**尚未提供 / Not yet available**) in creation, Workspace overview and the module/direct entry. Enabling or confirming details does not create financial readiness, and a required unavailable finance module still blocks formal approval. Historical selections and records remain intact.
+
+
+## Manual registration fees
+
+`MONEY.FINANCE` is **partial: registration fees**. The rules describe amount, currency, collection instructions, refunds and `moneyFlowScope=registrationFeesOnly`. The accepted finance owner submits the current rules version; a different accepted finance approver approves or returns. Current role separation is revalidated for approval, payment and readiness. Changes require a fresh decision. This version-specific finance readiness covers registration fees only; other confirmed money flows remain blockers.
+
+Finance actors manually record receipts and refunds with evidence and audit records. Refunds follow cancellation and cannot exceed the net paid amount. Registration managers see the state needed to process applications; finance-only views exclude consent/material/guardian details. No online payment provider, budget, purchasing, claims or ledger is added. Existing formal Package approval is still separately required.

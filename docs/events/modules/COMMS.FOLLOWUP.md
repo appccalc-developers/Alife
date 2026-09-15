@@ -1,10 +1,10 @@
 # COMMS.FOLLOWUP
 
-> Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
+> Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#comms-followup) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
 ## Collaboration version 1 — preparation and execution
 
-The [workspace contract](../EVENT-WORKSPACES.md) scopes this version's preparation to an accepted responsible lead and a bilingual versioned report. The lead writes in an independent page; the Event owner returns or adopts an immutable submitted revision into the formal plan. Later drafts cannot alter adopted text; frozen-plan changes require reopening. Submission and return project the next person's duty. Existing specialist execution tools and checks remain independent. This report does not certify specialist facts or grant access to private participant data.
+Uses the [shared report and handoff contract](../EVENT-WORKSPACES.md#tasks-and-reports): accepted module lead, versioned submission and owner adoption. Module-specific operations and privacy below still apply; a report neither certifies specialist facts nor grants participant-data access.
 
 ## Purpose
 
@@ -48,19 +48,15 @@ Contributes public-copy draft versions, audience category and count, channel pla
 
 Owners review bilingual content and an immutable audience snapshot before send. Delivery result, retry, withdrawal, and retention state are visible without auto-publishing AI drafts.
 
-## Current implementation
+## Operational behavior
 
 Partial. Bilingual Event content, public/group projections, poster preparation/publication, in-app notification foundations and Event Review CRUD exist. They do not form a complete Event communications workspace or audited broadcast lifecycle. The retired generic workflow surface is not a current communications capability.
 
 The [continuous preparation flow](../EVENT-SETUP-FLOW.md) provides a separate post-creation poster studio after formal approval. It reuses the existing AI/image services, requires human preview/adoption, and saves only the poster association through an authorized, no-store, ETag/idempotency-protected API. Poster drafts remain local until adopted. Explicit publication after active approval uses existing audience-filtered projections. Poster artwork is outside formal approval by product contract; adoption preserves Package validity. Audited broadcasts remain incomplete.
 
-## Open contract gaps
 
-Audience snapshot, approved publish/change broadcast, delivery state, newcomer/prayer purpose controls, incident follow-up, retention, and dedicated module UI/API remain open.
 
-## Next useful vertical slice
 
-`audited-event-change-broadcast`: explicit human confirmation, in-app delivery, audience snapshot, message version, delivery result, non-destructive retry, and withdrawal audit.
 
 ## Availability presentation — 2026-09-13
 

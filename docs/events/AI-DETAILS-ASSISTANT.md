@@ -71,3 +71,8 @@ Completion is local presentation, not authority. Saved rule values start confirm
 简体中文：任务与交接、邀请报名共用资料助手模板，但分别配置当前表单字段并隔离对话。任务助手只填写一项任务的标题、期限、阶段和审核／限制选项，人员与场次手动选择。报名助手整理规则、材料要求定义和费用说明，指定小组手动选择；全部双语字段采用当前语言优先、另一语言可展开的方式。助手仅修改草稿，新增任务与保存报名方案仍由用户点击；服务端核实编辑权限，私有名单、上传材料和审批记录不进入模型上下文。过期、无效或未完成回复保留原表单与输入。
 
 繁體中文：任務與交接、邀請報名共用資料助手模板，但分別配置目前表單欄位並隔離對話。任務助手只填寫一項任務的標題、期限、階段和審核／限制選項，人員與場次手動選擇。報名助手整理規則、材料要求定義和費用說明，指定小組手動選擇；全部雙語欄位採用目前語言優先、另一語言可展開的方式。助手僅修改草稿，新增任務與儲存報名方案仍由使用者點擊；伺服器核實編輯權限，私有名單、上傳材料和審批紀錄不進入模型上下文。過期、無效或未完成回覆保留原表單與輸入。
+
+
+## Draft authority and time adoption
+
+The creation [AI details assistant](AI-DETAILS-ASSISTANT.md) may populate reviewable form fields from explicit input and report presentation completeness separately from AI sufficiency. Time-only edits retain the current Event date and IANA zone; start/end/zone are jointly validated before adoption, and unbound or invalid model times cannot partially overwrite the draft. Local input strings remain separate from their zone, with UTC conversion only at save. Neither client-provided provenance nor either score confirms a domain fact, changes permissions or satisfies a governance gate. Final Event Plan acceptance remains explicit and server-validated.

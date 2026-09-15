@@ -1,6 +1,6 @@
 # TEAM.WORK
 
-> Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
+> Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#team-work) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
 ## Collaboration version 1
 
@@ -20,7 +20,7 @@ During preparation, Arrangements → Tasks and handoffs contains activity projec
 
 Required whenever `event.exists == true` (`accountable-owner-required`).
 
-During saved, unfrozen draft preparation this tool remains a Yes/No choice, including when the rule above applies. Disabling retains facts, ownership and saved records. Formal submission revalidates activation and dependencies and blocks missing required tools; see [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
+Saved-draft choices, preservation and submission revalidation follow [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
 
 ### Dependencies
 
@@ -52,7 +52,7 @@ Contributes the accountable owner, accepted key-role coverage, required task/blo
 
 ### User experience
 
-The Event workspace exposes enabled modules and role acceptance, collaborators and personal invitations, custom tasks, dependencies, blockers, and role-aware actions with explicit loading, empty, conflict, and retry states. Organizers remain responsible throughout preparation; this module has no role-shift editor and no AI assistance.
+The Event workspace exposes enabled modules and role acceptance, collaborators and personal invitations, custom tasks, dependencies, blockers, and role-aware actions with explicit loading, empty, conflict, and retry states. Organizers remain responsible throughout preparation; there is no organizer shift editor. The scoped [new-task form assistant](#ai-form-assistance) is the only AI form exception.
 
 Enabled-module responsibilities use compact disclosure rows: collapsed rows show the module, assignees and response status; assignment controls appear only when expanded. The preparation section starts collapsed. Choosing No for a module immediately removes its responsibility row from the current draft view. Saved plan revisions refresh the authoritative enabled-module list. Hiding a row preserves its role assignments and history. Secondary invitation explanations are omitted while member selectors retain accessible labels in both languages.
 
@@ -62,17 +62,12 @@ The [continuous preparation flow](../EVENT-SETUP-FLOW.md) enters team/tool setti
 
 The new-task form uses the shared [AI form assistant](../AI-DETAILS-ASSISTANT.md#tasks-and-registration-form-assistants). It fills one bilingual title, due time, stage and review/restriction options in the local draft. People and occurrences remain manual; Add task is explicit. It cannot update existing task status, assign authority, submit handoffs or approve. Conversation/voice, pending-field focus and completion share the details template; permission, private cache and stale-response checks remain enforced.
 
-## Current implementation
+## Operational behavior
 
-Current. Event team invitations, accepted roles, dependencies, blockers and deadlines retain their domain APIs. Ordinary tasks now have a named independent reviewer, approval status and immutable submission/action rounds; ETags, idempotency, current membership and specialist-source guards enforce handoff. Personal Center discovers live duties without notification records and opens restricted task details. Approved configuration remains frozen.
+Event team invitations, accepted roles, dependencies, blockers and deadlines retain their domain APIs. Ordinary tasks now have a named independent reviewer, approval status and immutable submission/action rounds; ETags, idempotency, current membership and specialist-source guards enforce handoff. Personal Center discovers live duties without notification records and opens restricted task details. Approved configuration remains frozen.
 
-## Open contract gaps
 
-Reusable task templates and a general artifact repository remain outside this slice. In-site invitation discovery, ordinary task approval history and current duty handoffs are implemented; external delivery is not included.
 
-## Next useful vertical slice
-
-Apply the additive task-approval migration to an approved environment, then exercise multi-account business handoffs against that database. See [Event duties](../EVENT-DUTIES.md) for the complete current contract.
 
 
 ## Custom delegation and preparation — 2026-09-15
@@ -95,4 +90,18 @@ This upstream plan defines actual event activities, separately from transport-bo
 
 `GET/PUT /api/events/{eventId}/activity-plan` is private/no-store. Readers need current plan access; writes require the current accountable owner and unfrozen preparation, exact ETag, valid unique IDs/types/bilingual shapes and same-Event occurrences. Saves serialize on the Event lock, invalidate Package/RAM and schedule analysis. Creation accepts the same activityPlan in arrangements, validates and saves it atomically with the Event; precreation occurrence references are not allowed. Draft recovery preserves bilingual source fields. RAM itself remains private and is not added to browser-persisted planning drafts.
 
-Legacy real activities can be loaded explicitly into the owner’s draft for review and Save. No automatic import occurs; synthetic AI activity rows are excluded. RAM reflects this source through a read-only disclosure and a link back here. This module has neither AI assistance nor organizer shifts.
+Legacy real activities can be loaded explicitly into the owner’s draft for review and Save. No automatic import occurs; synthetic AI activity rows are excluded. RAM reflects this source through a read-only disclosure and a link back here. Activity definitions have no AI assistance or organizer shifts; the separate new-task draft form follows [its scoped exception](#ai-form-assistance).
+
+
+## Creator and series ownership
+
+New Events bind accountable ownership to the authenticated creator. The optional legacy owner field accepts only that same account; all owner-transfer invitations are rejected, including old pending invitations. Existing stored owners and immutable approvals are preserved; when a legacy owner field is empty, only its creator is the fallback. Owning-group leadership does not grant editing of another owner's Event details, Plan, preparation configuration or poster.
+
+`event.lead` is an optional, personally accepted on-site duty and may be held by the owner. It grants no Event-plan editing. RAM authors edit RAM, and independent RAM reviewers decide rather than alter the report; neither duty grants Event-plan editing. Specialist operations continue to use their own controlled permissions.
+
+Series creation also requires ownership of its linked Event. Updating a series requires ownership of every affected Event; an empty series is editable only by its creator. Group leadership alone cannot use recurrence changes to bypass Event ownership.
+
+
+## Activity authority across modules
+
+TEAM.WORK owns event activity definitions and shared conditions in the additive activity-plan record/API. RAM mirrors that authority, combines adopted specialist reports, identifies risk and retains human scoring/confirmation/independent approval. Source ETags participate in RAM context and Package source versions. Existing RAM activities require explicit owner adoption; source deletion retains orphaned risk evidence. Current question completeness is disabled while historical answers/policies/prints remain. Main SERVICE.ROSTER aggregates all module roles, including safety, under existing server permissions. See [TEAM.WORK](TEAM.WORK.md) and [SAFETY.RAM](SAFETY.RAM.md).

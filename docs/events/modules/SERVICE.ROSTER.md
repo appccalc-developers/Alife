@@ -1,6 +1,6 @@
 # SERVICE.ROSTER
 
-> Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
+> Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#service-roster) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
 ## Collaboration version 1
 
@@ -16,7 +16,7 @@ Turn service demand into eligible, confirmed occurrence-level assignments while 
 
 Required when `people.volunteersRequired == true` (`service-slots-required`). Activity Type slot presets are editable defaults, not confirmed assignments or policy.
 
-During saved, unfrozen draft preparation this tool remains a Yes/No choice, including when the rule above applies. Disabling retains facts, ownership and saved records. Formal submission revalidates activation and dependencies and blocks missing required tools; see [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
+Saved-draft choices, preservation and submission revalidation follow [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
 
 ### Dependencies
 
@@ -56,17 +56,38 @@ Preparation configuration follows the [formal-approval freeze and reopening cont
 
 During saved preparation, role candidate groups and shifts appear inside each owning module in Arrangements. SERVICE.ROSTER retains coordinator configuration and unclassified roles; its private response is shared in React memory across the embedded panels. Template demand is also grouped by module during creation. It shares its operational API and permissions with the independent workspace route; there is no separate Team and tools preparation step. See [integrated preparation](../EVENT-SETUP-FLOW.md).
 
-## Current implementation
+## Operational behavior
 
-Current core flow includes four-date pages, role/response filters, desktop date/position tables and mobile date groups. Managers stage assignments/replacements/cancellations in memory, review a summary and send one atomic idempotent batch with occurrence and candidate-group versions. Pending and confirmed assignments together cannot exceed demand; all selections must pass current group/qualification/availability checks. Any conflict retains the draft and commits no assignments or notifications. Single-date compatibility APIs use the same batch service. Invitations, self responses, replacement-end and manager-result notices use in-app notifications and current personal duties; all reads/writes are private/no-store.
+Four-date pages provide role/response filters, desktop date/position tables and mobile date groups. Managers stage assignments, replacements and cancellations in memory. The [atomic manual scheduling contract](#atomic-manual-scheduling) owns batch versions, authorization, limits, conflict preservation and notifications. Reads/writes remain private/no-store.
 
-## Open contract gaps
+## Personal Center handoff
 
-Leave windows and separately versioned external eligibility evidence remain open. Automatic rotation/recommendations, email and device push are outside this round.
+Current approved invited assignees see live non-cancelled slot responsibilities through [Event duties](../EVENT-DUTIES.md), including occurrence and deadline. Response, replacement, ending and loss of group membership or slot qualification remove the previous duty. Uncovered required positions without a qualified pending invite surface coordinator/owner arrangement work; a confirmed member who leaves or loses the required role no longer fills the position. Responses revalidate current membership, slot eligibility and cancellation on the server using the same eligibility predicate as the projection. General task completion cannot replace roster consent. No email or external push channel is introduced.
 
-## Next useful vertical slice
+## Rule 2 and default positions — 2026-09-13
 
-Versioned external eligibility evidence after validating manual staffing in an authorized environment.
+[Default requirements and approval coverage](#default-requirements-and-approval-coverage) owns rule-2 behavior and frozen rule-1 compatibility. Default times are start/end offsets. Repeated extension is harmless. Recurring execution must identify a date and recheck current qualification, candidate membership, availability and personal confirmation.
+
+## Whole-Event roster entry (2026-09-15)
+
+The main SERVICE.ROSTER preparation editor aggregates roles from every module, including SAFETY.RAM, retaining module grouping, eligible candidates and personal shift responses. The former safety-only roster embedded beneath RAM is removed. Existing shifts are neither migrated nor deleted, and each role’s original module permission is still checked server-side. Other specialist entries can keep their module filters.
+
+
+## Candidate authority
+
+[Explicit candidate groups](#explicit-candidate-groups) own membership, ordering, eligibility and consent. Candidate-list changes use concurrency checks and invalidate affected preparation/Package evidence without rewriting history; candidate membership never grants authority.
+
+## Atomic manual scheduling
+
+future occurrences are sorted ascending, four per page. Managers stage choices in memory, review one summary and submit one idempotent batch carrying each occurrence and candidate-group ETag. Any conflict rejects the entire batch, including notifications. The server validates current group qualification, availability, duplicate member and pending-plus-confirmed count for every position. Old single-date assignment uses the same batch service. Invitees alone accept/decline; declined/ended/replaced records remain historical, and replacements require new consent. In-app invitations/results/end notices commit with business changes. Results go only to the still-authorized assigner and current Event owner. Existing duty projections and old links revalidate current authority and assignment state.
+
+
+## Default requirements and approval coverage
+
+Event-scoped immutable default versions contain role/count/relative time/eligibility only. Initial creation may adopt explicitly reviewed demands; old Events require explicit selection of a source occurrence. Extending 12 weeks creates missing dates and empty positions, respecting recurrence/time zone/exceptions and preserving existing rows/responses. A v2 Package freezes requirements, candidate configuration and default version; ordinary staffing and replies are live execution data and do not alter its source hash. Ordinary future vacancies do not block Plan approval, while execution of each recurring date requires enough currently eligible, available, personally confirmed members. Critical RAM/child/transport/command/on-site/qualified duties and unknown qualifications retain specialist review/invalidation; roster APIs cannot grant professional authority or change signers. Config/candidate changes still require reopening. Legacy frozen Packages keep rule 1; replacement after reopening uses rule 2. A Package retains its explicitly approved date window when further dates are materialized: extension neither invalidates nor silently expands that coverage. Newly uncovered dates need a covering occurrence approval before execution.
+
+
+## Saved preparation compatibility
 
 ### Shared preparation editor
 
@@ -77,19 +98,3 @@ Saved creation-form edits preserve slot IDs, programme links and member response
 `GET/PUT /api/events/{id}/roster/groups` manages an ordered, at-most-200-member candidate list per role and its owning module. Only the accountable owner or accepted roster coordinator can manage/read full groups. PUT requires `If-Match` (`"new"` for first creation); all candidates must be approved members of the Event's owning group. Lists do not grant module permissions or accept invitations. New assignments and substitutes must belong to the explicit role group and pass eligibility/availability checks; no group means no new assignment. Existing assignments remain intact. Full candidate IDs appear only in manager roster responses; other viewers receive a self-candidate flag. Approved candidate members may read their personal roster state before assignment and record their own availability, without receiving other members’ assignments or candidate identities.
 
 The new migration creates candidate-group storage only and invents no groups or members. Review and apply it only to an authorized environment. Configuration respects preparation freezing, audits changes, renews occurrence ETags and uses group concurrency during assignment. Candidate ordering is manual and does not implement rotation.
-
-## Personal Center handoff
-
-Current approved invited assignees see live non-cancelled slot responsibilities through [Event duties](../EVENT-DUTIES.md), including occurrence and deadline. Response, replacement, ending and loss of group membership or slot qualification remove the previous duty. Uncovered required positions without a qualified pending invite surface coordinator/owner arrangement work; a confirmed member who leaves or loses the required role no longer fills the position. Responses revalidate current membership, slot eligibility and cancellation on the server using the same eligibility predicate as the projection. General task completion cannot replace roster consent. No email or external push channel is introduced.
-
-## Rule 2 and default positions — 2026-09-13
-
-Versioned Event defaults contain only role, count, start/end offsets and eligibility. Adopt a reviewed creation arrangement or explicitly choose a saved occurrence; legacy records are never inferred. Extend creates only missing occurrences/empty positions for the next 12 weeks, preserves existing IDs/times/answers, and respects exceptions/time zones/daylight saving. Repeated extension is harmless.
-
-New Packages freeze default/configuration/candidate-group versions, excluding ordinary assignments and response timestamps. After approval, ordinary invitations/cancellations/replacements remain available within approved demand and candidates. Vacancies are an execution concern for the corresponding date, not a Plan-approval blocker. RAM, safeguarding, transport, command/on-site/qualified roles and unknown qualifications remain critical. Their changes retain specialist invalidation; this API cannot change signers or professional authorizations. Candidate/demand changes require reopening. Legacy frozen Packages keep rule 1 until reopening and reapproval.
-
-Existing explicit approval coverage is retained when dates are extended; newly uncovered dates require covering occurrence approval before execution. Execution reads current qualification, candidate membership, availability and personal confirmation. Recurring execution must identify a date. See [the contract extension](../EVENT-CONTRACT.md#preparation-first-round-contract-extension--2026-09-13).
-
-## Whole-Event roster entry (2026-09-15)
-
-The main SERVICE.ROSTER preparation editor aggregates roles from every module, including SAFETY.RAM, retaining module grouping, eligible candidates and personal shift responses. The former safety-only roster embedded beneath RAM is removed. Existing shifts are neither migrated nor deleted, and each role’s original module permission is still checked server-side. Other specialist entries can keep their module filters.

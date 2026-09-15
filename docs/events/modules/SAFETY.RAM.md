@@ -1,6 +1,6 @@
 # SAFETY.RAM
 
-> Documentation class: **Normative module contract**. Delivery evidence: [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values: [event-contract.json](../event-contract.json). Operations: [RAM initialization](../RAM-INITIALIZATION.md).
+> Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#safety-ram) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
 ## Collaboration version 1
 
@@ -46,9 +46,7 @@ Existing RAM GET/PUT/submit/approve paths and old fields remain. Version 2 adds 
 
 ## AI boundary and remaining scope
 
-Category guidance remains enum-only. The authorized authoring extension adds draft/rewrite of selected risk text using a user-reviewed non-sensitive brief and selected hazard/consequence/controls/additional-action strings. The origin verifies pre-creation group authority or saved RAM editing authority; the existing Cloudflare/Gemini path checks scope/version, bounds input/output, restricts returned fields and enforces timeouts. AI can propose text and questions, never ratings, identities, signatures or approval state. Per-field review/adoption changes only the in-memory draft; Save/Create remains explicit. Full RAM, names, contacts, health and confidential details are excluded; prompts and unadopted results are not persisted or logged. Changed conditions/source invalidate suggestions, and failure preserves manual input.
-
-Current delivery includes persistence, protected APIs, direct Event Workspace Safety / RAM integration, signer route, system page, independent review, Church Life review discovery, Personal Center duties, Package gates and printing. External venue/trail/weather/tide queries, a separate incident register, automatic expiry and broader close-out processes remain outside delivery. `incident.record` metadata is not an implemented incident system.
+Category guidance remains enum-only. The [manual AI authoring boundary](#manual-ai-authoring-boundary) owns selected-field inputs, review/adoption, validation, private drafts and failure behavior. The separately authorized [background synchronization](#background-synchronization-and-final-owner-review--2026-09-15) persists unreviewed candidates only. Neither path may score, sign, approve or publish. [Current scope and gaps](../IMPLEMENTATION-STATUS.md#safety-ram) are maintained centrally; `incident.record` metadata is not an implemented incident system.
 
 ## Workspace entry
 
@@ -66,7 +64,7 @@ Saved drafts, returned/re-review preparation, personal confirmation, author subm
 
 ## Shared RAM authoring — 2026-09-13
 
-Creation and saved preparation use the same read-only sources, expandable/filterable risk cards, copy/delete-confirm/discard controls, primary-language editing with optional other-language fields, and server-authoritative draft checks with field jump targets. Saved and unsaved ratings are labeled separately. Compare against the latest saved draft, previous submitted revision, or selected history, with return reasons alongside differences. The pre-creation context/check/AI calls never create RAM records: only explicit Event creation persists the private draft in its existing transaction. The complete input/authority boundary is in [EVENT-CONTRACT.md](../EVENT-CONTRACT.md#preparation-first-round-contract-extension--2026-09-13).
+Creation and saved preparation use the same read-only sources, expandable/filterable risk cards, copy/delete-confirm/discard controls, primary-language editing with optional other-language fields, and server-authoritative draft checks with field jump targets. Saved and unsaved ratings are labeled separately. Compare against the latest saved draft, previous submitted revision, or selected history, with return reasons alongside differences. The pre-creation context/check/AI calls never create RAM records: only explicit Event creation persists the private draft in its existing transaction. The complete input/authority boundary is in [EVENT-CONTRACT.md](#manual-ai-authoring-boundary).
 
 
 ## Background synchronization and final owner review — 2026-09-15
@@ -96,3 +94,26 @@ Every activity plan save invalidates RAM and Package eligibility in the same tra
 The visible **AI reassess risks / AI 重新评估风险** action calls `POST /api/events/{id}/ram/sync/recalculate`, including when already synchronized. Unsaved changes require saving first; running jobs reject duplicates. A confirmation explains signature invalidation. Source definitions must exist before analysis. Existing final owner acknowledgment and separate onsite/independent approval gates remain.
 
 Activity groups and risk details start collapsed. Group summaries show risk count, highest residual colour and unrated count; each risk summary shows its initial and residual numeric scores with policy colours. Editing likelihood/impact immediately previews multiplication and labels unsaved changes. No published matrix means colour pending, never a default green. The overall summary counts colours and unfinished risks; server checks supply authoritative overall level and field links. Scores are never added together. Versions appear latest first in a simple table (date, level, signatures/review, view/print and comparison), without filters, sort selectors or pagination. Current UI language is primary and the other expands without losing drafts.
+
+
+## Policy and assessment compatibility
+
+The core policy material is consolidated in [church policy](#church-policy-and-question-library), [assessment](#assessment-and-completeness), [independent review](#versions-personal-confirmation-and-review) and [privacy/legacy compatibility](#privacy-printing-and-compatibility). Red residual risk requires health/safety sign-off and independent Enhanced Package approval even when ordinary legacy Package rollout would not enforce it. Operational initialization remains in [RAM initialization](../RAM-INITIALIZATION.md).
+
+## Manual AI authoring boundary
+
+creation and saved Events share a controlled-memory editor, primary UI language with optional second-language fields, risk filters/copy/delete confirmation/discard, policy questions, field-level server checks and saved/submitted/history comparisons. `POST /api/events/ram-authoring/check` evaluates a draft without persistence. Context/check access requires group creation permission before creation, or current RAM edit permission and unfrozen preparation after saving. AI receives only the user's sending preview: non-sensitive brief and the selected hazard/consequence/controls/additional-action strings, plus activity/category/language enums. The Worker authorizes scope at the origin and verifies its source version before Gemini. Request/response byte bounds and timeouts fail without changing drafts. The returned field suggestions/questions are untrusted: explicit per-field adoption, then explicit Save/Create; changed original text, Event conditions or context invalidate old suggestions. Ratings, identities, contacts, medical/confidential details, signatures and approval fields are forbidden. No raw prompt or unadopted content is logged, shared-cached or browser-persisted.
+
+
+## Authorized synchronization exception
+
+The authorized background RAM extension persists unreviewed bilingual candidate risks from aggregate upstream signals. Its separate freshness state is not an approval state. Current context, owner acknowledgment and the existing independent RAM decision are enforced before Package submission. See [SAFETY.RAM](SAFETY.RAM.md#background-synchronization-and-final-owner-review--2026-09-15) for concurrency, privacy and migration requirements. This exception does not expand manual AI authoring payloads or authorize automatic scores, signatures, approval or publication.
+
+
+## RAM context and handoff
+
+RAM appears after upstream modules as the preparation aggregation/review area. Upstream notifications schedule background AI candidates, and a final owner review of the latest synchronized version is required before formal Package submission. Current-language risk text is visible first; the other language expands. Human overrides use the authorized RAM editor. Synchronization status remains separate from independent safety approval; see [RAM background synchronization](SAFETY.RAM.md#background-synchronization-and-final-owner-review--2026-09-15).
+
+RAM authors work independently of the owner. The same-church qualified reviewer pool remains authoritative. Author, submitter and onsite signer cannot act as independent reviewer. RAM submission binds the immutable RAM revision to the exact plan context and hash: Event details, accepted facts/modules/role requirements, adopted reports, full registration rules, saved programme sessions/items, venue reservations and default staffing requirements. Context excludes private programme payloads, protected operational lists and financial transactions.
+
+The review page and print view expose the submitted RAM and its corresponding complete plan context. A new unsubmitted draft is not substituted into the review page or legacy RAM API. Review actions require the current revision, unchanged context, current author authority and current reviewer qualifications. Return, revocation and material changes invalidate obsolete actions; serial server decisions and history resolve competing reviews. RAM approval never publishes the Event.

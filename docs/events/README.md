@@ -1,291 +1,174 @@
 # ALIFE Event Management
 
-> Documentation class: **Normative overview**. This is the compact human entry point. [EVENT-CONTRACT.md](EVENT-CONTRACT.md) and [event-contract.json](event-contract.json) remain authoritative when more detail or exact machine values are required.
-
-[简体中文](#简体中文) · [繁體中文](#繁體中文) · [English](#english)
+> Human overview and navigation. Business authority belongs to the core contract, delegated topics/modules and machine contract. Delivery status and historical evidence are separate.
 
 <!-- overview:zh-CN:start -->
+
 ## 简体中文
 
-### 一个由事实组成的活动方案
+### 活动是什么
 
-ALIFE 不把活动锁定为一个固定的 `EventType`。活动类型只提供可解释、可覆盖的默认值；真实事实、结构、模块、治理规则和人工决定共同组成最终方案。
+ALIFE 帮助群体筹备、公布、执行和收尾活动。活动由已确认的事实、所需能力和明确负责的人组成；模板提供起点，不能代替事实或授权。
 
-```
-Event Plan
-  = Event Facts
-  + Structural Units
-  + Capability Modules
-  + Governance Rules
-  + Human Decisions
-```
+本页是产品概览。业务规则以[核心契约及其专题](EVENT-CONTRACT.md)为准；[当前实现状态](IMPLEMENTATION-STATUS.md)说明已交付范围，不代表完整目标或已经部署。
 
-组合必须是确定性的：相同的已确认事实、版本化定义和仍然有效的人工选择产生相同的提案。缺失或候选事实不能被当作 `false`，也不能关闭安全、隐私、赞助或权限要求。
+### 活动结构
 
-### 四个不可变原型
+- **Event Plan**：人工接受的不可变方案快照；后续修改产生新版本。
+- **EventSeries**：重复活动的时区、规律和共用设置；维持未来十二周的场次窗口。
+- **EventOccurrence**：一次实际执行，具有自己的人员、安排和执行确认；一个场次结束不代表整个系列结束。
+- 只有需要独立报名、安全、费用或生命周期时才使用子活动，最多一层；节目时段和区域不另建活动生命周期。
 
-- `simple-social` — 简单社交／外出
-- `camp-retreat` — 营会／退修会
-- `recurring-gathering` — 定期聚会
-- `festival-celebration` — 节庆／庆典
+### 阶段与职责
 
-这四个原型是不可变的系统分类和安全边界。分类中的 Activity Type 是版本化模板；它们可以提供默认模块、结构和岗位，但不能确认儿童、金流、交通、场地、容量或安全事实。
+- **筹备**：创建者承担总负责；负责人按需往返各筹备区域，模块负责人提交报告，受邀人员亲自接受职责。
+- **公布与报名**：有权者明确公布、开放报名；各负责人通过独立工作入口处理报名、排班等职责。公布不停止后续排班。
+- **执行**：按具体场次检查人员资格、安全与批准范围，由有权者明确确认执行。
+- **收尾**：处理仍需完成的交接、反馈和职责。阶段导航本身不保存、批准或授予权限。
 
-### 结构边界
+### 人工决定与隐私
 
-- `EventSeries` 保存重复规则和可复用默认值；每个活动及实例保留自己的历史。
-- `Event`（迁移期间仍由 `GroupEvent` 承载）是所有权、可见性、治理、报名和方案边界。
-- `EventOccurrence` 是一次真实执行；单次活动至少有一个，定期活动按 12 周滚动窗口物化。
-- `Session`／Track 组织同一活动中的时间段；`ProgramItem` 是其中的程序项。
-- `Zone` 是同一活动中的空间／运营区域；`ServiceSlot`／Shift 是一次执行中的岗位需求。
-- `ChildEvent` 只在需要独立报名、RAM、收费、权限、取消或结项时创建，而且最多一层；否则使用 Session 或 Zone。
+- 方案接受、RAM 等专项审核、整体 Package 审批、公布和执行是不同的人工作业。AI 只在各自批准的范围内辅助；生成内容不能自动发布。
+- 服务器核对当前成员、角色、用途和版本。参与者、儿童、安全和财务资料按需最少披露；受保护资料不进入共享缓存。
+- 业务采用明确版本与兼容规则。四个既有阶段继续使用；Plan B 和额外的复盘阶段尚未纳入。
 
-### 十二个能力模块
+### 能力模块
 
-- [TEAM.WORK](modules/TEAM.WORK.md)
-- [PEOPLE.REGISTRATION](modules/PEOPLE.REGISTRATION.md)
-- [SERVICE.ROSTER](modules/SERVICE.ROSTER.md)
-- [MONEY.FINANCE](modules/MONEY.FINANCE.md)
-- [SAFETY.RAM](modules/SAFETY.RAM.md)
-- [SAFEGUARDING.CHILD](modules/SAFEGUARDING.CHILD.md)
-- [PROGRAM.PRODUCTION](modules/PROGRAM.PRODUCTION.md)
-- [PLACE.RESOURCE](modules/PLACE.RESOURCE.md)
-- [MOVE.STAY](modules/MOVE.STAY.md)
-- [FOOD.HOSPITALITY](modules/FOOD.HOSPITALITY.md)
-- [FESTIVAL.OPERATIONS](modules/FESTIVAL.OPERATIONS.md)
-- [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md)
+- [TEAM.WORK](modules/TEAM.WORK.md) — 任务与交接
+- [PEOPLE.REGISTRATION](modules/PEOPLE.REGISTRATION.md) — 报名与参与人
+- [SERVICE.ROSTER](modules/SERVICE.ROSTER.md) — 同工排班
+- [MONEY.FINANCE](modules/MONEY.FINANCE.md) — 财务与报名费用
+- [SAFETY.RAM](modules/SAFETY.RAM.md) — 风险评估与审核
+- [SAFEGUARDING.CHILD](modules/SAFEGUARDING.CHILD.md) — 儿童保障
+- [PROGRAM.PRODUCTION](modules/PROGRAM.PRODUCTION.md) — 节目与流程
+- [PLACE.RESOURCE](modules/PLACE.RESOURCE.md) — 场地与资源
+- [MOVE.STAY](modules/MOVE.STAY.md) — 交通与住宿
+- [FOOD.HOSPITALITY](modules/FOOD.HOSPITALITY.md) — 餐饮接待
+- [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md) — 沟通与跟进
+- [FESTIVAL.OPERATIONS](modules/FESTIVAL.OPERATIONS.md) — 节庆现场运营
 
-模块是受控的产品能力，不是任意运行时代码。每个模块定义 ActivationRules、Dependencies、RoleRequirements、WorkflowContributions、DataClassification、ReadinessRules 和 Version。
+模块名称描述产品职责，并不表示全部功能已完成。当前版本的财务只支持人工报名费用，餐饮只支持负责人报告，节庆运营尚不可用；详见实现状态。
 
-### 活动方案正式审批
+### 按需阅读
 
-Event Package Approval 是 Plan 接受之后、发布／开放报名／收款／确认执行之前的独立治理环节。系统从当前 Plan、版本化治理政策、活动范围和各模块的最小必要摘要生成不可变 Package；提交后，由服务器确认有资格且与提交人适当分离的审批人作出批准、附条件批准或拒绝决定。Package 审批不取代 RAM、儿童保护、财务等专业审批，也不会自动触发后续动作。
-
-审批只对绑定的 Plan、Package 版本、政策版本、来源向量和明确范围有效。重要来源变更、专业审批撤销或过期、条件失效会使相关生命周期门禁失效，并向操作者返回可解释的阻断原因。已有活动不会被补造历史批准；它们只按版本化迁移政策从 `off`、`dryRun` 进入 `enforced`。Plan B 和自动后备方案启用不在当前范围内。
-
-### 人工确认与 AI 权限边界
-
-RAM 按教会发布不可变政策与题库；管理员须逐格确认完整 25 格矩阵，未发布时仍可保存草稿。新版 RAM 分别记录初始／剩余风险，合并各活动适用题目，由本人确认指定版本，再申请 RAM 独立审核；红色剩余风险须安全签署及加强 Package 审批。申请后，待审核 RAM 会出现在同一教会合资格审核人的“教会生活 / RAM 独立审核”和个人中心“职务待办”中；链接把只读的完整活动方案与受限 RAM 报告放在同一审核画面，并在通过、退回或版本失效后自动消失。活动方案启用 RAM 或安全事实／政策强制要求时，必须先通过独立审核才能提交 Event Package；明确选择“不需要 RAM”且没有更高优先级触发器时不会受阻。重要变更触发重审，历史保留；AI 只解释及追问，不覆盖人工评估，RAM 独立审核不会自动发布活动。参见 [RAM 模块规范](modules/SAFETY.RAM.md)及[管理员初始化](RAM-INITIALIZATION.md)。
-
-活动筹备使用[非线性规划](EVENT-SETUP-FLOW.md)，不再要求保留负责人的六步向导。全局阶段沿用筹备 → 公开报名 → 场次执行 → 善后；正式提交、审批、海报采用、明确发布与执行仍有各自的业务关口。独立的 Review／Reflection 阶段尚未加入，Plan B 目前不计划实施。[Event 设计指导](design/EVENT-WORKSPACE-DESIGN.md)采用图形优先、简洁图标辅助的丰富色彩与六层空间模型，先试点一部分并检查效果，再推广。以下现有界面描述保留兼容信息，不构成固定六步导航要求。新建与筹备修改共用创建时的表单，创建后不能再选择模板。已保存活动使用 Event Workspace；“安全／RAM 与安全”直接提供完整评估、本人确认、审核与打印流程。“活动安排”的安全区将未成年人／儿童保护与 RAM 要求／评估表分开排列，RAM 直接内嵌；新建时先填风险并随确认创建保存，创建后继续题库与签署审核。团队职责、报名、排班、节目、场地、儿童保护与交通工具均直接放在活动安排的对应分区，不再另设“团队与功能”步骤。创建后回到活动安排；旧入口也进入此页。活动资料作为首个整行卡片，显示名称、活动时区的时间及创建者／总负责人；资料表单和 AI 资料助手作为内部子工作区。页底仅保留“回到开头”，通过顶部流程导航切换阶段；保存和确认创建仍须明确操作。本轮试点将活动安排改为紧凑的 ALIFE Prism Glass 模块卡，以半透明领域色表面、反射光和空间深度表达工作对象；手机两列，768／1024／1280px 起为三／四／六列；资料表单当前语言优先，另一语言可展开。宽屏资料与助手约 60:40 并排，窄屏单层切换；切换保留草稿及对话，AI 回填后须明确保存。模块默认全部收起；同时只打开一个编辑区，内部各配置方面改为纵向摘要／详情卡片：首张「设置与职责」默认展开，其余收起，允许同时展开多张。摘要显示当前配置及有含义的数量；切换模块和语言保留展开状态与草稿，刷新后恢复默认。每个模块有默认未勾选的“填写已确认”；关闭功能也需明确确认，修改撤销受影响模块的确认。填写确认不替代 RAM 签署和审批。模块角色在各自模块分配，总负责人独立于模块；确认创建汇总 12 个模块状态与负责人，职责仍须本人接受。旧编辑链接转入 Workspace，不再打开已停用的 AI 活动编辑器；服务器权限与审批冻结规则继续生效。正式审批显示各等级命中的政策条件；最晚预期批复时间为活动开始时间减去政策的最终确认提前开放小时数。创建成功后继续编辑同一个活动；新方案活动从未发布、报名关闭状态开始。批准前可反复修改资料和安排；审批退回后可修改重提。保存后的筹备阶段，每项功能均可选是或否；关闭会保留资料，正式提交时再核对必要条件。批准后筹备资料冻结，可申请撤销审批，获准后恢复修改并重新审批。海报不在审批内容内，放在正式审批之后制作并由人工核对采用。批准后仍须确认发布，公共网站、教会生活和小组生活按既定可见范围展示；旧活动的兼容规则保持不变。
-
-Event Workspace 是创建后唯一的活动管理界面；活动详情仅保留查看、报名、回顾和获准的个人操作。通用“工作流与产出物”界面、模板和活动 API 已停用；旧 `?section=workflow` 书签转入 Workspace 总览，旧编辑和 RAM 书签仍转入相应的 Workspace 页面。
-
-在[活动安排](CREATION-ARRANGEMENTS.md)页，可选功能通过“是／否”启用，必需功能保持锁定。岗位与轮班、节目与制作、场地与资源可直接展开填写人数、时段、节目顺序及场地预订，并在同页查看安排一览。关闭功能保留草稿；最终人工确认时，安排与活动一起保存。系列安排应用于本次创建的未来 12 周场次，场地冲突在创建时再次检查。
-
-创建时的 [AI 资料助手](AI-DETAILS-ASSISTANT.md) 根据最新表单逐轮整理双语文字、时间、地点和报名设置，显示字段完成度、AI 充分性评估及待澄清问题。对话以左右聊天气泡显示在输入框上方，按时间从上到下排列，新增消息后自动滚动到底部；字段完成度与返回表单操作位于发送按钮下方，方便核对。明确日期与时间范围按活动时区回填，未确认的预填时间会标示。支持的浏览器可用中英文语音输入，识别文字追加到输入框，由用户核对后发送；不支持时仍可打字。默认值需用户确认才计入完成度；时间使用活动时区，系列活动支持每 1–52 周重复并保留未来 12 周窗口。回填仅更新待审阅草稿，最终创建仍须人工确认。
-
-组合只生成候选方案。服务器在接受时重新组合并检查 hash、并发和幂等性；只有明确的人工接受才能建立权威、版本化且不可变的 Event Plan snapshot。以后修改原型、模板、模块或政策，不得改写已接受方案或历史实例。
-
-AI 可以建议候选事实和解释原因，但不能确认事实、分配权限、批准、豁免政策、授予赞助、持久化或发布。前端可见性永远不能代替服务器授权，私密／受限资料不得进入共享缓存、日志或 AI 提示。
-
-### 专业流程与历史兼容
-
-RAM、Package、报名、排班等专业流程由各自的权威处理程序和职务待办管理。历史 `EventWorkflowRun`／Step／Artifact 数据结构及旧 Plan 字段只为既有记录的非破坏性读取而保留；新活动不再创建或同步通用工作流记录。
-
-活动采用[按阶段与职责组织的工作空间](EVENT-WORKSPACES.md)：个人中心保留“我的活动工作”，即使待办已完成仍可进入。总负责人编辑整体方案；模块负责人独立提交文字报告，由总负责人采用确定版本；RAM 审核人查看送审报告及对应的完整方案。报名规则在筹备时制定，名单、家庭与访客代报、材料和人工报名费在独立页面办理；程序、名额、付款状态分别显示。场地与房间有独立管理日历，支持无限期每周占用、单次释放和冲突检查。筹备、公开报名、逐场执行及善后按当前职责授权，公布前普通成员不能读取方案。财务仅部分支持报名费，餐饮仅部分支持报告，节庆现场运营不可启用。
-
-### 继续阅读
-
-- [EVENT-CONTRACT.md](EVENT-CONTRACT.md) — 完整规范架构、ADR 和不变量
-- [event-contract.json](event-contract.json) — 精确代码、枚举、引用和 API 契约
-- [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md) — 当前存储库进度、迁移和验证状态
-- [模块文档](modules/TEAM.WORK.md) — 每个能力模块的目标、现况与缺口
-- [EventManagement-About.html](EventManagement-About.html) — 由本 README 生成的三语概览
-- [完整活动管理手册](generated/alife-event-composition-model.zh-TW-en.html) — 生成的繁中／英文长篇展示
-
-新活动由创建者固定担任总负责人；现场领队、RAM 作者和审核人不会因此获得活动计划编辑权。岗位候选组和轮班放在所属模块内，只从该岗位候选组安排人员，轮流由人决定。团队区主要保留跨模块协调任务，成员及历史分工收起。
+- [组合与模板](EVENT-COMPOSITION.md) · [审批与生命周期门槛](EVENT-PACKAGE-APPROVAL.md)
+- [阶段与工作空间](EVENT-WORKSPACES.md) · [筹备流程](EVENT-SETUP-FLOW.md) · [创建安排](CREATION-ARRANGEMENTS.md)
+- [个人事务与交接](EVENT-DUTIES.md) · [AI 表单辅助](AI-DETAILS-ASSISTANT.md)
+- [精确机器契约](event-contract.json) · [设计指导](design/EVENT-WORKSPACE-DESIGN.md) · [开发阅读规则](AGENTS.md)
+- [历史验证记录](IMPLEMENTATION-HISTORY.md)与[生成的长篇手册](generated/alife-event-composition-model.zh-TW-en.html)仅供按需追溯；历史结果不是当前验证。
 
 <!-- overview:zh-CN:end -->
 
 <!-- overview:zh-TW:start -->
+
 ## 繁體中文
 
-### 一個由事實組成的活動方案
+### 活動是什麼
 
-ALIFE 不把活動鎖定為一個固定的 `EventType`。活動類型只提供可解釋、可覆寫的預設值；真實事實、結構、模組、治理規則和人工決定共同組成最終方案。
+ALIFE 協助群體籌備、公布、執行和收尾活動。活動由已確認的事實、所需能力和明確負責的人組成；範本提供起點，不能代替事實或授權。
 
-```
-Event Plan
-  = Event Facts
-  + Structural Units
-  + Capability Modules
-  + Governance Rules
-  + Human Decisions
-```
+本頁是產品概覽。業務規則以[核心契約及其專題](EVENT-CONTRACT.md)為準；[目前實作狀態](IMPLEMENTATION-STATUS.md)說明已交付範圍，不代表完整目標或已經部署。
 
-組合必須是確定性的：相同的已確認事實、版本化定義和仍然有效的人工選擇產生相同的提案。缺失或候選事實不能被當作 `false`，也不能關閉安全、隱私、贊助或權限要求。
+### 活動結構
 
-### 四個不可變原型
+- **Event Plan**：人工接受的不可變方案快照；後續修改產生新版本。
+- **EventSeries**：重複活動的時區、規律和共用設定；維持未來十二週的場次視窗。
+- **EventOccurrence**：一次實際執行，具有自己的人員、安排和執行確認；一個場次結束不代表整個系列結束。
+- 只有需要獨立報名、安全、費用或生命週期時才使用子活動，最多一層；節目時段和區域不另建活動生命週期。
 
-- `simple-social` — 簡單社交／外出
-- `camp-retreat` — 營會／退修會
-- `recurring-gathering` — 定期聚會
-- `festival-celebration` — 節慶／慶典
+### 階段與職責
 
-這四個原型是不可變的系統分類和安全邊界。分類中的 Activity Type 是版本化範本；它們可以提供預設模組、結構和崗位，但不能確認兒童、金流、交通、場地、容量或安全事實。
+- **籌備**：建立者承擔總負責；負責人按需往返各籌備區域，模組負責人提交報告，受邀人員親自接受職責。
+- **公布與報名**：有權者明確公布、開放報名；各負責人透過獨立工作入口處理報名、排班等職責。公布不停止後續排班。
+- **執行**：按具體場次檢查人員資格、安全與批准範圍，由有權者明確確認執行。
+- **收尾**：處理仍需完成的交接、回饋和職責。階段導覽本身不儲存、批准或授予權限。
 
-### 結構邊界
+### 人工決定與隱私
 
-- `EventSeries` 保存重複規則和可複用預設值；每個活動及實例保留自己的歷史。
-- `Event`（遷移期間仍由 `GroupEvent` 承載）是所有權、可見性、治理、報名和方案邊界。
-- `EventOccurrence` 是一次真實執行；單次活動至少有一個，定期活動按 12 週滾動視窗物化。
-- `Session`／Track 組織同一活動中的時段；`ProgramItem` 是其中的程序項。
-- `Zone` 是同一活動中的空間／營運區域；`ServiceSlot`／Shift 是一次執行中的崗位需求。
-- `ChildEvent` 只在需要獨立報名、RAM、收費、權限、取消或結項時建立，而且最多一層；否則使用 Session 或 Zone。
+- 方案接受、RAM 等專項審核、整體 Package 審批、公布和執行是不同的人工作業。AI 只在各自批准的範圍內輔助；生成內容不能自動發布。
+- 伺服器核對目前成員、角色、用途和版本。參與者、兒童、安全和財務資料按需最少揭露；受保護資料不進入共用快取。
+- 業務採用明確版本與相容規則。四個既有階段繼續使用；Plan B 和額外的回顧階段尚未納入。
 
-### 十二個能力模組
+### 能力模組
 
-- [TEAM.WORK](modules/TEAM.WORK.md)
-- [PEOPLE.REGISTRATION](modules/PEOPLE.REGISTRATION.md)
-- [SERVICE.ROSTER](modules/SERVICE.ROSTER.md)
-- [MONEY.FINANCE](modules/MONEY.FINANCE.md)
-- [SAFETY.RAM](modules/SAFETY.RAM.md)
-- [SAFEGUARDING.CHILD](modules/SAFEGUARDING.CHILD.md)
-- [PROGRAM.PRODUCTION](modules/PROGRAM.PRODUCTION.md)
-- [PLACE.RESOURCE](modules/PLACE.RESOURCE.md)
-- [MOVE.STAY](modules/MOVE.STAY.md)
-- [FOOD.HOSPITALITY](modules/FOOD.HOSPITALITY.md)
-- [FESTIVAL.OPERATIONS](modules/FESTIVAL.OPERATIONS.md)
-- [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md)
+- [TEAM.WORK](modules/TEAM.WORK.md) — 任務與交接
+- [PEOPLE.REGISTRATION](modules/PEOPLE.REGISTRATION.md) — 報名與參與人
+- [SERVICE.ROSTER](modules/SERVICE.ROSTER.md) — 同工排班
+- [MONEY.FINANCE](modules/MONEY.FINANCE.md) — 財務與報名費用
+- [SAFETY.RAM](modules/SAFETY.RAM.md) — 風險評估與審核
+- [SAFEGUARDING.CHILD](modules/SAFEGUARDING.CHILD.md) — 兒童保障
+- [PROGRAM.PRODUCTION](modules/PROGRAM.PRODUCTION.md) — 節目與流程
+- [PLACE.RESOURCE](modules/PLACE.RESOURCE.md) — 場地與資源
+- [MOVE.STAY](modules/MOVE.STAY.md) — 交通與住宿
+- [FOOD.HOSPITALITY](modules/FOOD.HOSPITALITY.md) — 餐飲接待
+- [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md) — 溝通與跟進
+- [FESTIVAL.OPERATIONS](modules/FESTIVAL.OPERATIONS.md) — 節慶現場營運
 
-模組是受控的產品能力，不是任意 runtime 程式碼。每個模組定義 ActivationRules、Dependencies、RoleRequirements、WorkflowContributions、DataClassification、ReadinessRules 和 Version。
+模組名稱描述產品職責，並不表示全部功能已完成。目前版本的財務只支援人工報名費用，餐飲只支援負責人報告，節慶營運尚不可用；詳見實作狀態。
 
-### 活動方案正式審批
+### 按需閱讀
 
-Event Package Approval 是 Plan 接受之後、發布／開放報名／收款／確認執行之前的獨立治理環節。系統從當前 Plan、版本化治理政策、活動範圍和各模組的最小必要摘要產生不可變 Package；提交後，由伺服器確認有資格且與提交人適當分離的審批人作出批准、附條件批准或拒絕決定。Package 審批不取代 RAM、兒童保護、財務等專業審批，也不會自動觸發後續動作。
-
-審批只對綁定的 Plan、Package 版本、政策版本、來源向量和明確範圍有效。重要來源變更、專業審批撤銷或過期、條件失效會使相關生命週期門禁失效，並向操作者回傳可解釋的阻斷原因。既有活動不會被補造歷史批准；它們只按版本化遷移政策從 `off`、`dryRun` 進入 `enforced`。Plan B 和自動後備方案啟用不在目前範圍內。
-
-### 人工確認與 AI 權限邊界
-
-RAM 按教會發布不可變政策與題庫；管理員須逐格確認完整 25 格矩陣，未發布時仍可儲存草稿。新版 RAM 分別記錄初始／剩餘風險，合併各活動適用題目，由本人確認指定版本，再申請 RAM 獨立審核；紅色剩餘風險須安全簽署及加強 Package 審批。申請後，待審核 RAM 會出現在同一教會合資格審核人的「教會生活 / RAM 獨立審核」和個人中心「職務待辦」中；連結把唯讀的完整活動方案與受限 RAM 報告放在同一審核畫面，並在通過、退回或版本失效後自動消失。活動方案啟用 RAM 或安全事實／政策強制要求時，必須先通過獨立審核才能提交 Event Package；明確選擇「不需要 RAM」且沒有更高優先級觸發器時不會受阻。重要變更觸發重審，歷史保留；AI 只解釋及追問，不覆蓋人工評估，RAM 獨立審核不會自動發布活動。參見 [RAM 模組規範](modules/SAFETY.RAM.md)及[管理員初始化](RAM-INITIALIZATION.md)。
-
-活動籌備使用[非線性規劃](EVENT-SETUP-FLOW.md)，不再要求保留負責人的六步精靈。全域階段沿用籌備 → 公開報名 → 場次執行 → 善後；正式提交、審批、海報採用、明確發布與執行仍有各自的業務關卡。獨立的 Review／Reflection 階段尚未加入，Plan B 目前不計畫實施。[Event 設計指引](design/EVENT-WORKSPACE-DESIGN.md)採用圖形優先、簡潔圖示輔助的豐富色彩與六層空間模型，先試行一部分並檢查效果，再推廣。以下現有介面描述保留相容資訊，不構成固定六步導覽要求。新建與籌備修改共用建立時的表單，建立後不能再選擇範本。已儲存活動使用 Event Workspace；「安全／RAM 與安全」直接提供完整評估、本人確認、審核與列印流程。「活動安排」的安全區將未成年人／兒童保護與 RAM 要求／評估表分開排列，RAM 直接內嵌；新建時先填風險並隨確認建立儲存，建立後繼續題庫與簽署審核。團隊職責、報名、排班、節目、場地、兒童保護與交通工具均直接放在活動安排的對應分區，不再另設「團隊與功能」步驟。建立後回到活動安排；舊入口也進入此頁。活動資料作為首個整行卡片，顯示名稱、活動時區的時間及建立者／總負責人；資料表單和 AI 資料助手作為內部子工作區。頁底僅保留「回到開頭」，透過頂部流程導覽切換階段；儲存和確認建立仍須明確操作。本輪試點將活動安排改為緊湊的 ALIFE Prism Glass 模組卡，以半透明領域色表面、反射光與空間深度表達工作物件；手機兩欄，768／1024／1280px 起為三／四／六欄；資料表單目前語言優先，另一語言可展開。寬螢幕資料與助手約 60:40 並排，窄螢幕單層切換；切換保留草稿及對話，AI 回填後須明確儲存。模組預設全部收起；同時只開啟一個編輯區，內部各配置方面改為縱向摘要／詳情卡片：首張「設定與職責」預設展開，其餘收起，允許同時展開多張。摘要顯示目前配置及有意義的數量；切換模組和語言保留展開狀態與草稿，重新整理後恢復預設。每個模組有預設未勾選的「填寫已確認」；關閉功能也需明確確認，修改撤銷受影響模組的確認。填寫確認不替代 RAM 簽署和審批。模組角色在各自模組分配，總負責人獨立於模組；確認建立彙總 12 個模組狀態與負責人，職責仍須本人接受。舊編輯連結轉入 Workspace，不再開啟已停用的 AI 活動編輯器；伺服器權限與審批凍結規則繼續生效。正式審批顯示各等級命中的政策條件；最晚預期批覆時間為活動開始時間減去政策的最終確認提前開放小時數。建立成功後繼續編輯同一個活動；新方案活動從未發布、報名關閉狀態開始。批准前可反覆修改資料和安排；審批退回後可修改重提。儲存後的籌備階段，每項功能均可選是或否；關閉會保留資料，正式提交時再核對必要條件。批准後籌備資料凍結，可申請撤銷審批，獲准後恢復修改並重新審批。海報不在審批內容內，放在正式審批之後製作並由人工核對採用。批准後仍須確認發布，公共網站、教會生活和小組生活按既定可見範圍顯示；既有活動的相容規則保持不變。
-
-Event Workspace 是建立後唯一的活動管理介面；活動詳情僅保留檢視、報名、回顧和獲准的個人操作。通用「工作流與產出物」介面、範本和活動 API 已停用；舊 `?section=workflow` 書籤轉入 Workspace 總覽，舊編輯和 RAM 書籤仍轉入相應的 Workspace 頁面。
-
-在[活動安排](CREATION-ARRANGEMENTS.md)頁，可選功能透過「是／否」啟用，必需功能保持鎖定。崗位與輪班、節目與製作、場地與資源可直接展開填寫人數、時段、節目順序及場地預訂，並在同頁查看安排一覽。關閉功能保留草稿；最終人工確認時，安排與活動一起儲存。系列安排套用於本次建立的未來 12 週場次，場地衝突在建立時再次檢查。
-
-建立時的 [AI 資料助手](AI-DETAILS-ASSISTANT.md) 根據最新表單逐輪整理雙語文字、時間、地點和報名設定，顯示欄位完成度、AI 充分性評估及待釐清問題。對話以左右聊天氣泡顯示在輸入框上方，按時間從上到下排列，新增訊息後自動捲動到底部；欄位完成度與返回表單操作位於傳送按鈕下方，方便核對。明確日期與時間範圍按活動時區回填，未確認的預填時間會標示。支援的瀏覽器可用中英文語音輸入，辨識文字追加到輸入框，由使用者核對後傳送；不支援時仍可打字。預設值需使用者確認才計入完成度；時間使用活動時區，系列活動支援每 1–52 週重複並保留未來 12 週視窗。回填僅更新待審閱草稿，最終建立仍須人工確認。
-
-組合只產生候選方案。伺服器在接受時重新組合並檢查 hash、並行控制和冪等性；只有明確的人工接受才能建立權威、版本化且不可變的 Event Plan snapshot。以後修改原型、範本、模組或政策，不得改寫已接受方案或歷史實例。
-
-AI 可以建議候選事實和解釋原因，但不能確認事實、分配權限、批准、豁免政策、授予贊助、持久化或發布。前端可見性永遠不能代替伺服器授權，私密／受限資料不得進入共享快取、日誌或 AI 提示。
-
-### 專業流程與歷史相容
-
-RAM、Package、報名、排班等專業流程由各自的權威處理程序和職務待辦管理。歷史 `EventWorkflowRun`／Step／Artifact 資料結構及舊 Plan 欄位只為既有記錄的非破壞性讀取而保留；新活動不再建立或同步通用工作流記錄。
-
-活動採用[按階段與職責組織的工作空間](EVENT-WORKSPACES.md)：個人中心保留「我的活動工作」，即使待辦已完成仍可進入。總負責人編輯整體方案；模組負責人獨立提交文字報告，由總負責人採用確定版本；RAM 審核人檢視送審報告及對應的完整方案。報名規則在籌備時制定，名單、家庭與訪客代報、材料和人工報名費在獨立頁面辦理；程序、名額、付款狀態分別顯示。場地與房間有獨立管理日曆，支援無限期每週佔用、單次釋放和衝突檢查。籌備、公開報名、逐場執行及善後按目前職責授權，公布前普通成員不能讀取方案。財務僅部分支援報名費，餐飲僅部分支援報告，節慶現場營運不可啟用。
-
-### 繼續閱讀
-
-- [EVENT-CONTRACT.md](EVENT-CONTRACT.md) — 完整規範架構、ADR 和不變量
-- [event-contract.json](event-contract.json) — 精確代碼、枚舉、引用和 API 契約
-- [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md) — 當前儲存庫進度、migration 和驗證狀態
-- [模組文件](modules/TEAM.WORK.md) — 每個能力模組的目標、現況與缺口
-- [EventManagement-About.html](EventManagement-About.html) — 由本 README 產生的三語概覽
-- [完整活動管理手冊](generated/alife-event-composition-model.zh-TW-en.html) — 產生的繁中／英文長篇展示
-
-新活動由建立者固定擔任總負責人；現場領隊、RAM 作者和審核人不會因此獲得活動計劃編輯權。崗位候選組和輪班放在所屬模組內，只從該崗位候選組安排人員，輪流由人決定。團隊區主要保留跨模組協調任務，成員及歷史分工收起。
+- [組合與範本](EVENT-COMPOSITION.md) · [審批與生命週期門檻](EVENT-PACKAGE-APPROVAL.md)
+- [階段與工作空間](EVENT-WORKSPACES.md) · [籌備流程](EVENT-SETUP-FLOW.md) · [建立安排](CREATION-ARRANGEMENTS.md)
+- [個人事務與交接](EVENT-DUTIES.md) · [AI 表單輔助](AI-DETAILS-ASSISTANT.md)
+- [精確機器契約](event-contract.json) · [設計指引](design/EVENT-WORKSPACE-DESIGN.md) · [開發閱讀規則](AGENTS.md)
+- [歷史驗證記錄](IMPLEMENTATION-HISTORY.md)與[生成的長篇手冊](generated/alife-event-composition-model.zh-TW-en.html)僅供按需追溯；歷史結果不是目前驗證。
 
 <!-- overview:zh-TW:end -->
 
 <!-- overview:en:start -->
+
 ## English
 
-### An event plan composed from facts
+### What an Event is
 
-ALIFE does not lock an event to a rigid `EventType`. An Activity Type supplies explainable, overridable defaults; real facts, structure, modules, governance rules, and human decisions compose the final plan.
+ALIFE helps communities prepare, publish, deliver and follow up on Events. An Event combines confirmed facts, required capabilities and accountable people. Templates provide a starting point; they do not establish facts or permissions.
 
-```
-Event Plan
-  = Event Facts
-  + Structural Units
-  + Capability Modules
-  + Governance Rules
-  + Human Decisions
-```
+This page is a product overview. The [core contract and delegated topics](EVENT-CONTRACT.md) define business rules; [current implementation status](IMPLEMENTATION-STATUS.md) describes delivered scope, not complete targets or deployed availability.
 
-Composition is deterministic: the same confirmed facts, versioned definitions, and still-valid human selections produce the same proposal. Missing or candidate facts are not `false` and cannot switch off safety, privacy, sponsorship, or authority requirements.
+### Event structure
 
-### Four immutable archetypes
+- **Event Plan**: a human-accepted immutable snapshot; later changes produce another version.
+- **EventSeries**: recurrence, time zone and shared settings, maintaining a rolling twelve-week occurrence window.
+- **EventOccurrence**: one delivery with its own people, arrangements and execution confirmation; finishing one date does not close the series.
+- Use a Child Event only for independent registration, safety, fees or lifecycle, with one parent level at most. Programme sessions and zones do not create another Event lifecycle.
 
-- `simple-social` — Simple social / outing
-- `camp-retreat` — Camp / retreat
-- `recurring-gathering` — Recurring gathering
-- `festival-celebration` — Festival / celebration
+### Stages and responsibilities
 
-These four archetypes are immutable system categories and safety boundaries. Activity Types inside a category are versioned templates. They may default modules, structure, and service slots, but they never confirm child, money, transport, venue, capacity, or safety facts.
+- **Preparation**: the creator is accountable; planning areas can be revisited, module leads submit reports and invited people personally accept responsibilities.
+- **Publication and registration**: authorized people explicitly publish/open registration; leads use independent work entries for registration, scheduling and other duties. Scheduling continues after publication.
+- **Execution**: validate staffing eligibility, safety and approval coverage for the specific occurrence; an authorized person explicitly confirms execution.
+- **Follow-up**: finish remaining handoffs, feedback and responsibilities. Stage navigation itself never saves, approves or grants authority.
 
-### Structural boundaries
+### Human decisions and privacy
 
-- `EventSeries` holds recurrence and reusable defaults while every event and occurrence preserves its own history.
-- `Event` (still persisted as `GroupEvent` during migration) is the ownership, visibility, governance, registration, and plan boundary.
-- `EventOccurrence` is one real delivery; a one-off has at least one, while recurring events materialise a rolling 12-week window.
-- `Session` / Track organises time within one event; `ProgramItem` is an item in that programme.
-- `Zone` is a spatial or operational area within one event; `ServiceSlot` / Shift is role demand for one delivery.
-- `ChildEvent` exists only when a unit needs independent registration, RAM, fees, access, cancellation, or closure, and stops at one level; otherwise use a Session or Zone.
+- Plan acceptance, specialist decisions such as RAM, overall Package approval, publication and execution are separate human actions. AI assists only within its authorized scope; generated content is never auto-published.
+- The server checks current membership, roles, purpose and version. Participant, child, safety and financial information receives minimum necessary disclosure; protected data never enters shared caches.
+- Explicit version and compatibility rules apply. The existing four stages remain; Plan B and a separate Review/Reflection stage are not included.
 
-### Twelve capability modules
+### Capability modules
 
-- [TEAM.WORK](modules/TEAM.WORK.md)
-- [PEOPLE.REGISTRATION](modules/PEOPLE.REGISTRATION.md)
-- [SERVICE.ROSTER](modules/SERVICE.ROSTER.md)
-- [MONEY.FINANCE](modules/MONEY.FINANCE.md)
-- [SAFETY.RAM](modules/SAFETY.RAM.md)
-- [SAFEGUARDING.CHILD](modules/SAFEGUARDING.CHILD.md)
-- [PROGRAM.PRODUCTION](modules/PROGRAM.PRODUCTION.md)
-- [PLACE.RESOURCE](modules/PLACE.RESOURCE.md)
-- [MOVE.STAY](modules/MOVE.STAY.md)
-- [FOOD.HOSPITALITY](modules/FOOD.HOSPITALITY.md)
-- [FESTIVAL.OPERATIONS](modules/FESTIVAL.OPERATIONS.md)
-- [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md)
+- [TEAM.WORK](modules/TEAM.WORK.md) — Tasks and handoffs
+- [PEOPLE.REGISTRATION](modules/PEOPLE.REGISTRATION.md) — Registration and participants
+- [SERVICE.ROSTER](modules/SERVICE.ROSTER.md) — Volunteer scheduling
+- [MONEY.FINANCE](modules/MONEY.FINANCE.md) — Finance and registration fees
+- [SAFETY.RAM](modules/SAFETY.RAM.md) — Risk assessment and review
+- [SAFEGUARDING.CHILD](modules/SAFEGUARDING.CHILD.md) — Child safeguarding
+- [PROGRAM.PRODUCTION](modules/PROGRAM.PRODUCTION.md) — Programme and run sheet
+- [PLACE.RESOURCE](modules/PLACE.RESOURCE.md) — Venues and resources
+- [MOVE.STAY](modules/MOVE.STAY.md) — Transport and accommodation
+- [FOOD.HOSPITALITY](modules/FOOD.HOSPITALITY.md) — Food and hospitality
+- [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md) — Communication and follow-up
+- [FESTIVAL.OPERATIONS](modules/FESTIVAL.OPERATIONS.md) — Live festival operations
 
-Modules are controlled product capabilities, not arbitrary runtime code. Every module defines ActivationRules, Dependencies, RoleRequirements, WorkflowContributions, DataClassification, ReadinessRules, and Version.
+Module names describe product responsibilities, not completion of every feature. Current finance supports manual registration fees, food supports lead reports, and festival operations is unavailable; see implementation status.
 
-### Event Package Approval
+### Read by topic
 
-Event Package Approval is a distinct governance step after Plan acceptance and before publication, registration opening, payment acceptance, or execution confirmation. The system generates an immutable Package from the current Plan, versioned governance policy, explicit scope, and each module's minimum necessary summary. After submission, a server-verified eligible approver with appropriate separation from the submitter records approval, conditional approval, or rejection. Package approval neither replaces specialist RAM, safeguarding, or finance decisions nor performs a downstream action automatically.
-
-Approval is valid only for the bound Plan, Package version, policy version, source vector, and explicit scope. Material source changes, revoked or expired specialist decisions, and failed conditions invalidate the affected lifecycle gates with explainable blockers. Existing Events receive no invented historical approval; they enter enforcement only through a versioned `off`, `dryRun`, then `enforced` migration policy. Plan B and automatic contingency activation are outside the current scope.
-
-### Human confirmation and AI authority
-
-RAM policies and question libraries are published as immutable church versions. Administrators explicitly confirm all 25 matrix cells; drafts remain saveable before publication. Version 2 records initial and residual risk, combines questions per activity, obtains personal confirmation of the specified version, then requests Independent RAM review; Red residual risk requires safety sign-off and Enhanced Package approval. The request appears in eligible same-church reviewers' Church Life / Independent RAM review section and as a Personal Center duty. Its link places the read-only complete Event Plan and restricted RAM report on one decision screen, then disappears after approval, return, or revision invalidation. When the Event Plan enables RAM or safety facts/policy require it, RAM must pass independent review before Event Package submission; an explicit No is accepted when no higher-priority trigger applies. Material changes require re-review while preserving history. AI only explains and asks questions, never overwrites human assessment, and Independent RAM review never publishes an Event. See the [RAM module contract](modules/SAFETY.RAM.md) and [administrator initialization](RAM-INITIALIZATION.md).
-
-Event preparation uses [nonlinear planning](EVENT-SETUP-FLOW.md), with no requirement to preserve an owner six-step wizard. Global stages remain preparation → registration → execution → followup; formal submission, approval, poster adoption, explicit publication and execution retain their business gates. A separate Review/Reflection stage is not yet added, and Plan B is not planned. The [Event design guidance](design/EVENT-WORKSPACE-DESIGN.md) uses graphics first, simple supporting icons, rich colour and six depth levels, starting with one pilot area before expansion. The existing UI descriptions below retain compatibility information without prescribing fixed six-step navigation. Creation and preparation editing share the creation form; the template cannot be reselected after creation. Saved Events use Event Workspace. Safety / RAM and safety directly provides assessment, personal confirmation, review and printing. Arrangements pairs children participation with safeguarding, then the RAM requirement with an inline assessment. New Events can record risks and save them with explicit Create, then continue with questions and signed review. Team responsibilities, enrollment, roster, programme, venue, safeguarding and travel tools are embedded in their Arrangements groups; there is no separate Team and tools step. Creation and legacy setup links lead to Arrangements. A full-row Event details card comes first, showing the title, event-local times/time zone and creator/accountable owner, with the form and AI assistant as child work areas. The footer only offers Back to top; the top rail changes stages while saves and creation remain explicit actions. The pilot presents compact ALIFE Prism Glass module cards, using translucent domain-coloured surfaces, reflected light and spatial depth to express workspace objects: two columns on mobile, three/four/six from 768/1024/1280px. Details shows the UI language first with the other language expandable; sufficiently wide desktops pair form and assistant approximately 60:40, while narrower screens use one tablist. Switching retains drafts and conversation, and AI-filled drafts require explicit saving. Module editors initially stay collapsed. One editor opens at a time, with vertically stacked summary/detail cards for its work areas. Settings and responsibilities opens initially; other cards start closed and can expand independently. Summaries show current configuration and labelled counts; module/language switches preserve expansion and drafts, while reload restores the defaults. Each module has a default-false Details confirmed checkbox, including an explicit review of disabled tools; edits revoke affected confirmations. Review lists all twelve modules and their responsible people. Details confirmation never replaces RAM signatures or approval. Legacy edit links redirect to Workspace without opening the retired AI event editor; server authorization and approval freezes remain authoritative. Formal approval explains each tier’s matching policy conditions; the expected latest reply is Event start minus the policy’s final-confirmation opening hours. Successful creation continues editing the same Event; new composition-backed Events begin unpublished with registration closed. Details and arrangements can be revised repeatedly before approval, including after return. Every tool remains a Yes/No choice during saved preparation; disabling preserves its data, and formal submission checks required conditions. Approval freezes preparation; an authorised reopening request restores editing and requires fresh approval. Posters are excluded from formal approval and are produced and adopted afterward. Approval still requires a separate publication confirmation, after which the public website, Church Life and Group Life apply the configured audience. Existing Event compatibility remains unchanged. Each section has an initially unchecked Confirmed marker, replacing duplicate three-choice questions; edits make it pending again. Roles are assigned in their modules, with a global accountable owner. Creation review summarizes section status and responsible people; roles still require personal acceptance.
-
-Event Workspace is the only Event-management surface after creation; Event Detail is limited to viewing, enrollment, review, memories, and permitted personal actions. The general Workflow & outputs UI, templates, and Event APIs are retired. Old `?section=workflow` bookmarks redirect to Workspace Overview; legacy edit and RAM bookmarks still redirect to the corresponding Workspace surface.
-
-On [Arrangements](CREATION-ARRANGEMENTS.md), optional tools have Yes/No choices while required tools stay locked. Roles and shifts, programme and production, and venue and resources expand inline for counts, times, programme order and bookings, with a same-page summary. Turning a tool off preserves its draft. Final human confirmation saves arrangements with the Event. Series arrangements apply to occurrences created in the initial 12-week window; venue conflicts are rechecked at creation.
-
-The creation [AI details assistant](AI-DETAILS-ASSISTANT.md) uses the latest form on each turn to organise bilingual copy, times, location and registration settings, with field completion, an AI sufficiency assessment and clarification questions. Supported browsers offer Chinese/English voice input that appends text for human review and sending; typing remains available when unsupported. Defaults count only after user confirmation. Dates use the event time zone; series repeat every 1–52 weeks within the rolling 12-week window. Autofill updates a reviewable draft; final creation still requires human acceptance. The conversation uses left/right chat bubbles above the input in chronological order and automatically scrolls to the bottom on new messages. Field completion and the return-to-form action follow the send button for review. Explicit calendar dates and clock ranges fill Event-zone local values; unconfirmed prefilled times are labelled.
-
-Composition produces a candidate plan only. On acceptance, the server recomposes and checks the hash, concurrency, and idempotency; only explicit human acceptance creates an authoritative, versioned, immutable Event Plan snapshot. Later archetype, template, module, or policy changes never rewrite accepted plans or historical occurrences.
-
-AI may propose candidate facts and explain recommendations. It cannot confirm facts, assign authority, approve, waive policy, grant sponsorship, persist, or publish. Frontend visibility never replaces server authorisation, and private or restricted data never enters shared cache, logs, or AI prompts.
-
-### Specialist flows and historical compatibility
-
-RAM, Package, enrollment, roster, and other specialist processes use their authoritative handlers and duty tasks. Historical `EventWorkflowRun` / Step / Artifact storage and old Plan fields remain only for non-destructive reading of existing records; new Events no longer create or synchronise general workflow records.
-
-Events use [workspaces organized by stage and responsibility](EVENT-WORKSPACES.md). Personal Center keeps My event work available after a duty is completed. The accountable owner edits the overall plan; module leads independently submit reports for adoption as exact versions; RAM reviewers read the submitted report and its corresponding complete plan. Preparation defines registration rules, while separate pages handle lists, family/guest applications, materials and manual fees, with procedure, place and payment states distinguished. An independent venue/room calendar supports indefinite weekly reservations, single-date release and conflict checking. Preparation, registration, occurrence delivery and follow-up depend on current responsibilities; ordinary members cannot read unpublished plans. Finance partially supports registration fees, food partially supports reports, and festival operations cannot be enabled.
-
-### Continue reading
-
-- [EVENT-CONTRACT.md](EVENT-CONTRACT.md) — complete normative architecture, ADRs, and invariants
-- [event-contract.json](event-contract.json) — exact codes, enums, references, and API contracts
-- [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md) — current repository progress, migrations, and verification
-- [Module documents](modules/TEAM.WORK.md) — each capability module's target, current state, and gaps
-- [EventManagement-About.html](EventManagement-About.html) — generated three-language version of this README
-- [Full Event Management handbook](generated/alife-event-composition-model.zh-TW-en.html) — generated Traditional Chinese / English long-form presentation
-
-The creator is the fixed accountable owner for new Events. On-site lead, RAM author and reviewer duties grant no Event-plan editing access. Candidate groups and shifts belong to their modules; assignment draws only from the role group and rotation remains a human decision. Team primarily presents cross-module tasks, with collaborators and historical assignments collapsed.
+- [Composition and templates](EVENT-COMPOSITION.md) · [Approval and lifecycle gates](EVENT-PACKAGE-APPROVAL.md)
+- [Stages and workspaces](EVENT-WORKSPACES.md) · [Preparation](EVENT-SETUP-FLOW.md) · [Creation arrangements](CREATION-ARRANGEMENTS.md)
+- [Personal duties and handoffs](EVENT-DUTIES.md) · [AI form assistance](AI-DETAILS-ASSISTANT.md)
+- [Exact machine contract](event-contract.json) · [Design guidance](design/EVENT-WORKSPACE-DESIGN.md) · [Development reading rules](AGENTS.md)
+- [Historical verification](IMPLEMENTATION-HISTORY.md) and the [generated long handbook](generated/alife-event-composition-model.zh-TW-en.html) are for relevant historical investigation; old results are not current verification.
 
 <!-- overview:en:end -->
-
-## Generation
-
-Run `node docs/events/scripts/generate-event-docs.mjs` after editing this README or the machine contract. Run it with `--check` to verify generated output, links, module and archetype references, and three-language overview structure without writing files.
