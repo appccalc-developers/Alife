@@ -23,10 +23,10 @@ public sealed class EventRamSyncService(IAlifeDbContext db, IRamSyncAi ai, IEven
             try { await db.SaveChangesAsync(ct); } catch (DbUpdateConcurrencyException) { }
             return;
         }
-        if (ram.SchemaVersion != 2)
+        if (ram.SchemaVersion != 2 || context.ActivityPlan?.Data.Activities.Length is null or 0)
         {
             // Upgrade is a human action. Do not spend provider calls retrying a legacy payload.
-            ram.SyncStatus = "Outdated"; ram.SyncError = "ram.sync.upgradeRequired";
+            ram.SyncStatus = "Outdated"; ram.SyncError = ram.SchemaVersion != 2 ? "ram.sync.upgradeRequired" : "ram.sync.activityPlanRequired";
             ram.SyncDueUtc = null; ram.ConcurrencyToken = Guid.NewGuid();
             try { await db.SaveChangesAsync(ct); } catch (DbUpdateConcurrencyException) { }
             return;
@@ -48,7 +48,7 @@ public sealed class EventRamSyncService(IAlifeDbContext db, IRamSyncAi ai, IEven
                 RamSyncPolicy.Schedule(ram, DateTime.UtcNow);
                 await db.SaveChangesAsync(ct); return;
             }
-            var draft = RamSyncPolicy.Merge(RamEvaluator.Parse(ram.RamDataJson), results, ram.AiRiskDraftJson, out var generated);
+            var draft = RamSyncPolicy.Merge(EventActivityPlanService.Mirror(RamEvaluator.Parse(ram.RamDataJson), context), results, ram.AiRiskDraftJson, out var generated);
             EventRamGovernanceService.Invalidate(ram);
             ram.RamDataJson = RamEvaluator.Serialize(draft); ram.AiRiskDraftJson = generated;
             ram.ResidualLevel = "Incomplete"; ram.IsUpdated = true; ram.SyncStatus = "AI_Updated";

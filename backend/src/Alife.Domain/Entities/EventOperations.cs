@@ -4,6 +4,7 @@ namespace Alife.Domain.Entities;
 
 public sealed class EventTask
 {
+    public string? ActivityId { get; set; }
     public string Stage { get; set; } = "preparation";
     public Guid? EventOccurrenceId { get; set; }
     public Guid Id { get; set; }

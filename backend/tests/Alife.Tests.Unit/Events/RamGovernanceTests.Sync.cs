@@ -10,7 +10,7 @@ namespace Alife.Tests.Unit.Events;
 
 public sealed partial class RamGovernanceTests
 {
-    private static RamSyncRisk WaterRisk() => new("water", "activity", new("Possible immersion", "可能落水"), new("Potential injury", "可能受伤"), new("Verify lifejackets before launch", "下水前核实救生衣"), new("Confirm conditions with the operator", "向运营方确认条件"));
+    private static RamSyncRisk WaterRisk() => new("water", "activity", new("Possible immersion", "可能落水"), new("Potential injury", "可能受伤"), new("Verify lifejackets before launch", "下水前核实救生衣"), new("Confirm conditions with the operator", "向运营方确认条件"), "a0");
 
     [Fact]
     public async Task UpstreamChangesScheduleAllModules_AndAiSyncPreservesHumanWork()
@@ -62,7 +62,7 @@ public sealed partial class RamGovernanceTests
     [Fact]
     public void MergeRetainsEditedAiRisks_AndProjectionContainsOnlyAggregateSignals()
     {
-        var draft = RamSyncPolicy.Merge(new(), [WaterRisk()], "[]", out var previous);
+        var draft = RamSyncPolicy.Merge(new() { Activities = [new() { Id = "actual-water", Type = "water", Name = Text("Actual kayaking") }] }, [WaterRisk()], "[]", out var previous);
         draft.Hazards[0].ControlMeasures = Text("Human override"); draft.Hazards[0].ResidualLikelihood = 2;
         var merged = RamSyncPolicy.Merge(draft, [WaterRisk()], previous, out _);
         Assert.Single(merged.Hazards); Assert.Equal("Human override", merged.Hazards[0].ControlMeasures.En);

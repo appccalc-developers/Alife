@@ -1512,7 +1512,8 @@ public sealed partial class EventPackageService(
                 .Select(x => new { x.Id, x.TitleEn, x.TitleZh, x.UpdatedUtc }).ToListAsync(ct),
             _ => new { moduleCode, availability = "unavailable" }
         };
-        return EventPackageCanonicalizer.HashCanonical(source);
+        var activityPlan = moduleCode == "TEAM.WORK" ? await EventActivityPlanService.ReadAsync(db,eventId,ct) : null;
+        return activityPlan is null ? EventPackageCanonicalizer.HashCanonical(source) : EventPackageCanonicalizer.HashCanonical(new { source, activityPlan });
     }
 
     private static EventGovernanceTier ResolveTier(EventPlanProposalDto plan, PolicyRules rules, IReadOnlyList<ModuleDecisionDto> selected)

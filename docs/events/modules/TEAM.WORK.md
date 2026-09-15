@@ -14,7 +14,7 @@ Coordinate cross-module tasks, executors, deadlines, dependencies, blockers, res
 
 ### Workspace placement
 
-During preparation, Arrangements → Tasks and handoffs contains enabled-module responsibilities, collaborators and custom tasks, in that order. Creation and the legacy `stage=setup&module=team.work` entry return to that section; no separate Team and tools step remains. Invitations still require a saved Event and personal acceptance. Existing direct operational routes remain available.
+During preparation, Arrangements → Tasks and handoffs contains activity projects and conditions, enabled-module responsibilities, collaborators and custom tasks. Creation and the legacy `stage=setup&module=team.work` entry return to that section; no separate Team and tools step remains. Invitations still require a saved Event and personal acceptance. Existing direct operational routes remain available.
 
 ### Activation
 
@@ -84,3 +84,11 @@ For title, description and preparation, the selected UI language appears first a
 The owner can select unrestricted preparation with both languages as publication material. Selection is private and is cleared whenever preparation or task configuration changes. Its separate concurrency token does not change the Package preparation source vector. The publication step provides review and bilingual copy for manual use in audience-facing content; selection does not itself modify the public Event representation. Tasks, assignee identities and private notes never enter shared/public cache or AI prompts through this workflow.
 
 Additive persistence: `EventTaskDelegationPreparation`. Existing task IDs, statuses, history, stage/occurrence and accepted assignments are preserved. Applying the migration is a separate approved-environment operation.
+
+## Activities and conditions — 2026-09-15
+
+This upstream plan defines actual event activities, separately from transport-booking, meal-booking and other preparation tasks. Each activity has a stable ID, bilingual name/conditions, type and optional saved Event occurrence. Shared conditions include participant estimate, outdoor/off-site, overnight, known high risk and weather review. Specialist travel/accommodation remain adopted MOVE.STAY reports. Custom tasks may optionally reference an activity; clearing uses an empty activityId, omitted/null updates preserve existing links. Removed sources retain task/risk references and require reassignment.
+
+`GET/PUT /api/events/{eventId}/activity-plan` is private/no-store. Readers need current plan access; writes require the current accountable owner and unfrozen preparation, exact ETag, valid unique IDs/types/bilingual shapes and same-Event occurrences. Saves serialize on the Event lock, invalidate Package/RAM and schedule analysis. Creation accepts the same activityPlan in arrangements, validates and saves it atomically with the Event; precreation occurrence references are not allowed. Draft recovery preserves bilingual source fields. RAM itself remains private and is not added to browser-persisted planning drafts.
+
+Legacy real activities can be loaded explicitly into the owner’s draft for review and Save. No automatic import occurs; synthetic AI activity rows are excluded. RAM reflects this source through a read-only disclosure and a link back here. This module has neither AI assistance nor organizer shifts.

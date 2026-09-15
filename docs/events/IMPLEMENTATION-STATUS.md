@@ -1,5 +1,16 @@
 # Event Management Implementation Status
 
+
+## 2026-09-15 — Upstream activity plans and compact RAM review
+
+Issue #790 / Draft PR #791 now includes an owner-only activity-plan record/API in TEAM.WORK, separate from preparation tasks, with optional task activity links and atomic creation drafts. Exact ETags, Event locking, current membership/ownership, same-Event occurrences and preparation freeze protect writes. RAM uses authoritative source mirrors and adopted MOVE.STAY reports; legacy real activities require explicit adoption. Source changes invalidate RAM and Package context, while removed activities retain linked risks (including untouched AI risks) for reassignment.
+
+AI uses request-local real activity keys/types plus aggregate signals and cannot create activities, ratings, confirmations or approvals. Manual recalculation permits fresh inputs, warns about signature invalidation, rejects an active job, and retains human edits/failures. RAM has compact activity/risk disclosures, numeric initial/residual scores, immediate policy-matrix previews, unrated/colour-pending states and a prominent overall summary. Required Questions and its current completeness/policy-bank gates are removed; historical answers and printing remain. History is a latest-first table. Main SERVICE.ROSTER includes all module slots including safety; the RAM-only embedded roster is removed.
+
+Verification on the integrated source: 191 backend RAM/workflow/Package/composition/operations/duty tests; 77 frontend composition and 6 duty tests; 3 new rating/draft tests; 3 Worker contract/privacy/provider-failure tests. The complete Worker entry bundles. Frontend production build passes with the existing idb-keyval mixed-import warning. Chinese/English Chromium fixtures at 320px/1280px exercise upstream bilingual drafts, read-only RAM sources, collapsed risk scores and immediate arithmetic, and existing final-review freshness/acknowledgment reset. Screenshots were inspected. Provider and browser APIs are fixtures; no real-account, live model or deployed timer behavior is claimed.
+
+Migration `20260915101331_EventActivityPlanningSources` is additive: one activity-plan table and one nullable task column. Its incremental SQL was reviewed and EF reports no pending model changes; it was not applied. Existing Worker project-wide TypeScript errors remain in unrelated eventDetailsTime, aiSession, generateEventPoster and enrolment files. Matched origin/Worker activation, SQL execution and live-provider verification remain release work. Generated documentation validates 174 APIs and three equivalent overview structures.
+
 ## 2026-09-15 — RAM background synchronization and final owner review
 
 Tracked together with task delegation in [Issue #790](https://github.com/appccalc-developers/Alife/issues/790) and [PR #791](https://github.com/appccalc-developers/Alife/pull/791), on `codex/790-task-delegation`. Combined publication verification also passes 31 operations/duty backend tests, 77 frontend composition tests and 6 personal-duty tests against the integrated source.

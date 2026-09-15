@@ -54,10 +54,10 @@ public sealed partial class RamGovernanceTests
         var p=Policy();var d=Draft(p);
         d.Activities=[..d.Activities,new(){Id="second",Type="generic",Name=Text("Other")}];
         d.Hazards=[..d.Hazards,new(){Id="two",ActivityId="second",CategoryCode="activity",Hazard=Text(),Consequence=Text(),ControlMeasures=Text(),PersonResponsible="Person",Likelihood=1,Impact=3,ResidualLikelihood=1,ResidualImpact=2}];
-        Assert.Contains(RamEvaluator.Evaluate(d,p).Errors,e=>e.StartsWith("ram.answer.second"));
+        Assert.DoesNotContain(RamEvaluator.Evaluate(d,p).Errors,e=>e.StartsWith("ram.answer."));
         d.Answers=[..d.Answers,..p.Questions.Where(q=>q.ActivityType=="generic").Select(q=>new RamAnswer("second",RamEvaluator.QuestionKey(q),new(),true,Text("Not relevant because...")))];
         Assert.Equal("Red",RamEvaluator.Evaluate(d,p).ResidualLevel);
-        d.Answers=[..d.Answers.Skip(1)];Assert.Equal("Incomplete",RamEvaluator.Evaluate(d,p).ResidualLevel);
+        d.Answers=[];Assert.Equal("Red",RamEvaluator.Evaluate(d,p).ResidualLevel);
     }
 
     [Fact]
@@ -239,7 +239,7 @@ public sealed partial class RamGovernanceTests
         f.Db.GroupEvents.Single().EventDataJson = "{\"description\":{\"en\":\"Changed plan\",\"zh\":\"改变的方案\"}}"; await f.Db.SaveChangesAsync();
         Assert.Equal(AppResultStatus.Conflict,(await f.Act("approve",f.Auditor,"Reviewed",true)).Status);
         Assert.Equal(submitted,(await f.Service.GetAsync(f.Event,f.Auditor,default)).Value!.Assessment!.CurrentRevisionId);
-        var amended = Draft(Policy()); amended.Activities[0].Name = Text("Updated walking plan");
+        var amended = Draft(Policy()); amended.Hazards[0].ControlMeasures = Text("Updated walking controls");
         Assert.True((await f.Save(f.PolicyId,amended)).IsSuccess);
         var retained = (await f.Service.GetAsync(f.Event,f.Auditor,default)).Value!;
         Assert.Equal(submitted,retained.Assessment!.CurrentRevisionId); Assert.Equal("Historical",retained.Assessment.Validity);
@@ -276,6 +276,8 @@ public sealed partial class RamGovernanceTests
             f.Db.GroupEvents.Add(new(){Id=f.Event,GroupId=f.Group,CreatedByMemberId=f.Author,AccountableOwnerMemberId=f.Author,EventDataJson="{}",TitleEn="Activity",TitleZh="活动",StartDate=DateTime.UtcNow,EndDate=DateTime.UtcNow.AddHours(2)});
             f.Auth.IsApprovedMemberAsync(f.Group,Arg.Any<Guid>(),Arg.Any<CancellationToken>()).Returns(call => f.Db.GroupMemberships.Any(x => x.GroupId == f.Group && x.MemberId == call.ArgAt<Guid>(1) && x.Status == MembershipStatus.Approved));
             f.Auth.IsLeaderOrCoLeaderAsync(f.Group,f.Author,Arg.Any<CancellationToken>()).Returns(true);
+            var seedDraft=Draft(Policy());
+            f.Db.EventActivityPlans.Add(new(){EventId=f.Event,DataJson=RamEvaluator.Serialize(new ActivityPlanData(seedDraft.Activities.Select(a=>new PlannedActivity(a.Id,a.Type,a.Name,new())).ToArray(),seedDraft.ParticipantCount,seedDraft.IsOuting,seedDraft.IsOvernight,seedDraft.IsHighRisk,seedDraft.WeatherConfirmation)),UpdatedUtc=DateTime.UtcNow});
             await f.Db.SaveChangesAsync();return f;
         }
         public async Task Publish()

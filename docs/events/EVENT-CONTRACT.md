@@ -443,3 +443,7 @@ All RAM, enrollment and roster responses remain `private, no-store`, with curren
 ### RAM synchronization extension — 2026-09-15
 
 The authorized background RAM extension persists unreviewed bilingual candidate risks from aggregate upstream signals. Its separate freshness state is not an approval state. Current context, owner acknowledgment and the existing independent RAM decision are enforced before Package submission. See [SAFETY.RAM](modules/SAFETY.RAM.md#background-synchronization-and-final-owner-review--2026-09-15) for concurrency, privacy and migration requirements. This exception does not expand manual AI authoring payloads or authorize automatic scores, signatures, approval or publication.
+
+## Activity-plan authority and RAM review (2026-09-15)
+
+TEAM.WORK owns event activity definitions and shared conditions in the additive activity-plan record/API. RAM mirrors that authority, combines adopted specialist reports, identifies risk and retains human scoring/confirmation/independent approval. Source ETags participate in RAM context and Package source versions. Existing RAM activities require explicit owner adoption; source deletion retains orphaned risk evidence. Current question completeness is disabled while historical answers/policies/prints remain. Main SERVICE.ROSTER aggregates all module roles, including safety, under existing server permissions. See [TEAM.WORK](modules/TEAM.WORK.md) and [SAFETY.RAM](modules/SAFETY.RAM.md).

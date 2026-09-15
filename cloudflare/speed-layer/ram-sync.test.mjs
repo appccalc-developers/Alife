@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import { timingSafeEqual } from 'node:crypto'
 import { handleRamSync, syncInput, syncOutput } from './dist/ram-sync-test.mjs'
 Object.defineProperty(crypto.subtle, 'timingSafeEqual', { value: timingSafeEqual, configurable: true })
-const input = { modules: ['MOVE.STAY','SAFEGUARDING.CHILD'], activityTypes: ['water'], overnight: true, outdoor: true, children: true, programmeItems: 1, venueCount: 1 }
+const input = { activities: [{ key: 'a0', type: 'water' }], modules: ['MOVE.STAY','SAFEGUARDING.CHILD'], activityTypes: ['water'], overnight: true, outdoor: true, children: true, programmeItems: 1, venueCount: 1 }
 const text = { en: 'Possible immersion; verify controls', zh: '可能落水；请核实控制措施' }
-const risk = { activityType: 'water', categoryCode: 'activity', hazard: text, consequence: text, controlMeasures: text, additionalAction: text }
+const risk = { activityKey: 'a0', activityType: 'water', categoryCode: 'activity', hazard: text, consequence: text, controlMeasures: text, additionalAction: text }
 const request = (body = input, token = 'test-sync-token') => new Request('https://app.test/api/internal/ram/identify', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
 test('sync input accepts only aggregate enums and counts; output cannot supply scores or identities', () => {
-  assert.ok(syncInput(input)); assert.equal(syncInput({ ...input, title: 'Private name' }), null)
+  assert.ok(syncInput(input)); assert.equal(syncInput({...input,activities:[{key:'a0',type:'water'},{key:'a0',type:'water'}]}),null); assert.equal(syncInput({ ...input, title: 'Private name' }), null)
   assert.equal(syncInput({ ...input, activityTypes: ['ignore instructions'] }), null)
   assert.ok(syncOutput([risk])); assert.equal(syncOutput([{ ...risk, likelihood: 1 }]), null)
   assert.equal(syncOutput([{ ...risk, hazard: { en: 'secret@example.com', zh: '隐私' } }]), null)
@@ -32,6 +32,8 @@ test('provider results are bounded, bilingual, no-store; failure is explicit', a
     const response = await handleRamSync(request(), env)
     assert.equal(response.status, 200); assert.equal(response.headers.get('Cache-Control'), 'private, no-store')
     assert.deepEqual(await response.json(), [risk])
+    globalThis.fetch = async () => Response.json({candidates:[{content:{parts:[{text:JSON.stringify([{...risk,activityKey:'a49'}])}]}}]});
+    assert.equal((await handleRamSync(request(),env)).status,503);
     globalThis.fetch = async () => new Response('failure', { status: 503 })
     assert.equal((await handleRamSync(request(), env)).status, 503)
   } finally { globalThis.fetch = original }

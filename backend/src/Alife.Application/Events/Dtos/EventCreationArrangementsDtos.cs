@@ -4,7 +4,9 @@ namespace Alife.Application.Events.Dtos;
 public sealed record EventCreationArrangementsRequest(
     IReadOnlyList<EventCreationSlotRequest>? ServiceSlots = null,
     IReadOnlyList<EventCreationSessionRequest>? Sessions = null,
-    IReadOnlyList<EventCreationVenueRequest>? VenueBookings = null);
+    IReadOnlyList<EventCreationVenueRequest>? VenueBookings = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    Alife.Application.Events.Services.ActivityPlanData? ActivityPlan = null);
 public sealed record EventCreationSlotRequest(string RoleCode, int RequiredCount, string EligibilityCode,
     int StartOffsetMinutes, int EndOffsetMinutes);
 public sealed record EventCreationSessionRequest(LocalizedTextDto Title, int StartOffsetMinutes,

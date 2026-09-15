@@ -24,7 +24,7 @@ public sealed partial class EventRamGovernanceService
 
     public async Task<AppResult<RamSyncOverviewDto>> SyncActionAsync(Guid eventId, Guid actor, string action, RamActionRequest request, CancellationToken ct)
     {
-        if (action is not ("retry" or "review")) return AppResult<RamSyncOverviewDto>.Validation("Unknown sync action.");
+        if (action is not ("retry" or "review" or "recalculate")) return AppResult<RamSyncOverviewDto>.Validation("Unknown sync action.");
         await using var tx = await db.BeginSerializableTransactionAsync(ct);
         await db.LockEventRegistrationAsync(eventId, ct);
         var e = await db.GroupEvents.Include(x => x.RamAssessment).FirstOrDefaultAsync(x => x.Id == eventId, ct);
@@ -44,9 +44,10 @@ public sealed partial class EventRamGovernanceService
         }
         else
         {
-            if (ram is not null && (ram.SyncStatus == "Syncing" && ram.SyncDueUtc > DateTime.UtcNow || ram.IsUpdated && ram.EvaluatedContextHash == Hash(context)))
+            if (ram is not null && (ram.SyncStatus == "Syncing" && ram.SyncDueUtc > DateTime.UtcNow || action != "recalculate" && ram.IsUpdated && ram.EvaluatedContextHash == Hash(context)))
                 return AppResult<RamSyncOverviewDto>.Conflict("RAM is already synchronized or running.");
             if (ram is null) { ram = new() { EventId = eventId, SchemaVersion = 2, RamDataJson = RamEvaluator.Serialize(new RamV2Draft()), CreatedUtc = DateTime.UtcNow }; db.EventRamAssessments.Add(ram); e.RamAssessment = ram; }
+            Invalidate(ram);
             RamSyncPolicy.Schedule(ram, DateTime.UtcNow);
         }
         db.AuditLogs.Add(new() { Id = Guid.NewGuid(), EventId = eventId, GroupId = e.GroupId, ActorMemberId = actor,

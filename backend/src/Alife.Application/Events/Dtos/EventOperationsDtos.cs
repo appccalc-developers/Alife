@@ -16,14 +16,14 @@ public sealed record EventTaskDto(Guid Id, Guid EventId, Guid? WorkflowStepId, L
     Guid? ReviewerMemberId = null, EventTaskApprovalStatus ApprovalStatus = EventTaskApprovalStatus.NotRequired,
     int ApprovalRound = 0, string? SourceType = null, Guid? SourceId = null, string Stage = "preparation", Guid? EventOccurrenceId = null,
     string AssignmentStatus = "accepted", DateTime? AssignmentRespondedUtc = null, LocalizedTextDto? Preparation = null,
-    DateTime? PreparationUpdatedUtc = null, bool PreparationPublicationCandidate = false);
+    DateTime? PreparationUpdatedUtc = null, bool PreparationPublicationCandidate = false, string? ActivityId = null);
 public sealed record CreateEventTaskRequest(LocalizedTextDto Title, LocalizedTextDto? Description,
     Guid? AssignedMemberId, DateTime? DueUtc, bool IsRequired = false, bool RequiresApproval = false,
     bool IsRestricted = false, Guid? WorkflowStepId = null, Guid? ReviewerMemberId = null, string Stage = "preparation", Guid? EventOccurrenceId = null,
-    bool RequireAcceptance = false);
+    bool RequireAcceptance = false, string? ActivityId = null);
 public sealed record UpdateEventTaskRequest(LocalizedTextDto Title, LocalizedTextDto? Description,
     Guid? AssignedMemberId, DateTime? DueUtc, EventTaskStatus Status, bool IsRequired,
-    bool RequiresApproval, bool IsRestricted, Guid? ReviewerMemberId = null, bool ClearReviewer = false);
+    bool RequiresApproval, bool IsRestricted, Guid? ReviewerMemberId = null, bool ClearReviewer = false, string? ActivityId = null);
 public sealed record EventTaskApprovalRequest(string Reason = "", LocalizedTextDto? Preparation = null, bool? PublicationCandidate = null);
 public sealed record EventTaskApprovalActionDto(Guid Id, int Round, string Action, Guid ActorMemberId,
     Guid? ReviewerMemberId, string SnapshotJson, string Reason, DateTime CreatedUtc);

@@ -146,7 +146,9 @@ public sealed partial class EventOperationsService(
         if (reviewer.HasValue && (reviewer == request.AssignedMemberId || !await EligibleTaskMember(access.Value!, reviewer.Value, ct)))
             return AppResult<EventTaskDto>.Validation("Select an eligible reviewer other than the assignee.");
         var now = DateTime.UtcNow;
-        var entity = new EventTask { Id = Guid.NewGuid(), EventId = eventId, Stage = request.Stage, EventOccurrenceId = request.EventOccurrenceId,
+        if (request.ActivityId is not null && (await EventActivityPlanService.ReadAsync(db,eventId,ct))?.Data.Activities.Any(a => a.Id == request.ActivityId) != true)
+            return AppResult<EventTaskDto>.Validation("Select an activity from this Event's plan.");
+        var entity = new EventTask { ActivityId = request.ActivityId, Id = Guid.NewGuid(), EventId = eventId, Stage = request.Stage, EventOccurrenceId = request.EventOccurrenceId,
             TitleEn = request.Title.En.Trim(), TitleZh = request.Title.Zh.Trim(), DescriptionEn = request.Description?.En.Trim() ?? "",
             DescriptionZh = request.Description?.Zh.Trim() ?? "", AssignedMemberId = request.AssignedMemberId,
             AssignmentStatus = request.AssignedMemberId.HasValue ? (request.RequireAcceptance ? "invited" : "accepted") : "unassigned",
@@ -205,14 +207,19 @@ public sealed partial class EventOperationsService(
             return AppResult<EventTaskDto>.Conflict("Complete prerequisite tasks and resolve blockers first.");
         var validation = await ValidateTaskRequest(task.Event, request.Title, request.AssignedMemberId, ct);
         if (validation is not null) return AppResult<EventTaskDto>.Validation(validation);
-        var changesReadiness = task.AssignedMemberId != request.AssignedMemberId || task.DueUtc != request.DueUtc ||
+        var nextActivityId = request.ActivityId is null ? task.ActivityId : request.ActivityId.Length == 0 ? null : request.ActivityId;
+        if (nextActivityId != task.ActivityId && (!canManage || nextActivityId is not null && (await EventActivityPlanService.ReadAsync(db,eventId,ct))?.Data.Activities.Any(a=>a.Id==nextActivityId) != true))
+            return AppResult<EventTaskDto>.Validation("Only the owner may change the linked activity, using this Event's plan.");
+        var activityChanged = nextActivityId != task.ActivityId;
+        var changesReadiness = activityChanged || task.AssignedMemberId != request.AssignedMemberId || task.DueUtc != request.DueUtc ||
             task.Status != request.Status || task.IsRequired != request.IsRequired ||
             task.RequiresApproval != request.RequiresApproval || task.IsRestricted != request.IsRestricted || task.ReviewerMemberId != reviewer;
         var changesProgress = task.Status != request.Status;
-        var changesPreparation = task.AssignedMemberId != request.AssignedMemberId || task.DueUtc != request.DueUtc ||
+        var changesPreparation = activityChanged || task.AssignedMemberId != request.AssignedMemberId || task.DueUtc != request.DueUtc ||
             task.IsRequired != request.IsRequired || task.RequiresApproval != request.RequiresApproval || task.IsRestricted != request.IsRestricted || task.ReviewerMemberId != reviewer ||
             request.Status == EventTaskStatus.Cancelled || task.TitleEn != request.Title.En.Trim() || task.TitleZh != request.Title.Zh.Trim() ||
             task.DescriptionEn != (request.Description?.En.Trim() ?? "") || task.DescriptionZh != (request.Description?.Zh.Trim() ?? "");
+        task.ActivityId = nextActivityId;
         task.TitleEn = request.Title.En.Trim(); task.TitleZh = request.Title.Zh.Trim();
         task.DescriptionEn = request.Description?.En.Trim() ?? ""; task.DescriptionZh = request.Description?.Zh.Trim() ?? "";
         if (task.AssignedMemberId != request.AssignedMemberId)
@@ -693,7 +700,7 @@ public sealed partial class EventOperationsService(
         x.DueUtc, x.CompletedUtc, TaskETag(x), x.Dependencies.Select(d => new EventTaskDependencyDto(d.Id, d.DependsOnEventTaskId, d.DependencyType)).ToArray(),
         x.Blockers.Select(b => new EventTaskBlockerDto(b.Id, b.Reason, b.CreatedByMemberId, b.CreatedUtc, b.ResolvedByMemberId, b.Resolution, b.ResolvedUtc)).ToArray(),
         x.ReviewerMemberId, x.ApprovalStatus, x.ApprovalRound, x.SourceType, x.SourceId, x.Stage, x.EventOccurrenceId,
-        x.AssignmentStatus, x.AssignmentRespondedUtc, new(x.PreparationEn, x.PreparationZh), x.PreparationUpdatedUtc, x.PreparationPublicationCandidate);
+        x.AssignmentStatus, x.AssignmentRespondedUtc, new(x.PreparationEn, x.PreparationZh), x.PreparationUpdatedUtc, x.PreparationPublicationCandidate, x.ActivityId);
     private static EventProgrammeDto ToProgrammeDto(EventOccurrence x, bool canManage) => new(x.EventId, x.Id, ProgrammeETag(x),
         x.Sessions.OrderBy(s => s.StartUtc).Select(s => new EventSessionDto(s.Id, s.OccurrenceId, new(s.TitleEn, s.TitleZh), s.StartUtc, s.EndUtc,
             s.PlaceJson, s.LeadMemberId, s.Status, s.ProgramItems.OrderBy(i => i.SortOrder).Select(i => new EventProgramItemDto(i.Id, i.SessionId,

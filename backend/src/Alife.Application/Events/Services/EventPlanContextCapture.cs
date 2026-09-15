@@ -31,6 +31,7 @@ public static class EventPlanContextCapture
             .OrderBy(x => x.StartUtc).ThenBy(x => x.Id).ToArrayAsync(ct);
         return new(e.Id, e.GroupId, new(e.TitleEn, e.TitleZh), e.StartDate, e.EndDate, plan)
         {
+            ActivityPlan = await EventActivityPlanService.ReadAsync(db,e.Id,ct),
             Details = JsonSerializer.SerializeToElement(details), Reports = reports,
             RegistrationRules = registration is null || !enabled.Contains("PEOPLE.REGISTRATION") ? null : EventRegistrationWorkService.Rules(registration), RegistrationRulesVersion = registration?.Version,
             Venues = venues,

@@ -7933,9 +7933,36 @@ public sealed record AcceptEventPlanRequest(
     {
       "method": "POST",
       "path": "/api/internal/ram/identify",
-      "request": "bounded aggregate module/activity enums, booleans and counts",
+      "request": "bounded aggregate signals and request-local real activity keys/types; no raw personal text",
       "response": "bounded bilingual risk candidates",
       "auth": "dedicated RAM_SYNC_API_TOKEN on speed layer; no user authorization or cache token",
+      "cache": "private, no-store; Vary Authorization; user routes also Vary Cookie",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/activity-plan",
+      "request": "none",
+      "response": "ActivityPlanView: data, eTag, canEdit, legacyCandidate, adopted reports",
+      "auth": "current Event plan reader",
+      "cache": "private, no-store; Vary Cookie, Authorization",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/activity-plan",
+      "request": "data: ActivityPlanData, expectedETag",
+      "response": "ActivityPlanView: data, eTag, canEdit, legacyCandidate, adopted reports",
+      "auth": "current accountable owner; unfrozen preparation; matching ETag and same-Event occurrences",
+      "cache": "private, no-store; Vary Cookie, Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/ram/sync/recalculate",
+      "request": "expectedETag",
+      "response": "RamSyncOverviewDto",
+      "auth": "current owner or accepted RAM author; unfrozen preparation",
       "cache": "private, no-store; Vary Authorization; user routes also Vary Cookie",
       "mutation": true
     }
@@ -8340,7 +8367,7 @@ public sealed record AcceptEventPlanRequest(
       "activityId",
       "activityType:questionCode"
     ],
-    "questionCompleteness": "every applicable question has an answer or notApplicable with reason",
+    "questionCompleteness": "disabled in this release; historical questions, answers, policy versions and prints retained",
     "overallLevel": "highest residual colour; Incomplete if any required assessment input is missing",
     "validityStates": [
       "Legacy",
@@ -8442,7 +8469,7 @@ public sealed record AcceptEventPlanRequest(
       "adoption": "per-field difference review into draft then explicit save; changed draft/conditions/context blocks stale adoption",
       "failure": "preserve all manual input; no raw prompt/unadopted output logs, shared caches or browser persistence",
       "editor": [
-        "conditions",
+        "read-only authoritative activity/condition sources",
         "activity/category/completeness risk filters",
         "expand/copy/delete confirmation/discard",
         "primary UI language plus optional other language",
@@ -8463,12 +8490,16 @@ public sealed record AcceptEventPlanRequest(
       "compatibility": "Existing RAM approval status remains unchanged; sync_status is a separate persistent column.",
       "trigger": "upstream module or plan invalidation; cosmetic notifications refresh existing RAM; same-transaction persisted due job; exclude event.ram.*",
       "worker": "Azure TimerTrigger every 30 seconds, 15-second debounce, ten events per pass, two-minute lease, five attempts with exponential backoff",
-      "aiInput": "Locally derived module/activity enums, booleans and counts; no raw text, names, contacts, medical/child records or full reports",
-      "aiOutput": "1-20 bilingual candidate risks; no scores, answers, identities or approval; preserve human overrides",
+      "aiInput": "Request-local actual activity keys and enum types plus locally derived module/activity enums, booleans and counts; no raw text or private data",
+      "aiOutput": "1-20 bilingual risks associated with supplied activity keys; never create activities, scores, answers or identities; preserve human overrides",
       "gate": "fresh context hash plus final owner-reviewed sync; retain current independent RAM approval and Package source-vector gates",
       "privacy": "private/no-store; dedicated backend-to-Worker RAM_SYNC_API_TOKEN",
-      "migration": "20260915074357_AddRamBackgroundSynchronization"
-    }
+      "migration": "20260915074357_AddRamBackgroundSynchronization",
+      "manualRecalculation": "POST sync/recalculate permits fresh-source analysis; ETag, current owner/accepted RAM author, freeze and active-job checks; explicit warning before invalidating signatures"
+    },
+    "activitySource": "TEAM.WORK activity-plan; current owner writes, RAM mirrors; explicit legacy adoption excluding AI synthetic activities; removed activity risks retained for reassignment",
+    "historyPresentation": "latest-first table with date, level, signing/review status, view/print; no filters, sort selector or pagination",
+    "scorePresentation": "immediate likelihood × impact preview; published matrix colours, gray unrated or colour pending; per-risk initial/residual numbers, group maxima and overall colour counts; never sum scores"
   },
   "roleRosterGroups": {
     "key": [
@@ -8756,6 +8787,29 @@ public sealed record AcceptEventPlanRequest(
     },
     "migration": "20260914133318_EventCollaborationWorkspaces",
     "compatibility": "additive; retain old IDs/routes/child links/approval evidence; no guessed legacy family or consent; reject old writes over upgraded fields"
+  },
+  "activityPlan": {
+    "module": "TEAM.WORK",
+    "activityFields": [
+      "id",
+      "type",
+      "name:{en,zh}",
+      "conditions:{en,zh}",
+      "occurrenceId?"
+    ],
+    "sharedFields": [
+      "participantCount",
+      "isOuting",
+      "isOvernight",
+      "isHighRisk",
+      "weatherConfirmation:{en,zh}"
+    ],
+    "specialistSources": "adopted MOVE.STAY report; no duplicate editing",
+    "authority": "current accountable owner; Event lock, ETag and unfrozen preparation",
+    "creation": "optional arrangements.activityPlan, atomic; legacy omission preserves hash shape",
+    "sourceVersion": "activity plan ETag in RAM context and TEAM.WORK Package source hash",
+    "migration": "20260915101331_EventActivityPlanningSources",
+    "compatibility": "explicit owner legacy adoption; nullable task activity_id; source deletion preserves linked evidence"
   }
 }
   </script>

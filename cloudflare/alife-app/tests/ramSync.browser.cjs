@@ -21,13 +21,14 @@ createRoot(document.getElementById('root')).render(React.createElement(AuthProvi
 for(const lang of ['zh','en']) for(const width of [320,1280]){
  const zh=lang==='zh',t=(en,cn)=>zh?cn:en;const ctx=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block',reducedMotion:'reduce'});
  await ctx.addInitScript(value=>localStorage.setItem('alife.language',value),lang);const page=await ctx.newPage();page.setDefaultTimeout(15000);await page.clock.install();
- let status='Syncing',etag='sync-1',reads=0,reviews=0;const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ let status='Syncing',etag='sync-1',reads=0,reviews=0,recalculations=0;const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const sync=()=>({isRequired:true,eTag:etag,canReview:true,canRetry:true,sync:{status,isUpdated:['AI_Updated','Reviewed'].includes(status),lastEvaluatedAt:null,error:null,reviewedByMemberId:null,reviewedAt:null}});
  const text=(en,zh)=>({en,zh});const draft={schemaVersion:2,activities:[{id:'water',type:'water',name:text('Kayaking','皮划艇')}],hazards:[{id:'risk-1',activityId:'water',categoryCode:'activity',hazard:text('Possible immersion','可能落水'),consequence:text('Potential injury','可能受伤'),controlMeasures:text('Verify lifejackets','核实救生衣'),additionalAction:text('Confirm conditions','确认条件'),likelihood:3,impact:4,riskScore:12,residualLikelihood:1,residualImpact:4,residualScore:4,personResponsible:'Leader'}],answers:[]};
  await ctx.route(`${base}/__ram-sync-qa`,route=>route.fulfill({contentType:'text/html',body:harness}));
  await ctx.route('**/api/**',async route=>{const req=route.request(),p=new URL(req.url()).pathname;let data={};
   if(p==='/api/me')data={id:'owner',displayName:'Owner',isRegistered:true,isGuest:false,memberships:[],permissions:[]};
   else if(p.endsWith('/sync')&&req.method()==='GET'){reads++;data=sync();}
+  else if(p.endsWith('/sync/recalculate')){assert.equal(req.postDataJSON().expectedETag,etag);recalculations++;if(recalculations===1)return route.fulfill({status:503,json:{message:'Fixture sync failure'}});status='Syncing';data=sync();}
   else if(p.endsWith('/sync/review')){assert.equal(req.postDataJSON().expectedETag,etag);assert.equal(status,'AI_Updated');reviews++;status='Reviewed';data=sync();}
   else if(p.endsWith('/ram/workspace'))data={assessment:{eventId:'qa-event',groupId:'qa-group',ramDataJson:JSON.stringify(draft),schemaVersion:2,eTag:etag,status:'draft',sync:sync().sync},policy:null,history:[],actions:[],onsiteCandidates:[],canEdit:true,canAudit:false,currentMemberId:'owner',isRequired:true};
   return route.fulfill({status:200,headers:{'Cache-Control':'private, no-store'},json:data});});
@@ -39,6 +40,6 @@ for(const lang of ['zh','en']) for(const width of [320,1280]){
  status='Outdated';etag='sync-3';await page.clock.runFor(6500);await modal.getByText(t('Needs review','需要核对'),{exact:true}).waitFor();assert.equal(await confirm.isDisabled(),true);assert.equal(reviews,0);
  status='AI_Updated';etag='sync-4';await page.clock.runFor(6500);await modal.getByRole('checkbox').waitFor();assert.equal(await modal.getByRole('checkbox').isChecked(),false);await modal.getByRole('checkbox').check();await modal.getByText(t('Possible immersion','可能落水'),{exact:true}).click();
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:path.join(output,`ram-review-${lang}-${width}.png`),fullPage:true});
- await confirm.click();await page.getByText('Reviewed fixture',{exact:true}).waitFor();assert.equal(reviews,1);assert.deepEqual(errors,[]);await ctx.close();console.log('PASS RAM review',lang,width);
+ await confirm.click();await page.getByText('Reviewed fixture',{exact:true}).waitFor();assert.equal(reviews,1);const reassess=page.getByRole('button',{name:t('Reassess risks with AI','AI 重新评估风险'),exact:true});await reassess.click();let warning=page.getByRole('alertdialog');await warning.getByText(t('Existing confirmation','已有确认'),{exact:false}).waitFor();await warning.getByRole('button').last().click();await page.getByRole('alert').waitFor();assert.equal(recalculations,1);await reassess.click();await page.getByRole('alertdialog').getByRole('button').last().click();await page.getByText(t('AI syncing','AI 同步中'),{exact:true}).waitFor();assert.equal(await reassess.isDisabled(),true);assert.equal(recalculations,2);assert.deepEqual(errors,[]);await ctx.close();console.log('PASS RAM review',lang,width);
 }
 }finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

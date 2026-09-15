@@ -1,3 +1,5 @@
+import { eventActivityPlanService } from '../../services/eventActivityPlanService'
+import type { ActivityPlanView } from '../../types/eventActivityPlan'
 import { BilingualField } from './creation/CreationFields'
 import { roleStatusLabel } from './EventArrangementRoles'
 import { workStageText } from '../../services/eventWorkService'
@@ -16,13 +18,15 @@ export default function EventTaskDetailPanel({ eventId, taskId, onChanged, befor
   const { language, me } = useAuthStore(), zh = language === 'zh'
   const [data, setData] = useState<EventTaskDetail | null>(null)
   const [reason, setReason] = useState(''), [reviewer, setReviewer] = useState(''), [assignee, setAssignee] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false)
+  const [activityPlan,setActivityPlan]=useState<ActivityPlanView|null>(null),[activityId,setActivityId]=useState('')
+  useEffect(()=>{let live=true;setActivityPlan(null);void eventActivityPlanService.get(eventId).then(v=>{if(live)setActivityPlan(v)}).catch(()=>{});return()=>{live=false}},[eventId,me?.id])
   const [preparation, setPreparation] = useState({ en: '', zh: '' })
   const [resolutions, setResolutions] = useState<Record<string, string>>({})
   const retry = useRef<{ signature: string; key: string } | null>(null)
   const { requestConfirmation, confirmationModal } = useConfirmation()
   const load = useCallback(async () => {
     const next = await service.getTask(eventId, taskId)
-    setData(next); setPreparation(next.task.preparation ?? { en: '', zh: '' }); setReviewer(next.task.reviewerMemberId ?? ''); setAssignee(next.task.assignedMemberId ?? '')
+    setData(next); setActivityId(next.task.activityId || ''); setPreparation(next.task.preparation ?? { en: '', zh: '' }); setReviewer(next.task.reviewerMemberId ?? ''); setAssignee(next.task.assignedMemberId ?? '')
   }, [eventId, taskId, me?.id])
   useEffect(() => { setData(null); void load().catch(e => setError(normalizeApiError(e).message)) }, [load])
   const run = async (action: string) => {
@@ -47,6 +51,7 @@ export default function EventTaskDetailPanel({ eventId, taskId, onChanged, befor
     : { todo: 'To do', inProgress: 'In progress', blocked: 'Blocked', done: 'Done', cancelled: 'Cancelled', notRequired: 'No review required', notSubmitted: 'Not submitted', pendingReview: 'Awaiting review', approved: 'Approved', returned: 'Returned', 'submit-completion': 'Completion submitted', 'withdraw-completion': 'Submission withdrawn', approve: 'Approved', return: 'Returned', invalidated: 'Submission invalidated' }
   return <AppSectionCard title={task.title[language] || task.title.en}>
     {confirmationModal}
+    {activityPlan?<div className="my-3 space-y-2"><label className="block text-sm">{zh?'关联活动项目':'Linked activity'}<select className="min-h-11 w-full rounded-xl border p-2" disabled={!data.canManage||busy} value={activityId} onChange={e=>setActivityId(e.target.value)}><option value="">—</option>{activityPlan.data.activities.map(a=><option key={a.id} value={a.id}>{a.name[zh?'zh':'en']||a.name.en||a.name.zh}</option>)}{activityId&&!activityPlan.data.activities.some(a=>a.id===activityId)?<option value={activityId}>{zh?'原活动已移除，请重新选择':'Source activity removed; choose again'}</option>:null}</select></label>{data.canManage?<AppActionButton disabled={busy||activityId===(task.activityId||'')} onClick={()=>{setBusy(true);void Promise.resolve().then(beforeAction).then(()=>service.updateTask(eventId,task,task.status,activityId)).then(load).then(onChanged).catch(e=>setError(normalizeApiError(e).message)).finally(()=>setBusy(false))}}>{zh?'保存活动关联':'Save activity link'}</AppActionButton>:null}</div>:null}
     <p className="whitespace-pre-wrap text-sm">{task.description[language] || task.description.en || task.description.zh}</p>
     <details key={language} className="mt-3 rounded-xl border p-3 text-sm"><summary className="min-h-8 cursor-pointer font-semibold">{zh ? '展开 English' : 'Expand 中文'}</summary><h3 className="mt-2 font-semibold">{task.title[zh ? 'en' : 'zh']}</h3><p className="mt-2 whitespace-pre-wrap">{task.description[zh ? 'en' : 'zh']}</p></details>
     <p className="mt-3 text-sm">{workStageText(task.stage || 'preparation', zh)} · {task.dueUtc ? new Date(task.dueUtc).toLocaleString(language) : (zh ? '未设期限' : 'No deadline')}</p>

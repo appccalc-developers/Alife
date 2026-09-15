@@ -5,7 +5,8 @@ import { ramService } from '../../services/ramGovernanceService'
 import { normalizeApiError } from '../../services/http'
 import { ramChanges, ramDraftFingerprint, ramSuggestionFields } from '../../utils/ramAuthoring'
 import RamAssessmentFields from './RamAssessmentFields'
-import RamRequiredQuestions from './RamRequiredQuestions'
+import RamRatingSummary from './RamRatingSummary'
+import { previewRam } from '../../utils/ramRatings'
 import { RamEditingLanguage, RamLevelBadge, ramInput } from './RamFields'
 import { EventToolSection, revealArrangementControl } from './ArrangementTileDeck'
 import AppActionButton from '../layout/AppActionButton'
@@ -69,8 +70,8 @@ export default function RamDraftEditor({ eventId, groupId, draft, update, editab
     const remaining = { ...suggestion.result.suggestions }; delete remaining[field]
     setSuggestion({ ...suggestion, riskId: id, signature: ramDraftFingerprint(nextDraft, `${conditionsKey}:${contextVersion}`), result: { ...suggestion.result, suggestions: remaining } })
   }
-  return <RamEditingLanguage.Provider value={zh}><div ref={root} className="space-y-4">
-    <EventToolSection title={zh ? '起草助手与检查' : 'Draft assistance and checks'} summary={error ? (zh ? '操作失败，请展开查看' : 'Action failed; expand for details') : busy ? (zh ? '正在处理…' : 'Working…') : currentCheck ? (zh ? `${currentCheck.issues.length} 项待处理问题` : `${currentCheck.issues.length} issues to address`) : check ? (zh ? '草稿已改变，请重新检查' : 'Draft changed; check again') : !context && (eventId || groupId) ? (zh ? '正在读取…' : 'Loading…') : (zh ? '可检查当前草稿' : 'Ready to check the draft')}>
+  return <RamEditingLanguage.Provider value={zh}><div ref={root} className="space-y-4"><RamRatingSummary draft={previewRam(draft,effectivePolicy)} zh={zh} dirty={dirty} level={currentCheck?.residualLevel}/>{!eventId?<div className="space-y-2"><AppActionButton disabled>{zh?'AI 重新评估风险':'Reassess risks with AI'}</AppActionButton><p className="text-sm">{zh?'先创建并保存活动，AI 将汇总已保存的资料进行评估。':'Create and save the Event first; AI will evaluate its saved plans.'}</p></div>:null}
+    <EventToolSection defaultOpen title={zh ? '起草助手与检查' : 'Draft assistance and checks'} summary={error ? (zh ? '操作失败，请展开查看' : 'Action failed; expand for details') : busy ? (zh ? '正在处理…' : 'Working…') : currentCheck ? (zh ? `${currentCheck.issues.length} 项待处理问题` : `${currentCheck.issues.length} issues to address`) : check ? (zh ? '草稿已改变，请重新检查' : 'Draft changed; check again') : !context && (eventId || groupId) ? (zh ? '正在读取…' : 'Loading…') : (zh ? '可检查当前草稿' : 'Ready to check the draft')}>
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2"><AppActionButton disabled={busy || !editable} onClick={() => void run(async () => { const signature = fingerprint; const result = await ramService.check(scope, draft, policyVersionId); if (currentFingerprint.current === signature) setCheck({ result, signature }) })}>{zh ? '检查草稿及评分' : 'Check draft and ratings'}</AppActionButton>
           <AppActionButton variant="secondary" disabled={busy || !editable || !dirty || !changes.length} onClick={() => void requestConfirmation({ title: zh ? '撤销未保存修改' : 'Discard unsaved changes', description: zh ? '恢复到最近保存的 RAM；未采纳的 AI 建议也会清除。' : 'Restore the last saved RAM and clear unadopted suggestions.' }).then(ok => { if (ok) { update(structuredClone(savedDraft || initial.current)); setSuggestion(null); setCheck(null) } })}>{zh ? '撤销未保存修改' : 'Discard unsaved changes'}</AppActionButton>
@@ -96,8 +97,8 @@ export default function RamDraftEditor({ eventId, groupId, draft, update, editab
         <details><summary className="min-h-11 cursor-pointer py-2 font-semibold">{zh ? `与最近保存内容对照（${changes.length} 项）` : `Compare with last saved draft (${changes.length})`}</summary><RamChangeList changes={changes} zh={zh} /></details>
       </div>
     </EventToolSection>
-    <RamAssessmentFields {...{ draft, update, editable, dirty, zh, focusRequest }} policy={effectivePolicy} evaluatedDraft={currentCheck?.draft} />
-    <RamRequiredQuestions {...{ draft, update, editable, zh, eventId }} policy={effectivePolicy} />
+    <RamAssessmentFields eventId={eventId} {...{ draft, update, editable, dirty, zh, focusRequest }} policy={effectivePolicy} evaluatedDraft={currentCheck?.draft} />
+
     {confirmationModal}
   </div></RamEditingLanguage.Provider>
 }

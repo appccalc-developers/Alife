@@ -55,6 +55,7 @@ createRoot(document.getElementById('root')).render(React.createElement(AuthProvi
         const request = route.request(), url = new URL(request.url()), p = url.pathname; let data = [];
         if (request.method() === 'GET') reads++; else writes.push(p);
         if (p === '/api/me') data = { id: actor, displayName: actor, isRegistered: true, isGuest: false, memberships: [], permissions: [] };
+        else if (p.endsWith('/activity-plan')) data = {data:{activities:[],participantCount:null,isOuting:false,isOvernight:false,isHighRisk:false,weatherConfirmation:localized('','')},eTag:'plan-1',canEdit:actor==='owner',legacyCandidate:null,reports:[]};
         else if (p.endsWith('/team')) data = team();
         else if (p.endsWith('/memberships')) data = [{ memberId: 'owner', displayName: 'Owner', status: 'approved' }, { memberId: 'helper', displayName: 'Helper / 协作同工', status: 'approved' }];
         else if (p.endsWith('/occurrences')) data = [{ id: 'occurrence', eventId: 'qa-event', startUtc: '2030-10-04T10:00:00Z', endUtc: '2030-10-04T12:00:00Z' }];
