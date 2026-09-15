@@ -2998,7 +2998,7 @@ public sealed record AcceptEventPlanRequest(
     "A Package for a Child Event is independent; Series state and parent approval never approve it.",
     "Package generation and submission fail on any changed required source rather than persisting mixed-time evidence.",
     "Existing Events receive no invented Package approval and enter enforcement only through an audited rollout policy.",
-    "Plan B and automated contingency activation remain deferred.",
+    "Plan B is not planned; revise the Event design guidance before introducing it or automated contingency activation.",
     "New Events fix accountableOwnerMemberId to the authenticated creator; a different legacy request value is rejected. Ownership invitations, including pending legacy transfers, cannot change ownership. Existing stored owners and decisions are preserved; a missing legacy owner resolves only to the creator.",
     "Only the accountable owner edits Event details, Plan and preparation configuration. Group leadership and accepted event.lead, ram.author or ram.approver do not grant Event-plan editing; specialist module actions and independent review retain their own authority.",
     "Each Event role has one explicit ordered candidate group in one enabled module. Assignments and substitutions require group membership plus existing eligibility and availability; no whole-group fallback or automatic rotation. Candidate status grants neither module authority nor acceptance."
@@ -7963,6 +7963,9 @@ public sealed record AcceptEventPlanRequest(
   },
   "eventSetupFlow": {
     "documentation": "EVENT-SETUP-FLOW.md",
+    "designDocumentation": "design/EVENT-WORKSPACE-DESIGN.md",
+    "preparationInteraction": "Nonlinear planning within preparation; no required owner six-step wizard. Submission, approval, publication, registration opening and execution retain their server-defined gates. Pilot one area before wider visual rollout.",
+    "stageSemantics": "The stages and postCreateStages below preserve existing setup entry identifiers, not an ordered preparation wizard. Global work stages remain preparation, registration, execution, followup; no separate Review/Reflection stage is currently added.",
     "stages": [
       "template",
       "details",
@@ -8001,6 +8004,7 @@ public sealed record AcceptEventPlanRequest(
       "compatibility": "No request schema, database or creation-composition change; non-draft retirement remains protected"
     },
     "approvalBoundary": {
+      "stepNumberSemantics": "Legacy setup navigation mapping only. Apply the same business gates to named work areas in nonlinear preparation; step numbers do not prescribe a wizard.",
       "editableStepsBeforeApproval": [
         2,
         3,
@@ -8016,7 +8020,7 @@ public sealed record AcceptEventPlanRequest(
       "reopening": "Manager request with bilingual reason; eligible tier reviewer with requester separation outside Light. Pending/rejected stays frozen. Approval revokes Event approval, invalidates occurrence coverage/execution, withdraws publication and closes new registration. Preserve enrollments and audit history; require new approval."
     },
     "detailChanges": "Whole-Event detail saves rotate Package source evidence. Recomposition/acceptance use saved visibility and registration facts; mismatch with existing confirmed Plan facts requires Arrangements review before generation/decision. Older plans without confirmed brief facts remain compatible.",
-    "arrangementPresentation": "Full-row Event details card first, headed by the localized selected template name with an independent Show all/related modules control at the upper right (event title, event-local times/time zone, fixed creator/owner; form and AI assistant child areas). Footer only Back to top; rail navigation and explicit saves/create. Legacy Details stage opens this card. Twelve policy module tiles, 3/4/6 columns; seven category colours; default collapsed; one mounted visible editor with restored focus and deep links. Nested independent work areas use full-width vertical summary/detail cards, including single areas. Settings and responsibilities initially opens; others start closed and expand independently, including asynchronous cards. Summaries show current configuration and labelled counts or loading/error states. Mounted drafts and expansion survive module/language switches; reload resets expansion. Invalid enabled fields reveal enclosing cards; read-only disclosure remains usable. Unsaved status and independent module confirmation; no expansion state in API.",
+    "arrangementPresentation": "Existing presentation before the expressive pilot; designDocumentation governs the new visual direction. Full-row Event details card first, headed by the localized selected template name with an independent Show all/related modules control at the upper right (event title, event-local times/time zone, fixed creator/owner; form and AI assistant child areas). Footer only Back to top; rail navigation and explicit saves/create. Legacy Details stage opens this card. Twelve policy module tiles, 3/4/6 columns; seven category colours; default collapsed; one mounted visible editor with restored focus and deep links. Nested independent work areas use full-width vertical summary/detail cards, including single areas. Settings and responsibilities initially opens; others start closed and expand independently, including asynchronous cards. Summaries show current configuration and labelled counts or loading/error states. Mounted drafts and expansion survive module/language switches; reload resets expansion. Invalid enabled fields reveal enclosing cards; read-only disclosure remains usable. Unsaved status and independent module confirmation; no expansion state in API.",
     "savedPreparationTimes": "Persisted Event and occurrence timestamps are UTC instants, including legacy SQL responses without a suffix. Normalize as UTC before converting once to the selected Event IANA time zone; save wall-clock edits as explicit UTC. Device time zones must not shift Event dates or occurrence-relative arrangement offsets.",
     "sharedPreparationForm": "Creation DetailsStep/ArrangementsStep/ReviewStep reused for saved Events in Workspace; safety.ram directly renders versioned assessment, personal confirmation, independent review and printing; retired AI saved-event edit routes redirect to Workspace RAM for step=ram or saved Details otherwise; flow=setup preserves preparation return; server authorization and approval freezes remain authoritative",
     "savedArrangements": "Scoped occurrence rows with stable IDs; optional AcceptEventPlanRequest.arrangements uses aggregate ETag and Plan transaction/idempotency. Omitted arrays retain data, member responses and advanced metadata are preserved; linked deletions and foreign IDs rejected; existing venue conflict checks retained. Read projections include current venue metadata. New rows use the selected occurrence dates; successful acceptance invalidates client Event/Church Life caches and reloads Event concurrency; incomplete post-save reads require reload before more edits.",

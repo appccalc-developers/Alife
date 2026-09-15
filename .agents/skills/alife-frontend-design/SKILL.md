@@ -20,10 +20,11 @@ Read the screen being changed, adjacent components, and nearby tests. Use these 
 Classify the work before designing:
 
 - **Public church site:** a welcoming digital front door for visitors, seekers, members, and new migrants.
-- **Authenticated workspace:** a calm, legible tool for members and non-technical group leaders.
+- **General authenticated workspace:** a calm, legible tool for members and non-technical group leaders.
+- **Event management workspace:** an expressive, graphical working environment governed by [Event Workspace design](../../../docs/events/design/EVENT-WORKSPACE-DESIGN.md) and its visual tokens. Use the existing four stages, nonlinear preparation and explicit business gates; evaluate one pilot area before wider rollout.
 - **Editor or preview:** a productive editing surface whose preview and published output are distinct and both need verification.
 
-Preserve the selected surface's visual language. Do not blend cinematic public-page styling into dense management workflows or turn public storytelling into a generic admin dashboard.
+Preserve the selected surface's visual language; Event management follows its scoped design guidance. Do not blend cinematic public-page styling into dense management workflows or turn public storytelling into a generic admin dashboard.
 
 ## Member-space information architecture
 
@@ -49,7 +50,7 @@ Make the Church Life, Group Life, and Personal Center home pages concise views o
 ## Management pages, tabs, and lists
 
 - Give one managed entity its own page, such as Group Management, or make a page about one coherent entity-related sequence, such as the church's group list. Do not combine unrelated management entities merely to fill a dashboard.
-- When one managed entity has several aspects, or one list has several statuses, express those peer views with a single TabView. Never place another TabView inside a TabView. A destination reached from a tab may use its own tabs only after navigating to a separate page.
+- For general management screens, when one managed entity has several aspects, or one list has several statuses, express those peer views with a single TabView. Event planning may use the domain canvas and inspector defined by its scoped guidance. Never place another TabView inside a TabView. A destination reached from a tab may use its own tabs only after navigating to a separate page.
 - Keep mobile tabs on one non-wrapping row and use horizontal scrolling when they do not fit. Keep the selected tab visible and preserve accessible tablist, tab, and tabpanel semantics.
 - Every management list must provide pagination, filtering, and sorting. Preserve those controls and their state when opening and returning from item details where the current routing and state patterns allow it.
 - If a row cannot communicate all useful details, use an in-place expandable-detail pattern for that list item. Put secondary details, editing controls, and item actions together inside the expanded region rather than crowding the summary row.
@@ -74,7 +75,9 @@ Give the modal a clear title, specific consequence or next step, explicit primar
 
 **Public-site signature:** Real community imagery and South Island light create the emotional center. Prefer one cinematic, content-led moment—such as the existing full-bleed welcome hero—supported by quiet warm surfaces. The page should feel like approaching a real gathering, not browsing a church template.
 
-**Workspace signature:** Deep green structure, warm neutral surfaces, restrained coral highlights, and the existing faint grid/glow atmosphere. It should feel humane and composed while remaining fast to scan and easy to operate.
+**General workspace signature:** Deep green structure, warm neutral surfaces, restrained coral highlights, and the existing faint grid/glow atmosphere. It should feel humane and composed while remaining fast to scan and easy to operate.
+
+**Event workspace signature:** Stable domain colours, meaningful graphics, perceptible six-level depth and prompt feedback. Use graphics first, simple supplemental icons and concise necessary text, with accessible bilingual explanations. Preserve the global shell and real business gates; a six-step preparation wizard is not a design requirement. Plan B is not planned. The Event design documents govern this surface's palette, shape, depth and motion.
 
 **Imagery:** Prefer authentic worship, meals, small groups, Christchurch places, and ordinary community life with appropriate consent. Avoid anonymous corporate teams, staged handshakes, decorative religious stock imagery, or AI images presented as real people or events.
 
@@ -86,7 +89,7 @@ Give the modal a clear title, specific consequence or next step, explicit primar
 
 Use existing tokens and components before adding one-off values. Do not add a UI framework, font package, remote font, or design dependency without explicit approval.
 
-For authenticated workspace screens, derive choices from these established colors:
+For general authenticated workspace screens, derive choices from these established colors. Event management uses the scoped Event tokens:
 
 - Ink `#18332d`, muted text `#66766f`.
 - Brand green `#176b5a`, deep green `#0d4f43`, soft green `#e3f0eb`.
@@ -101,14 +104,14 @@ Treat coral or gold as a purposeful accent, not a competing primary action color
 
 Keep the current font stack by default: Inter/Segoe for Latin text and PingFang SC/Microsoft YaHei fallbacks for Chinese. Use weight, size, rhythm, and spacing to create character. Do not depend on English-only uppercase, extreme tracking, or a font treatment whose Chinese fallback loses the intended hierarchy. Scripture and long-form reading may use the established serif reader stack.
 
-Reuse `AppPageShell`, `AppSectionCard`, `AppActionButton`, `AppEmptyState`, badges, inputs, and shell/navigation components where they fit. Preserve the established radii, focus treatment, shadows, max widths, and mobile navigation behavior. Extend a primitive only when the new behavior is genuinely shared.
+Reuse `AppPageShell`, `AppSectionCard`, `AppActionButton`, `AppEmptyState`, badges, inputs, and shell/navigation components where they fit. General pages retain established radii, focus treatment, shadows, max widths and mobile navigation behavior. Event-scoped variants may apply the Event visual tokens while preserving accessible behavior and global navigation. Extend a primitive only when the new behavior is genuinely shared.
 
 ## Layout and interaction
 
 - Design mobile-first from 320px upward, then verify the existing `desktop` breakpoint at 1024px.
 - Keep primary touch targets at least as usable as the existing `min-h-10`, `min-h-11`, or `min-h-12` controls.
 - Public pages may use full-bleed media and narrative pacing. Workspace pages should use clear page headers, grouped actions, scannable sections, and restrained density.
-- Spend visual boldness in one signature element per screen. Structural labels, dividers, icons, and motion must explain content or state.
+- Spend visual boldness in one signature element per screen. The Event planning surface may be that element and contain multiple meaningful domain colours and graphics. Structural labels, dividers, icons, and motion must explain content or state.
 - Use Framer Motion only where motion improves orientation, hierarchy, or atmosphere. Respect `prefers-reduced-motion` and avoid making core content depend on animation.
 - Use meaningful content images with the established image component or `<img>`, useful alt text, stable aspect ratios, and appropriate loading behavior. Background media is for decorative atmosphere only.
 - Always design loading, empty, error, success, disabled, destructive-confirmation, and permission-denied states when the workflow can reach them.
