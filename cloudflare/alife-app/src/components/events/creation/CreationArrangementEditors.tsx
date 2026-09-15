@@ -26,7 +26,7 @@ function useArrangementChange(setDraft: Props['setDraft'], moduleCode?: string) 
 export function CreationRosterEditor({ draft, setDraft, zh, type, moduleCode = 'SERVICE.ROSTER', activeModules }: Props & { moduleCode?: string; activeModules?: string[] }) {
   const slots = creationSlots(draft, type), change = useArrangementChange(setDraft, moduleCode)
   return <div className="space-y-3"><p className="text-sm text-[#66766f]">{zh ? '在这里确定岗位、人数和轮班时间。岗位需求不会自动指派成员或确认资格。' : 'Set roles, counts and shift times here. Slot demand does not assign members or confirm eligibility.'}</p>
-    {slots.filter(slot => !activeModules || creationRosterModule(slot.roleCode, activeModules) === moduleCode).map((slot, index) => {
+    {slots.filter(slot => !activeModules || moduleCode === 'SERVICE.ROSTER' || creationRosterModule(slot.roleCode, activeModules) === moduleCode).map((slot, index) => {
       const preset = type.presetServiceSlots.find(x => x.roleCode === slot.roleCode)
       const update = (next: typeof slot) => change('slots', slots.map(x => x.id === slot.id ? next : x))
       return <fieldset key={slot.id} className={rowClass}><legend className="px-1 text-sm font-semibold">{preset ? localText(preset.label, zh) : slot.roleCode || (zh ? `岗位 ${index + 1}` : `Role ${index + 1}`)}</legend>

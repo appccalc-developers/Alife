@@ -320,8 +320,10 @@ public class EventCompositionArchitectureTests
         Assert.DoesNotContain(proposal.Value.Navigation, item => item.SurfaceKey == "workspace.workflow");
     }
 
-    [Fact]
-    public async Task CurrentRecurringCreate_AtomicallyCreatesSeriesOccurrencesRamAndSnapshot()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CurrentRecurringCreate_AtomicallyCreatesSeriesOccurrencesRamAndSnapshot(bool includeActivityPlan)
     {
         await using var dbContext = CreateDbContext();
         var groupId = Guid.NewGuid();
@@ -349,7 +351,8 @@ public class EventCompositionArchitectureTests
             IdempotencyKey: "series-create",
             SeriesSetup: new CreateEventSeriesSetupRequest(
                 new("Fellowship", "团契"), $"FREQ=WEEKLY;INTERVAL=1;BYDAY={weekday}",
-                "Pacific/Auckland", firstLocal, 120, [], 12));
+                "Pacific/Auckland", firstLocal, 120, [], 12),
+            Arrangements: includeActivityPlan ? new(ActivityPlan: new([new("source-activity","generic",new("Fellowship","团契"),new("Indoor gathering","室内聚会"))],20)) : null);
 
         var result = await handler.Handle(command, CancellationToken.None);
         var retry = await handler.Handle(command, CancellationToken.None);
@@ -364,6 +367,14 @@ public class EventCompositionArchitectureTests
         Assert.Equal(generatedDates.Count, generatedDates.Distinct().Count());
         Assert.All(generatedDates.Zip(generatedDates.Skip(1)), pair => Assert.Equal(7, pair.Second.DayNumber - pair.First.DayNumber));
         Assert.Single(await dbContext.EventRamAssessments.ToListAsync());
+        if (includeActivityPlan)
+        {
+            Assert.Single(await dbContext.EventActivityPlans.ToListAsync());
+            var ram=await dbContext.EventRamAssessments.SingleAsync();
+            Assert.Equal(2,ram.SchemaVersion); Assert.Equal("Draft",ram.Validity);
+            Assert.Equal("source-activity",RamEvaluator.Parse(ram.RamDataJson).Activities.Single().Id);
+            Assert.False(ram.IsUpdated); Assert.Null(ram.ApprovedByMemberId);
+        }
         var snapshot = await dbContext.EventPlanSnapshots.SingleAsync();
         Assert.Equal("small-group-fellowship", snapshot.ActivityTypeCode);
         Assert.Equal(2, snapshot.ActivityTypeVersion);

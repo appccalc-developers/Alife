@@ -3,6 +3,7 @@ import type { EventDto, EventVisibility, MultilingualString } from '../types/eve
 import type { EventActivityType, EventArchetype, EventFactInput, EventPlanComposeRequest, EventSeriesSetup, ModuleDecision } from '../types/eventComposition'
 import { createEmptyEventRamDraft } from './eventRam.ts'
 import { validStoredArrangements, type CreationArrangements } from './eventCreationArrangements.ts'
+import { validStoredActivityPlan } from '../types/eventActivityPlan.ts'
 
 export type FactAnswer = 'unknown' | 'yes' | 'no'
 export const arrangementGroups = [
@@ -18,6 +19,7 @@ export const creationFacts = arrangementGroups.flatMap(group => [...group.facts]
 export const creationModuleCodes = arrangementGroups.flatMap(group => [...group.modules])
 
 export type CreationDraft = {
+  activityPlan?: import('../types/eventActivityPlan').ActivityPlanData
   archetypeCode: string
   activityTypeCode: string
   overrides: { visibility?: EventVisibility; registrationMode?: 'none' | 'required'; useRecommendedWorkflow?: boolean }
@@ -152,6 +154,7 @@ export const restoreCreationDraft = (raw: string, archetypes: EventArchetype[]):
     if (draft.moduleConfirmations && !Object.entries(draft.moduleConfirmations).every(([key, value]) => creationModuleCodes.some(code => code === key) && typeof value === 'boolean')) return null
     if (draft.arrangementConfirmations && !Object.entries(draft.arrangementConfirmations).every(([key, value]) => arrangementGroups.some(group => group.key === key) && typeof value === 'boolean')) return null
     if (draft.arrangements !== undefined && !validStoredArrangements(draft.arrangements)) return null
+    if (draft.activityPlan !== undefined && !validStoredActivityPlan(draft.activityPlan)) return null
     if (draft.overrides.visibility !== undefined && !['groupVisible', 'churchVisible', 'public'].includes(draft.overrides.visibility)) return null
     if (draft.overrides.registrationMode !== undefined && !['none', 'required'].includes(draft.overrides.registrationMode)) return null
     if (draft.overrides.useRecommendedWorkflow !== undefined && typeof draft.overrides.useRecommendedWorkflow !== 'boolean') return null

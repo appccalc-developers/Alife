@@ -5,6 +5,7 @@ import { proxyHandler } from './middlewares/proxyHandler'
 import aiRouter from './features/ai/aiRouter'
 import { handleInternalCacheInvalidate } from './features/cache/cacheInvalidation'
 import eventRouter from './features/events/eventRouter'
+import { handleRamSync } from './features/events/ramSync'
 
 import { EventPlanningSession } from './features/events/planner'
 import { EnrollmentSession } from './features/events/enrolment'
@@ -26,6 +27,8 @@ export type Env = {
   GEMINI_IMAGE_MODEL?: string
   /** Bearer token for backend-triggered speed-layer cache invalidation. */
   CACHE_SYNC_API_TOKEN?: string
+  /** Dedicated backend credential for bounded RAM synchronization requests. */
+  RAM_SYNC_API_TOKEN?: string
   /** Durable Object namespace for live event-details assistant sessions. */
   EVENT_SESSIONS?: DurableObjectNamespace
   /** Durable Object namespace for live enrollment sessions. */
@@ -58,6 +61,7 @@ app.all('/images', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.all('/images/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.all('/proxy/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.post('/api/internal/cache/invalidate', async (req, env, ctx) => handleInternalCacheInvalidate(req, env, ctx))
+app.post('/api/internal/ram/identify', async (req, env) => handleRamSync(req, env))
 
 // Setup pipeline middleware
 const apiPipeline = new Router()

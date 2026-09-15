@@ -23,6 +23,8 @@ export type EventSurfaceProps = {
   onBusyChange?: (busy: boolean) => void
   onSaved?: () => Promise<void>
   setupFlow?: boolean
+  moduleSelections?: Record<string, boolean>
+  planRevision?: string
 }
 
 const localize = (item: EventWorkspaceItem, language: Language) =>

@@ -11,6 +11,7 @@ export type CreationVenue = TimedArrangement & {
 }
 export type CreationArrangements = { slots?: CreationSlot[]; sessions?: CreationSession[]; venues?: CreationVenue[] }
 export type EventCreationArrangementsRequest = {
+  activityPlan?: import('../types/eventActivityPlan').ActivityPlanData
   serviceSlots?: { roleCode: string; requiredCount: number; eligibilityCode: string; startOffsetMinutes: number; endOffsetMinutes: number }[]
   sessions?: { title: LocalizedText; startOffsetMinutes: number; endOffsetMinutes: number; items: { title: LocalizedText; description: LocalizedText; startOffsetMinutes: number; durationMinutes: number }[] }[]
   venueBookings?: { venueId: string | null; venueETag: string | null; newVenue: { name: LocalizedText; address: LocalizedText; capacity: number; isActive: boolean } | null; requiredCapacity: number; startOffsetMinutes: number; endOffsetMinutes: number }[]
@@ -30,6 +31,7 @@ export const arrangementTiming = (draft: CreationDraft, row: TimedArrangement) =
 
 export function creationArrangements(draft: CreationDraft, type: EventActivityType, proposal: EventPlanProposal): EventCreationArrangementsRequest {
   return {
+    ...(draft.activityPlan ? {activityPlan: draft.activityPlan} : {}),
     serviceSlots: arrangementEnabled(proposal, 'SERVICE.ROSTER') ? creationSlots(draft, type).map(slot => ({
       roleCode: slot.roleCode.trim(), requiredCount: Number(slot.requiredCount), eligibilityCode: slot.eligibilityCode, ...arrangementTiming(draft, slot),
     })) : [],

@@ -4,17 +4,17 @@
 
 ## Collaboration version 1
 
-The display name is **Tasks and handoffs / 任务与交接**, with the same module code and historical records. Overall ownership is configured once on the Event, module responsibilities in each module, and optional onsite lead under Safety. This module handles cross-module tasks, dependencies, blockers, executors, results and independent handoff review. Tasks have a stage and optional occurrence; legacy writes preserve these fields. Only preparation tasks contribute preparation blockers. Specialist decisions cannot be completed by ordinary task checkboxes. Persistent entry and server authority follow [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+The display name is **Tasks and handoffs / 任务与交接**, with the same module code and historical records. Overall ownership remains fixed on the Event. This workspace lists every enabled module and its personally accepted responsibilities; the same role records remain accessible from the owning modules. Optional onsite lead retains its Safety meaning. This module handles cross-module tasks, dependencies, blockers, executors, results and independent handoff review. Tasks have a stage and optional occurrence; legacy writes preserve these fields. Only preparation tasks contribute preparation blockers. Specialist decisions cannot be completed by ordinary task checkboxes. Persistent entry and server authority follow [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
 
 ## Purpose
 
-Coordinate cross-module tasks, executors, deadlines, dependencies, blockers, results and handoffs through preparation, delivery and follow-up. Event ownership and module responsibilities remain configured at their own source.
+Coordinate cross-module tasks, executors, deadlines, dependencies, blockers, results and handoffs through preparation, delivery and follow-up. The accountable owner sees enabled-module responsibilities, invites collaborators and delegates custom tasks here; these actions reuse their existing authoritative services.
 
 ## Target contract
 
 ### Workspace placement
 
-During preparation, tasks and historical team responses render in Arrangements → Tasks and handoffs; duplicate ownership/module-role configuration is removed. Creation and the legacy `stage=setup&module=team.work` entry return to that section; no separate Team and tools step remains. Invitations still require a saved Event and personal acceptance. Existing direct operational routes remain available.
+During preparation, Arrangements → Tasks and handoffs contains activity projects and conditions, enabled-module responsibilities, collaborators and custom tasks. Creation and the legacy `stage=setup&module=team.work` entry return to that section; no separate Team and tools step remains. Invitations still require a saved Event and personal acceptance. Existing direct operational routes remain available.
 
 ### Activation
 
@@ -52,7 +52,9 @@ Contributes the accountable owner, accepted key-role coverage, required task/blo
 
 ### User experience
 
-The Event workspace exposes team membership, invitation state, tasks, dependencies, blockers, and role-aware actions with explicit loading, empty, conflict, and retry states.
+The Event workspace exposes enabled modules and role acceptance, collaborators and personal invitations, custom tasks, dependencies, blockers, and role-aware actions with explicit loading, empty, conflict, and retry states. Organizers remain responsible throughout preparation; this module has no role-shift editor and no AI assistance.
+
+Enabled-module responsibilities use compact disclosure rows: collapsed rows show the module, assignees and response status; assignment controls appear only when expanded. The preparation section starts collapsed. Choosing No for a module immediately removes its responsibility row from the current draft view. Saved plan revisions refresh the authoritative enabled-module list. Hiding a row preserves its role assignments and history. Secondary invitation explanations are omitted while member selectors retain accessible labels in both languages.
 
 The [continuous preparation flow](../EVENT-SETUP-FLOW.md) enters team/tool settings immediately after creation, reusing the saved Event and arrangements before formal approval, poster preparation and explicit publication. Details, arrangements and team configuration can be revised repeatedly before approval. Approved preparation is frozen; a reviewed reopening request restores editing and requires fresh approval. Operational progress and member responses retain their existing authority. Existing workspace editors remain the operational authority.
 
@@ -69,4 +71,24 @@ Reusable task templates and a general artifact repository remain outside this sl
 Apply the additive task-approval migration to an approved environment, then exercise multi-account business handoffs against that database. See [Event duties](../EVENT-DUTIES.md) for the complete current contract.
 
 
-In the integrated Arrangements flow, Team primarily shows cross-module tasks; collaboration membership and historical assignments are collapsed. Module role invitations appear in their owning modules; the global accountable owner remains outside optional tools, using its existing requirement key even if TEAM.WORK is disabled in preparation. Review summarizes responsible people and personal acceptance states. Section confirmation never accepts roles on someone’s behalf. See [section review](../CREATION-ARRANGEMENTS.md#section-confirmation-and-module-roles).
+## Custom delegation and preparation — 2026-09-15
+
+Custom tasks extend work beyond the twelve capability modules without creating arbitrary module codes. The owner sets bilingual title/description, assignee, deadline, stage and optional occurrence. Assignees are current approved owning-group members with accepted Event team/role participation, or the accountable owner. Invite and obtain collaboration acceptance before assigning a new collaborator a task.
+
+The current creation UI requests personal task acceptance (`requireAcceptance=true`). Existing API clients that omit this additive option and migrated assignments retain accepted semantics. Reassignment always starts a fresh invitation and clears the former assignee's current preparation and publication-material selection. Required preparation tasks remain blockers until acceptance and a preparation update. Only the assigned member can accept/decline; current membership, exact task ETag and idempotency are checked on the server. A declined task returns to the owner's personal duties for reassignment.
+
+Accepted assignees record bilingual preparation updates (up to 4,000 characters per language). A newly accepted delegation requires preparation before completion/submission. Pending completion review must be withdrawn before changing preparation. Completion snapshots include preparation, and existing independent-review and specialist-workflow boundaries remain intact.
+
+For title, description and preparation, the selected UI language appears first and the other language is collapsed. Switching languages preserves both values without fetching task data again. Task lists include stage/status filters, deadline/title ordering and ten-item pages.
+
+The owner can select unrestricted preparation with both languages as publication material. Selection is private and is cleared whenever preparation or task configuration changes. Its separate concurrency token does not change the Package preparation source vector. The publication step provides review and bilingual copy for manual use in audience-facing content; selection does not itself modify the public Event representation. Tasks, assignee identities and private notes never enter shared/public cache or AI prompts through this workflow.
+
+Additive persistence: `EventTaskDelegationPreparation`. Existing task IDs, statuses, history, stage/occurrence and accepted assignments are preserved. Applying the migration is a separate approved-environment operation.
+
+## Activities and conditions — 2026-09-15
+
+This upstream plan defines actual event activities, separately from transport-booking, meal-booking and other preparation tasks. Each activity has a stable ID, bilingual name/conditions, type and optional saved Event occurrence. Shared conditions include participant estimate, outdoor/off-site, overnight, known high risk and weather review. Specialist travel/accommodation remain adopted MOVE.STAY reports. Custom tasks may optionally reference an activity; clearing uses an empty activityId, omitted/null updates preserve existing links. Removed sources retain task/risk references and require reassignment.
+
+`GET/PUT /api/events/{eventId}/activity-plan` is private/no-store. Readers need current plan access; writes require the current accountable owner and unfrozen preparation, exact ETag, valid unique IDs/types/bilingual shapes and same-Event occurrences. Saves serialize on the Event lock, invalidate Package/RAM and schedule analysis. Creation accepts the same activityPlan in arrangements, validates and saves it atomically with the Event; precreation occurrence references are not allowed. Draft recovery preserves bilingual source fields. RAM itself remains private and is not added to browser-persisted planning drafts.
+
+Legacy real activities can be loaded explicitly into the owner’s draft for review and Save. No automatic import occurs; synthetic AI activity rows are excluded. RAM reflects this source through a read-only disclosure and a link back here. This module has neither AI assistance nor organizer shifts.

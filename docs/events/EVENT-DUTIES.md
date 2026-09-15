@@ -24,6 +24,7 @@ Summaries contain action and Event identity, occurrence, date and deadline only,
 | --- | --- | --- |
 | Team / role invitation | Current approved invited member | Response or ending removes it; missing required responsibilities are owner coordination work |
 | Roster assignment | Current approved invited assignee for a non-cancelled live slot | Response removes it; replacement ends old assignment; an uncovered required position goes to the coordinator/owner |
+| Custom task delegation | Current approved assigned Event participant | Personal acceptance opens preparation work; decline removes the assignee duty and creates owner reassignment work |
 | Ordinary task | Current eligible executor | Completion removes a task without approval; submission hands approval tasks to the named reviewer |
 | Task review | Current eligible named independent reviewer | Approve completes; return with a reason hands work back; withdrawal or responsibility changes invalidate that submission |
 | RAM preparation | Current eligible author; the owner coordinates missing author responsibility (legacy version 0 fallback only) | Draft, returned and re-review work persists; request for confirmation hands the immutable revision to its onsite signer; confirmation hands submission back to the author |
@@ -59,3 +60,9 @@ Run `npm run test:event-duties` and `npm run test:event-composition` in `cloudfl
 ## Manual roster handoff — 2026-09-13
 
 Batch invitations, self acceptance/decline and replacements also create transactional in-app notifications. Pending assignments continue to project personal duties from current business state, even after a message is read. Result recipients are the still-authorized assigning coordinator and current accountable owner; ended or superseded links cannot accept an old invitation. Ordinary rule-2 staffing does not change Package approval sources; coordinator vacancy duties remain available after approval. Demand/candidate edits and critical qualification changes retain frozen/specialist controls. No email or external push is sent.
+
+## Custom task delegation and preparation
+
+`TEAM.WORK` now includes `accept-assignment`, `decline-assignment`, `save-preparation` and `select-publication` actions on the existing task resource. All require current authorized participation, task `If-Match` and `Idempotency-Key`. The first three are assignee-only; publication-material selection is owner-only. Specialist tasks reject these actions. Read and action responses remain private/no-store. Current notification projection uses `event.task.respond` and `event.task.reassign`; no external delivery is added.
+
+Preparation and task-definition revisions clear prior publication-material selection. Curation uses a separate selection concurrency token, so selecting material does not stale the approved Package task source vector. Restricted or incomplete bilingual preparation cannot be selected. Publication material remains private, with a manual review/copy entry at publication. See [TEAM.WORK](modules/TEAM.WORK.md) for old-client compatibility, bilingual disclosure and migration requirements. Focused regression includes `EventOperationsCoreTests.Delegation` and `eventTaskDelegation.browser.cjs`.

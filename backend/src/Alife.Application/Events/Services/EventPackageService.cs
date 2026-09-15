@@ -344,6 +344,16 @@ public sealed partial class EventPackageService(
         // to approvers and lifecycle gates, because specialist work may continue while a Package is under review.
         if (manifest is null || manifest.Blockers.Count > 0)
             return AppResult<EventPackageDto>.Conflict("event.package.submissionBlocked");
+        var ramContext = await EventPlanContextCapture.CaptureAsync(db, groupEvent, ct);
+        if (EventRamGovernanceService.IsRequired(groupEvent, ramContext.AcceptedPlan?.Plan))
+        {
+            var ram = await db.EventRamAssessments.FirstOrDefaultAsync(x => x.EventId == eventId, ct);
+            if (ram is null || !ram.IsUpdated || ram.EvaluatedContextHash != EventPackageCanonicalizer.HashCanonical(ramContext))
+                return AppResult<EventPackageDto>.Conflict(RamSyncPolicy.WaitMessage);
+            if (ram.SyncStatus != "Reviewed" || ram.SyncReviewedByMemberId != EventDutyAccess.OwnerId(groupEvent))
+                return AppResult<EventPackageDto>.Conflict(RamSyncPolicy.ReviewMessage);
+        }
+
         var current = await CapturePackageAsync(package, ct);
         if (!current.IsSuccess) return Failure<EventPackageDto, PackageCapture>(current);
         if (!string.Equals(current.Value!.SourceVectorHash, package.SourceVectorHash, StringComparison.Ordinal) ||
@@ -1502,7 +1512,8 @@ public sealed partial class EventPackageService(
                 .Select(x => new { x.Id, x.TitleEn, x.TitleZh, x.UpdatedUtc }).ToListAsync(ct),
             _ => new { moduleCode, availability = "unavailable" }
         };
-        return EventPackageCanonicalizer.HashCanonical(source);
+        var activityPlan = moduleCode == "TEAM.WORK" ? await EventActivityPlanService.ReadAsync(db,eventId,ct) : null;
+        return activityPlan is null ? EventPackageCanonicalizer.HashCanonical(source) : EventPackageCanonicalizer.HashCanonical(new { source, activityPlan });
     }
 
     private static EventGovernanceTier ResolveTier(EventPlanProposalDto plan, PolicyRules rules, IReadOnlyList<ModuleDecisionDto> selected)

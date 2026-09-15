@@ -794,6 +794,10 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 		modelBuilder.Entity<EventTask>(cfg =>
 		{
 			cfg.ToTable("event_operations_tasks");
+			cfg.Property(x => x.AssignmentStatus).HasMaxLength(24).HasDefaultValue("accepted");
+			cfg.Property(x => x.PublicationSelectionToken).IsConcurrencyToken();
+			cfg.Property(x => x.PreparationEn).HasMaxLength(4000).HasDefaultValue("");
+			cfg.Property(x => x.PreparationZh).HasMaxLength(4000).HasDefaultValue("");
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.TitleEn).HasMaxLength(300).IsRequired();
 			cfg.Property(x => x.TitleZh).HasMaxLength(300).IsRequired();

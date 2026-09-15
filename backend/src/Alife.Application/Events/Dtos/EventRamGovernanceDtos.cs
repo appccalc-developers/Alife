@@ -20,6 +20,8 @@ public sealed class RamActivity
     public string Id { get; set; } = "";
     public string Type { get; set; } = "generic";
     public RamText Name { get; set; } = new();
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public RamText? Conditions { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Guid? OccurrenceId { get; set; }
 }
 public sealed class RamRisk
 {
@@ -70,6 +72,8 @@ public sealed record RamActionDto(Guid Id, Guid RevisionId, Guid ActorMemberId, 
 public sealed record RamEventPlanContextDto(Guid EventId, Guid GroupId, RamText Title, DateTime StartUtc,
     DateTime EndUtc, EventPlanSnapshotDto? AcceptedPlan)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Alife.Application.Events.Services.ActivityPlanSnapshot? ActivityPlan { get; init; }
     public System.Text.Json.JsonElement? Details { get; init; }
     public IReadOnlyList<EventPlanReportDto> Reports { get; init; } = [];
     public RegistrationRules? RegistrationRules { get; init; }

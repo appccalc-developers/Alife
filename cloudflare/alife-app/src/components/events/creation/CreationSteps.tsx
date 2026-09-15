@@ -1,3 +1,5 @@
+import { ActivityPlanEditor } from '../EventActivityPlanPanel'
+import { emptyActivityPlan } from '../../../types/eventActivityPlan'
 import EventCapabilityNotice, { capabilityStatusText, useEventCapabilities } from '../EventCapabilityNotice'
 import '../../../styles/eventPreparation.css'
 import type { DetailsFocusRequest } from './DetailsWorkspace'
@@ -90,8 +92,9 @@ function ArrangementModule({ draft, setDraft, zh, decision, current, type, group
       <div hidden={!selected}>{rolePanels?.[decision.moduleCode]}</div></fieldset>
     </EventToolSection>
     <ToolTileGroup enabled={selected}><fieldset disabled={readOnly} className="min-w-0">
+      {!saved && decision.moduleCode === 'TEAM.WORK' ? <EventToolSection title={zh ? '活动项目与条件' : 'Activities and conditions'} summary={`${draft.activityPlan?.activities.length || 0} ${zh ? '个活动项目' : 'activities'}`}><ActivityPlanEditor data={draft.activityPlan || emptyActivityPlan()} zh={zh} onChange={activityPlan=>setDraft(previous=>({...previous,activityPlan,moduleConfirmations:{...previous.moduleConfirmations,'TEAM.WORK':false,'SAFETY.RAM':false}}))}/></EventToolSection> : null}
       {decision.moduleCode === 'SAFETY.RAM' ? ramPanel : saved ? modulePanels?.[decision.moduleCode] ?? (!planningOnly ? <p className="text-sm text-[#66766f]">{zh ? '保存活动安排后，可配置有权限的功能。' : 'Save arrangements to configure tools available to your role.'}</p> : null) : ['SAFEGUARDING.CHILD', 'PROGRAM.PRODUCTION', 'MOVE.STAY', 'FOOD.HOSPITALITY', 'COMMS.FOLLOWUP'].includes(decision.moduleCode) ? <p className="text-sm">{zh ? '保存活动后，负责人可在自己的工作空间编写报告，由总负责人审阅采用。' : 'After saving the event, the module lead writes a report in their own workspace for owner review and adoption.'}</p> : decision.moduleCode === 'PROGRAM.PRODUCTION' ? <EventToolSection title={zh ? '节目安排' : 'Programme plan'} summary={zh ? `${draft.arrangements?.sessions?.length || 0} 个环节 · ${draft.arrangements?.sessions?.reduce((count, session) => count + session.items.length, 0) || 0} 个节目` : `${draft.arrangements?.sessions?.length || 0} sessions · ${draft.arrangements?.sessions?.reduce((count, session) => count + session.items.length, 0) || 0} items`}><CreationProgrammeEditor {...editorProps} /></EventToolSection> : decision.moduleCode === 'PLACE.RESOURCE' ? <EventToolSection title={zh ? '场地安排' : 'Venue plan'} summary={zh ? `${draft.arrangements?.venues?.length || 0} 项场地安排` : `${draft.arrangements?.venues?.length || 0} venue bookings`}><CreationVenueEditor {...editorProps} /></EventToolSection> : null}
-      {!saved && activeModules.includes('SERVICE.ROSTER') ? <EventToolSection title={zh ? '岗位轮班' : 'Role shifts'} summary={zh ? `${creationSlots(draft, type).filter(slot => creationRosterModule(slot.roleCode, activeModules) === decision.moduleCode).length} 个岗位` : `${creationSlots(draft, type).filter(slot => creationRosterModule(slot.roleCode, activeModules) === decision.moduleCode).length} role slots`}><CreationRosterEditor {...editorProps} moduleCode={decision.moduleCode} activeModules={activeModules} /></EventToolSection> : null}
+      {!saved && decision.moduleCode !== 'TEAM.WORK' && decision.moduleCode !== 'SAFETY.RAM' && activeModules.includes('SERVICE.ROSTER') ? <EventToolSection title={zh ? '岗位轮班' : 'Role shifts'} summary={zh ? `${creationSlots(draft, type).filter(slot => decision.moduleCode === 'SERVICE.ROSTER' || creationRosterModule(slot.roleCode, activeModules) === decision.moduleCode).length} 个岗位` : `${creationSlots(draft, type).filter(slot => decision.moduleCode === 'SERVICE.ROSTER' || creationRosterModule(slot.roleCode, activeModules) === decision.moduleCode).length} role slots`}><CreationRosterEditor {...editorProps} moduleCode={decision.moduleCode} activeModules={activeModules} /></EventToolSection> : null}
     </fieldset></ToolTileGroup>
   </ToolTileDeck>
 }
@@ -111,7 +114,7 @@ export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, 
   const grid = useRef<HTMLDivElement>(null), panelsRef = useRef<HTMLDivElement>(null), savedRef = useRef(savedModules)
   const decisions = proposal?.moduleDecisions ?? []
   const relevantModules = decisions.filter(item => item.status !== 'inactive')
-  const moduleChoices = showAllModules ? decisions : relevantModules
+  const moduleChoices = [...(showAllModules ? decisions : relevantModules)].sort((a, b) => Number(a.moduleCode === 'SAFETY.RAM') - Number(b.moduleCode === 'SAFETY.RAM'))
   const relatedCount = relevantModules.length
   const totalCount = decisions.length || creationModuleCodes.length
   const visibleIds = new Set(moduleChoices.map(item => item.moduleCode))

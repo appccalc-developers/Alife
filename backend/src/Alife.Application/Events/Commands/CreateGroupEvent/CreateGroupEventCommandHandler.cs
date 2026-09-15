@@ -422,6 +422,24 @@ public sealed class CreateGroupEventCommandHandler(
             }
         }
 
+        if (request.Arrangements?.ActivityPlan is { } activityPlan)
+        {
+            if (EventActivityPlanService.Validate(activityPlan) is { } activityError) return AppResult<GroupEventSummaryDto>.Validation(activityError);
+            if (activityPlan.Activities.Any(a => a.OccurrenceId.HasValue)) return AppResult<GroupEventSummaryDto>.Validation("Select occurrence links after creating the Event.");
+            var activityRow = new EventActivityPlan { EventId = groupEvent.Id, DataJson = RamEvaluator.Serialize(activityPlan), UpdatedUtc = now };
+            dbContext.EventActivityPlans.Add(activityRow);
+            if (ramAssessment.SchemaVersion == 2 || request.RamDataJson is null)
+            {
+                var mirrored = EventActivityPlanService.Mirror(ramAssessment.SchemaVersion == 2 ? RamEvaluator.Parse(ramAssessment.RamDataJson) : new RamV2Draft(),
+                    new(groupEvent.Id,groupEvent.GroupId,new(groupEvent.TitleEn,groupEvent.TitleZh),groupEvent.StartDate,groupEvent.EndDate,null) { ActivityPlan = new(activityPlan,activityRow.ConcurrencyToken.ToString()) });
+                var evaluated = RamEvaluator.Evaluate(mirrored, initialRamPolicy is null ? null : JsonSerializer.Deserialize<RamPolicyData>(initialRamPolicy.PolicyJson,RamEvaluator.Json));
+                ramAssessment.RamDataJson = RamEvaluator.Serialize(evaluated.Draft); ramAssessment.ResidualLevel = evaluated.ResidualLevel;
+                ramAssessment.SchemaVersion = 2; ramAssessment.Validity = "Draft"; ramAssessment.AuthorMemberId = request.CurrentMemberId;
+            }
+            else ramAssessment.RamDataJson = EventActivityPlanService.MirrorLegacySources(ramAssessment.RamDataJson,
+                new(groupEvent.Id,groupEvent.GroupId,new(groupEvent.TitleEn,groupEvent.TitleZh),groupEvent.StartDate,groupEvent.EndDate,null) { ActivityPlan = new(activityPlan,activityRow.ConcurrencyToken.ToString()) });
+            RamSyncPolicy.Schedule(ramAssessment,now);
+        }
         dbContext.GroupEvents.Add(groupEvent);
         dbContext.EventRamAssessments.Add(ramAssessment);
         if (eventSeries is not null)

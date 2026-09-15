@@ -385,10 +385,13 @@ if (-not $SkipApi) {
         throw "Azure Functions Core Tools was not found. Install it before starting the API."
     }
 
-    $scheduledFunctionSetting = "AzureWebJobs.SermonSync.Disabled"
-    $previousScheduledFunctionSetting = [Environment]::GetEnvironmentVariable($scheduledFunctionSetting, "Process")
-    if (-not $EnableScheduledJobs) {
-        [Environment]::SetEnvironmentVariable($scheduledFunctionSetting, "true", "Process")
+    $scheduledFunctionSettings = @("AzureWebJobs.SermonSync.Disabled", "AzureWebJobs.EventRamSync.Disabled")
+    $previousScheduledFunctionSettings = @{}
+    foreach ($scheduledFunctionSetting in $scheduledFunctionSettings) {
+        $previousScheduledFunctionSettings[$scheduledFunctionSetting] = [Environment]::GetEnvironmentVariable($scheduledFunctionSetting, "Process")
+        if (-not $EnableScheduledJobs) {
+            [Environment]::SetEnvironmentVariable($scheduledFunctionSetting, "true", "Process")
+        }
     }
 
     try {
@@ -401,7 +404,9 @@ if (-not $SkipApi) {
             -ErrLog (Join-Path $logRoot "api.err.log")
     }
     finally {
-        [Environment]::SetEnvironmentVariable($scheduledFunctionSetting, $previousScheduledFunctionSetting, "Process")
+        foreach ($scheduledFunctionSetting in $scheduledFunctionSettings) {
+            [Environment]::SetEnvironmentVariable($scheduledFunctionSetting, $previousScheduledFunctionSettings[$scheduledFunctionSetting], "Process")
+        }
     }
 
     Wait-Port -Port 7071 -Name "Alife API" -TimeoutSeconds 120

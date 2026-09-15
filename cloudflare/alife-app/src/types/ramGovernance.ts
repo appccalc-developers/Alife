@@ -1,6 +1,8 @@
 import type { EventRamAssessmentRecord, MultilingualString } from './event'
 import type { EventPlanSnapshot } from './eventComposition'
 export type RamText = MultilingualString
+export type RamSyncState = { status: 'Draft' | 'Syncing' | 'AI_Updated' | 'Outdated' | 'Reviewed'; isUpdated: boolean; lastEvaluatedAt: string | null; error: string | null; reviewedByMemberId: string | null; reviewedAt: string | null }
+export type RamSyncOverview = { isRequired: boolean; eTag: string; sync: RamSyncState; canReview: boolean; canRetry: boolean }
 export type RamLevel = 'Green' | 'Yellow' | 'Red' | 'Incomplete'
 export type RamScale = { value: number; label: RamText; description: RamText }
 export type RamQuestion = { code: string; activityType: string; categoryCode: string; text: RamText; guidance: RamText }
@@ -11,7 +13,7 @@ export type RamPolicyData = {
   questions: RamQuestion[]; reviewRules: { reviewReminderDays: number }; source: string
 }
 export type RamPolicy = { id: string | null; churchId: string; version: number; isPublished: boolean; eTag: string; data: RamPolicyData; publishedByMemberId?: string; publishedUtc?: string }
-export type RamActivity = { id: string; type: string; name: RamText }
+export type RamActivity = { id: string; type: string; name: RamText; conditions?: RamText; occurrenceId?: string | null }
 export type RamRisk = {
   id: string; activityId: string; categoryCode: string; hazard: RamText; consequence: RamText
   likelihood: number | null; impact: number | null; riskScore?: number | null; initialLevel?: RamLevel
@@ -30,12 +32,12 @@ export type RamDraft = {
 export type RamAssessment = EventRamAssessmentRecord & { schemaVersion: number; eTag: string; policyVersionId: string | null; currentRevisionId: string | null; validity: string; residualLevel: RamLevel; authorMemberId: string | null; reviewRequested: boolean }
 export type RamRevision = { id: string; version: number; schemaVersion: number; policyVersionId: string | null; contentHash: string; residualLevel: RamLevel; authorMemberId: string; onsiteMemberId: string | null; createdUtc: string }
 export type RamAction = { id: string; revisionId: string; actorMemberId: string; action: string; reason: string; healthSafetySigned: boolean; createdUtc: string }
-export type RamEventPlanContext = { programme?: { title: RamText; startUtc: string; endUtc: string; items: { title: RamText; description: RamText; startOffsetMinutes: number; durationMinutes: number }[] }[]; eventId: string; groupId: string; title: RamText; startUtc: string; endUtc: string; acceptedPlan: EventPlanSnapshot | null; venues?: { name: RamText; startUtc: string; endUtc: string; capacity: number }[]; weeklyVenues?: { name: RamText; firstDate: string; lastDate: string | null; startMinute: number; endMinute: number; timeZone: string; capacity: number; releasedDates: string[] }[]; rosterNeeds?: { roleCode: string; requiredCount: number; startOffsetMinutes: number; endOffsetMinutes: number; eligibilityCode: string }[]; details?: Record<string, unknown>; reports?: { moduleCode: string; revisionId: string; version: number; text: RamText }[]; registrationRulesVersion?: number; registrationRules?: import('../services/eventRegistrationWorkService').RegistrationRules }
+export type RamEventPlanContext = { activityPlan?: {data:import('./eventActivityPlan').ActivityPlanData;eTag:string}; programme?: { title: RamText; startUtc: string; endUtc: string; items: { title: RamText; description: RamText; startOffsetMinutes: number; durationMinutes: number }[] }[]; eventId: string; groupId: string; title: RamText; startUtc: string; endUtc: string; acceptedPlan: EventPlanSnapshot | null; venues?: { name: RamText; startUtc: string; endUtc: string; capacity: number }[]; weeklyVenues?: { name: RamText; firstDate: string; lastDate: string | null; startMinute: number; endMinute: number; timeZone: string; capacity: number; releasedDates: string[] }[]; rosterNeeds?: { roleCode: string; requiredCount: number; startOffsetMinutes: number; endOffsetMinutes: number; eligibilityCode: string }[]; details?: Record<string, unknown>; reports?: { moduleCode: string; revisionId: string; version: number; text: RamText }[]; registrationRulesVersion?: number; registrationRules?: import('../services/eventRegistrationWorkService').RegistrationRules }
 export type RamWorkspace = { assessment: RamAssessment | null; policy: RamPolicy | null; latestPolicy?: RamPolicy | null; history: RamRevision[]; actions: RamAction[]; onsiteCandidates: { memberId: string; name: string }[]; canEdit: boolean; canAudit: boolean; currentMemberId: string; isRequired: boolean; eventPlanContext?: RamEventPlanContext | null }
 export type RamPrint = { revision: RamRevision; ramDataJson: string; policy: RamPolicy | null; actions: RamAction[]; isCurrent: boolean; validity: string; isDraft: boolean }
 export const ramActivityTypes = ['generic', 'hiking', 'water', 'sport', 'transport', 'camp', 'meal', 'outdoor', 'other'] as const
 export const ramActivityLabels: Record<string, RamText> = {
-  generic: { en: 'General activity', zh: '通用活动' }, hiking: { en: 'Hiking', zh: '徒步' }, water: { en: 'Water activity', zh: '水上活动' }, sport: { en: 'Sport', zh: '运动' }, transport: { en: 'Transport', zh: '交通' }, camp: { en: 'Camp / overnight', zh: '营会／过夜' }, meal: { en: 'Shared meal', zh: '聚餐' }, outdoor: { en: 'Other outdoor activity', zh: '其他户外活动' }, other: { en: 'Other (general questions)', zh: '其他（通用题集）' },
+  generic: { en: 'General activity', zh: '通用活动' }, hiking: { en: 'Hiking', zh: '徒步' }, water: { en: 'Water activity', zh: '水上活动' }, sport: { en: 'Sport', zh: '运动' }, transport: { en: 'Transport', zh: '交通' }, camp: { en: 'Camp / overnight', zh: '营会／过夜' }, meal: { en: 'Shared meal', zh: '聚餐' }, outdoor: { en: 'Other outdoor activity', zh: '其他户外活动' }, other: { en: 'Other', zh: '其他' },
 }
 export const ramDefaultScales: Pick<RamPolicyData, 'likelihood' | 'impact'> = {
   likelihood: [

@@ -20,4 +20,8 @@ public sealed record EventRamAssessmentDto(
     string Validity = "Legacy",
     string ResidualLevel = "Incomplete",
     Guid? AuthorMemberId = null,
-    bool ReviewRequested = false);
+    bool ReviewRequested = false,
+    RamSyncStateDto? Sync = null);
+
+public sealed record RamSyncStateDto(string Status, bool IsUpdated, DateTime? LastEvaluatedAt,
+    string? Error, Guid? ReviewedByMemberId, DateTime? ReviewedAt);

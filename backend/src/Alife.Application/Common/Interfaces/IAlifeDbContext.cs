@@ -50,6 +50,7 @@ public interface IAlifeDbContext
     DbSet<EventPackageApprovalDelegation> EventPackageApprovalDelegations { get; }
     DbSet<EventRoleAssignment> EventRoleAssignments { get; }
     DbSet<EventTeamMember> EventTeamMembers { get; }
+    DbSet<EventActivityPlan> EventActivityPlans { get; }
     DbSet<EventTask> EventTasks { get; }
     DbSet<EventTaskApprovalAction> EventTaskApprovalActions { get; }
     DbSet<EventTaskDependency> EventTaskDependencies { get; }

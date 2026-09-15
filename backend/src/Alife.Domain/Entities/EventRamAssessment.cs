@@ -4,6 +4,17 @@ namespace Alife.Domain.Entities;
 
 public class EventRamAssessment
 {
+    // Synchronization is independent of the existing statutory approval status.
+    public string SyncStatus { get; set; } = "Draft";
+    public bool IsUpdated { get; set; }
+    public DateTime? LastEvaluatedAt { get; set; }
+    public DateTime? SyncDueUtc { get; set; }
+    public int SyncAttempts { get; set; }
+    public string? SyncError { get; set; }
+    public string? EvaluatedContextHash { get; set; }
+    public string AiRiskDraftJson { get; set; } = "[]";
+    public Guid? SyncReviewedByMemberId { get; set; }
+    public DateTime? SyncReviewedAt { get; set; }
     public int SchemaVersion { get; set; } = 1;
     public Guid ConcurrencyToken { get; set; } = Guid.NewGuid();
     public Guid? PolicyVersionId { get; set; }

@@ -27,7 +27,7 @@ public static class RamEvaluator
             return ["ram.policy.shape: Policy entries cannot be null."];
         foreach (var scale in new[] { p.Likelihood, p.Impact })
             if (scale.Length != 5 || !scale.Select(x => x.Value).Order().SequenceEqual(Enumerable.Range(1,5)) || scale.Any(x => !Bilingual(x.Label) || !Bilingual(x.Description)))
-                errors.Add("ram.policy.scale: Five bilingual definitions numbered 1–5 are required.");
+                errors.Add("ram.policy.scale: Five bilingual definitions numbered 1â€“5 are required.");
         if (p.Matrix.Length != 25 || p.Matrix.Select(x => (x.Likelihood,x.Impact)).Distinct().Count() != 25 || p.Matrix.Any(x => !Valid(x.Likelihood) || !Valid(x.Impact) || (x.Level is not null && Rank(x.Level) == 0)))
             errors.Add("ram.policy.matrix: All 25 unique cells are required; colours must be Green, Yellow or Red.");
         if (publishing && p.Matrix.Any(x => Rank(x.Level ?? "") == 0)) errors.Add("ram.policy.unconfirmed: Confirm the colour of every cell before publishing.");
@@ -35,9 +35,7 @@ public static class RamEvaluator
             errors.Add("ram.policy.categories: The five SOP categories and bilingual guidance are required.");
         if (p.Questions.Length > 500 || p.Questions.GroupBy(x => (x.ActivityType,x.Code)).Any(x => x.Count() > 1) || p.Questions.Any(x => string.IsNullOrWhiteSpace(x.Code) || !RamPolicyDefaults.ActivityTypes.Contains(x.ActivityType) || !RamPolicyDefaults.CategoryCodes.Contains(x.CategoryCode) || !Bilingual(x.Text) || !Bilingual(x.Guidance)))
             errors.Add("ram.policy.questions: Use unique question codes per activity type and complete bilingual content.");
-        foreach (var category in RamPolicyDefaults.CategoryCodes)
-            if (!p.Questions.Any(x => x.ActivityType == "generic" && x.CategoryCode == category)) errors.Add($"ram.policy.generic.{category}: A generic question for every category is required.");
-        if (p.ReviewRules.ReviewReminderDays is < 1 or > 365 || string.IsNullOrWhiteSpace(p.Source)) errors.Add("ram.policy.source: Source and a 1–365 day review reminder are required.");
+        if (p.ReviewRules.ReviewReminderDays is < 1 or > 365 || string.IsNullOrWhiteSpace(p.Source)) errors.Add("ram.policy.source: Source and a 1â€“365 day review reminder are required.");
         return errors;
     }
 
@@ -63,13 +61,7 @@ public static class RamEvaluator
         foreach (var a in draft.Activities)
         {
             if (!draft.Hazards.Any(x => x.ActivityId == a.Id)) errors.Add($"ram.activity.{a.Id}: Record risks for this activity.");
-            if (policy is null) continue;
-            foreach (var q in Questions(policy,a))
-            {
-                var answers = draft.Answers.Where(x => x.ActivityId == a.Id && x.QuestionCode == QuestionKey(q)).ToArray();
-                if (answers.Length != 1 || (answers[0].NotApplicable ? !HasText(answers[0].Reason) : !HasText(answers[0].Answer)))
-                    errors.Add($"ram.answer.{a.Id}.{QuestionKey(q)}: Answer the question or explain why it is not applicable.");
-            }
+
         }
         foreach (var risk in draft.Hazards)
         {

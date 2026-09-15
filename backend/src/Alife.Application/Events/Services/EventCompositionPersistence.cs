@@ -263,10 +263,11 @@ public static class EventCompositionPersistence
 
         var tasks = await dbContext.EventTasks.AsNoTracking().Where(x => x.EventId == groupEvent.Id && x.SourceType == null && x.Status != EventTaskStatus.Cancelled && !dbContext.EventPackageConditions.Any(c => c.ReadinessTaskId == x.Id)).ToListAsync(cancellationToken);
         foreach (var task in tasks.Where(x => x.Stage == "preparation" && x.IsRequired && (x.Status == EventTaskStatus.Blocked ||
-            (x.DueUtc < checkedUtc && x.Status != EventTaskStatus.Done) || (x.RequiresApproval && x.Status != EventTaskStatus.Done))))
+            (x.DueUtc < checkedUtc && x.Status != EventTaskStatus.Done) || (x.RequiresApproval && x.Status != EventTaskStatus.Done) ||
+            x.Status != EventTaskStatus.Done && (x.AssignmentStatus is "invited" or "declined" or "unassigned" || x.AssignmentRespondedUtc.HasValue && !x.PreparationUpdatedUtc.HasValue))))
         {
-            Add("TEAM.WORK", new($"Required task {task.TitleEn} is blocked, overdue, or awaiting approval.",
-                $"必要任務「{task.TitleZh}」受阻、逾期或尚待批准。"));
+            Add("TEAM.WORK", new($"Required task {task.TitleEn} needs acceptance/preparation, is blocked, overdue, or awaiting approval.",
+                $"必要任务「{task.TitleZh}」尚待接受或准备、受阻、逾期或尚待批准。"));
         }
 
         if (plan.ModuleDecisions.Any(x => x.ModuleCode == "SERVICE.ROSTER" &&

@@ -11,6 +11,8 @@ const changed = async (record: RamAssessment) => {
   return record
 }
 export const ramService = {
+  sync: async (id: string) => (await http.get<import('../types/ramGovernance').RamSyncOverview>(`/api/events/${id}/ram/sync`, { headers: { 'Cache-Control': 'no-store' } })).data,
+  syncAction: async (id: string, action: 'retry' | 'review' | 'recalculate', expectedETag: string) => (await http.post<import('../types/ramGovernance').RamSyncOverview>(`/api/events/${id}/ram/sync/${action}`, { expectedETag })).data,
   authoringContext: async (scope: { eventId?: string; groupId?: string }) => (await http.get<{ policy: RamPolicy | null; sourceVersion: string; title: { en: string; zh: string } }>('/api/events/ram-authoring/context', { params: scope })).data,
   check: async (scope: { eventId?: string; groupId?: string }, draft: RamDraft, policyVersionId?: string | null) => (await http.post<{ draft: RamDraft; residualLevel: import('../types/ramGovernance').RamLevel; issues: { field: string; message: { en: string; zh: string } }[]; policy: RamPolicy | null }>('/api/events/ram-authoring/check', { ...scope, ramDataJson: JSON.stringify(draft), policyVersionId })).data,
   assist: async (input: unknown) => (await sameOriginHttp.post<{ suggestions: Partial<Record<'hazard' | 'consequence' | 'controlMeasures' | 'additionalAction', string>>; questions: string[]; sourceVersion: string }>('/api/events/ram-assistance', input)).data,

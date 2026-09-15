@@ -63,7 +63,9 @@ public sealed partial class EventRamGovernanceService
         }
         try
         {
-            var result = RamEvaluator.Evaluate(RamEvaluator.Parse(request.RamDataJson), policy?.Data);
+            var draft = RamEvaluator.Parse(request.RamDataJson);
+            if (request.EventId is { } id) { var e = await db.GroupEvents.AsNoTracking().FirstAsync(x => x.Id == id,ct); draft = EventActivityPlanService.Mirror(draft,await EventPlanContextCapture.CaptureAsync(db,e,ct)); }
+            var result = RamEvaluator.Evaluate(draft, policy?.Data);
             return AppResult<RamDraftCheck>.Success(new(result.Draft, result.ResidualLevel,
                 result.Errors.Where(x => !x.StartsWith("ram.risk.")).Select(AuthoringIssue).Concat(RiskIssues(result.Draft)).ToArray(), policy));
         }

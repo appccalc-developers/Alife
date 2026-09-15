@@ -895,6 +895,32 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("content_posts", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventActivityPlan", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<string>("DataJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("data_json");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("EventId")
+                        .HasName("pk_event_activity_plans");
+
+                    b.ToTable("event_activity_plans", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventActivityTemplateVersion", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3268,6 +3294,13 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("event_id");
 
+                    b.Property<string>("AiRiskDraftJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("[]")
+                        .HasColumnName("ai_risk_draft_json");
+
                     b.Property<Guid?>("ApprovedByMemberId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("approved_by_member_id");
@@ -3292,6 +3325,19 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CurrentRevisionId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("current_revision_id");
+
+                    b.Property<string>("EvaluatedContextHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("evaluated_context_hash");
+
+                    b.Property<bool>("IsUpdated")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_updated");
+
+                    b.Property<DateTime?>("LastEvaluatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_evaluated_at");
 
                     b.Property<Guid?>("PolicyVersionId")
                         .HasColumnType("uniqueidentifier")
@@ -3332,6 +3378,35 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("submitted_utc");
 
+                    b.Property<int>("SyncAttempts")
+                        .HasColumnType("int")
+                        .HasColumnName("sync_attempts");
+
+                    b.Property<DateTime?>("SyncDueUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("sync_due_utc");
+
+                    b.Property<string>("SyncError")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("sync_error");
+
+                    b.Property<DateTime?>("SyncReviewedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("sync_reviewed_at");
+
+                    b.Property<Guid?>("SyncReviewedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("sync_reviewed_by_member_id");
+
+                    b.Property<string>("SyncStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasDefaultValue("Draft")
+                        .HasColumnName("sync_status");
+
                     b.Property<DateTime>("UpdatedUtc")
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_utc");
@@ -3352,6 +3427,9 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SubmittedByMemberId")
                         .HasDatabaseName("ix_event_ram_assessments_submitted_by_member_id");
+
+                    b.HasIndex("IsUpdated", "SyncDueUtc")
+                        .HasDatabaseName("ix_event_ram_assessments_is_updated_sync_due_utc");
 
                     b.HasIndex("Status", "UpdatedUtc")
                         .HasDatabaseName("ix_event_ram_assessments_status_updated_utc");
@@ -4584,6 +4662,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
+                    b.Property<string>("ActivityId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("activity_id");
+
                     b.Property<int>("ApprovalRound")
                         .HasColumnType("int")
                         .HasColumnName("approval_round");
@@ -4595,6 +4678,18 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AssignedMemberId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("assigned_member_id");
+
+                    b.Property<DateTime?>("AssignmentRespondedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("assignment_responded_utc");
+
+                    b.Property<string>("AssignmentStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasDefaultValue("accepted")
+                        .HasColumnName("assignment_status");
 
                     b.Property<DateTime?>("CompletedUtc")
                         .HasColumnType("datetime2")
@@ -4640,6 +4735,35 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsRestricted")
                         .HasColumnType("bit")
                         .HasColumnName("is_restricted");
+
+                    b.Property<string>("PreparationEn")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)")
+                        .HasDefaultValue("")
+                        .HasColumnName("preparation_en");
+
+                    b.Property<bool>("PreparationPublicationCandidate")
+                        .HasColumnType("bit")
+                        .HasColumnName("preparation_publication_candidate");
+
+                    b.Property<DateTime?>("PreparationUpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("preparation_updated_utc");
+
+                    b.Property<string>("PreparationZh")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)")
+                        .HasDefaultValue("")
+                        .HasColumnName("preparation_zh");
+
+                    b.Property<Guid?>("PublicationSelectionToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("publication_selection_token");
 
                     b.Property<bool>("RequiresApproval")
                         .HasColumnType("bit")
@@ -8206,6 +8330,18 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("CreatedByMember");
 
                     b.Navigation("OwnerGroup");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventActivityPlan", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithOne()
+                        .HasForeignKey("Alife.Domain.Entities.EventActivityPlan", "EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_activity_plans_group_events_event_id");
+
+                    b.Navigation("Event");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventActivityTemplateVersion", b =>

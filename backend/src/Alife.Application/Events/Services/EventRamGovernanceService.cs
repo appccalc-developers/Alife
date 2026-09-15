@@ -128,10 +128,12 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
             .OrderByDescending(x=>x.Version).FirstOrDefaultAsync(ct);
         var acceptedPlan=planEntity is null?null:EventCompositionPersistence.ToSnapshotDto(planEntity);
         var shownRevision = reviewOnly ? history.FirstOrDefault() : history.FirstOrDefault(x => x.Id == e.RamAssessment?.CurrentRevisionId);
-        var fixedContext = shownRevision?.EventPlanContextJson;
+        var fixedContext = edit || owner ? null : shownRevision?.EventPlanContextJson;
         var planContext = fixedContext is not null ? JsonSerializer.Deserialize<RamEventPlanContextDto>(fixedContext, RamEvaluator.Json)!
             : await EventPlanContextCapture.CaptureAsync(db,e,ct);
         var assessment = e.RamAssessment is null ? null : EventRamPolicy.ToDto(e.RamAssessment,e.GroupId);
+        if ((edit || owner) && assessment is not null && planContext.ActivityPlan is not null)
+            assessment = assessment with { RamDataJson = RamEvaluator.Serialize(EventActivityPlanService.Mirror(RamEvaluator.Parse(assessment.RamDataJson),planContext)) };
         if (reviewOnly && shownRevision is not null && assessment is not null)
         {
             var current = shownRevision.Id == assessment.CurrentRevisionId;
@@ -158,7 +160,9 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         var policy=request.PolicyVersionId.HasValue?await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==request.PolicyVersionId && x.ChurchId==church && x.IsPublished,ct):null;
         if(request.PolicyVersionId.HasValue && policy is null) return AppResult<EventRamAssessmentDto>.Validation("The published RAM policy must belong to the Event's church.");
         RamEvaluation evaluation;
-        try { evaluation=RamEvaluator.Evaluate(RamEvaluator.Parse(request.RamDataJson),policy is null?null:PolicyDto(policy).Data); }
+        var sourceContext = await EventPlanContextCapture.CaptureAsync(db,e,ct);
+        if (sourceContext.ActivityPlan is null) return AppResult<EventRamAssessmentDto>.Conflict("Define or adopt activities in Tasks and handoffs before saving RAM. / 请先在任务与交接中定义或采纳活动项目，再保存 RAM。");
+        try { evaluation=RamEvaluator.Evaluate(EventActivityPlanService.Mirror(RamEvaluator.Parse(request.RamDataJson), sourceContext),policy is null?null:PolicyDto(policy).Data); }
         catch(JsonException) { return AppResult<EventRamAssessmentDto>.Validation("RAM must be a valid version 2 JSON object."); }
         evaluation.Draft.SchemaVersion=2;
         var ram=e.RamAssessment;
@@ -170,6 +174,9 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         ram.SchemaVersion=2; ram.AuthorMemberId=actor; ram.PolicyVersionId=policy?.Id;
         ram.RamDataJson=RamEvaluator.Serialize(evaluation.Draft); ram.ResidualLevel=evaluation.ResidualLevel;
         Invalidate(ram,wasReviewed?"ReviewRequired":"Draft");
+        ram.SyncReviewedByMemberId = null; ram.SyncReviewedAt = null;
+        if (ram.IsUpdated) ram.SyncStatus = "AI_Updated";
+        else RamSyncPolicy.Schedule(ram, DateTime.UtcNow);
         var authorTasks = await db.EventTasks.Where(x => x.EventId == eventId && x.SourceType == "ramAssessment" && x.SourceId == eventId && x.Status != EventTaskStatus.Done && x.Status != EventTaskStatus.Cancelled).ToListAsync(ct);
         foreach(var task in authorTasks) { task.AssignedMemberId = actor; task.UpdatedUtc = DateTime.UtcNow; task.ConcurrencyToken = Guid.NewGuid(); }
         e.UpdatedUtc=DateTime.UtcNow;
@@ -225,6 +232,7 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
             var onsite=validation.Draft.AuthorAttendsAndLeads==true?ram.AuthorMemberId:validation.Draft.OnsiteMemberId;
             if(!onsite.HasValue || (validation.Draft.AuthorAttendsAndLeads==false && !await AcceptedDuty(eventId,onsite.Value,ct))) return AppResult<EventRamAssessmentDto>.Validation("The on-site leader must have personally accepted an Event duty.");
             // Re-requesting confirmation creates a new immutable version and invalidates previous signatures.
+            ram.RamDataJson = RamEvaluator.Serialize(validation.Draft); ram.ResidualLevel = validation.ResidualLevel;
             revision=await Snapshot(ram,onsite,ct); Invalidate(ram,"AwaitingConfirmation"); ram.CurrentRevisionId=revision.Id;
             db.NotificationMessages.Add(new(){Id=Guid.NewGuid(),RecipientMemberId=onsite.Value,CreatedByMemberId=actor,GroupId=e.GroupId,EventId=eventId,
                 ActionType="event.ram.confirmationRequested",ActionDataJson=RamEvaluator.Serialize(new{eventId,revisionId=revision.Id,actionUrl=$"/events/{eventId}/ram",
@@ -289,6 +297,8 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         }
         if(action is "request-review" or "return")
         {
+            ram.SyncReviewedAt = null; ram.SyncReviewedByMemberId = null;
+            if (ram.IsUpdated) ram.SyncStatus = "AI_Updated";
             var policy=await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==ram.PolicyVersionId,ct);
             var days=policy is null?7:PolicyDto(policy).Data.ReviewRules.ReviewReminderDays;
             db.EventTasks.Add(new(){Id=Guid.NewGuid(),EventId=eventId,AssignedMemberId=ram.AuthorMemberId??EventDutyAccess.OwnerId(e),
@@ -313,7 +323,7 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         var ram=e.RamAssessment!;
         var church=await EventCompositionPersistence.FindChurchRootIdAsync(db,e.GroupId,ct);
         var policy=await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==ram.PolicyVersionId && x.IsPublished && x.ChurchId==church,ct);
-        return RamEvaluator.Evaluate(RamEvaluator.Parse(ram.RamDataJson),policy is null?null:PolicyDto(policy).Data);
+        return RamEvaluator.Evaluate(EventActivityPlanService.Mirror(RamEvaluator.Parse(ram.RamDataJson),await EventPlanContextCapture.CaptureAsync(db,e,ct)),policy is null?null:PolicyDto(policy).Data);
     }
 
     private async Task NotifyRamReviewersAsync(

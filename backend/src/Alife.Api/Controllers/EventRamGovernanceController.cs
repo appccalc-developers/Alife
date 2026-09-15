@@ -14,6 +14,10 @@ public sealed class EventRamGovernanceController(EventRamGovernanceService ram, 
 {
     [HttpGet("workspace")]
     public Task<IActionResult> Get(Guid eventId,CancellationToken ct) => Run(actor=>ram.GetAsync(eventId,actor,ct));
+    [HttpGet("sync")]
+    public Task<IActionResult> Sync(Guid eventId,CancellationToken ct) => Run(actor=>ram.SyncStateAsync(eventId,actor,ct));
+    [HttpPost("sync/{syncAction}")]
+    public Task<IActionResult> SyncAction(Guid eventId,string syncAction,RamActionRequest request,CancellationToken ct) => Run(actor=>ram.SyncActionAsync(eventId,actor,syncAction,request,ct));
     [HttpGet("versions/{revisionId:guid}")]
     public Task<IActionResult> Print(Guid eventId,Guid revisionId,CancellationToken ct) => Run(actor=>ram.PrintAsync(eventId,revisionId,actor,ct));
     [HttpPost("actions/{ramAction}")]

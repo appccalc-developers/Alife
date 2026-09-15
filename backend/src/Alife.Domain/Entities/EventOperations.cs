@@ -4,6 +4,7 @@ namespace Alife.Domain.Entities;
 
 public sealed class EventTask
 {
+    public string? ActivityId { get; set; }
     public string Stage { get; set; } = "preparation";
     public Guid? EventOccurrenceId { get; set; }
     public Guid Id { get; set; }
@@ -14,6 +15,14 @@ public sealed class EventTask
     public string DescriptionEn { get; set; } = string.Empty;
     public string DescriptionZh { get; set; } = string.Empty;
     public Guid? AssignedMemberId { get; set; }
+    // Existing assignments retain their accepted state; new delegations require a personal response.
+    public string AssignmentStatus { get; set; } = "accepted";
+    public DateTime? AssignmentRespondedUtc { get; set; }
+    public string PreparationEn { get; set; } = "";
+    public string PreparationZh { get; set; } = "";
+    public DateTime? PreparationUpdatedUtc { get; set; }
+    public bool PreparationPublicationCandidate { get; set; }
+    public Guid? PublicationSelectionToken { get; set; }
     public EventTaskStatus Status { get; set; } = EventTaskStatus.Todo;
     public bool IsRequired { get; set; }
     public bool RequiresApproval { get; set; }
