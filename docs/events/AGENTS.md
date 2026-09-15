@@ -14,6 +14,12 @@ For an ordinary Event module slice, normally read only:
 
 The generated long-form handbook is for people and broad architecture review. Do not load it for ordinary module work. Overview/onboarding work may also read `README.md` and `EventManagement-About.html`.
 
+## Event Workspace design context
+
+For Event UI/design work, also read [design/EVENT-WORKSPACE-DESIGN.md](design/EVENT-WORKSPACE-DESIGN.md), its visual tokens and the relevant reference area. Load these for frontend/design work rather than every backend-only module task.
+
+Event-specific colour, graphics, six-level depth and interaction feedback extend the general workspace design. Preparation is nonlinear; preserving an owner's six-step wizard is not a requirement. Keep existing stage identifiers and server-defined approval/publication/execution gates. Plan B is not planned. Design guidance does not establish delivery: implement and evaluate one pilot before extending the style across Event Workspace.
+
 ## Documentation impact
 
 Before completing Event implementation or `/shipit`, review the complete diff for changes to:
