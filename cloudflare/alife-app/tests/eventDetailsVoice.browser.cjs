@@ -64,7 +64,7 @@ async function setup(browser, language, width, speech = 'standard') {
   await showDetailsPane(page, 'assistant');
   return {
     context, page, errors, messages,
-    prompt: page.getByLabel(zh ? '可直接继续补充活动信息，AI 会据你提供内容更新草稿。' : 'Continue entering event details; AI will update the draft from what you provide.', { exact: true }),
+    prompt: page.getByLabel(zh ? '补充资料，AI 会根据你提供的内容更新草稿。' : 'Add details; AI will update the draft from what you provide.', { exact: true }),
     start: page.getByRole('button', { name: zh ? '语音输入' : 'Voice input', exact: true }),
     stop: page.getByRole('button', { name: zh ? '停止语音输入' : 'Stop voice input', exact: true }),
     send: page.getByRole('button', { name: zh ? '发送并整理资料' : 'Send and organise details', exact: true }),
@@ -131,13 +131,14 @@ const waitText = (page, text) => page.waitForFunction(text => document.querySele
       const bubbles = await history.locator(':scope > div > div').evaluateAll(nodes => nodes.map(node => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right, width: r.width }; }));
       assert.ok(bubbles[0].right > bubbles[1].right && bubbles[0].left > bubbles[1].left, 'user bubbles right, assistant bubbles left');
       const progress = await page.getByRole('progressbar').boundingBox(), sendBox = await send.boundingBox();
-      const back = await page.getByRole('button', { name: /↑.*(?:回到活动资料表单|Back to event details form)/ }).boundingBox();
-      assert.ok(progress.y > sendBox.y + sendBox.height && back.y > progress.y, 'completion follows send and return follows completion');
+      assert.equal(await page.getByRole('button', { name: /↑.*(?:回到活动资料表单|Back to event details form)/ }).count(), 0);
+      assert.ok(progress.y > sendBox.y + sendBox.height, 'completion follows send');
+      const actions = await page.locator('.event-assistant-actions button').allTextContents();
+      assert.match(actions[0], /发送并整理资料|Send and organise details/); assert.match(actions[1], /语音输入|Voice input/);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'chat must not overflow');
       await prompt.scrollIntoViewIfNeeded();
       await page.screenshot({ path: path.join(os.tmpdir(), `alife-details-reply-above-${language}-${width}.png`) });
       await page.getByRole('progressbar').scrollIntoViewIfNeeded();
-      await page.getByRole('button', { name: /↑.*(?:回到活动资料表单|Back to event details form)/ }).scrollIntoViewIfNeeded();
       await page.screenshot({ path: path.join(os.tmpdir(), `alife-details-completion-${language}-${width}.png`) });
       assert.deepEqual(errors, []);
       console.log(`PASS ${language} ${width}: event-zone wall clocks, left/right chat bubbles, completion below send, chronological replies with automatic bottom scroll, explicit start, locale, interim/final deduplication, manual edits, stop flush, append/restart, explicit send, layout`);
@@ -187,7 +188,7 @@ const waitText = (page, text) => page.waitForFunction(text => document.querySele
     await page.getByRole('button', { name: '语音输入', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__voice.instances.length), recognitionCount);
     await page.waitForFunction(() => window.__voice.instances.at(-1).aborts > 0);
-    assert.equal(await page.getByLabel('可直接继续补充活动信息，AI 会据你提供内容更新草稿。', { exact: true }).inputValue(), 'Preserved');
+    assert.equal(await page.getByLabel('补充资料，AI 会根据你提供的内容更新草稿。', { exact: true }).inputValue(), 'Preserved');
     await page.getByRole('button', { name: '选择语言，当前语言：中文', exact: true }).click();
     await page.getByRole('menuitemradio', { name: 'English', exact: true }).click();
     await start.click();

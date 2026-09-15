@@ -6,6 +6,12 @@ const os = require('node:os');
 const { showDetailsPane, expandTranslation } = require('./helpers/eventDetailsWorkspace.cjs');
 const base = process.env.ALIFE_BROWSER_BASE_URL || 'http://127.0.0.1:5173';
 const label = (en, zh) => ({ en, zh });
+async function checkAssistantHeight(workspace) {
+  if (await workspace.getAttribute('data-wide') !== 'true') return;
+  const bounds = await workspace.evaluate(el => ({ form: el.querySelector('.event-details-section:last-of-type').getBoundingClientRect().bottom, assistant: el.querySelector('.event-details-assistant').getBoundingClientRect().bottom, overflow: el.querySelector('.event-assistant-content').scrollHeight - el.querySelector('.event-assistant-content').clientHeight }));
+  assert.ok(Math.abs(bounds.form - bounds.assistant) <= 2, `assistant ends at Visibility and registration: ${JSON.stringify(bounds)}`);
+  assert.ok(bounds.overflow <= 2, JSON.stringify(bounds));
+}
 const template = { code: 'shared-meal', archetypeCode: 'simple-social', version: 2, name: label('Fellowship meal', '团契聚餐'), description: label('Share a meal', '一起用餐'), defaults: { visibility: 'groupVisible', registrationMode: 'none', capacityUnit: 'People' }, preselectedModules: [], presetServiceSlots: [] };
 const modules = [['TEAM.WORK','Tasks and handoffs','任务与交接'],['SERVICE.ROSTER','Roles and shifts','岗位轮班'],['PEOPLE.REGISTRATION','Registration','邀请报名'],['SAFETY.RAM','RAM and safety','RAM 安全'],['SAFEGUARDING.CHILD','Safeguarding','儿童保护'],['PROGRAM.PRODUCTION','Programme','节目安排'],['PLACE.RESOURCE','Venues','场地资源'],['MOVE.STAY','Travel and stay','交通住宿'],['FOOD.HOSPITALITY','Hospitality','餐饮接待'],['MONEY.FINANCE','Fees','费用财务'],['COMMS.FOLLOWUP','Follow-up','沟通跟进'],['FESTIVAL.OPERATIONS','Operations','现场运营']];
 // Sample the browser-composited material, including transparency and reflected light.
@@ -108,6 +114,8 @@ async function checkCardContrast(page, grid) {
       assert.equal(await title.getByLabel(zh ? 'English' : '中文', { exact: true }).isVisible(), false);
       await title.getByLabel(zh ? '中文' : 'English', { exact: true }).fill(t('Fellowship with neighbours and new families','邻里与新家庭的团契聚餐'));
       const layoutWidth = await workspace.evaluate(el => el.getBoundingClientRect().width);
+      await checkAssistantHeight(workspace);
+
       assert.equal(await workspace.getAttribute('data-wide'), String(width >= 1024 && layoutWidth >= 880));
       if (await workspace.getAttribute('data-wide') !== 'true') {
         const formTab = workspace.getByRole('tab', { name: t('Details form','资料表单'), exact: true });
@@ -119,11 +127,13 @@ async function checkCardContrast(page, grid) {
       await workspace.locator('.event-pending-fields').getByRole('button', { name: t('Title','活动名称'), exact: false }).click();
       await page.waitForFunction(() => document.activeElement?.getAttribute('data-locale') === (document.documentElement.lang.startsWith('zh') ? 'en' : 'zh'));
       assert.equal(await title.getByLabel(zh ? 'English' : '中文', { exact: true }).isVisible(), true);
+      await checkAssistantHeight(workspace);
       await showDetailsPane(page, 'assistant');
       const prompt = workspace.locator('textarea[maxlength="8000"]');
       const send = workspace.getByRole('button', { name: t('Send and organise details','发送并整理资料'), exact: true });
       await prompt.fill('Please organise our fellowship'); await send.click();
       await workspace.getByRole('log').getByText(t('I have added the event title. When and where will you meet?','活动名称已整理好。这次准备何时、在哪里相聚？'), { exact: true }).waitFor();
+      await checkAssistantHeight(workspace);
       assert.equal(await title.getAttribute('data-ai-updated'), 'true');
       assert.equal(await title.evaluate(el => getComputedStyle(el).animationName), 'none', 'reduced-motion feedback is static');
       await prompt.fill('Keep this draft message');

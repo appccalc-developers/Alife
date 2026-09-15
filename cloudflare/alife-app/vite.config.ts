@@ -167,6 +167,7 @@ export default defineConfig(({ command, mode }) => {
       // host. Never broadly allow every public tunnel host.
       allowedHosts: publicDevHost ? [publicDevHost] : undefined,
       proxy: {
+        '/api/events/form-assistance': { target: aiProxyTarget, changeOrigin: true },
         '/api/events/ram-guidance': { target: aiProxyTarget, changeOrigin: true },
         '/api/ai': {
           target: aiProxyTarget,

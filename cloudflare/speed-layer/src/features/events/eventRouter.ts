@@ -4,8 +4,10 @@ import enrolment from './enrolment'
 import reviewer from './reviewer'
 import { handleRamGuidance } from './ramGuidance'
 import { handleRamAssistance } from './ramAssistance'
+import { handleFormAssistance } from './formAssistance'
 
 const eventRouter = new Router()
+eventRouter.post('/api/events/form-assistance', (request, env) => handleFormAssistance(request, env))
 eventRouter.post('/api/events/ram-guidance', (request, env) => handleRamGuidance(request, env))
 eventRouter.post('/api/events/ram-assistance', (request, env) => handleRamAssistance(request, env))
 

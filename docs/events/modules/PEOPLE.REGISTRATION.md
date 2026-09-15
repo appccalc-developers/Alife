@@ -52,6 +52,10 @@ Participants see their own registration state and safe actions. Managers receive
 
 During saved preparation, the existing authorized tool is embedded directly in **Arrangements → People and volunteers → Invitations and registration**. It shares its operational API and permissions with the independent workspace route; there is no separate Team and tools preparation step. See [integrated preparation](../EVENT-SETUP-FLOW.md).
 
+## AI form assistance
+
+Preparation rules use the shared [AI form assistant](../AI-DETAILS-ASSISTANT.md#tasks-and-registration-form-assistants) for rule text/settings, material requirement definitions and fee instructions. Eligible group selection remains manual. All bilingual rule/material/fee fields show the current language first with an expandable translation and Added/Missing marker. AI changes only the local draft; Save registration plan remains explicit. Participant lists, invitations, uploaded materials, consent, payment verification and approvals remain in their existing authorized workflows and outside assistant context.
+
 ## Current implementation
 
 Current core flow includes server-owned confirmed/waitlisted/cancelled states, capacity summary, self queue position and manager lists, FIFO eligible promotion, transactional in-app notifications, retained cancellation/answer history, and serializable Event-lock concurrency. Existing enrollment IDs, bilingual JSON and linked child evidence survive cancellation/rejoining. Reopening and approved capacity increases reconcile the queue; closed/expired/blocked enrollment retains waiters. New clients explicitly opt into waiting; old full-capacity clients receive an upgrade conflict. RAM gating follows current Plan/safety requirements. See [the first-round contract](../EVENT-CONTRACT.md#preparation-first-round-contract-extension--2026-09-13).
