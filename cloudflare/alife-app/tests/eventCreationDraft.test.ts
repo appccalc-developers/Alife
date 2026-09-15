@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { creationMessage } from '../src/utils/eventCreationCopy.ts'
 import type { EventActivityType, EventArchetype, ModuleDecision } from '../src/types/eventComposition.ts'
-import { confirmArrangementModule, moduleConfirmationSummary, confirmArrangementGroup, invalidateArrangementConfirmation, selectArrangementModule, changeOptionalModule, composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, creationSettings, initialCreationDraft, restoreCreationDraft, selectCreationTemplate, validateCreationDraft } from '../src/utils/eventCreationDraft.ts'
+import { confirmArrangementModule, moduleConfirmationSummary, confirmArrangementGroup, invalidateArrangementConfirmation, selectArrangementModule, changeOptionalModule, composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, creationSettings, initialCreationDraft, restoreCreationDraft, selectCreationTemplate, validateCreationDraft, creationDraftIssue } from '../src/utils/eventCreationDraft.ts'
 
 const type: EventActivityType = {
   code: 'shared-meal', archetypeCode: 'simple-social', version: 2,
@@ -180,4 +180,16 @@ test('operational dependencies revoke RAM review but preserve unrelated module c
   assert.equal(changed.moduleConfirmations?.['FOOD.HOSPITALITY'], true)
   const reviewed = confirmArrangementModule(value, 'SAFEGUARDING.CHILD', true, [{ moduleCode: 'SAFEGUARDING.CHILD', status: 'selected' } as ModuleDecision])
   assert.equal(reviewed.moduleConfirmations?.['SAFETY.RAM'], true, 'reviewing a selection is not a safety content mutation')
+})
+
+// Field targets reveal compact controls without strengthening existing save validation.
+test('detail validation locates hidden time controls and preserves single-language saves', () => {
+  const value = { ...draft(), timeZone: 'Pacific/Auckland', startLocal: '2026-10-04T18:00', endLocal: '2026-10-04T20:00', title: { en: 'Meal', zh: '' }, description: { en: '', zh: '相聚' } }
+  assert.equal(creationDraftIssue(value, type, category(type), true), null)
+  assert.equal(validateCreationDraft(value, type, category(type), true), '')
+  assert.equal(creationDraftIssue({ ...value, timeZone: 'invalid/zone' }, type, category(type), true)?.field, 'timeZone')
+  assert.equal(creationDraftIssue({ ...value, startLocal: '2026-09-27T02:30' }, type, category(type), false)?.field, 'startLocal')
+  assert.equal(creationDraftIssue({ ...value, endLocal: value.startLocal }, type, category(type), false)?.field, 'endLocal')
+  assert.equal(creationDraftIssue({ ...value, maxCapacity: '0' }, type, category(type), false)?.field, 'maxCapacity')
+  assert.equal(creationDraftIssue({ ...value, intervalWeeks: '53' }, recurring, category(recurring), false)?.field, 'intervalWeeks')
 })

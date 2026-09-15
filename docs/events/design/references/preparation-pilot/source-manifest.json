@@ -1,0 +1,35 @@
+{
+  "date": "2026-09-15",
+  "baseCommit": "cae4ae126a101b9278ae25d4cb0a008144dd6a0a",
+  "state": "uncommitted working tree",
+  "source": {
+    "cloudflare/alife-app/src/components/events/ArrangementTileDeck.tsx": "9e1784637767af007ef8136e91a707998bda47a7263d49ebbf40624fd45ede27",
+    "cloudflare/alife-app/src/components/events/EventSavedPreparationSteps.tsx": "c57d7219af10929fae4f6f8c9a6b3418d00804103dda18ad1f1867bc899b162c",
+    "cloudflare/alife-app/src/components/events/creation/CreationSteps.tsx": "9d8ce0a01dae539320c97381af0e6f8380f8cccd99f18dff5b959c71aabed0f2",
+    "cloudflare/alife-app/src/components/events/creation/DetailsStep.tsx": "83cc57308a827d678b9927a639d400ae06ed60377b9dce641d64a01848fd5fa8",
+    "cloudflare/alife-app/src/components/events/creation/DetailsWorkspace.tsx": "56a5fbc35a7700e6b4eda223925206730acde3b9bce09ded2ffd26e2b204b2cb",
+    "cloudflare/alife-app/src/components/events/creation/EventDetailsAssistant.tsx": "a180411c0f9aaf6765b891225bc026704ec06260caaf7d04d45b7a9025a798eb",
+    "cloudflare/alife-app/src/styles/eventPreparation.css": "e14396d0f72fff332070d0f30a5c8d181116789f4f4eddcd41fca95103cde858",
+    "cloudflare/alife-app/src/utils/eventCreationDraft.ts": "827676c41ce7ded57aa53140f3dff2d5bf42bcfac5161c10d12be3a9b041e8f0",
+    "cloudflare/alife-app/src/views/EventCreationWizard.tsx": "fb686ce5cfdb8e1bb1243bc3f9c116113639839a1e15b85a1cb61a5e7c71f11f"
+  },
+  "screenshots": {
+    "assistant-en-1280.png": "b3499f7535c7266f88c43e244a3ba9941eb7bf4b13fb61d19b574530fdffe0c1",
+    "assistant-en-320.png": "11c079d21255acfb70b5fd796f4b00d59f0e272da0f59f6491d02a72be7ab65f",
+    "assistant-zh-1280.png": "159e76b21a4f6765d4fe348238a6e677c2557c08f12d20589e1ef4e4750e2a05",
+    "assistant-zh-320.png": "533a4ed3e842d37588f77e3cbaf438fef0b91fc7410d138c424272feb8f7871d",
+    "form-en-1280.png": "58d80974d0be3ac0bc55faf71925a26588951cb77e1dcd82c10c8ca1e350488a",
+    "form-en-320.png": "8f4e9e93d72a82799a9f3ae68aad190805fca40dc1fd488916e46fcc96f4d7e6",
+    "form-zh-1280.png": "94d12dc3ded34f65a31a6c94bc4130bebadc65fa7c61077d690e1937e61a7c91",
+    "form-zh-320.png": "2812b8e457c5786eed7bb624a8c3fb5ce4e10d73d50bbd439e2dc00f6371ff78",
+    "overview-en-1280.png": "1e3607dfe1641f671d54691a07ab9db0af889e0ad28bf9cdd3343dbeb3451ca9",
+    "overview-en-320.png": "766902cd78df0fe1d8d0116d7444f2b55707ab1d5cd356f8dddcfc80d8020df8",
+    "overview-zh-1280.png": "9375c5382f025a9ed7c6184661db4e6f52e736f5473e8057dad0e084bea7d0ea",
+    "overview-zh-320.png": "6e4d024f83df81d69e6b77b5cc441969ca6b117e359a9e211fd9d9c5f248d005"
+  },
+  "material": "ALIFE Prism Glass; inspected synthetic browser fixtures; user visual acceptance pending",
+  "testSources": {
+    "cloudflare/alife-app/tests/eventDetailsWorkspace.browser.cjs": "3b8f721fed20a953eadaa008a9651a4fe340e9dd496ccc8648bf41f5bbcfe048",
+    "cloudflare/alife-app/tests/helpers/eventDetailsWorkspace.cjs": "e15ee7f242201db5a69bf0457681bab99744f61e0e87111f9d8ab87588e9aad3"
+  }
+}

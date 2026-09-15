@@ -3,6 +3,7 @@ import { setupPath } from '../utils/eventSetupFlow'
 import RamDraftEditor from '../components/events/RamDraftEditor'
 import { upgradeRam, type RamDraft } from '../types/ramGovernance'
 import { setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
+import type { DetailsFocusRequest } from '../components/events/creation/DetailsWorkspace'
 import EventDetailsAssistant from '../components/events/creation/EventDetailsAssistant'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
@@ -18,7 +19,7 @@ import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 import type { EventArchetype, EventPlanProposal } from '../types/eventComposition'
 import { resolveActivityType } from '../utils/eventCreationWizard'
-import { invalidateArrangementConfirmation, composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, validateCreationDraft } from '../utils/eventCreationDraft'
+import { invalidateArrangementConfirmation, composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, creationDraftIssue } from '../utils/eventCreationDraft'
 import { creationArrangements, validateCreationArrangements } from '../utils/eventCreationArrangements'
 
 type Step = 1 | 2 | 3 | 4
@@ -56,6 +57,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
   const submission = useRef(createSubmissionGuard())
   const currentPreview = previewState === 'ready' && preview?.signature === compositionSignature
   const [aiBusy, setAiBusy] = useState(false)
+  const [detailsFocusRequest, setDetailsFocusRequest] = useState<DetailsFocusRequest>()
 
   useEffect(() => {
     let active = true
@@ -94,8 +96,8 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     setError('')
     if (!type || !archetype || !composition) { setError(zh ? '请选择活动分类和模板。' : 'Choose a category and template.'); return }
     if (step === 1) { setStep(3); return }
-    const issue = validateCreationDraft(draft, type, archetype, zh)
-    if (issue) { setError(issue); if (step === 3) setStep(3); return }
+    const issue = creationDraftIssue(draft, type, archetype, zh)
+    if (issue) { setError(issue.message); setDetailsFocusRequest(previous => ({ field: issue.field, version: (previous?.version ?? 0) + 1 })); setStep(3); return }
     if (step === 2) { setStep(3); return }
     if (step !== 3 || !currentPreview) return
     actionLock.current = true
@@ -121,8 +123,8 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     if (!currentPreview || !preview || reviewSignature !== creationSignature) {
       setError(zh ? '方案已变化，请返回活动安排重新审阅。' : 'The plan changed. Return to arrangements and review again.'); return
     }
-    const issue = validateCreationDraft(draft, type, archetype, zh)
-    if (issue) { setError(issue); setStep(3); return }
+    const issue = creationDraftIssue(draft, type, archetype, zh)
+    if (issue) { setError(issue.message); setDetailsFocusRequest(previous => ({ field: issue.field, version: (previous?.version ?? 0) + 1 })); setStep(3); return }
     const arrangementIssue = validateCreationArrangements(draft, type, preview.proposal, zh)
     if (arrangementIssue) { setError(arrangementIssue); setStep(3); return }
     const idempotencyKey = submission.current.begin(JSON.stringify([creationSignature, preview.proposal.proposalHash]))
@@ -165,7 +167,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     {catalogue === 'ready' && hydrated ? <>
       <fieldset ref={stepRegion} tabIndex={-1} aria-label={labels[step - 1]} disabled={busy} className="min-w-0 scroll-mt-24 space-y-4 outline-none" aria-busy={busy}>
         {step === 1 ? <TemplateStep draft={draft} setDraft={setDraft} zh={zh} archetypes={archetypes} type={type} /> : null}
-        {type && archetype ? <div hidden={step !== 3}><ArrangementsStep detailsPanel={active => <DetailsWorkspace zh={zh} active={active && step === 3} form={<DetailsStep draft={draft} setDraft={setDraft} zh={zh} type={type} archetype={archetype} ai={null} />} assistant={visible => <EventDetailsAssistant draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} zh={zh} active={visible} onBusy={setAiBusy} />} />} ownerPanel={<p className="mt-1">{me?.displayName || (zh ? '当前用户' : 'Current user')}</p>} ramDirty={ramTouched} draft={draft} setDraft={setDraft} zh={zh} type={type} groupId={groupId} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} ramPanel={<div className="space-y-4"><p className="rounded-xl bg-[#e3f0eb] p-3 text-sm">{zh ? '可直接填写风险，确认创建时随活动保存。创建前 RAM 仅保留在当前页面，不写入本机草稿。创建后继续核对教会题库、本人确认及审核。' : 'Fill in risks here; they are saved with the Event when you confirm creation. Until then RAM stays only in this page, outside local draft storage. Continue with church questions, personal confirmation and review after creation.'}</p><RamDraftEditor groupId={groupId} conditionsKey={JSON.stringify(draft)} onBusy={setAiBusy} draft={ramDraft} update={change => { setRamDraft(value => ({ ...value, ...change })); setRamTouched(true); setDraft(previous => invalidateArrangementConfirmation(previous, 'SAFETY.RAM')) }} editable={!busy} dirty zh={zh} /></div>} /></div> : null}
+        {type && archetype ? <div hidden={step !== 3}><ArrangementsStep detailsFocusRequest={detailsFocusRequest} detailsPanel={active => <DetailsWorkspace focusRequest={detailsFocusRequest} zh={zh} active={active && step === 3} form={<DetailsStep draft={draft} setDraft={setDraft} zh={zh} type={type} archetype={archetype} ai={null} />} assistant={visible => <EventDetailsAssistant draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} zh={zh} active={visible} onBusy={setAiBusy} />} />} ownerPanel={<p className="mt-1">{me?.displayName || (zh ? '当前用户' : 'Current user')}</p>} ramDirty={ramTouched} draft={draft} setDraft={setDraft} zh={zh} type={type} groupId={groupId} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} ramPanel={<div className="space-y-4"><p className="rounded-xl bg-[#e3f0eb] p-3 text-sm">{zh ? '可直接填写风险，确认创建时随活动保存。创建前 RAM 仅保留在当前页面，不写入本机草稿。创建后继续核对教会题库、本人确认及审核。' : 'Fill in risks here; they are saved with the Event when you confirm creation. Until then RAM stays only in this page, outside local draft storage. Continue with church questions, personal confirmation and review after creation.'}</p><RamDraftEditor groupId={groupId} conditionsKey={JSON.stringify(draft)} onBusy={setAiBusy} draft={ramDraft} update={change => { setRamDraft(value => ({ ...value, ...change })); setRamTouched(true); setDraft(previous => invalidateArrangementConfirmation(previous, 'SAFETY.RAM')) }} editable={!busy} dirty zh={zh} /></div>} /></div> : null}
         {step === 4 && type && archetype && preview ? <ReviewStep draft={draft} zh={zh} type={type} archetype={archetype} proposal={preview.proposal} /> : null}
       </fieldset>
       {step === 1 ? <AppActionButton variant="primary" disabled={busy || aiBusy} onClick={() => void next()}>{zh ? '开始安排' : 'Start arranging'}</AppActionButton> : null}

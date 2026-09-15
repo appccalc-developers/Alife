@@ -22,6 +22,8 @@ Event Workspace should feel colourful, dimensional, responsive, approachable and
 
 Use Material 3 Expressive as the principal reference for colour, shape, containment and feedback, and Fluent 2 for depth and coherent transitions. Apply those principles through existing Alife components and styling. This is not a requirement to install either component framework.
 
+Use **ALIFE Prism Glass** for Event capability cards: translucent coloured surfaces, reflected light, functional colour coding and spatial depth form one material language. Apply it primarily to meaningful workspace objects such as modules, documents, approvals, resources and status cards. The preparation pilot implements module cards first; other surfaces require their own inspection. The [material tokens](EVENT-UI-VISUAL-TOKENS.md#alife-prism-glass-material) govern contrast, opacity, reflection, fallbacks and accessibility.
+
 Richness must be visible in the working surface: recognisable domain regions, meaningful graphics, clear selection and prompt feedback. A few coloured badges added to otherwise unchanged navigation do not by themselves satisfy this direction. Large neutral or lightly tinted surfaces give those signals room to work.
 
 Keep Alife typography, global navigation conventions, accessible control behaviour and bilingual content. The canvas can be the screen's signature element and contain several meaningful domain colours; the general advice to concentrate visual boldness does not limit it to one coloured domain.
@@ -88,7 +90,7 @@ Provide immediate local response to an action and show a pending state during th
 
 ## Pilot before rollout
 
-Implement one bounded area first, inspect and use it, then refine before expanding to other Event screens. Candidate areas and acceptance checks are in [Reference pages](EVENT-UI-REFERENCE-PAGES.md). No pilot area has been selected or visually accepted by this document.
+Implement one bounded area first, inspect and use it, then refine before expanding to other Event screens. Candidate areas and acceptance checks are in [Reference pages](EVENT-UI-REFERENCE-PAGES.md). The selected preparation overview/details pilot is recorded in [Reference pages](EVENT-UI-REFERENCE-PAGES.md); selection and implementation do not establish user acceptance.
 
 Record desktop/mobile screenshots, both languages, data/role assumptions and actual interaction observations. Ask users to identify what needs attention and the next action; treat quick recognition as a usability question to test, not a proven outcome. Build success alone does not establish visual acceptance.
 

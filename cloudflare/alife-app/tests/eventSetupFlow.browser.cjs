@@ -1,5 +1,6 @@
 // Fixture-only browser integration: no live events, image uploads, AI calls or publication.
 const assert = require('node:assert/strict');
+const { showDetailsPane, expandTranslation } = require('./helpers/eventDetailsWorkspace.cjs');
 const { chromium } = require(process.env.ALIFE_PLAYWRIGHT_MODULE || 'playwright');
 const path = require('node:path');
 const os = require('node:os');
@@ -15,7 +16,7 @@ const catalogue = [{ code: 'simple-social', version: 1, name: text('Simple socia
 const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag: '"plan-new"', archetypeCode: 'simple-social', activityTypeCode: 'shared-meal', facts: { items: [], sourceHash: 'facts' }, roleRequirements: [], workflowContributions: [], navigation: [], warnings: [], readiness: { status: 'notReady', blockers: [], warnings: [] }, moduleDecisions: [{ moduleCode: 'TEAM.WORK', label: text('Team and tasks', '团队与任务'), status: 'required', reasonCodes: [], dependencies: [], dataClasses: [], integrationKey: '', surfaceKey: 'team.work', navigationOrder: 1 }] };
 
 (async () => {
-  const browser = await chromium.launch({ headless: true }); let lastPage = null;
+  const browser = await chromium.launch({ headless: true, ...(process.env.ALIFE_BROWSER_EXECUTABLE ? { executablePath: process.env.ALIFE_BROWSER_EXECUTABLE } : {}) }); let lastPage = null;
   try {
     for (const language of (process.env.ALIFE_QA_LANGUAGES || 'zh,en').split(',')) for (const width of (process.env.ALIFE_QA_WIDTHS || '320,375,768,1280').split(',').map(Number)) {
       const zh = language === 'zh', t = (en, cn) => zh ? cn : en;
@@ -45,7 +46,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       let info = { eventId: 'qa-event', groupId: 'qa-group', brief: { title: text('Community meal', '社区聚餐'), description: text('A meal together', '一同聚餐'), purpose: text('', ''), locationName: text('Hall', '礼堂'), startDate: '2026-10-04T10:00:00Z', endDate: '2026-10-04T12:00:00Z' }, posterImageUrl: null, visibility: width === 320 ? 'groupVisible' : width === 768 ? 'churchVisible' : 'public', registrationMode: 'none', eTag: '"poster-v1"', canManage: true };
       let ramAssessment = null; const ramRevision = { id: 'ram-version', version: 1, schemaVersion: 2, policyVersionId: null, contentHash: 'fixture-hash', residualLevel: 'Incomplete', authorMemberId: 'qa', onsiteMemberId: null, createdUtc: '2026-09-12T00:00:00Z' };
       let updatedUtc = '2026-09-11T00:00:00Z';
-      const record = () => ({ id: 'qa-event', groupId: 'qa-group', accountableOwnerMemberId: 'qa', titleEn: info.brief.title.en, titleZh: info.brief.title.zh, startDate: apiTime(info.brief.startDate), endDate: apiTime(info.brief.endDate), updatedUtc, visibility: info.visibility, contactProfileIds: [], eventDataJson: JSON.stringify({ ...info.brief, ...(timezoneCheck ? { timeZone: 'Australia/Perth' } : {}), maxCapacity: 0, visibility: info.visibility, capacityUnit: 'People', currency: 'NZD', hardConstraints: [], optionalActivities: [], galleryUrls: [], privateContact: 'preserved' }) });
+      const record = () => ({ id: 'qa-event', groupId: 'qa-group', accountableOwnerMemberId: 'qa', titleEn: info.brief.title.en, titleZh: info.brief.title.zh, startDate: apiTime(info.brief.startDate), endDate: apiTime(info.brief.endDate), updatedUtc, visibility: info.visibility, contactProfileIds: [], eventDataJson: JSON.stringify({ ...info.brief, ...(timezoneCheck ? { timeZone: 'Australia/Perth' } : {}), maxCapacity: info.brief.maxCapacity || 0, visibility: info.visibility, capacityUnit: 'People', currency: 'NZD', hardConstraints: [], optionalActivities: [], galleryUrls: [], privateContact: 'preserved' }) });
       const preparation = () => ({ eventId: 'qa-event', isFrozen: approved, isApproved: approved, canManage: true, canEdit: !approved && !viewOnly, approvedPackageId: approved ? 'qa-package' : null, reopenRequest: reopen });
       const item = () => ({ id: 'qa-package', eventId: 'qa-event', scopeType: 'event', coverageMode: 'explicitOccurrences', coveredOccurrenceIds: [], version: 1, eventPlanVersion: 1, packageSchemaVersion: '1.0', governancePolicyVersion: 'qa-policy', governanceTier: assessment.tier, status: approved ? 'approved' : returned ? 'returnedForAmendment' : submitted ? 'submitted' : 'draft', approvalValidityStatus: approved ? 'active' : 'notDecided', contentHash: 'qa-content-hash', sourceVectorHash: 'qa-source', manifest: { eventTitle: info.brief.title, legacyTransition: 'formalPackageRequired', modules: [], blockers: [], sections: [] }, sourceReferences: [], decisions: [], conditions: [], generatedUtc: '2026-09-11T00:00:00Z', eTag: '"package-v1"' });
       const lifecycle = () => ({ eventId: 'qa-event', publicationStatus: published ? 'published' : 'draft', publishGateSatisfied: approved, gateMode: 'enforced', reasonCodes: [], eTag: '"lifecycle-v1"', registrationStatus: 'closed', gates: [{ gate: 'publish', enforcementMode: 'enforced', allowed: approved, requirementsSatisfied: approved, blockers: approved ? [] : [{ code: 'approvalRequired', message: text('Formal approval is required.', '需要正式审批。'), responsibleRole: 'approver', nextAction: 'approve' }], warnings: [] }] });
@@ -123,8 +124,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       const settings = async code => { const root = await open(code); await work(root,'Settings and responsibilities','设置与职责'); return root; };
       const click = (en, cn) => page.getByRole('button', { name: t(en, cn), exact: true }).click();
       const askTime = async (message = t('Change to 8am to 4pm', '改为早上八点到下午四点')) => {
-        const toggle = page.getByRole('button', { name: /^(AI details assistant|AI 资料助手)/ });
-        if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+        await showDetailsPane(page, 'assistant');
         const input = page.locator('[data-module-editor="EVENT.DETAILS"] textarea[maxlength="8000"]:visible');
         await input.fill(message); await click('Send and organise details', '发送并整理资料');
         if (message === 'bad-zone' || message === 'stale') {
@@ -135,17 +135,18 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       const clickWhenEnabled = async button => {
         await button.click();
       };
-      const waitForDetailsAutosave = async () => {
+      const waitForDetailsSave = async () => {
         const before = detailSaves.length;
         const response = page.waitForResponse(response => response.url().endsWith('/api/events/qa-event') && response.request().method() === 'PUT' && response.ok());
-        await page.waitForTimeout(1100);
+        await click('Save event details', '保存活动资料');
         await response;
         assert.equal(detailSaves.length, before + 1);
         await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
       };
-      const waitForArrangementAutosave = async before => {
+      const waitForArrangementSave = async before => {
+        await click('Save arrangements', '保存活动安排');
         for (let attempt = 0; attempt < 200 && acceptedPlans.length <= before; attempt += 1) await page.waitForTimeout(100);
-        assert.ok(acceptedPlans.length > before, 'arrangement changes must be accepted automatically');
+        assert.ok(acceptedPlans.length > before, 'arrangement changes must be accepted after an explicit save');
         await page.waitForTimeout(1600);
         await page.getByRole('status').filter({ hasText: /Event arrangements saved|活动安排已保存/ }).waitFor();
         return acceptedPlans.at(-1);
@@ -163,14 +164,14 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         await heading.waitFor(); assert.equal(await toggle.count(), 1);
         assert.equal(await card.getByText(t('Event details', '活动资料'), { exact: true }).count(), 0);
         const headingBox = await heading.boundingBox(), toggleBox = await toggle.boundingBox();
-        assert.ok(toggleBox.x >= headingBox.x + headingBox.width - 1);
+        assert.ok(width < 480 ? toggleBox.y >= headingBox.y + headingBox.height - 1 : toggleBox.x >= headingBox.x + headingBox.width - 1);
         const expanded = await tile('EVENT.DETAILS').getAttribute('aria-expanded');
         await toggle.click(); assert.equal(await tile('EVENT.DETAILS').getAttribute('aria-expanded'), expanded);
         await toggle.click();
       };
       await checkDetailsHeader();
       for (const [label, en, cn] of [[t('Event title', '活动名称'), 'Community meal', '社区聚餐'], [t('Description', '活动说明'), 'A meal together', '一同聚餐']]) {
-        const group = page.getByRole('group', { name: label, exact: true }); await group.getByLabel('English', { exact: true }).fill(en); await group.getByLabel('中文', { exact: true }).fill(cn);
+        const group = page.getByRole('group', { name: label, exact: true }); await showDetailsPane(page, 'form'); await expandTranslation(group); await group.getByLabel('English', { exact: true }).fill(en); await group.getByLabel('中文', { exact: true }).fill(cn);
       }
       await page.getByLabel(t('Start time', '开始时间'), { exact: true }).fill('2026-10-04T18:00');
       await page.getByLabel(t('End time', '结束时间'), { exact: true }).fill('2026-10-04T20:00');
@@ -194,13 +195,13 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         const end = () => page.getByLabel(t('End time', '结束时间'), { exact: true });
         const saved = page.waitForResponse(response => response.url().endsWith('/api/events/qa-event') && response.request().method() === 'PUT' && response.ok() && response.request().postDataJSON().startDate === '2026-12-06T02:00:00.000Z');
         await end().fill('2026-12-06T20:00'); await start().fill('2026-12-06T10:00');
-        await saved;
+        await click('Save event details', '保存活动资料'); await saved;
         await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
         assert.equal(detailSaves.at(-1).body.endDate, '2026-12-06T12:00:00.000Z');
         assert.equal(JSON.parse(detailSaves.at(-1).body.eventDataJson).timeZone, 'Australia/Perth');
         if (aiTimezoneCheck) {
           const aiSaved = page.waitForResponse(response => response.url().endsWith('/api/events/qa-event') && response.request().method() === 'PUT' && response.ok() && response.request().postDataJSON().startDate === '2026-12-06T00:00:00.000Z');
-          await askTime(); await aiSaved;
+          await askTime(); await click('Save event details', '保存活动资料'); await aiSaved;
           await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
           assert.equal(detailSaves.at(-1).body.endDate, '2026-12-06T08:00:00.000Z');
         }
@@ -214,6 +215,49 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         }
         await checkLayout('timezone'); assert.deepEqual(errors, []);
         console.log(`PASS ${language} ${width}: ${aiTimezoneCheck ? 'AI 08:00–16:00, invalid/stale response retention, creation and saved editing' : '10:00–20:00'}, save/reload, offsetless SQL timestamps, ${process.env.ALIFE_QA_DEVICE_ZONE || 'America/Los_Angeles'}, no repeat writes`);
+        await context.close(); continue;
+      }
+      if (process.env.ALIFE_QA_DETAILS_ONLY === '1') {
+        const details = await open('EVENT.DETAILS');
+        await showDetailsPane(page, 'form');
+        const titleGroup = details.getByRole('group', { name: t('Event title', '活动名称'), exact: true });
+        await expandTranslation(titleGroup);
+        const title = titleGroup.getByLabel('English', { exact: true });
+        await title.fill('Retained event title');
+        await page.waitForTimeout(1300); assert.equal(detailSaves.length, 0, 'manual editing is a draft until explicit save');
+        await askTime();
+        await page.waitForTimeout(1300); assert.equal(detailSaves.length, 0, 'AI adoption cannot persist');
+        await open('TEAM.WORK'); await open('EVENT.DETAILS');
+        await showDetailsPane(page, 'form');
+        assert.equal(await title.inputValue(), 'Retained event title');
+        await waitForDetailsSave();
+        await showDetailsPane(page, 'assistant');
+        assert.equal(await details.getByRole('log').locator(':scope > div').count(), 2);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.screenshot({ path: path.join(os.tmpdir(), `alife-pilot-saved-${language}-${width}.png`), fullPage: true });
+        await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=details`);
+        await page.locator('[data-module-editor="EVENT.DETAILS"]:visible').waitFor();
+        await showDetailsPane(page, 'form');
+        await expandTranslation(page.locator('[data-detail-field="title"]'));
+        assert.equal(await page.locator('[data-detail-field="title"]').getByLabel('English', { exact: true }).inputValue(), 'Retained event title');
+        assert.equal(detailSaves.length, 1);
+        // Current registration rules own capacity; the details form must not create a competing field.
+        info.brief.registrationRulesVersion = 1; info.brief.maxCapacity = 24;
+        viewOnly = true; await page.reload(); await open('EVENT.DETAILS');
+        await showDetailsPane(page, 'form');
+        await expandTranslation(page.locator('[data-detail-field="title"]'));
+        assert.equal(await page.locator('[data-detail-field="title"]').getByLabel('English', { exact: true }).isDisabled(), true);
+        assert.equal(await page.locator('[data-detail-field="maxCapacity"] input').count(), 0);
+        await page.getByText(/Capacity and deadline are managed|人数上限和截止时间由/).waitFor();
+        await showDetailsPane(page, 'assistant');
+        assert.equal(await page.getByRole('button', { name: t('Send and organise details', '发送并整理资料'), exact: true }).isDisabled(), true);
+        await showDetailsPane(page, 'form');
+        viewOnly = false; approved = true; await page.reload();
+        await page.getByRole('heading', { name: t('This step is currently unavailable','此步骤暂不可进入'), exact: true }).waitFor();
+        assert.equal(await page.locator('[data-module-editor="EVENT.DETAILS"]').count(), 0);
+        assert.equal(await page.getByRole('button', { name: t('Save event details','保存活动资料'), exact: true }).count(), 0);
+        assert.equal(detailSaves.length, 1); assert.deepEqual(errors, []);
+        console.log(`PASS saved pilot ${language} ${width}: manual/AI drafts, explicit save, session retention, legacy details link, managed capacity, read-only browsing, approval freeze`);
         await context.close(); continue;
       }
       viewOnly = true; enrollmentFailure = true;
@@ -242,27 +286,6 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await failedSummary.waitFor({ state: 'detached' });
       assert.equal(detailSaves.length, 0); assert.equal(acceptedPlans.length, 0); assert.equal(taskSaves.length, 0);
       await page.reload();
-      if (process.env.ALIFE_QA_DETAILS_ONLY === '1') {
-        const card = tile('EVENT.DETAILS');
-        assert.ok((await card.innerText()).includes('2026-10-04'));
-        const details = await open('EVENT.DETAILS');
-        const title = details.getByRole('group', { name: t('Event title', '活动名称'), exact: true }).getByLabel('English', { exact: true });
-        await title.fill('Retained event title');
-        await details.getByRole('button', { name: t('AI details assistant', 'AI 资料助手'), exact: true }).click();
-        await open('TEAM.WORK'); await open('EVENT.DETAILS');
-        await details.getByRole('button', { name: t('Event details form', '活动资料表单'), exact: true }).click();
-        assert.equal(await title.inputValue(), 'Retained event title');
-        assert.equal(await page.locator('[data-module-editor]:visible').count(), 1);
-        await waitForDetailsAutosave();
-        await click('Back to top', '回到开头');
-        assert.equal(await page.locator('footer').last().getByRole('button').count(), 1);
-        await checkLayout('details-card');
-        await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=details`);
-        await page.locator('[data-module-editor="EVENT.DETAILS"]:visible').waitFor();
-        assert.deepEqual(errors, []);
-        console.log(`PASS ${language} ${width}: merged details, retained edits/AI child, save, legacy detail link, sole footer action, layout`);
-        await context.close(); continue;
-      }
       await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=setup&module=team.work`);
       await settings('TEAM.WORK');
       assert.equal(await page.getByRole('heading', { name: /Team members|团队成员/, exact: true }).isVisible(), false);
@@ -311,7 +334,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       const titleGroup = () => page.getByRole('group', { name: t('Event title', '活动名称'), exact: true });
       await titleGroup().getByLabel('English', { exact: true }).fill('Revised meal');
       assert.equal(await flow().getByRole('link', { name: /4.*Approval|4.*正式审批/ }).count(), 0);
-      await stage(/Arrangements|活动安排/); await tile('TEAM.WORK').waitFor(); await waitForDetailsAutosave();
+      await stage(/Arrangements|活动安排/); await tile('TEAM.WORK').waitFor(); await waitForDetailsSave();
       assert.equal(await page.getByRole('button', { name: t('Open RAM assessment', '打开 RAM 评估表'), exact: true }).count(), 0);
       const ram = page.getByRole('region', { name: t('RAM and safety', 'RAM与安全'), exact: true });
       await open('SAFETY.RAM'); await work(ram, 'Activities and conditions','活动项目与条件');
@@ -372,10 +395,10 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       for (const item of originallyRequired) {
         const selectionSaves = acceptedPlans.length; await settings(item.moduleCode); const group = toolGroup(item);
         assert.equal(await group.getByRole('button', { name: t('Yes', '是'), exact: true }).getAttribute('aria-pressed'), 'true');
-        await clickWhenEnabled(group.getByRole('button', { name: t('No', '否'), exact: true })); await waitForArrangementAutosave(selectionSaves);
+        await clickWhenEnabled(group.getByRole('button', { name: t('No', '否'), exact: true })); await waitForArrangementSave(selectionSaves);
       }
       await settings('COMMS.FOLLOWUP'); await clickWhenEnabled(toolGroup(savedPlan.moduleDecisions.find(item => item.moduleCode === 'COMMS.FOLLOWUP')).getByRole('button', { name: t('Yes', '是'), exact: true }));
-      const firstAccepted = await waitForArrangementAutosave(firstSaveCount);
+      const firstAccepted = await waitForArrangementSave(firstSaveCount);
       assert.equal(Object.keys(firstAccepted.body.composition.moduleConfirmations).length, 12);
       assert.equal(firstAccepted.body.arrangements, undefined, 'selection save must preserve operational rows'); assert.equal(arrangements.sessions[0].details.title.en, 'Revised opening');
       assert.ok(firstAccepted.headers['if-match']); assert.ok(firstAccepted.headers['idempotency-key']);
@@ -391,10 +414,10 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         const selectionSaves = acceptedPlans.length; await settings(item.moduleCode); const group = toolGroup(item);
         await group.waitFor();
         assert.equal(await group.getByRole('button', { name: t('No', '否'), exact: true }).getAttribute('aria-pressed'), 'true');
-        await clickWhenEnabled(group.getByRole('button', { name: t('Yes', '是'), exact: true })); await waitForArrangementAutosave(selectionSaves);
+        await clickWhenEnabled(group.getByRole('button', { name: t('Yes', '是'), exact: true })); await waitForArrangementSave(selectionSaves);
       }
       await checkLayout('optional-tools');
-      const secondAccepted = await waitForArrangementAutosave(secondSaveCount);
+      const secondAccepted = await waitForArrangementSave(secondSaveCount);
       assert.equal(secondAccepted.body.arrangements, undefined); assert.equal(arrangements.serviceSlots[0].details.requiredCount, 3);
       for (const item of originallyRequired) assert.equal(secondAccepted.body.composition.humanSelections.find(selection => selection.moduleCode === item.moduleCode).selected, true);
       assert.equal(await page.getByRole('button', { name: t('Pending', '待确认'), exact: true }).count(), 0);
@@ -411,7 +434,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       assert.equal(await confirmed.isChecked(), false);
       const confirmationSaveCount = acceptedPlans.length;
       await confirmed.check();
-      await waitForArrangementAutosave(confirmationSaveCount);
+      await waitForArrangementSave(confirmationSaveCount);
       assert.equal(acceptedPlans.at(-1).body.composition.moduleConfirmations['SAFETY.RAM'], true);
       await page.reload(); await settings('SAFETY.RAM'); await confirmed.waitFor(); assert.equal(await confirmed.isChecked(), true);
       const showAllForToggle = page.getByRole('button', { name: /Show all modules|显示所有模块/ });
@@ -445,7 +468,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         await page.getByText(returned ? 'returnedForAmendment · notDecided' : 'approved · active', { exact: true }).waitFor();
       };
       await submit(); await decide(true);
-      await stage(/Details|活动资料/); await titleGroup().getByLabel('English', { exact: true }).fill('Amended meal'); await waitForDetailsAutosave();
+      await stage(/Details|活动资料/); await titleGroup().getByLabel('English', { exact: true }).fill('Amended meal'); await waitForDetailsSave();
       await stage(/4.*Approval|4.*正式审批/); await click('Generate a new version', '从当前资料生成新版本'); await submit(); await decide(false);
       assert.equal(publishes.length, 0); await checkLayout('approval');
       assert.equal(await flow().getByRole('link', { name: /Details|活动资料|Arrangements|活动安排|Team and tools|团队与功能/ }).count(), 0);

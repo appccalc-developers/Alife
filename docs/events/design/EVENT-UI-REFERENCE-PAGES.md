@@ -1,10 +1,10 @@
 # Event Workspace reference pages
 
-> Pilot and reference specifications, 2026-09-15. No new reference page or screenshot baseline has yet been implemented or visually accepted. Follow [Workspace design](EVENT-WORKSPACE-DESIGN.md) and [Visual tokens](EVENT-UI-VISUAL-TOKENS.md).
+> Pilot and reference specifications, 2026-09-15. The preparation overview and details workspace are the selected implementation pilot. See the [pilot record](references/preparation-pilot/README.md) for inspected fixtures and screenshots; user acceptance remains pending. Follow [Workspace design](EVENT-WORKSPACE-DESIGN.md) and [Visual tokens](EVENT-UI-VISUAL-TOKENS.md).
 
 ## Start with one part
 
-Choose one bounded Event area, implement and inspect it, then refine before expanding to the rest of the workspace. The following are candidates, not authorization to build them all. The Event preparation overview is a useful first candidate because it can exercise domain colour, state graphics, depth and nonlinear selection together. The user's pilot selection remains open.
+Choose one bounded Event area, implement and inspect it, then refine before expanding to the rest of the workspace. The following are candidates, not authorization to build them all. The Event preparation overview is a useful first candidate because it can exercise domain colour, state graphics, depth and nonlinear selection together. The user selected the preparation overview and shared details/AI workspace on 2026-09-15. Other module interiors and the global stage rail remain outside this pilot.
 
 Use actual supported fields and authorized projections. Prototype fixtures must be clearly identified in development/review material and must not imply a delivered capability. Preserve current routes, drafts and business gates while changing presentation.
 
@@ -39,6 +39,7 @@ Use people clusters for assignment awareness and blocks/bars for space and capac
 ## Pilot acceptance
 
 - Meaningful colour, shape and depth are plainly visible in the rendered working area.
+- Capability/module cards use ALIFE Prism Glass, with functional domain tint, translucent surfaces, fixed reflected light and state-appropriate depth. Verify composited text contrast, reduced transparency and forced colours; surfaces outside the pilot retain their own materials.
 - Users can identify the current scope, what needs attention, and the next permitted action without reading long introductory paragraphs. Observe this with realistic tasks; do not claim a five-second result without measuring it.
 - Graphics distinguish the states that matter in that area; short labels/icons supplement ambiguity. Detailed reasons remain accessible on touch and keyboard.
 - Selected, focused, hovered, pending, successful, failed, unavailable and read-only presentations remain distinguishable.

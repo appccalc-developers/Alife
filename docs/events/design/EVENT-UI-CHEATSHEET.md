@@ -13,6 +13,7 @@ Read [Workspace design](EVENT-WORKSPACE-DESIGN.md) for decisions, [Visual tokens
 ## Visual language
 
 - Make colour, meaningful graphics, depth and quick feedback visible in the working surface.
+- Event capability cards use ALIFE Prism Glass: translucent domain colour, reflected light and spatial depth. Treat it as the material of meaningful workspace objects (modules, documents, approvals, resources and status cards); keep text/state graphics opaque and verify composited contrast. Use the opaque fallback for reduced transparency.
 - Domain identity stays stable; state markers overlay it. Safeguarding is Magenta/Plum.
 - Prefer familiar graphics and simple supplemental icons to repeated prose. Keep necessary names, quantities/units, deadlines, action labels and short blocker reasons.
 - Use bilingual accessible names and touch/keyboard-accessible detail. Critical meaning cannot depend on colour, motion or hover alone.

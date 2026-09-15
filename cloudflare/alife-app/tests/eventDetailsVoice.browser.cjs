@@ -1,6 +1,7 @@
 // Run against Vite with ALIFE_PLAYWRIGHT_MODULE pointing to an installed Playwright.
 // Browser speech and all application APIs are fixtures; no microphone or live AI is used.
 const assert = require('node:assert/strict');
+const { showDetailsPane } = require('./helpers/eventDetailsWorkspace.cjs');
 const { chromium } = require(process.env.ALIFE_PLAYWRIGHT_MODULE || 'playwright');
 const path = require('node:path');
 const os = require('node:os');
@@ -44,6 +45,7 @@ async function setup(browser, language, width, speech = 'standard') {
     let data = [];
     if (pathname === '/api/me') data = { id: 'qa', displayName: 'QA Leader', isGuest: false, isRegistered: true, platformRole: 'superadmin', permissions: ['admin.access'], memberships: [] };
     else if (pathname === '/api/event-archetypes') data = catalogue;
+    else if (pathname.endsWith('/compose')) data = { schemaVersion: '1.1.0', proposalHash: 'qa', baselineETag: '"new"', facts: { items: [] }, roleRequirements: [], workflowContributions: [], warnings: [], navigation: [], readiness: { status: 'notReady', blockers: [] }, moduleDecisions: [] };
     else if (pathname.includes('/details-session/') && pathname.endsWith('/message')) {
       const payload = route.request().postDataJSON(); messages.push(payload);
       const snapshot = payload.appContext.knownFacts.snapshot;
@@ -57,7 +59,9 @@ async function setup(browser, language, width, speech = 'standard') {
   const zh = language === 'zh';
   await page.getByRole('button', { name: /轻松相聚|Simple social/ }).click();
   await page.getByRole('button', { name: /团契聚餐|Fellowship meal/ }).click();
-  await page.getByRole('button', { name: zh ? '继续' : 'Continue', exact: true }).click();
+  await page.getByRole('button', { name: zh ? '开始安排' : 'Start arranging', exact: true }).click();
+  await page.locator('[data-arrangement-tile="EVENT.DETAILS"]').click();
+  await showDetailsPane(page, 'assistant');
   return {
     context, page, errors, messages,
     prompt: page.getByLabel(zh ? '可直接继续补充活动信息，AI 会据你提供内容更新草稿。' : 'Continue entering event details; AI will update the draft from what you provide.', { exact: true }),
@@ -68,10 +72,10 @@ async function setup(browser, language, width, speech = 'standard') {
 }
 const emit = (page, parts) => page.evaluate(parts => window.__voice.instances.at(-1).emit(parts), parts);
 const end = page => page.evaluate(() => window.__voice.instances.at(-1).onend?.());
-const waitText = (page, text) => page.waitForFunction(text => document.querySelector('textarea[id]')?.value === text, text);
+const waitText = (page, text) => page.waitForFunction(text => document.querySelector('textarea[maxlength="8000"]')?.value === text, text);
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, ...(process.env.ALIFE_BROWSER_EXECUTABLE ? { executablePath: process.env.ALIFE_BROWSER_EXECUTABLE } : {}) });
   try {
     for (const language of process.env.ALIFE_VOICE_SKIP_LAYOUT ? [] : ['zh', 'en']) for (const width of [320, 768, 1280]) {
       const { context, page, prompt, start, stop, send, errors, messages } = await setup(browser, language, width, language === 'zh' ? 'standard' : 'prefixed');
@@ -104,7 +108,10 @@ const waitText = (page, text) => page.waitForFunction(text => document.querySele
       assert.equal(messages[0].message, 'Manually corrected Second Last Another session');
       assert.equal(await prompt.inputValue(), '');
       const zone = page.getByLabel(language === 'zh' ? '活动时区' : 'Event time zone', { exact: true });
+      await showDetailsPane(page, 'form');
+      await page.locator('.event-detail-zone > summary').click();
       await zone.fill('Pacific/Auckland');
+      await showDetailsPane(page, 'assistant');
       await prompt.fill('2026年9月19日下午1点到下午4点'); await send.click();
       const begins = page.getByLabel(language === 'zh' ? '开始时间' : 'Start time', { exact: true });
       const ends = page.getByLabel(language === 'zh' ? '结束时间' : 'End time', { exact: true });
@@ -157,15 +164,18 @@ const waitText = (page, text) => page.waitForFunction(text => document.querySele
     assert.equal((await prompt.inputValue()).length, 8000); await start.waitFor();
     await prompt.fill('Preserved'); await start.click();
     await page.evaluate(() => window.__lateVoiceResult = window.__voice.instances.at(-1).onresult);
-    await page.locator('footer').getByRole('button', { name: 'Back', exact: true }).click();
+    await page.locator('[data-arrangement-tile="EVENT.DETAILS"]').click();
     await page.waitForFunction(() => window.__voice.instances.at(-1).aborts > 0);
     await page.evaluate(() => window.__lateVoiceResult({ results: [Object.assign([{ transcript: 'Late' }], { isFinal: true })] }));
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.locator('[data-arrangement-tile="EVENT.DETAILS"]').click();
+    await showDetailsPane(page, 'assistant');
     assert.equal(await prompt.inputValue(), 'Preserved');
     await start.click();
-    await page.locator('summary').filter({ hasText: 'AI details assistant' }).click();
+    const wide = await page.locator('.event-details-workspace').getAttribute('data-wide') === 'true';
+    if (wide) await page.getByRole('button', { name: 'Collapse assistant', exact: true }).click();
+    else await showDetailsPane(page, 'form');
     await page.waitForFunction(() => window.__voice.instances.at(-1).aborts > 0);
-    await page.locator('summary').filter({ hasText: 'AI details assistant' }).click();
+    await showDetailsPane(page, 'assistant');
     await start.click();
     await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: true }); document.dispatchEvent(new Event('visibilitychange')); });
     await start.waitFor(); await page.waitForFunction(() => window.__voice.instances.at(-1).aborts > 0);
