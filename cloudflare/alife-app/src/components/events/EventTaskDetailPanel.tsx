@@ -1,3 +1,6 @@
+import { BilingualField } from './creation/CreationFields'
+import { roleStatusLabel } from './EventArrangementRoles'
+import { workStageText } from '../../services/eventWorkService'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { EventTaskDetail } from '../../types/eventOperations'
 import { eventOperationsService as service } from '../../services/eventOperationsService'
@@ -13,12 +16,13 @@ export default function EventTaskDetailPanel({ eventId, taskId, onChanged, befor
   const { language, me } = useAuthStore(), zh = language === 'zh'
   const [data, setData] = useState<EventTaskDetail | null>(null)
   const [reason, setReason] = useState(''), [reviewer, setReviewer] = useState(''), [assignee, setAssignee] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false)
+  const [preparation, setPreparation] = useState({ en: '', zh: '' })
   const [resolutions, setResolutions] = useState<Record<string, string>>({})
   const retry = useRef<{ signature: string; key: string } | null>(null)
   const { requestConfirmation, confirmationModal } = useConfirmation()
   const load = useCallback(async () => {
     const next = await service.getTask(eventId, taskId)
-    setData(next); setReviewer(next.task.reviewerMemberId ?? ''); setAssignee(next.task.assignedMemberId ?? '')
+    setData(next); setPreparation(next.task.preparation ?? { en: '', zh: '' }); setReviewer(next.task.reviewerMemberId ?? ''); setAssignee(next.task.assignedMemberId ?? '')
   }, [eventId, taskId, me?.id])
   useEffect(() => { setData(null); void load().catch(e => setError(normalizeApiError(e).message)) }, [load])
   const run = async (action: string) => {
@@ -27,9 +31,11 @@ export default function EventTaskDetailPanel({ eventId, taskId, onChanged, befor
     setBusy(true); setError('')
     try {
       await beforeAction?.()
-      const signature = JSON.stringify([action, data.task.eTag, reason])
+      const signature = JSON.stringify([action, data.task.eTag, reason, preparation])
       if (retry.current?.signature !== signature) retry.current = { signature, key: crypto.randomUUID() }
-      await service.actOnTask(eventId, data.task, action, reason, retry.current.key)
+      if (['accept-assignment', 'decline-assignment', 'save-preparation', 'select-publication'].includes(action))
+        await service.taskPreparationAction(eventId, data.task, action, action === 'save-preparation' ? { preparation } : action === 'select-publication' ? { publicationCandidate: !data.task.preparationPublicationCandidate } : {}, retry.current.key)
+      else await service.actOnTask(eventId, data.task, action, reason, retry.current.key)
       retry.current = null; setReason(''); await load(); await onChanged?.()
     } catch (e) { setError(normalizeApiError(e).message) } finally { setBusy(false) }
   }
@@ -41,7 +47,13 @@ export default function EventTaskDetailPanel({ eventId, taskId, onChanged, befor
     : { todo: 'To do', inProgress: 'In progress', blocked: 'Blocked', done: 'Done', cancelled: 'Cancelled', notRequired: 'No review required', notSubmitted: 'Not submitted', pendingReview: 'Awaiting review', approved: 'Approved', returned: 'Returned', 'submit-completion': 'Completion submitted', 'withdraw-completion': 'Submission withdrawn', approve: 'Approved', return: 'Returned', invalidated: 'Submission invalidated' }
   return <AppSectionCard title={task.title[language] || task.title.en}>
     {confirmationModal}
-    <p className="whitespace-pre-wrap text-sm">{task.description[language] || task.description.en}</p>
+    <p className="whitespace-pre-wrap text-sm">{task.description[language] || task.description.en || task.description.zh}</p>
+    <details key={language} className="mt-3 rounded-xl border p-3 text-sm"><summary className="min-h-8 cursor-pointer font-semibold">{zh ? '展开 English' : 'Expand 中文'}</summary><h3 className="mt-2 font-semibold">{task.title[zh ? 'en' : 'zh']}</h3><p className="mt-2 whitespace-pre-wrap">{task.description[zh ? 'en' : 'zh']}</p></details>
+    <p className="mt-3 text-sm">{workStageText(task.stage || 'preparation', zh)} · {task.dueUtc ? new Date(task.dueUtc).toLocaleString(language) : (zh ? '未设期限' : 'No deadline')}</p>
+    <p className="mt-2 font-semibold text-violet-900">{roleStatusLabel(task.assignmentStatus ?? 'accepted', zh)}</p>
+    {data.canRespond ? <div className="my-4 flex flex-wrap gap-3"><AppActionButton variant="primary" disabled={busy} onClick={() => void run('accept-assignment')}>{zh ? '接受委派' : 'Accept delegation'}</AppActionButton><AppActionButton disabled={busy} onClick={() => void run('decline-assignment')}>{zh ? '拒绝委派' : 'Decline delegation'}</AppActionButton></div> : null}
+    {data.canPrepare ? <fieldset disabled={busy} className="my-4 space-y-3 rounded-2xl border border-violet-200 bg-violet-50 p-4"><BilingualField primaryLanguage={language} label={zh ? '准备情况' : 'Preparation update'} multiline maxLength={4000} value={preparation} onChange={setPreparation} /><AppActionButton variant="primary" disabled={!preparation.en.trim() && !preparation.zh.trim() || JSON.stringify(preparation) === JSON.stringify(task.preparation ?? { en: '', zh: '' })} onClick={() => void run('save-preparation')}>{zh ? '保存准备情况' : 'Save preparation update'}</AppActionButton></fieldset> : task.preparationUpdatedUtc ? <section className="my-4 rounded-2xl bg-violet-50 p-4"><h3 className="font-semibold">{zh ? '准备情况' : 'Preparation update'}</h3><p className="mt-2 whitespace-pre-wrap text-sm">{task.preparation?.[language] || task.preparation?.en || task.preparation?.zh}</p><details key={language} className="mt-3"><summary className="min-h-8 cursor-pointer text-sm font-semibold">{zh ? '展开 English' : 'Expand 中文'}</summary><p className="whitespace-pre-wrap text-sm">{task.preparation?.[zh ? 'en' : 'zh']}</p></details></section> : null}
+    {data.canManage && !task.sourceType && task.preparationUpdatedUtc && !task.isRestricted ? <div className="my-3 space-y-2"><AppActionButton disabled={busy || !task.preparation?.en.trim() || !task.preparation?.zh.trim()} onClick={() => void run('select-publication')}>{task.preparationPublicationCandidate ? (zh ? '撤销发布素材选择' : 'Remove from publication material') : (zh ? '选作发布素材' : 'Select as publication material')}</AppActionButton><p className="text-sm text-[#66766f]">{zh ? '选中后可在发布环节核对和复制；修改准备情况后需重新选择。' : 'Review and copy selected material in the publication step. Updated preparation needs a new selection.'}</p></div> : null}
     <p className="my-3 text-sm font-semibold">{task.requiresApproval && task.status !== 'done' ? labels[task.approvalStatus ?? 'notSubmitted'] : labels[task.status] || task.status}</p>
     {task.approvalStatus === 'returned' ? <p className="my-3 whitespace-pre-wrap rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{data.history.filter(h => h.action === 'return').at(-1)?.reason}</p> : null}
     {task.dependencies.length ? <div className="my-4 text-sm"><p className="font-semibold">{zh ? '先完成关联任务' : 'Complete prerequisite tasks first'}</p>{task.dependencies.map(dependency => <Link className="mt-2 block break-all text-[#176b5a] underline" key={dependency.id} to={`/events/${eventId}/tasks/${dependency.dependsOnEventTaskId}`}>{zh ? '查看前置任务' : 'View prerequisite'} · {dependency.dependsOnEventTaskId.slice(0, 8)}</Link>)}</div> : null}
@@ -56,7 +68,7 @@ export default function EventTaskDetailPanel({ eventId, taskId, onChanged, befor
     <div className="flex flex-wrap gap-3">
       {data.canSubmit ? <AppActionButton disabled={busy} onClick={() => void run('submit-completion')}>{zh ? '提交完成并送审' : 'Submit completion for review'}</AppActionButton> : null}
       {data.canWithdraw ? <AppActionButton disabled={busy} onClick={() => void run('withdraw-completion')}>{zh ? '撤回提交' : 'Withdraw completion'}</AppActionButton> : null}
-      {!task.requiresApproval && !task.sourceType && task.assignedMemberId === me?.id && !['done', 'cancelled'].includes(task.status) ? <AppActionButton disabled={busy} onClick={() => { setBusy(true); void Promise.resolve().then(beforeAction).then(() => service.updateTask(eventId, task, 'done')).then(load).then(onChanged).catch(e => setError(normalizeApiError(e).message)).finally(() => setBusy(false)) }}>{zh ? '标记完成' : 'Complete task'}</AppActionButton> : null}
+      {!task.requiresApproval && !task.sourceType && (task.assignmentStatus ?? 'accepted') === 'accepted' && task.assignedMemberId === me?.id && !['done', 'cancelled'].includes(task.status) ? <AppActionButton disabled={busy} onClick={() => { setBusy(true); void Promise.resolve().then(beforeAction).then(() => service.updateTask(eventId, task, 'done')).then(load).then(onChanged).catch(e => setError(normalizeApiError(e).message)).finally(() => setBusy(false)) }}>{zh ? '标记完成' : 'Complete task'}</AppActionButton> : null}
     </div>
     {data.canReview ? <fieldset disabled={busy} className="mt-4 space-y-3"><label className="grid gap-1 text-sm">{zh ? '审核意见（退回时必填）' : 'Review note (required for return)'}<textarea className="min-h-24 w-full rounded-xl border p-3" maxLength={2000} value={reason} onChange={e => setReason(e.target.value)} /></label><div className="flex gap-3"><AppActionButton onClick={() => void run('approve')}>{zh ? '审核通过' : 'Approve completion'}</AppActionButton><AppActionButton variant="danger" disabled={!reason.trim()} onClick={() => void run('return')}>{zh ? '退回修改' : 'Return for changes'}</AppActionButton></div></fieldset> : null}
     {data.history.length ? <details className="mt-5 rounded-xl border p-3"><summary className="cursor-pointer font-semibold">{zh ? '提交与审核记录' : 'Submission and review history'}</summary>{data.history.map(h => <div key={h.id} className="mt-3 border-t pt-3 text-sm"><p>{zh ? `第 ${h.round} 轮` : `Round ${h.round}`} · {labels[h.action] || h.action} · {new Date(h.createdUtc).toLocaleString(language)}</p>{h.reason ? <p className="mt-1 whitespace-pre-wrap">{h.reason}</p> : null}</div>)}</details> : null}

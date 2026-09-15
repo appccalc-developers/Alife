@@ -44,11 +44,18 @@ public sealed partial class EventOperationsService(
             .OrderBy(x => x.RoleRequirementKey).ToListAsync(ct);
         var tasks = await TaskQuery(eventId).OrderBy(x => x.DueUtc).ThenBy(x => x.CreatedUtc).ToListAsync(ct);
         IReadOnlyList<RoleRequirementDto> roleRequirements = [];
+        IReadOnlyList<EventTeamModuleDto> enabledModules = [];
         var snapshot = await db.EventPlanSnapshots.AsNoTracking().Where(x => x.EventId == eventId && x.IsActive)
             .OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);
         if (snapshot is not null)
         {
-            try { roleRequirements = EventCompositionPersistence.ToSnapshotDto(snapshot).Plan.RoleRequirements; }
+            try
+            {
+                var plan = EventCompositionPersistence.ToSnapshotDto(snapshot).Plan;
+                roleRequirements = plan.RoleRequirements;
+                enabledModules = plan.ModuleDecisions.Where(x => x.Status is EventModuleDecisionStatus.Required or EventModuleDecisionStatus.Selected)
+                    .OrderBy(x => x.NavigationOrder).Select(x => new EventTeamModuleDto(x.ModuleCode, x.Label)).ToArray();
+            }
             catch (System.Text.Json.JsonException) { roleRequirements = []; }
         }
         if (!canViewTeam)
@@ -62,7 +69,7 @@ public sealed partial class EventOperationsService(
         var blockers = BuildTeamBlockers(roles, tasks, DateTime.UtcNow);
         return AppResult<EventTeamWorkspaceDto>.Success(new(
             members.Select(x => ToTeamMemberDto(x)).ToArray(), roles.Select(EventCompositionPersistence.ToDto).ToArray(),
-            tasks.Select(ToTaskDto).ToArray(), roleRequirements, blockers, canManage));
+            tasks.Select(ToTaskDto).ToArray(), roleRequirements, blockers, canManage, enabledModules));
     }
 
     public async Task<AppResult<EventTeamMemberDto>> InviteTeamMemberAsync(Guid eventId, Guid memberId, InviteEventTeamMemberRequest request, CancellationToken ct)
@@ -128,6 +135,9 @@ public sealed partial class EventOperationsService(
             request.EventOccurrenceId.HasValue && !await db.EventOccurrences.AnyAsync(x => x.Id == request.EventOccurrenceId && x.EventId == eventId, ct))
             return AppResult<EventTaskDto>.Validation("Choose a valid stage and an occurrence belonging to this event.");
         if (!await EligibleTaskMember(access.Value!, memberId, ct)) return AppResult<EventTaskDto>.Forbidden("Current Event membership is required.");
+        if (request.Title is not { En: not null, Zh: not null } || request.Title.En.Length > 300 || request.Title.Zh.Length > 300 ||
+            request.Description?.En?.Length > 2000 || request.Description?.Zh?.Length > 2000)
+            return AppResult<EventTaskDto>.Validation("Titles allow 300 characters and descriptions 2,000 per language.");
         var validation = await ValidateTaskRequest(access.Value!, request.Title, request.AssignedMemberId, ct);
         if (validation is not null) return AppResult<EventTaskDto>.Validation(validation);
         var ownerId = EventDutyAccess.OwnerId(access.Value!);
@@ -139,6 +149,7 @@ public sealed partial class EventOperationsService(
         var entity = new EventTask { Id = Guid.NewGuid(), EventId = eventId, Stage = request.Stage, EventOccurrenceId = request.EventOccurrenceId,
             TitleEn = request.Title.En.Trim(), TitleZh = request.Title.Zh.Trim(), DescriptionEn = request.Description?.En.Trim() ?? "",
             DescriptionZh = request.Description?.Zh.Trim() ?? "", AssignedMemberId = request.AssignedMemberId,
+            AssignmentStatus = request.AssignedMemberId.HasValue ? (request.RequireAcceptance ? "invited" : "accepted") : "unassigned",
             DueUtc = request.DueUtc, IsRequired = request.IsRequired, RequiresApproval = request.RequiresApproval,
             IsRestricted = request.IsRestricted, ReviewerMemberId = request.RequiresApproval ? reviewer : null,
             ApprovalStatus = request.RequiresApproval ? EventTaskApprovalStatus.NotSubmitted : EventTaskApprovalStatus.NotRequired,
@@ -163,6 +174,12 @@ public sealed partial class EventOperationsService(
         if (task.IsRestricted && !canManage && task.AssignedMemberId != memberId) return AppResult<EventTaskDto>.Forbidden("This task is role-restricted.");
         if (!Matches(ifMatch, TaskETag(task))) return AppResult<EventTaskDto>.PreconditionFailed("The task changed; reload before saving.");
         if (!await EligibleTaskMember(task.Event, memberId, ct)) return AppResult<EventTaskDto>.Forbidden("Current Event membership is required.");
+        if (task.AssignmentStatus is "invited" or "declined" && request.Status != task.Status && request.Status != EventTaskStatus.Cancelled)
+            return AppResult<EventTaskDto>.Conflict("The assignee must accept the delegation before recording progress. / 负责人须先接受委派。");
+        if (request.Status == EventTaskStatus.Done && task.AssignmentRespondedUtc.HasValue && !task.PreparationUpdatedUtc.HasValue)
+            return AppResult<EventTaskDto>.Conflict("Record preparation before completing this delegated task. / 请先填写准备情况。");
+        if (request.Status == EventTaskStatus.Done && task.AssignedMemberId != request.AssignedMemberId)
+            return AppResult<EventTaskDto>.Conflict("A reassigned task must first be accepted and prepared by its new assignee.");
         var reviewer = request.ClearReviewer ? null : request.ReviewerMemberId ?? task.ReviewerMemberId;
         if (task.RequiresApproval && request.Status == EventTaskStatus.Done &&
             (task.Status != EventTaskStatus.Done || task.TitleEn != request.Title.En.Trim() || task.TitleZh != request.Title.Zh.Trim() ||
@@ -198,8 +215,16 @@ public sealed partial class EventOperationsService(
             task.DescriptionEn != (request.Description?.En.Trim() ?? "") || task.DescriptionZh != (request.Description?.Zh.Trim() ?? "");
         task.TitleEn = request.Title.En.Trim(); task.TitleZh = request.Title.Zh.Trim();
         task.DescriptionEn = request.Description?.En.Trim() ?? ""; task.DescriptionZh = request.Description?.Zh.Trim() ?? "";
+        if (task.AssignedMemberId != request.AssignedMemberId)
+        {
+            task.AssignmentStatus = request.AssignedMemberId.HasValue ? "invited" : "unassigned";
+            task.AssignmentRespondedUtc = null;
+            task.PreparationEn = ""; task.PreparationZh = ""; task.PreparationUpdatedUtc = null;
+            task.PreparationPublicationCandidate = false;
+        }
         task.AssignedMemberId = request.AssignedMemberId; task.DueUtc = request.DueUtc; task.Status = request.Status;
         task.IsRequired = request.IsRequired; task.RequiresApproval = request.RequiresApproval; task.IsRestricted = request.IsRestricted;
+        if (changesPreparation) task.PreparationPublicationCandidate = false;
         if (changesPreparation || (task.ApprovalStatus == EventTaskApprovalStatus.PendingReview && changesProgress) || (task.ApprovalStatus == EventTaskApprovalStatus.Approved && request.Status != EventTaskStatus.Done))
             InvalidateTaskApproval(task, memberId);
         task.ReviewerMemberId = request.RequiresApproval ? reviewer : null;
@@ -230,6 +255,7 @@ public sealed partial class EventOperationsService(
         if (!Matches(ifMatch, TaskETag(task))) return AppResult<EventTaskDto>.PreconditionFailed("The task changed; reload before cancelling.");
         InvalidateTaskApproval(task, memberId);
         task.Status = EventTaskStatus.Cancelled; task.CompletedUtc = null; task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
+        task.PreparationPublicationCandidate = false;
         if (task.Stage == "preparation" && (task.IsRequired || task.RequiresApproval) && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.cancelled", "governanceCritical", ct);
@@ -666,7 +692,8 @@ public sealed partial class EventOperationsService(
         new(x.DescriptionEn, x.DescriptionZh), x.AssignedMemberId, x.Status, x.IsRequired, x.RequiresApproval, x.IsRestricted,
         x.DueUtc, x.CompletedUtc, TaskETag(x), x.Dependencies.Select(d => new EventTaskDependencyDto(d.Id, d.DependsOnEventTaskId, d.DependencyType)).ToArray(),
         x.Blockers.Select(b => new EventTaskBlockerDto(b.Id, b.Reason, b.CreatedByMemberId, b.CreatedUtc, b.ResolvedByMemberId, b.Resolution, b.ResolvedUtc)).ToArray(),
-        x.ReviewerMemberId, x.ApprovalStatus, x.ApprovalRound, x.SourceType, x.SourceId, x.Stage, x.EventOccurrenceId);
+        x.ReviewerMemberId, x.ApprovalStatus, x.ApprovalRound, x.SourceType, x.SourceId, x.Stage, x.EventOccurrenceId,
+        x.AssignmentStatus, x.AssignmentRespondedUtc, new(x.PreparationEn, x.PreparationZh), x.PreparationUpdatedUtc, x.PreparationPublicationCandidate);
     private static EventProgrammeDto ToProgrammeDto(EventOccurrence x, bool canManage) => new(x.EventId, x.Id, ProgrammeETag(x),
         x.Sessions.OrderBy(s => s.StartUtc).Select(s => new EventSessionDto(s.Id, s.OccurrenceId, new(s.TitleEn, s.TitleZh), s.StartUtc, s.EndUtc,
             s.PlaceJson, s.LeadMemberId, s.Status, s.ProgramItems.OrderBy(i => i.SortOrder).Select(i => new EventProgramItemDto(i.Id, i.SessionId,
@@ -689,12 +716,16 @@ public sealed partial class EventOperationsService(
     private static IReadOnlyList<LocalizedTextDto> BuildTeamBlockers(IEnumerable<EventRoleAssignment> roles, IEnumerable<EventTask> tasks, DateTime now)
     {
         var blockers = new List<LocalizedTextDto>();
+        tasks = tasks.Where(x => x.Stage == "preparation" && x.Status != EventTaskStatus.Cancelled && x.SourceType == null).ToArray();
         foreach (var role in roles.Where(x => x.EndedUtc == null && x.Status != EventRoleAssignmentStatus.Accepted))
             blockers.Add(new($"Required role {role.RoleRequirementKey} is {role.Status}.", $"必要角色 {role.RoleRequirementKey} 狀態為 {role.Status}。"));
         foreach (var task in tasks.Where(x => x.IsRequired && (x.Status == EventTaskStatus.Blocked || (x.DueUtc < now && x.Status != EventTaskStatus.Done))))
             blockers.Add(new($"Required task {task.TitleEn} is blocked or overdue.", $"必要任務「{task.TitleZh}」受阻或已逾期。"));
         foreach (var task in tasks.Where(x => x.IsRequired && x.RequiresApproval && x.Status != EventTaskStatus.Done))
             blockers.Add(new($"Approval task {task.TitleEn} is incomplete.", $"批准任務「{task.TitleZh}」尚未完成。"));
+        foreach (var task in tasks.Where(x => x.IsRequired && x.Status != EventTaskStatus.Done &&
+            (x.AssignmentStatus is "invited" or "declined" or "unassigned" || x.AssignmentRespondedUtc.HasValue && !x.PreparationUpdatedUtc.HasValue)))
+            blockers.Add(new($"Task {task.TitleEn} needs assignment acceptance and preparation.", $"任务「{task.TitleZh}」需要负责人接受委派并填写准备情况。"));
         return blockers;
     }
 
@@ -725,7 +756,8 @@ public sealed partial class EventOperationsService(
             !x.EligibilityCode.StartsWith("acceptedRole:", StringComparison.Ordinal)) return "Unknown eligibilityCode.";
         return null;
     }
-    private static string TaskETag(EventTask x) => $"\"task-{x.ConcurrencyToken:N}\"";
+    private static string TaskETag(EventTask x) => x.PublicationSelectionToken is { } selection
+        ? $"\"task-{x.ConcurrencyToken:N}-{selection:N}\"" : $"\"task-{x.ConcurrencyToken:N}\"";
     private static string ProgrammeETag(EventOccurrence x) => $"\"programme-{x.ProgrammeConcurrencyToken:N}\"";
     private static string RosterETag(EventOccurrence x) => $"\"roster-{x.RosterConcurrencyToken:N}\"";
     private static bool Matches(string? actual, string expected) => !string.IsNullOrWhiteSpace(actual) && string.Equals(actual.Trim(), expected, StringComparison.Ordinal);

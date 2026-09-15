@@ -7599,6 +7599,42 @@ public sealed record AcceptEventPlanRequest(
     },
     {
       "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/accept-assignment",
+      "request": "If-Match; Idempotency-Key; optional bilingual preparation or publicationCandidate for the corresponding action",
+      "response": "EventTaskDetailDto with current delegation, preparation and server capabilities",
+      "auth": "current eligible owner selects publication material; current eligible assignee responds/prepares; no specialist-source tasks",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/decline-assignment",
+      "request": "If-Match; Idempotency-Key; optional bilingual preparation or publicationCandidate for the corresponding action",
+      "response": "EventTaskDetailDto with current delegation, preparation and server capabilities",
+      "auth": "current eligible owner selects publication material; current eligible assignee responds/prepares; no specialist-source tasks",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/save-preparation",
+      "request": "If-Match; Idempotency-Key; optional bilingual preparation or publicationCandidate for the corresponding action",
+      "response": "EventTaskDetailDto with current delegation, preparation and server capabilities",
+      "auth": "current eligible owner selects publication material; current eligible assignee responds/prepares; no specialist-source tasks",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/select-publication",
+      "request": "If-Match; Idempotency-Key; optional bilingual preparation or publicationCandidate for the corresponding action",
+      "response": "EventTaskDetailDto with current delegation, preparation and server capabilities",
+      "auth": "current eligible owner selects publication material; current eligible assignee responds/prepares; no specialist-source tasks",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
       "path": "/api/events/{id}/tasks/{taskId}/submit-completion",
       "request": "If-Match; Idempotency-Key; reason (required for return)",
       "response": "EventTaskDetailDto with current task, immutable submission/action history and capabilities",
@@ -8463,6 +8499,35 @@ public sealed record AcceptEventPlanRequest(
       "contacts",
       "conditionEvidence"
     ],
+    "customTaskDelegation": {
+      "assignmentStates": [
+        "unassigned",
+        "invited",
+        "accepted",
+        "declined"
+      ],
+      "creation": "current UI sends requireAcceptance=true; omitted legacy API option preserves accepted behavior",
+      "reassignment": "fresh invitation; clear previous current preparation and publication-material selection",
+      "personalActions": [
+        "accept-assignment",
+        "decline-assignment",
+        "save-preparation"
+      ],
+      "ownerActions": [
+        "select-publication"
+      ],
+      "dutyActions": [
+        "event.task.respond",
+        "event.task.reassign"
+      ],
+      "preparation": "bilingual text, 4000 characters per language; required before completion of newly accepted delegations",
+      "publicationMaterial": "private owner-selected unrestricted bilingual preparation; manual review/copy during publication; revisions clear selection; separate selection concurrency preserves the approved task source vector",
+      "bilingualUI": "selected language visible; other language disclosed; language switch preserves drafts without refetch",
+      "organizerShifts": false,
+      "aiAssistance": false,
+      "migration": "EventTaskDelegationPreparation",
+      "cache": "private, no-store"
+    },
     "ordinaryTaskApproval": {
       "states": [
         "notRequired",

@@ -71,7 +71,7 @@ public sealed class EventDutyProjectionService(IAlifeDbContext db, IEventPackage
         var activeMemberships = await db.GroupMemberships.AsNoTracking().Where(x => participantGroups.Contains(x.GroupId) && x.Status == MembershipStatus.Approved).Select(x => new { x.GroupId, x.MemberId }).ToListAsync(ct);
         var activeMembers = activeMemberships.Select(x => (x.GroupId, x.MemberId)).ToHashSet();
         var roles = await db.EventRoleAssignments.AsNoTracking().Where(x => ids.Contains(x.EventId) && x.EndedUtc == null).ToListAsync(ct);
-        var tasks = await db.EventTasks.AsNoTracking().Where(x => ids.Contains(x.EventId) && (x.AssignedMemberId == member || x.ReviewerMemberId == member) && x.Status != EventTaskStatus.Done && x.Status != EventTaskStatus.Cancelled).ToListAsync(ct);
+        var tasks = await db.EventTasks.AsNoTracking().Where(x => ids.Contains(x.EventId) && (x.AssignedMemberId == member || x.ReviewerMemberId == member || x.AssignmentStatus == "declined" && (x.Event.AccountableOwnerMemberId == member || x.Event.AccountableOwnerMemberId == Guid.Empty && x.Event.CreatedByMemberId == member)) && x.Status != EventTaskStatus.Done && x.Status != EventTaskStatus.Cancelled).ToListAsync(ct);
         var conditionTasks = await db.EventPackageConditions.AsNoTracking().Where(x => ids.Contains(x.EventPackage.EventId) && x.ReadinessTaskId != null).Select(x => x.ReadinessTaskId).ToArrayAsync(ct);
         var roster = await db.EventRosterAssignments.AsNoTracking().Include(x => x.ServiceSlot).ThenInclude(x => x.Occurrence)
             .Where(x => ids.Contains(x.ServiceSlot.Occurrence.EventId) && x.MemberId == member && x.EndedUtc == null && x.Status == EventRosterAssignmentStatus.Invited).ToListAsync(ct);
@@ -108,6 +108,16 @@ public sealed class EventDutyProjectionService(IAlifeDbContext db, IEventPackage
             if (accepted)
                 foreach (var task in tasks.Where(x => x.EventId == e.Id && x.SourceType == null && !conditionTasks.Contains(x.Id)))
                 {
+                    if (task.AssignmentStatus == "declined")
+                    {
+                        if (owner) Add("eventTask", task.Id, task.ConcurrencyToken.ToString("N"), "event.task.reassign", $"Reassign declined task: {task.TitleEn}", $"重新安排已拒绝的任务：{task.TitleZh}", "task", task.UpdatedUtc, task.DueUtc, task.EventOccurrenceId);
+                        continue;
+                    }
+                    if (task.AssignmentStatus == "invited")
+                    {
+                        if (task.AssignedMemberId == member) Add("eventTask", task.Id, task.ConcurrencyToken.ToString("N"), "event.task.respond", $"Respond to task delegation: {task.TitleEn}", $"回应任务委派：{task.TitleZh}", "task", task.UpdatedUtc, task.DueUtc, task.EventOccurrenceId);
+                        continue;
+                    }
                     var review = task.ApprovalStatus == EventTaskApprovalStatus.PendingReview;
                     if (review ? task.ReviewerMemberId != member || task.AssignedMemberId == member || !Participant(task.AssignedMemberId) : task.AssignedMemberId != member) continue;
                     Add("eventTask", task.Id, task.ConcurrencyToken.ToString("N"), review ? "event.task.review" : "event.task.complete",

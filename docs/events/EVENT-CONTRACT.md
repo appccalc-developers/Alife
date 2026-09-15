@@ -123,7 +123,7 @@ The system owns these twelve capability codes:
 
 | Module | Target responsibility |
 | --- | --- |
-| [TEAM.WORK](modules/TEAM.WORK.md) | Teams, roles, tasks, artifacts, blockers, hand-offs, and accountable delivery |
+| [TEAM.WORK](modules/TEAM.WORK.md) | Enabled-module responsibilities, collaborator invitations, custom task delegation, bilingual preparation, blockers and hand-offs; organizers have continuing responsibility |
 | [PEOPLE.REGISTRATION](modules/PEOPLE.REGISTRATION.md) | Invitations, registration, capacity, waitlist, cancellation, tickets, and attendance |
 | [SERVICE.ROSTER](modules/SERVICE.ROSTER.md) | Service demand, eligibility, availability, assignment, confirmation, and substitution |
 | [MONEY.FINANCE](modules/MONEY.FINANCE.md) | Budget, fees, purchasing, claims, refunds, reconciliation, and close-out |

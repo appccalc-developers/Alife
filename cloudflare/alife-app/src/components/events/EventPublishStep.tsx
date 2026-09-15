@@ -9,6 +9,7 @@ import { normalizeApiError } from '../../services/http'
 import { canPublishFromFlow, publicationAudience, setupPath } from '../../utils/eventSetupFlow'
 import type { EventLifecycle, EventPackage, EventPackageActorCapabilities } from '../../types/eventPackage'
 import useConfirmation from '../../hooks/useConfirmation'
+import EventTaskPublicationMaterial from './EventTaskPublicationMaterial'
 
 export default function EventPublishStep({ eventId, eventBasePath, zh, onBusy }: {
   eventId: string; eventBasePath: string; zh: boolean; onBusy: (busy: boolean) => void
@@ -54,6 +55,7 @@ export default function EventPublishStep({ eventId, eventBasePath, zh, onBusy }:
     {loading ? <p role="status">{zh ? '正在检查审批与发布状态……' : 'Checking approval and publication…'}</p> : null}
     {error ? <p role="alert" className="my-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{error}</p> : null}
     {state ? <div className="space-y-4 text-sm">
+      {state.info.canManage ? <EventTaskPublicationMaterial eventId={eventId} zh={zh} /> : null}
       <div className="rounded-xl bg-[#e3f0eb] p-4"><h3 className="font-semibold">{zh ? '发布范围' : 'Audience'}</h3><p className="mt-2">{publicationAudience(state.info.visibility, zh)}</p></div>
       {published ? <p role="status" className="font-semibold text-[#176b5a]">{zh ? '活动已发布，符合可见性规则的访客或成员可以查看。' : 'Event published. Eligible visitors or members can now view it.'}</p>
         : <><p>{canPublishFromFlow(state.item, state.lifecycle, state.capabilities) ? (zh ? '审批和发布条件已满足，请确认发布。' : 'Approval and publication checks are satisfied. Confirm publication when ready.') : (zh ? '尚未满足发布条件，请先完成正式审批、所需条件与相关安全审批。' : 'Publication is not ready. Complete formal approval, required conditions and applicable safety approvals.')}</p>

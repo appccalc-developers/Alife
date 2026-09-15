@@ -37,14 +37,18 @@ public sealed partial class EventOperationsService
             .Select(m => new EventTaskParticipantDto(m.Id, m.DisplayName ?? "")).ToArrayAsync(ct) : [];
         return AppResult<EventTaskDetailDto>.Success(new(ToTaskDto(task), task.ApprovalActions.OrderBy(x => x.CreatedUtc)
             .Select(x => new EventTaskApprovalActionDto(x.Id, x.Round, x.Action, x.ActorMemberId, x.ReviewerMemberId, x.SnapshotJson, x.Reason, x.CreatedUtc)).ToArray(),
-            manager, !system && active && task.RequiresApproval && !pending && task.AssignedMemberId == member,
+            manager, !system && active && task.AssignmentStatus == "accepted" && task.RequiresApproval && !pending && task.AssignedMemberId == member,
             !system && pending && task.AssignedMemberId == member,
-            !system && pending && task.ReviewerMemberId == member && task.AssignedMemberId != member && task.AssignedMemberId.HasValue && await EligibleTaskMember(task.Event, task.AssignedMemberId.Value, ct), participants));
+            !system && pending && task.ReviewerMemberId == member && task.AssignedMemberId != member && task.AssignedMemberId.HasValue && await EligibleTaskMember(task.Event, task.AssignedMemberId.Value, ct), participants,
+            !system && active && task.AssignedMemberId == member && task.AssignmentStatus == "invited",
+            !system && active && !pending && task.AssignedMemberId == member && task.AssignmentStatus == "accepted"));
     }
 
     public async Task<AppResult<EventTaskDetailDto>> ActOnTaskAsync(Guid eventId, Guid taskId, Guid member,
         string action, EventTaskApprovalRequest request, string? ifMatch, string? key, CancellationToken ct)
     {
+        if (action is "accept-assignment" or "decline-assignment" or "save-preparation" or "select-publication")
+            return await ActOnDelegatedTaskAsync(eventId, taskId, member, action, request, ifMatch, key, ct);
         if (action is not ("submit-completion" or "withdraw-completion" or "approve" or "return"))
             return AppResult<EventTaskDetailDto>.Validation("Unknown task action.");
         if (string.IsNullOrWhiteSpace(key) || key.Length is < 8 or > 120 || request.Reason is null || request.Reason.Length > 2000)
@@ -66,6 +70,9 @@ public sealed partial class EventOperationsService
         var pending = task.ApprovalStatus == EventTaskApprovalStatus.PendingReview;
         if (action == "submit-completion")
         {
+            if (task.AssignmentStatus != "accepted") return AppResult<EventTaskDetailDto>.Conflict("Accept the delegation before submitting completion.");
+            if (task.AssignmentRespondedUtc.HasValue && !task.PreparationUpdatedUtc.HasValue)
+                return AppResult<EventTaskDetailDto>.Conflict("Record preparation before submitting completion. / 请先填写准备情况。");
             if (task.AssignedMemberId != member) return AppResult<EventTaskDetailDto>.Forbidden("Only the assignee can submit completion.");
             if (pending) return AppResult<EventTaskDetailDto>.Conflict("Completion is already awaiting review.");
             var owner = task.Event.AccountableOwnerMemberId == Guid.Empty ? task.Event.CreatedByMemberId : task.Event.AccountableOwnerMemberId;
@@ -120,6 +127,7 @@ public sealed partial class EventOperationsService
             SnapshotJson = action == "submit-completion" ? EventPackageCanonicalizer.Serialize(new {
                 task.TitleEn, task.TitleZh, task.DescriptionEn, task.DescriptionZh, task.AssignedMemberId, task.ReviewerMemberId,
                 task.DueUtc, task.RequiresApproval, task.IsRequired, task.IsRestricted, task.ConcurrencyToken, task.Stage, task.EventOccurrenceId,
+                task.AssignmentStatus, task.PreparationEn, task.PreparationZh, task.PreparationUpdatedUtc,
                 prerequisites = task.Dependencies.Select(x => new { x.DependsOnEventTaskId, x.DependsOnEventTask.Status }) }) : "{}",
             Reason = reason.Trim(), CreatedUtc = now });
 

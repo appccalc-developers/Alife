@@ -14,26 +14,31 @@ public sealed record EventTaskDto(Guid Id, Guid EventId, Guid? WorkflowStepId, L
     bool RequiresApproval, bool IsRestricted, DateTime? DueUtc, DateTime? CompletedUtc, string ETag,
     IReadOnlyList<EventTaskDependencyDto> Dependencies, IReadOnlyList<EventTaskBlockerDto> Blockers,
     Guid? ReviewerMemberId = null, EventTaskApprovalStatus ApprovalStatus = EventTaskApprovalStatus.NotRequired,
-    int ApprovalRound = 0, string? SourceType = null, Guid? SourceId = null, string Stage = "preparation", Guid? EventOccurrenceId = null);
+    int ApprovalRound = 0, string? SourceType = null, Guid? SourceId = null, string Stage = "preparation", Guid? EventOccurrenceId = null,
+    string AssignmentStatus = "accepted", DateTime? AssignmentRespondedUtc = null, LocalizedTextDto? Preparation = null,
+    DateTime? PreparationUpdatedUtc = null, bool PreparationPublicationCandidate = false);
 public sealed record CreateEventTaskRequest(LocalizedTextDto Title, LocalizedTextDto? Description,
     Guid? AssignedMemberId, DateTime? DueUtc, bool IsRequired = false, bool RequiresApproval = false,
-    bool IsRestricted = false, Guid? WorkflowStepId = null, Guid? ReviewerMemberId = null, string Stage = "preparation", Guid? EventOccurrenceId = null);
+    bool IsRestricted = false, Guid? WorkflowStepId = null, Guid? ReviewerMemberId = null, string Stage = "preparation", Guid? EventOccurrenceId = null,
+    bool RequireAcceptance = false);
 public sealed record UpdateEventTaskRequest(LocalizedTextDto Title, LocalizedTextDto? Description,
     Guid? AssignedMemberId, DateTime? DueUtc, EventTaskStatus Status, bool IsRequired,
     bool RequiresApproval, bool IsRestricted, Guid? ReviewerMemberId = null, bool ClearReviewer = false);
-public sealed record EventTaskApprovalRequest(string Reason = "");
+public sealed record EventTaskApprovalRequest(string Reason = "", LocalizedTextDto? Preparation = null, bool? PublicationCandidate = null);
 public sealed record EventTaskApprovalActionDto(Guid Id, int Round, string Action, Guid ActorMemberId,
     Guid? ReviewerMemberId, string SnapshotJson, string Reason, DateTime CreatedUtc);
 public sealed record EventTaskDetailDto(EventTaskDto Task, IReadOnlyList<EventTaskApprovalActionDto> History,
     bool CanManage, bool CanSubmit, bool CanWithdraw, bool CanReview,
-    IReadOnlyList<EventTaskParticipantDto>? Participants = null);
+    IReadOnlyList<EventTaskParticipantDto>? Participants = null, bool CanRespond = false, bool CanPrepare = false);
 public sealed record EventTaskParticipantDto(Guid Id, string Name);
 public sealed record AddEventTaskDependencyRequest(Guid DependsOnEventTaskId, string DependencyType = "finishToStart");
 public sealed record AddEventTaskBlockerRequest(string Reason);
 public sealed record ResolveEventTaskBlockerRequest(string Resolution);
 public sealed record EventTeamWorkspaceDto(IReadOnlyList<EventTeamMemberDto> Members,
     IReadOnlyList<EventRoleAssignmentDto> Roles, IReadOnlyList<EventTaskDto> Tasks,
-    IReadOnlyList<RoleRequirementDto> RoleRequirements, IReadOnlyList<LocalizedTextDto> ReadinessBlockers, bool CanManage);
+    IReadOnlyList<RoleRequirementDto> RoleRequirements, IReadOnlyList<LocalizedTextDto> ReadinessBlockers, bool CanManage,
+    IReadOnlyList<EventTeamModuleDto>? EnabledModules = null);
+public sealed record EventTeamModuleDto(string ModuleCode, LocalizedTextDto Label);
 
 public sealed record EventSessionDto(Guid Id, Guid OccurrenceId, LocalizedTextDto Title, DateTime StartUtc,
     DateTime EndUtc, string PlaceJson, Guid? LeadMemberId, EventSessionStatus Status,
