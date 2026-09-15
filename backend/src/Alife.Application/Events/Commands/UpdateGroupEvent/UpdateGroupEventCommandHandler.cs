@@ -66,6 +66,18 @@ public sealed class UpdateGroupEventCommandHandler(
             return AppResult<GroupEventSummaryDto>.Validation("Event data must be a JSON object with a supported visibility.");
         }
 
+        if (await dbContext.EventRegistrationPolicies.AnyAsync(x => x.EventId == groupEvent.Id, cancellationToken))
+        {
+            using var currentData = System.Text.Json.JsonDocument.Parse(groupEvent.EventDataJson);
+            using var incomingData = System.Text.Json.JsonDocument.Parse(request.EventDataJson);
+            foreach (var field in new[] { "registrationRulesVersion", "registrationDeadline", "maxCapacity" })
+            {
+                if (!currentData.RootElement.TryGetProperty(field, out var original) ||
+                    !incomingData.RootElement.TryGetProperty(field, out var incoming) || !JsonEquivalent(original.GetRawText(), incoming.GetRawText()))
+                    return AppResult<GroupEventSummaryDto>.Conflict("Registration rules have been upgraded. Preserve their current version and use the registration rules page to change capacity or deadlines. / 报名已升级，请使用报名规则页面修改人数或截止时间，并刷新活动资料后再保存。");
+            }
+        }
+
         var contactProfileIds = (request.ContactProfileIds ?? []).Distinct().ToArray();
         var previousCapacity = EventEnrollmentCapacityService.Capacity(groupEvent.EventDataJson);
         var nextCapacity = EventEnrollmentCapacityService.Capacity(request.EventDataJson);

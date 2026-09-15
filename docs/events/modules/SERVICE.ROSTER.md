@@ -2,6 +2,10 @@
 
 > Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
 
+## Collaboration version 1
+
+The accepted **volunteer scheduling coordinator / 同工排班协调人** manually consolidates module needs, invites individuals, handles acceptance/decline and arranges replacements in an independent page. Preparation retains default demands and early arrangements; publication does not stop scheduling. Each occurrence has its own roster entry, including future twelve-week materialization. Demand is not confirmed personnel. Ordinary future shortages do not block plan approval; occurrence delivery still requires its applicable staff and specialist eligibility. Work and handoffs follow [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+
 ## Purpose
 
 Turn service demand into eligible, confirmed occurrence-level assignments while preserving availability, substitutions, and history.

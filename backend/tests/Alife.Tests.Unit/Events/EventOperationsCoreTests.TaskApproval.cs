@@ -20,7 +20,7 @@ public sealed partial class EventOperationsCoreTests
         foreach (var person in new[] { owner, assignee, reviewer })
         {
             db.Members.Add(Member(person, person.ToString()));
-            db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = e.GroupId, MemberId = person, Status = MembershipStatus.Approved });
+            if (person != owner) db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = e.GroupId, MemberId = person, Status = MembershipStatus.Approved });
             if (person != owner) db.EventTeamMembers.Add(new() { Id = Guid.NewGuid(), EventId = e.Id, MemberId = person, Status = EventTeamMemberStatus.Accepted });
         }
         await db.SaveChangesAsync();

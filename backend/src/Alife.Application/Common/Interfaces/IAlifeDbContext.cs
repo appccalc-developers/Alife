@@ -5,6 +5,14 @@ namespace Alife.Application.Common.Interfaces;
 
 public interface IAlifeDbContext
 {
+    DbSet<EventModuleReport> EventModuleReports { get; }
+    DbSet<EventRegistrationPolicy> EventRegistrationPolicies { get; }
+    DbSet<EventRegistrationApplication> EventRegistrationApplications { get; }
+    DbSet<EventRegistrationParticipant> EventRegistrationParticipants { get; }
+    DbSet<EventRegistrationAction> EventRegistrationActions { get; }
+    DbSet<EventRegistrationMaterial> EventRegistrationMaterials { get; }
+    DbSet<EventModuleReportRevision> EventModuleReportRevisions { get; }
+    DbSet<EventModuleReportAction> EventModuleReportActions { get; }
     DbSet<EventRosterGroup> EventRosterGroups { get; }
     DbSet<Group> Groups { get; }
     DbSet<Member> Members { get; }
@@ -49,6 +57,8 @@ public interface IAlifeDbContext
     DbSet<EventRosterAvailability> EventRosterAvailability { get; }
     DbSet<EventRosterAssignment> EventRosterAssignments { get; }
     DbSet<EventVenue> EventVenues { get; }
+    DbSet<EventVenueWeeklyBooking> EventVenueWeeklyBookings { get; }
+    DbSet<EventVenueBookingException> EventVenueBookingExceptions { get; }
     DbSet<EventVenueReservation> EventVenueReservations { get; }
     DbSet<EventTravelDriver> EventTravelDrivers { get; }
     DbSet<EventTravelVehicle> EventTravelVehicles { get; }
@@ -103,6 +113,7 @@ public interface IAlifeDbContext
     Task StageGroupDissolutionAsync(Guid groupId, Guid actorId, CancellationToken cancellationToken = default);
     Task<IAlifeTransaction?> BeginSerializableTransactionAsync(CancellationToken cancellationToken = default);
     Task LockEventRegistrationAsync(Guid eventId, CancellationToken cancellationToken = default);
+    Task LockEventVenueAsync(Guid venueId, CancellationToken cancellationToken = default);
 }
 
 public interface IAlifeTransaction : IAsyncDisposable

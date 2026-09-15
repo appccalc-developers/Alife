@@ -13,6 +13,7 @@ public class GroupEvent
 	public EventGovernanceMode GovernanceMode { get; set; } = EventGovernanceMode.MemberLed;
 	public EventSponsorshipStatus SponsorshipStatus { get; set; } = EventSponsorshipStatus.NotRequested;
 	public int? ActivePlanVersion { get; set; }
+	public int CollaborationVersion { get; set; }
 	public Guid PlanConcurrencyToken { get; set; } = Guid.NewGuid();
 	public EventPublicationStatus PublicationStatus { get; set; } = EventPublicationStatus.LegacyImplicit;
 	public Guid? PublishedPackageId { get; set; }

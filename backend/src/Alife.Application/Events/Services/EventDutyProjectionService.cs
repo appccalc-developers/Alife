@@ -59,7 +59,9 @@ public sealed class EventDutyProjectionService(IAlifeDbContext db, IEventPackage
                     db.EventTeamMembers.Any(t => t.EventId == x.Id && t.MemberId == member && t.EndedUtc == null) ||
                     db.EventRoleAssignments.Any(r => r.EventId == x.Id && r.MemberId == member && r.EndedUtc == null) ||
                     db.EventTasks.Any(t => t.EventId == x.Id && (t.AssignedMemberId == member || t.ReviewerMemberId == member) && t.Status != EventTaskStatus.Done && t.Status != EventTaskStatus.Cancelled) ||
-                    db.EventRosterAssignments.Any(r => r.ServiceSlot.Occurrence.EventId == x.Id && r.MemberId == member && r.EndedUtc == null))))
+                    db.EventRosterAssignments.Any(r => r.ServiceSlot.Occurrence.EventId == x.Id && r.MemberId == member && r.EndedUtc == null)) ||
+                 db.EventRegistrationApplications.Any(a => a.EventId == x.Id && (!a.IsInvitation || a.InvitedUtc != null) &&
+                    (a.OrganiserMemberId == member || a.Participants.Any(p => p.MemberId == member || p.IsChild && p.GuardianMemberId == member)))))
             .ToListAsync(ct);
         if (events.Count == 0) return [];
         var ids = events.Select(x => x.Id).ToArray();
@@ -109,7 +111,7 @@ public sealed class EventDutyProjectionService(IAlifeDbContext db, IEventPackage
                     var review = task.ApprovalStatus == EventTaskApprovalStatus.PendingReview;
                     if (review ? task.ReviewerMemberId != member || task.AssignedMemberId == member || !Participant(task.AssignedMemberId) : task.AssignedMemberId != member) continue;
                     Add("eventTask", task.Id, task.ConcurrencyToken.ToString("N"), review ? "event.task.review" : "event.task.complete",
-                        review ? $"Review task: {task.TitleEn}" : task.TitleEn, review ? $"审核任务：{task.TitleZh}" : task.TitleZh, "task", task.UpdatedUtc, task.DueUtc);
+                        review ? $"Review task: {task.TitleEn}" : task.TitleEn, review ? $"审核任务：{task.TitleZh}" : task.TitleZh, "task", task.UpdatedUtc, task.DueUtc, task.EventOccurrenceId);
                 }
             EventPlanProposalDto? plan = null;
             try { var saved = plans.Where(x => x.EventId == e.Id).OrderByDescending(x => x.Version).FirstOrDefault(); if (saved is not null) plan = EventCompositionPersistence.ToSnapshotDto(saved).Plan; }
@@ -121,7 +123,7 @@ public sealed class EventDutyProjectionService(IAlifeDbContext db, IEventPackage
             var ramRequired = plan is not null && EventRamGovernanceService.IsRequired(e, plan);
             if (!frozenIds.Contains(e.Id))
             {
-                var canAuthor = accepted && (authorRole || owner && (!otherAuthor || ram?.AuthorMemberId == member));
+                var canAuthor = accepted && (authorRole || e.CollaborationVersion == 0 && owner && (!otherAuthor || ram?.AuthorMemberId == member));
                 if (canAuthor && (ram is not null || ramRequired) && (ram is null || ram.Validity is "Draft" or "Returned" or "ReviewRequired" or "Confirmed"))
                     Add("ramAssessment", e.Id, ram?.ConcurrencyToken.ToString("N") ?? e.PlanConcurrencyToken.ToString("N"), ram?.Validity == "Confirmed" ? "event.ram.submit" : "event.ram.author",
                         ram?.Validity == "Confirmed" ? "Submit confirmed RAM" : "Prepare or revise RAM", ram?.Validity == "Confirmed" ? "提交已确认的 RAM" : "起草或修改 RAM", "ram", ram?.UpdatedUtc ?? e.UpdatedUtc,
@@ -136,6 +138,57 @@ public sealed class EventDutyProjectionService(IAlifeDbContext db, IEventPackage
                 Add("sponsorship", e.Id, e.UpdatedUtc.Ticks.ToString(), "event.sponsorship.decide", "Review church sponsorship", "审核教会身份申请", "sponsorship", e.UpdatedUtc);
         }
         result.AddRange(await packages.ListDutiesAsync(member, events, ct));
+        var reports = await db.EventModuleReports.AsNoTracking().Where(x => ids.Contains(x.EventId)).ToArrayAsync(ct);
+        foreach (var report in reports)
+        {
+            var e = events.Single(x => x.Id == report.EventId);
+            if (!groupIds.Contains(e.GroupId) || !EventWorkAccess.ReportRoles.TryGetValue(report.ModuleCode, out var reportRole)) continue;
+            var isOwner = EventDutyAccess.OwnerId(e) == member;
+            var isAuthor = EventWorkAccess.HasRole(roles.Where(x => x.EventId == e.Id && x.MemberId == member && x.Status == EventRoleAssignmentStatus.Accepted).Select(x => x.RoleRequirementKey), report.ModuleCode, reportRole);
+            if (report.Status == "submitted" && isOwner || report.Status is "draft" or "returned" && isAuthor)
+                result.Add(EventDutyFactory.Create(e, member, "moduleReport", report.Id, report.ConcurrencyToken.ToString("N"),
+                    report.Status == "submitted" ? "event.report.review" : "event.report.author",
+                    report.Status == "submitted" ? "Review module report" : "Prepare module report",
+                    report.Status == "submitted" ? "审阅模块报告" : "编写模块报告", "report", report.UpdatedUtc,
+                    targetUrl: $"/events/{e.Id}/reports/{report.ModuleCode}"));
+        }
+        foreach (var e in events)
+        {
+            var own = roles.Where(x => x.EventId == e.Id && x.MemberId == member && x.Status == EventRoleAssignmentStatus.Accepted).Select(x => x.RoleRequirementKey).ToArray();
+            var currentMember = groupIds.Contains(e.GroupId);
+            foreach (var pair in EventWorkAccess.ReportRoles.Where(pair => currentMember && EventWorkAccess.HasRole(own,pair.Key,pair.Value) && !reports.Any(r => r.EventId == e.Id && r.ModuleCode == pair.Key)))
+                if (await EventWorkAccess.EnabledAsync(db,e.Id,pair.Key,ct))
+                    result.Add(EventDutyFactory.Create(e,member,"moduleReport",e.Id,pair.Key,"event.report.author","Prepare module report","编写模块报告","report",e.UpdatedUtc,targetUrl:$"/events/{e.Id}/reports/{pair.Key}"));
+            var policy = await db.EventRegistrationPolicies.AsNoTracking().FirstOrDefaultAsync(x => x.EventId == e.Id,ct);
+            if (policy is null) continue;
+            var rules = EventRegistrationWorkService.Rules(policy);
+            var registrationEnabled = await EventWorkAccess.EnabledAsync(db,e.Id,"PEOPLE.REGISTRATION",ct);
+            var manager = currentMember && (EventDutyAccess.OwnerId(e) == member || EventWorkAccess.HasRole(own,"PEOPLE.REGISTRATION","registration.manager"));
+            var finance = currentMember && EventWorkAccess.HasRole(own,"MONEY.FINANCE","finance.owner");
+            var feeApprover = currentMember && EventWorkAccess.HasRole(own,"MONEY.FINANCE","finance.approver") && !finance && policy.FeeSubmittedByMemberId != member;
+            var financeEnabled = await EventWorkAccess.EnabledAsync(db,e.Id,"MONEY.FINANCE",ct);
+            if (financeEnabled && rules.FeeMinor > 0 && (finance && policy.FeeApprovalStatus is "notSubmitted" or "returned" || feeApprover && policy.FeeApprovalStatus == "pending"))
+                result.Add(EventDutyFactory.Create(e,member,"registrationFees",e.Id,policy.ConcurrencyToken.ToString("N"),feeApprover ? "event.registration.feeReview" : "event.registration.feeSubmit",
+                    feeApprover ? "Review registration fee plan" : "Submit registration fee plan",feeApprover ? "审核报名费方案" : "提交报名费方案","registration",policy.UpdatedUtc,targetUrl:$"/events/{e.Id}/registration-work"));
+            var applications = await db.EventRegistrationApplications.AsNoTracking().Include(x => x.Participants).Where(x => x.EventId == e.Id &&
+                (manager || finance || (!x.IsInvitation || x.InvitedUtc != null) && (x.OrganiserMemberId == member || x.Participants.Any(p => p.MemberId == member || p.IsChild && p.GuardianMemberId == member)))).ToArrayAsync(ct);
+            foreach (var application in applications)
+            {
+                var people = application.Participants.Where(p => p.SeatStatus is not ("cancelled" or "expired")).ToArray();
+                var mine = people.Where(p => application.OrganiserMemberId == member && !p.ProxyAccessRevoked || p.MemberId == member || p.IsChild && p.GuardianMemberId == member).ToArray();
+                var refund = finance && application.Participants.Any(p => p.SeatStatus is "cancelled" or "expired" && p.PaidMinor > p.RefundedMinor);
+                var actionable = registrationEnabled && rules.DeadlineUtc >= now && (!application.IsInvitation || application.InvitedUtc != null && application.ReservationExpiresUtc > now);
+                var verify = actionable && manager && people.Any(p => p.ProcedureStatus == "incomplete");
+                var payment = actionable && finance && financeEnabled && rules.FeeMinor > 0 && people.Any(p => p.PaidMinor - p.RefundedMinor < rules.FeeMinor) &&
+                    await EventRegistrationWorkService.HasCurrentFeeApprovalAsync(db,e,policy,ct) && await packages.IsRegistrationApprovalCurrentAsync(e.Id,ct);
+                var action = refund ? "event.registration.refundReview" : payment ? "event.registration.payment" : verify ? "event.registration.verify" : actionable && mine.Any(p => p.ProcedureStatus == "incomplete") ? "event.registration.complete" : null;
+                if (action is null) continue;
+                result.Add(EventDutyFactory.Create(e,member,"registrationApplication",application.Id,application.ConcurrencyToken.ToString("N"),action,
+                    refund ? "Review registration refund" : payment ? "Verify registration payment" : verify ? "Verify registration procedures" : "Complete registration procedures",
+                    refund ? "处理报名退款" : payment ? "核实报名收款" : verify ? "核实报名手续" : "完成报名手续","registration",application.QueuedUtc,refund ? null : application.ReservationExpiresUtc,
+                    targetUrl:$"/events/{e.Id}/registration-work?application={application.Id}"));
+            }
+        }
         return result.DistinctBy(x => x.Task.TaskKey).OrderBy(x => x.Task.DueUtc ?? DateTime.MaxValue).ThenByDescending(x => x.Task.OccurredUtc).ToArray();
     }
 }

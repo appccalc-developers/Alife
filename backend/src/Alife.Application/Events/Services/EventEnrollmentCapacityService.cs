@@ -42,6 +42,8 @@ public sealed class EventEnrollmentCapacityService(IAlifeDbContext db, IGroupAut
             .Include(x => x.RegistrationPackage).ThenInclude(x => x!.Decisions)
             .FirstOrDefaultAsync(x => x.Id == eventId, ct);
         if (e is null || expectedGroupId.HasValue && e.GroupId != expectedGroupId) return AppResult<EventEnrollmentDto>.NotFound("Event not found.");
+        if (await db.EventRegistrationPolicies.AnyAsync(x => x.EventId == eventId, ct))
+            return AppResult<EventEnrollmentDto>.Conflict("event.registration.upgradeRequired: Use the participant-based registration workspace. / 请在新版报名工作空间按参加者办理。");
         var rows = await db.EventEnrollments.Where(x => x.EventId == eventId).ToListAsync(ct);
         var row = operation == "create" ? rows.SingleOrDefault(x => x.MemberId == actor) : rows.SingleOrDefault(x => x.Id == enrollmentId);
         if (operation != "create" && row is null) return AppResult<EventEnrollmentDto>.NotFound("Enrollment not found.");
@@ -120,6 +122,7 @@ public sealed class EventEnrollmentCapacityService(IAlifeDbContext db, IGroupAut
     // Caller owns the Event lock and transaction; notifications commit with the business change.
     public async Task ReconcileAsync(GroupEvent e, Guid actor, CancellationToken ct)
     {
+        if (await db.EventRegistrationPolicies.AnyAsync(x => x.EventId == e.Id, ct)) return;
         e.PlanSnapshots = await db.EventPlanSnapshots.Where(x => x.EventId == e.Id && x.IsActive).ToListAsync(ct);
         var rows = await db.EventEnrollments.Where(x => x.EventId == e.Id).ToListAsync(ct);
         await PromoteAsync(e, rows, actor, DateTime.UtcNow, ct);

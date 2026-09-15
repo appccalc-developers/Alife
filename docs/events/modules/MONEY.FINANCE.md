@@ -2,6 +2,10 @@
 
 > Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
 
+## Collaboration version 1
+
+Current support is **partial: registration fees**. Versioned registration rules declare amount/currency, collection/refund terms and registrationFeesOnly scope. The accepted finance owner submits and a separate accepted finance approver reviews that version. Current memberships and separation are rechecked. Authorized finance actors manually record receipts/refunds with evidence; registration actors see required payment status only. Limited readiness never waives unsupported other money flows. No provider, budget, purchasing, claims or ledger is supplied. See [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+
 ## Purpose
 
 Provide auditable Event budgeting, fees, purchasing, claims, refunds, reconciliation, and close-out with strict separation of duties.
@@ -46,16 +50,16 @@ Owners prepare records; independent approvers review explicit versions. Particip
 
 ## Current implementation
 
-Target only. Composition rules, role separation, classification, readiness metadata, and a generic controlled surface exist. Matching finance business persistence, authorised CRUD/state transitions, and usable finance UI do not.
+Partial registration-fee support: versioned rules, independent approval, manual receipts/refunds, current authorization, audit and a dedicated registration/finance work page. Broader finance capabilities below remain target work.
 
 ## Open contract gaps
 
-Budget, fees, purchasing, claims, refunds, reconciliation, close-out, approval evidence, and all dedicated finance UI/API behaviour.
+Budget, purchasing, claims, ledger reconciliation and wider financial close-out remain deferred; registration fees, their approval and manual refund evidence are provided in version 1.
 
 ## Next useful vertical slice
 
 `event-budget-expense-closeout`: minor-unit budget lines, expense claim, independent approval, reconciliation, role-restricted no-store responses, and no payment-provider dependency.
 
-## Availability presentation — 2026-09-13
+## Historical availability — 2026-09-13 (superseded by version 1)
 
-Current catalogue status is `unavailable` (**尚未提供 / Not yet available**) in creation, Workspace overview and the module/direct entry. Enabling or confirming details does not create financial readiness, and a required unavailable finance module still blocks formal approval. Historical selections and records remain intact.
+Before collaboration version 1, catalogue status was `unavailable` (**尚未提供 / Not yet available**) in creation, Workspace overview and the module/direct entry. Enabling or confirming details does not create financial readiness, and a required unavailable finance module still blocks formal approval. Historical selections and records remain intact.

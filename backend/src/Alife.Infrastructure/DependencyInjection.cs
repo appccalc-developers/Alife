@@ -29,6 +29,7 @@ public static class DependencyInjection
 	{
 		services.AddHybridCache();
 		services.AddHttpClient<ISundayBulletinStorage, SundayBulletinStorage>(client => client.Timeout = TimeSpan.FromSeconds(60));
+        services.AddHttpClient<Alife.Application.Events.Services.IEventRegistrationStorage, EventRegistrationStorage>(client => client.Timeout = TimeSpan.FromSeconds(60));
 		services.AddDbContext<AlifeDbContext>(options =>
 			options
 				.UseSqlServer(configuration.GetConnectionString("Default"))

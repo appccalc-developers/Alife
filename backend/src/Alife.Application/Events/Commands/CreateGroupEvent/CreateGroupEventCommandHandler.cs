@@ -201,6 +201,7 @@ public sealed class CreateGroupEventCommandHandler(
             GroupId = request.GroupId,
             CreatedByMemberId = request.CurrentMemberId,
             AccountableOwnerMemberId = accountableOwnerMemberId,
+            CollaborationVersion = 1,
             ParentEventId = request.ParentEventId,
             GovernanceMode = request.GovernanceMode ?? EventGovernanceMode.MemberLed,
             PublicationStatus = request.Composition is null && initialRam is null ? EventPublicationStatus.LegacyImplicit : EventPublicationStatus.Draft,
@@ -401,6 +402,7 @@ public sealed class CreateGroupEventCommandHandler(
                 })).ToArray();
         }
 
+        await using var arrangementTransaction = await dbContext.BeginSerializableTransactionAsync(cancellationToken);
         PreparedEventArrangements? arrangements = null;
         if (request.Arrangements is not null)
         {
@@ -462,6 +464,7 @@ public sealed class CreateGroupEventCommandHandler(
         {
             return AppResult<GroupEventSummaryDto>.Conflict("The event or its arrangements changed concurrently. Review and retry with the same request.");
         }
+        if (arrangementTransaction is not null) await arrangementTransaction.CommitAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(request.GroupId, cancellationToken);
 
         return AppResult<GroupEventSummaryDto>.Success(ToDto(groupEvent, contactProfileIds, ramAssessment.Status, visibility));

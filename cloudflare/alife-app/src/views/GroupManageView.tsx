@@ -1060,6 +1060,7 @@ const GroupManageView = ({
 
   const managementWorkspace = (
       <div className={integrated ? 'space-y-4' : 'space-y-5'}>
+        {groupId && activeSection === 'group' ? <Link className="inline-flex min-h-11 items-center rounded-xl border border-[#176b5a]/20 bg-white px-4 font-semibold text-[#176b5a]" to={`/groups/${groupId}/venues`}>{language === 'zh' ? '场地与房间管理' : 'Venue and room management'}</Link> : null}
         {!integrated && showGroupManagementNavigation ? (
           <nav
             aria-label={language === 'zh' ? `${group?.isChurch ? '教会' : '小组'}管理视图` : `${group?.isChurch ? 'Church' : 'Group'} management views`}

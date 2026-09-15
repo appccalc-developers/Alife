@@ -138,6 +138,10 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             }
         }
 
+        // Keep historical snapshots readable, but do not enable unsupported festival operations
+        // in a newly composed plan. Required multi-zone facts still block formal submission.
+        states["FESTIVAL.OPERATIONS"].Status = EventModuleDecisionStatus.Inactive;
+        states["FESTIVAL.OPERATIONS"].Reasons.Add("capability-unavailable");
         var decisions = EventCompositionDefinitions.Modules
             .OrderBy(x => x.NavigationOrder)
             .Select(module => new ModuleDecisionDto(

@@ -11,5 +11,6 @@ public enum FileAssetPurpose
     GroupCover = 7,
     MemberAvatar = 8,
     AlbumPhoto = 9,
-    SundayBulletin = 10
+    SundayBulletin = 10,
+    EventRegistrationMaterial = 11
 }

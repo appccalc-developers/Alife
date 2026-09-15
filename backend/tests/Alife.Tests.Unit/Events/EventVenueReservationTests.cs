@@ -27,6 +27,7 @@ public sealed class EventVenueReservationTests
         var seeded = Seed(db);
         var coordinator = Guid.NewGuid(); var invited = Guid.NewGuid(); var outsider = Guid.NewGuid();
         db.Members.AddRange(Member(coordinator, "Coordinator"), Member(invited, "Invited"), Member(outsider, "Outsider"));
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = seeded.Group.Id, MemberId = coordinator, Status = MembershipStatus.Approved });
         db.EventRoleAssignments.AddRange(
             Role(seeded.Event.Id, coordinator, seeded.Owner, EventRoleAssignmentStatus.Accepted),
             Role(seeded.Event.Id, invited, seeded.Owner, EventRoleAssignmentStatus.Invited));
@@ -228,6 +229,7 @@ public sealed class EventVenueReservationTests
             AddressEn = "1 Main Road", AddressZh = "主路 1 號", Capacity = 20, CreatedByMemberId = owner,
             CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
         db.Groups.Add(group); db.Members.Add(Member(owner, "Owner")); db.GroupEvents.Add(groupEvent); db.EventOccurrences.Add(occurrence); db.EventVenues.Add(venue);
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = group.Id, MemberId = owner, Status = MembershipStatus.Approved });
         SeedPlacePlan(db, groupEvent);
         return new(group, groupEvent, occurrence, venue, owner);
     }

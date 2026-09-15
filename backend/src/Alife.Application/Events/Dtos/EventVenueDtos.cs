@@ -11,7 +11,9 @@ public sealed record EventVenueDto(
     bool IsActive,
     string ETag,
     DateTime CreatedUtc,
-    DateTime UpdatedUtc);
+    DateTime UpdatedUtc,
+    string TimeZone = "Pacific/Auckland",
+    string Kind = "venue");
 
 public sealed record EventVenueCatalogueDto(
     Guid ManagingGroupId,
@@ -22,7 +24,9 @@ public sealed record SaveEventVenueRequest(
     LocalizedTextDto Name,
     LocalizedTextDto? Address,
     int Capacity,
-    bool IsActive = true);
+    bool IsActive = true,
+    string TimeZone = "Pacific/Auckland",
+    string Kind = "venue");
 
 public sealed record EventVenueReservationDto(
     Guid Id,

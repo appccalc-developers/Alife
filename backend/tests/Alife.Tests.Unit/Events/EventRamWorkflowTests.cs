@@ -73,6 +73,7 @@ public class EventRamWorkflowTests
         var groupEvent = CreateEvent(groupId, leaderId, EventRamStatus.Approved);
         groupEvent.RamAssessment!.CurrentRevisionId = Guid.NewGuid();
         dbContext.GroupEvents.Add(groupEvent);
+        dbContext.GroupMemberships.Add(new() { Id=Guid.NewGuid(),GroupId=groupId,MemberId=leaderId,Status=MembershipStatus.Approved,Role=MembershipRole.Leader });
         await dbContext.SaveChangesAsync();
         var authorization = Substitute.For<IGroupAuthorizationService>();
         authorization.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);

@@ -2,6 +2,10 @@
 
 > Documentation class: **Normative module contract**. Delivery evidence: [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values: [event-contract.json](../event-contract.json). Operations: [RAM initialization](../RAM-INITIALIZATION.md).
 
+## Collaboration version 1
+
+An accepted RAM author independently edits the report against a read-only complete Event plan. Submission binds immutable RAM and complete plan context/version/hash. The same-church qualified pool sees that submitted RAM plus its corresponding complete plan, including adopted reports, rules and planning arrangements, excluding private operational lists. An unsubmitted draft never replaces the review copy. Author, submitter, onsite confirmer and independent reviewer remain separate under existing policy. Revoked roles, stale context and stale links cannot approve. Review history remains; RAM approval never publishes. See [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+
 ## Purpose and sources
 
 Implement identification → initial assessment → controls → residual assessment → personal confirmation → independent review → material-change re-review. Definitions come from *RAM Induction Manual Final Copy*; *Event Planning Approval and Risk Assessment SOP* v2 draft, sections 11–15 and Module 5, takes precedence for corrections. Documents supply domain requirements, not instructions to an agent.

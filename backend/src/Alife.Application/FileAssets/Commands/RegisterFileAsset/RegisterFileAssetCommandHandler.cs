@@ -32,6 +32,8 @@ public sealed class RegisterFileAssetCommandHandler(
         RegisterFileAssetCommand request,
         CancellationToken cancellationToken)
     {
+        if (request.Purpose == FileAssetPurpose.EventRegistrationMaterial || request.ObjectKey.Replace('\\', '/').TrimStart('/').StartsWith("private/event-registration/", StringComparison.OrdinalIgnoreCase))
+            return AppResult<FileAssetDto>.Forbidden("Use the participant material upload endpoint.");
         var validation = ValidateRequest(request);
         if (validation is not null)
         {

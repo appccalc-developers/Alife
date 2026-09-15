@@ -2,6 +2,10 @@
 
 > Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
 
+## Collaboration version 1
+
+Preparation defines versioned purpose, audience, real-person capacity, terms/privacy, deadlines, channels, fixed material steps and optional manual fees. List handling uses an independent registration page. Actual participants, explicit proxy/guardian authority, consent evidence, materials, fees and seat/procedure state are distinct. Families enter FIFO together unless the organizer explicitly permits splitting. Internal lists precede approval; directed invitations require a fresh approved Package and reserve actual places until completion or expiry. Private material downloads reauthorize through the backend, including generic file entry points. Legacy IDs and child associations survive; unknown family and consent evidence are never invented. Exact states, API and migration boundaries are in [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+
 ## Purpose
 
 Manage invitation, registration, participant state, capacity, cancellation, attendance, and the privacy boundary between a participant and Event managers.

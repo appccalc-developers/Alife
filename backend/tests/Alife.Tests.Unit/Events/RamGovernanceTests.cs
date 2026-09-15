@@ -221,6 +221,36 @@ public sealed partial class RamGovernanceTests
         Assert.Equal(AppResultStatus.Conflict,(await f.Act("submit",f.Author)).Status);
     }
 
+    [Fact]
+    public async Task CollaborationReview_BindsWholePlan_HidesUnsubmittedDrafts_RejectsRevokedAuthor()
+    {
+        using var f = await Fixture.Create(); await f.Publish(); await f.AddAcceptedPlan();
+        f.Db.GroupEvents.Single().CollaborationVersion = 1;
+        var authorRole = new EventRoleAssignment { Id = Guid.NewGuid(), EventId = f.Event, MemberId = f.Author, RoleRequirementKey = "SAFETY.RAM:ram.author", Status = EventRoleAssignmentStatus.Accepted };
+        f.Db.EventRoleAssignments.Add(authorRole); await f.Db.SaveChangesAsync();
+        Assert.Equal(AppResultStatus.Forbidden,(await f.Service.GetAsync(f.Event,f.Auditor,default)).Status);
+        Assert.True((await f.Save(f.PolicyId)).IsSuccess);
+        Assert.True((await f.Act("request-confirmation",f.Author)).IsSuccess);
+        Assert.True((await f.Act("confirm",f.Author)).IsSuccess);
+        Assert.True((await f.Act("submit",f.Author)).IsSuccess);
+        var submitted = f.Ram.CurrentRevisionId!.Value;
+        var review = (await f.Service.GetAsync(f.Event,f.Auditor,default)).Value!;
+        Assert.NotNull(review.EventPlanContext!.AcceptedPlan); Assert.False(review.CanEdit); Assert.True(review.CanAudit);
+        f.Db.GroupEvents.Single().EventDataJson = "{\"description\":{\"en\":\"Changed plan\",\"zh\":\"改变的方案\"}}"; await f.Db.SaveChangesAsync();
+        Assert.Equal(AppResultStatus.Conflict,(await f.Act("approve",f.Auditor,"Reviewed",true)).Status);
+        Assert.Equal(submitted,(await f.Service.GetAsync(f.Event,f.Auditor,default)).Value!.Assessment!.CurrentRevisionId);
+        var amended = Draft(Policy()); amended.Activities[0].Name = Text("Updated walking plan");
+        Assert.True((await f.Save(f.PolicyId,amended)).IsSuccess);
+        var retained = (await f.Service.GetAsync(f.Event,f.Auditor,default)).Value!;
+        Assert.Equal(submitted,retained.Assessment!.CurrentRevisionId); Assert.Equal("Historical",retained.Assessment.Validity);
+        Assert.Single(retained.History);
+        Assert.True((await f.Act("request-confirmation",f.Author)).IsSuccess);
+        Assert.True((await f.Act("confirm",f.Author)).IsSuccess);
+        Assert.True((await f.Act("submit",f.Author)).IsSuccess);
+        authorRole.EndedUtc = DateTime.UtcNow; await f.Db.SaveChangesAsync();
+        Assert.Equal(AppResultStatus.Conflict,(await f.Act("approve",f.Auditor,"Reviewed",true)).Status);
+    }
+
     private sealed class Fixture : IDisposable
     {
         public AlifeDbContext Db {get;}=new(new DbContextOptionsBuilder<AlifeDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);

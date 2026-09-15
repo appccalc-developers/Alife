@@ -1199,8 +1199,8 @@
       "code": "TEAM.WORK",
       "version": 2,
       "name": {
-        "en": "Team and work",
-        "zh": "團隊與任務"
+        "en": "Tasks and handoffs",
+        "zh": "任務與交接"
       },
       "activationRules": [
         {
@@ -5267,6 +5267,150 @@
       "auth": "current roster coordinator/owner; default version and legacy freeze checks",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/work",
+      "request": "page, search",
+      "response": "filtered persistent Event work summaries",
+      "auth": "current actor",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/work",
+      "request": "page",
+      "response": "Event work links, actions, stages, occurrences, owner preparation progress and authorized plan context",
+      "auth": "current Event responsibility or authorized participant",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/reports/{moduleCode}",
+      "request": "none",
+      "response": "ModuleReportDto revisions, state, permissions and ETag",
+      "auth": "current plan reader",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/reports/{moduleCode}/{operation}",
+      "request": "save|submit|withdraw|return|adopt; text/revision/reason, If-Match, Idempotency-Key",
+      "response": "ModuleReportDto",
+      "auth": "accepted module author or owner for return/adopt",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/registration-work",
+      "request": "page, search, optional application",
+      "response": "RegistrationWorkDto with purpose-filtered participant and fee state",
+      "auth": "current registration/finance role or authorized participant/organizer",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{eventId}/registration-work/rules",
+      "request": "RegistrationRules and If-Match",
+      "response": "RegistrationPolicyDto version and ETag",
+      "auth": "current owner, unfrozen preparation",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/registration-work/applications",
+      "request": "RegistrationApplicationRequest, Idempotency-Key",
+      "response": "application ID",
+      "auth": "authorized organizer or registration manager",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/registration-work/applications/{applicationId}/{operation}",
+      "request": "RegistrationActionRequest, If-Match, Idempotency-Key",
+      "response": "application ID",
+      "auth": "action-specific participant/proxy/guardian/registration/finance authority",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/registration-work/applications/{applicationId}/history",
+      "request": "page",
+      "response": "filtered audit rows",
+      "auth": "current authorized application actor; finance evidence role-filtered",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/registration-work/fees/{operation}",
+      "request": "submit|approve|return; reason, If-Match, Idempotency-Key",
+      "response": "RegistrationPolicyDto",
+      "auth": "accepted finance owner or independent accepted finance approver",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/registration-work/participants/{participantId}/materials",
+      "request": "none",
+      "response": "authorized material metadata",
+      "auth": "current participant, explicit proxy/guardian or registration responsibility",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/registration-work/participants/{participantId}/materials/{requirementId}",
+      "request": "multipart file, If-Match",
+      "response": "material metadata",
+      "auth": "current writable participant/proxy/guardian or registration responsibility",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/file-assets/{id}/registration-material",
+      "request": "none",
+      "response": "authenticated attachment stream",
+      "auth": "current purpose-specific participant/proxy/guardian or registration responsibility",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/groups/{groupId}/event-venues/{venueId}/calendar",
+      "request": "from, until (local dates)",
+      "response": "visibility-filtered entries, weekly rules and authorized history",
+      "auth": "current group member",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/groups/{groupId}/event-venues/{venueId}/weekly",
+      "request": "WeeklyVenueRequest, If-Match, Idempotency-Key",
+      "response": "rule ID",
+      "auth": "Event owner or catalogue administrator",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/groups/{groupId}/event-venues/{venueId}/weekly/{ruleId}/exceptions",
+      "request": "VenueExceptionRequest, If-Match, Idempotency-Key",
+      "response": "rule ID",
+      "auth": "Event owner or catalogue administrator",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
     }
   ],
   "acceptanceScenarios": [
@@ -5889,16 +6033,18 @@
       "unavailable"
     ],
     "unavailable": [
-      "MONEY.FINANCE",
-      "FOOD.HOSPITALITY",
       "FESTIVAL.OPERATIONS"
     ],
     "partial": [
+      "MONEY.FINANCE",
+      "FOOD.HOSPITALITY",
       "COMMS.FOLLOWUP"
     ],
-    "communications": "content, posters and publication exist; confirmed-audience broadcasts, delivery and follow-up do not",
+    "communications": "Versioned planning report, content, posters and publication; report adoption never sends notifications. Broadcast delivery and follow-up automation deferred.",
     "projection": "current catalogue and Workspace; bilingual explanation at creation/overview/detail/direct entry, independent of enabled/confirmed/readiness",
-    "compatibility": "never rewrite historical Plan snapshots or mix delivery status into proposal hashes; required unavailable modules still block formal approval"
+    "compatibility": "never rewrite historical Plan snapshots or mix delivery status into proposal hashes; required unavailable modules still block formal approval",
+    "finance": "Version 1: independently approved manual registration fees only; other money flows remain blocked.",
+    "food": "Version 1: accepted responsible lead and adopted bilingual report only; menus, allergy and kitchen operations deferred."
   },
   "enrollmentCapacity": {
     "version": 1,
@@ -5950,5 +6096,87 @@
       "email",
       "device push"
     ]
+  },
+  "eventWorkspaces": {
+    "version": 1,
+    "source": "EVENT-WORKSPACES.md",
+    "legacyVersion": 0,
+    "stages": [
+      "preparation",
+      "registration",
+      "execution",
+      "followup"
+    ],
+    "entry": "/event-work",
+    "eventEntry": "/events/:eventId/work",
+    "persistentBeyondDutyCompletion": true,
+    "authority": "current membership, ownership, accepted role, record scope, stage and approval freeze; stages grant no authority",
+    "planContext": "authorized full plan, excluding participant materials, child identities and finance transactions",
+    "taskModule": "TEAM.WORK",
+    "taskScope": [
+      "stage",
+      "optionalOccurrenceId"
+    ],
+    "reportModules": [
+      "SAFEGUARDING.CHILD",
+      "PROGRAM.PRODUCTION",
+      "MOVE.STAY",
+      "FOOD.HOSPITALITY",
+      "COMMS.FOLLOWUP"
+    ],
+    "reportStates": [
+      "draft",
+      "submitted",
+      "returned",
+      "adopted"
+    ],
+    "reportVersioning": "immutable submitted revisions; owner adopts exact revision; later drafts do not rewrite adopted content",
+    "ramReview": "Submitted immutable RAM plus complete corresponding plan context/hash, including full registration rules and saved programme sessions/items; qualified same-church independent review pool; unsubmitted drafts and private programme payloads excluded",
+    "registration": {
+      "audiences": [
+        "invited",
+        "group",
+        "church",
+        "public"
+      ],
+      "channels": [
+        "app",
+        "manual",
+        "both"
+      ],
+      "invitationModes": [
+        "now",
+        "byDeadline"
+      ],
+      "moneyFlowScopes": [
+        "unspecified",
+        "registrationFeesOnly",
+        "otherMoney"
+      ],
+      "participants": "actual people; organizer and explicit proxy/guardian evidence separate",
+      "queue": "FIFO whole household unless organizer explicitly permits split",
+      "invitations": "internal list before approval; fresh Package required to send, actual-person reservations, transactional idempotent expiry",
+      "materials": [
+        "JPG",
+        "PNG",
+        "PDF",
+        "TXT"
+      ],
+      "download": "authenticated backend streaming; current authorization on dedicated and generic file routes; no bearer storage capability"
+    },
+    "venue": {
+      "kinds": [
+        "venue",
+        "room"
+      ],
+      "recurrence": "single or local weekly; nullable end date independent of materialized occurrences",
+      "calendarRangeDays": 366,
+      "exceptions": "append-only release/restore with reason, actor and time; restore checks conflicts",
+      "concurrency": "Event and venue row locks in serializable transactions",
+      "dst": "reject invalid or ambiguous new boundaries; flag and conservatively block unresolved legacy times",
+      "catalogueAuthority": "current group leader/co-leader, separate from Event ownership"
+    },
+    "migration": "20260914133318_EventCollaborationWorkspaces",
+    "compatibility": "additive; retain old IDs/routes/child links/approval evidence; no guessed legacy family or consent; reject old writes over upgraded fields"
   }
 }

@@ -1,5 +1,6 @@
 let activeMessage = ''
 let activeMode: UnsavedChangesGuardMode = 'alert'
+const guards = new Map<string, { message: string; mode: UnsavedChangesGuardMode }>()
 
 export type UnsavedChangesGuardMode = 'alert' | 'confirm'
 
@@ -13,9 +14,11 @@ type UnsavedChangesPromptListener = (prompt: UnsavedChangesPrompt) => void
 
 const promptListeners = new Set<UnsavedChangesPromptListener>()
 
-export const setUnsavedChangesGuard = (active: boolean, message = '', mode: UnsavedChangesGuardMode = 'alert') => {
-  activeMessage = active ? message : ''
-  activeMode = active ? mode : 'alert'
+export const setUnsavedChangesGuard = (active: boolean, message = '', mode: UnsavedChangesGuardMode = 'alert', scope = 'default') => {
+  if (active) guards.set(scope, { message, mode }); else guards.delete(scope)
+  const current = [...guards.values()]
+  activeMessage = current.map(g => g.message).filter(Boolean).join('\n')
+  activeMode = current.some(g => g.mode === 'alert') ? 'alert' : 'confirm'
 }
 
 export const hasUnsavedChangesGuard = () => activeMessage.length > 0

@@ -21,8 +21,12 @@ public partial class EventCreationArrangementsTests
         [new("welcome", 3, "approvedGroupMember", -15, 120)],
         [new(Text(), 0, 120, [new(Text(), Text("Private programme notes", "团队节目说明"), 10, 20)])],
         [new(null, null, new(Text("Hall", "礼堂"), Text("Address", "地址"), 50, true), 30, -30, 150)]);
-    private static AlifeDbContext Database() => new(new DbContextOptionsBuilder<AlifeDbContext>()
-        .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+    private AlifeDbContext Database()
+    {
+        var db = new AlifeDbContext(new DbContextOptionsBuilder<AlifeDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = actorId, Status = MembershipStatus.Approved, Role = MembershipRole.Leader });
+        db.SaveChanges(); return db;
+    }
     private CreateGroupEventCommandHandler Handler(AlifeDbContext db, bool allowed = true)
     {
         var auth = Substitute.For<IGroupAuthorizationService>();

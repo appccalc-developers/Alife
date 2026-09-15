@@ -207,6 +207,7 @@ public sealed class EventTravelManifestTests
             EndUtc = OccurrenceStart.AddHours(3), LocalDate = DateOnly.FromDateTime(OccurrenceStart),
             CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
         db.Groups.Add(group); db.Members.Add(ownerMember); db.GroupEvents.Add(groupEvent); db.EventOccurrences.Add(occurrence);
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = group.Id, MemberId = owner, Status = MembershipStatus.Approved });
         SeedMovePlan(db, groupEvent);
         return new(group, groupEvent, occurrence, owner);
     }

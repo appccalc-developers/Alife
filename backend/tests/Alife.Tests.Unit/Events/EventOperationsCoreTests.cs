@@ -242,6 +242,7 @@ public sealed partial class EventOperationsCoreTests
         var owner = Guid.NewGuid(); var other = Guid.NewGuid();
         var e = SeedEvent(db, Guid.NewGuid(), owner); SeedPlan(db, e, Fact("safety.requiresRam", true));
         db.Members.AddRange(Member(owner, "Owner"), Member(other, "Lead"));
+        db.GroupMemberships.Add(new() { Id=Guid.NewGuid(),GroupId=e.GroupId,MemberId=other,Status=MembershipStatus.Approved,Role=MembershipRole.Leader });
         var roles = new[] { "TEAM.WORK:event.lead", "SAFETY.RAM:ram.author", "SAFETY.RAM:ram.approver" };
         var auth = Authorization(other); // The other actor is also a group leader.
         foreach (var role in roles)
@@ -296,7 +297,9 @@ public sealed partial class EventOperationsCoreTests
         var value = new GroupEvent { Id = Guid.NewGuid(), GroupId = groupId, CreatedByMemberId = owner,
             AccountableOwnerMemberId = owner, TitleEn = "Event", TitleZh = "活動", StartDate = DateTime.UtcNow.AddDays(1),
             EndDate = DateTime.UtcNow.AddDays(1).AddHours(2), CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
-        db.GroupEvents.Add(value); return value;
+        db.GroupEvents.Add(value);
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = owner, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
+        return value;
     }
     private static EventOccurrence SeedOccurrence(AlifeDbContext db, GroupEvent groupEvent) {
         var value = new EventOccurrence { Id = Guid.NewGuid(), EventId = groupEvent.Id, StartUtc = groupEvent.StartDate,

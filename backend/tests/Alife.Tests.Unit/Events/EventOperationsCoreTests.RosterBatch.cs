@@ -41,7 +41,7 @@ public sealed partial class EventOperationsCoreTests
         await using var db = CreateDb(); var owner = Guid.NewGuid(); var a = Guid.NewGuid(); var b = Guid.NewGuid();
         var e = SeedEvent(db, Guid.NewGuid(), owner); var occurrence = SeedOccurrence(db, e);
         db.Members.AddRange(Member(owner, "Owner"), Member(a, "A"), Member(b, "B")); SeedPlan(db, e, Fact("people.volunteersRequired", true));
-        foreach (var id in new[] { owner, a, b }) db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = e.GroupId, MemberId = id, Status = MembershipStatus.Approved });
+        foreach (var id in new[] { a, b }) db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = e.GroupId, MemberId = id, Status = MembershipStatus.Approved });
         await db.SaveChangesAsync(); var service = new EventOperationsService(db, Authorization(owner), new EventPackageInvalidationService(db));
         await service.SaveRosterGroupAsync(e.Id, owner, new("welcome", "SERVICE.ROSTER", [a, b]), "\"new\"", default);
         var roster = (await service.GetRosterAsync(e.Id, occurrence.Id, owner, default)).Value!;

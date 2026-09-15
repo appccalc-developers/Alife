@@ -2,6 +2,10 @@
 
 > Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
 
+## Collaboration version 1
+
+Name, explanation and historical entry remain visible as **unavailable / 暂不支持**. UI and server reject activation. A confirmed requirement for unsupported festival operations remains an explicit readiness blocker; historical records are retained. See [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+
 ## Purpose
 
 Coordinate multi-zone live operations, command, crowd flow, first aid, weather, evacuation, and escalation for festivals and large celebrations.

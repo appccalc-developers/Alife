@@ -15,8 +15,20 @@ namespace Alife.Api.Controllers;
 [Authorize]
 public class FileAssetsController(
     IMediator mediator,
-    ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
+    ICurrentMemberAccessor currentMemberAccessor,
+    Alife.Application.Events.Services.EventRegistrationMaterialService registrationMaterials) : ControllerBase
 {
+    [HttpGet("{fileAssetId:guid}/registration-material")]
+    public async Task<IActionResult> RegistrationMaterial(Guid fileAssetId, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers.Pragma = "no-cache";
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        Response.Headers["Referrer-Policy"] = "no-referrer";
+        if (currentMemberAccessor.GetCurrentMemberId() is not { } actor) return Unauthorized();
+        var result = await registrationMaterials.DownloadAsync(fileAssetId, actor, ct);
+        return result.IsSuccess ? File(result.Value!.Bytes, result.Value.ContentType, result.Value.Name) : this.ToActionResult(result);
+    }
     [HttpGet]
     public async Task<IActionResult> List(
         [FromQuery] Guid? groupId,
@@ -56,8 +68,10 @@ public class FileAssetsController(
     }
 
     [HttpGet("{fileAssetId:guid}/open")]
-    public async Task<IActionResult> Open(Guid fileAssetId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Open(Guid fileAssetId, CancellationToken cancellationToken, [FromQuery] bool asLink = false)
     {
+        Response.Headers.CacheControl = "no-store, private";
+        Response.Headers.Pragma = "no-cache";
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
         {
@@ -75,7 +89,7 @@ public class FileAssetsController(
 
         Response.Headers.CacheControl = "no-store, private";
         Response.Headers.Pragma = "no-cache";
-        return Redirect(result.Value!);
+        return asLink ? Ok(new { url = result.Value! }) : Redirect(result.Value!);
     }
 
     [HttpPost]

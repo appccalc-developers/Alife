@@ -18,6 +18,9 @@ public sealed class EventRamPolicyVersion
 /// <summary>Immutable assessment content, including legacy approval evidence during upgrade.</summary>
 public sealed class EventRamRevision
 {
+    public int? EventPlanVersion { get; set; }
+    public string? EventPlanContextJson { get; set; }
+    public string? EventPlanContextHash { get; set; }
     public Guid Id { get; set; }
     public Guid EventId { get; set; }
     public int Version { get; set; }

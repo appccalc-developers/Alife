@@ -1,4 +1,5 @@
 import { handleSundayBulletin, isBulletinPath } from './sunday-bulletins.js';
+import { handleRegistrationMaterial } from './event-registration.js';
 import { handleDeleteObject } from './delete-object.js';
 
 const IMAGE_EXTENSIONS = new Set([
@@ -508,6 +509,8 @@ export default {
     try {
       const deletionResponse = await handleDeleteObject(request, env);
       if (deletionResponse) return deletionResponse;
+      const materialResponse = await handleRegistrationMaterial(request, env);
+      if (materialResponse) return materialResponse;
       const bulletinResponse = await handleSundayBulletin(request, env);
       if (bulletinResponse) return bulletinResponse;
       // CORS preflight

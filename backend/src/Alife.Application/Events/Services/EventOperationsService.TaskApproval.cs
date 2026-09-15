@@ -106,7 +106,7 @@ public sealed partial class EventOperationsService
         task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = now;
         db.EventIdempotencyRecords.Add(new() { Id = Guid.NewGuid(), Operation = operation, ScopeId = taskId,
             Key = key, RequestHash = hash, ResultEntityId = taskId, CreatedUtc = now, ExpiresUtc = now.AddDays(7) });
-        if (packageInvalidation is not null && (task.IsRequired || task.RequiresApproval))
+        if (task.Stage == "preparation" && packageInvalidation is not null && (task.IsRequired || task.RequiresApproval))
             await packageInvalidation.InvalidateForModuleChangeAsync(task.Event, member, "TEAM.WORK", operation, "operational", ct);
         try { await db.SaveChangesAsync(ct); if (tx is not null) await tx.CommitAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventTaskDetailDto>.PreconditionFailed("The task changed concurrently; reload."); }
@@ -119,7 +119,7 @@ public sealed partial class EventOperationsService
             Action = action, ActorMemberId = actor, ReviewerMemberId = task.ReviewerMemberId,
             SnapshotJson = action == "submit-completion" ? EventPackageCanonicalizer.Serialize(new {
                 task.TitleEn, task.TitleZh, task.DescriptionEn, task.DescriptionZh, task.AssignedMemberId, task.ReviewerMemberId,
-                task.DueUtc, task.RequiresApproval, task.IsRequired, task.IsRestricted, task.ConcurrencyToken,
+                task.DueUtc, task.RequiresApproval, task.IsRequired, task.IsRestricted, task.ConcurrencyToken, task.Stage, task.EventOccurrenceId,
                 prerequisites = task.Dependencies.Select(x => new { x.DependsOnEventTaskId, x.DependsOnEventTask.Status }) }) : "{}",
             Reason = reason.Trim(), CreatedUtc = now });
 

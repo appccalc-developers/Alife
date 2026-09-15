@@ -59,7 +59,7 @@ public sealed class EventVenueService(
             Id = Guid.NewGuid(), ManagingGroupId = groupId,
             NameEn = request.Name.En.Trim(), NameZh = request.Name.Zh.Trim(),
             AddressEn = request.Address?.En.Trim() ?? string.Empty, AddressZh = request.Address?.Zh.Trim() ?? string.Empty,
-            Capacity = request.Capacity, IsActive = request.IsActive, CreatedByMemberId = memberId,
+            Capacity = request.Capacity, IsActive = request.IsActive, TimeZone = request.TimeZone, Kind = request.Kind, CreatedByMemberId = memberId,
             CreatedUtc = now, UpdatedUtc = now
         };
         db.EventVenues.Add(venue);
@@ -71,6 +71,8 @@ public sealed class EventVenueService(
 
     public async Task<AppResult<EventVenueDto>> UpdateVenueAsync(Guid groupId, Guid venueId, Guid memberId, SaveEventVenueRequest request, string? ifMatch, CancellationToken ct)
     {
+        await using var transaction = await db.BeginSerializableTransactionAsync(ct);
+        await db.LockEventVenueAsync(venueId, ct);
         var venue = await db.EventVenues.FirstOrDefaultAsync(x => x.Id == venueId && x.ManagingGroupId == groupId, ct);
         if (venue is null) return AppResult<EventVenueDto>.NotFound("Venue not found.");
         if (!await CanManageCatalogue(groupId, memberId, ct))
@@ -79,6 +81,9 @@ public sealed class EventVenueService(
             return AppResult<EventVenueDto>.PreconditionFailed("The venue changed; reload before saving.");
         var validation = ValidateVenue(request);
         if (validation is not null) return AppResult<EventVenueDto>.Validation(validation);
+        if (await db.EventVenueWeeklyBookings.AnyAsync(x => x.VenueId == venueId &&
+            (x.RequiredCapacity > request.Capacity || !request.IsActive || x.TimeZone != request.TimeZone), ct))
+            return AppResult<EventVenueDto>.Conflict("Standing reservations require this venue's capacity, enabled state and time zone.");
         var activeReservation = await db.EventVenueReservations.AsNoTracking()
             .Where(x => x.VenueId == venue.Id && x.Status == EventVenueReservationStatus.Confirmed)
             .OrderBy(x => x.StartUtc).FirstOrDefaultAsync(x => x.RequiredCapacity > request.Capacity || !request.IsActive, ct);
@@ -89,10 +94,11 @@ public sealed class EventVenueService(
         }
         venue.NameEn = request.Name.En.Trim(); venue.NameZh = request.Name.Zh.Trim();
         venue.AddressEn = request.Address?.En.Trim() ?? string.Empty; venue.AddressZh = request.Address?.Zh.Trim() ?? string.Empty;
-        venue.Capacity = request.Capacity; venue.IsActive = request.IsActive;
+        venue.Capacity = request.Capacity; venue.IsActive = request.IsActive; venue.TimeZone = request.TimeZone; venue.Kind = request.Kind;
         venue.ConcurrencyToken = Guid.NewGuid(); venue.UpdatedUtc = DateTime.UtcNow;
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventVenueDto>.PreconditionFailed("The venue changed while saving; reload and try again."); }
+        if (transaction is not null) await transaction.CommitAsync(ct);
         return AppResult<EventVenueDto>.Success(ToVenueDto(venue));
     }
 
@@ -109,6 +115,9 @@ public sealed class EventVenueService(
 
     public async Task<AppResult<EventVenueWorkspaceDto>> ReserveAsync(Guid eventId, Guid memberId, ReserveEventVenueRequest request, string? ifMatch, string? idempotencyKey, CancellationToken ct)
     {
+        await using var transaction = await db.BeginSerializableTransactionAsync(ct);
+        await db.LockEventRegistrationAsync(eventId, ct);
+        await db.LockEventVenueAsync(request.VenueId, ct);
         var groupEvent = await db.GroupEvents.FirstOrDefaultAsync(x => x.Id == eventId, ct);
         if (groupEvent is null) return AppResult<EventVenueWorkspaceDto>.NotFound("Event not found.");
         if (!await IsModuleEnabled(eventId, ct))
@@ -155,6 +164,8 @@ public sealed class EventVenueService(
             .OrderBy(x => x.StartUtc).FirstOrDefaultAsync(ct);
         if (conflict is not null)
             return AppResult<EventVenueWorkspaceDto>.Conflict($"Venue {venue.NameEn} conflicts with an existing reservation {FormatInterval(conflict.StartUtc, conflict.EndUtc)}.");
+        if (await EventVenueRecurrence.ConflictsAsync(db, venue.Id, request.StartUtc, request.EndUtc, ct))
+            return AppResult<EventVenueWorkspaceDto>.Conflict("The venue is occupied by a standing reservation.");
 
         var now = DateTime.UtcNow;
         var reservation = new EventVenueReservation
@@ -177,14 +188,19 @@ public sealed class EventVenueService(
                 await packageInvalidation.InvalidateForModuleChangeAsync(groupEvent, memberId, ModuleCode,
                     "event.venue.reservationChanged", "governanceCritical", ct);
         }
-        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventVenueWorkspaceDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct, transactionAlreadyStarted: true)) return AppResult<EventVenueWorkspaceDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventVenueWorkspaceDto>.PreconditionFailed("The venue changed while reserving; reload to see the winning reservation."); }
         catch (DbUpdateException) { return AppResult<EventVenueWorkspaceDto>.Conflict("The reservation or idempotency key was changed by another request; reload and try again."); }
+        if (transaction is not null) await transaction.CommitAsync(ct);
         return AppResult<EventVenueWorkspaceDto>.Success(await BuildWorkspace(groupEvent, memberId, ct));
     }
 
     public async Task<AppResult<EventVenueWorkspaceDto>> ReleaseAsync(Guid eventId, Guid reservationId, Guid memberId, string? ifMatch, string? idempotencyKey, CancellationToken ct)
     {
+        var venueId = await db.EventVenueReservations.AsNoTracking().Where(x => x.Id == reservationId && x.EventId == eventId).Select(x => (Guid?)x.VenueId).FirstOrDefaultAsync(ct);
+        if (!venueId.HasValue) return AppResult<EventVenueWorkspaceDto>.NotFound("Venue reservation not found.");
+        await using var tx = await db.BeginSerializableTransactionAsync(ct);
+        await db.LockEventRegistrationAsync(eventId,ct); await db.LockEventVenueAsync(venueId.Value,ct);
         var reservation = await db.EventVenueReservations.Include(x => x.Event).Include(x => x.Venue)
             .FirstOrDefaultAsync(x => x.Id == reservationId && x.EventId == eventId, ct);
         if (reservation is null) return AppResult<EventVenueWorkspaceDto>.NotFound("Venue reservation not found.");
@@ -219,9 +235,10 @@ public sealed class EventVenueService(
                 await packageInvalidation.InvalidateForModuleChangeAsync(reservation.Event, memberId, ModuleCode,
                     "event.venue.reservationChanged", "governanceCritical", ct);
         }
-        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventVenueWorkspaceDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct, transactionAlreadyStarted: true)) return AppResult<EventVenueWorkspaceDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventVenueWorkspaceDto>.PreconditionFailed("The venue or reservation changed while releasing; reload and try again."); }
         catch (DbUpdateException) { return AppResult<EventVenueWorkspaceDto>.Conflict("The release or idempotency key was changed by another request; reload and try again."); }
+        if (tx is not null) await tx.CommitAsync(ct);
         return AppResult<EventVenueWorkspaceDto>.Success(await BuildWorkspace(reservation.Event, memberId, ct));
     }
 
@@ -243,11 +260,14 @@ public sealed class EventVenueService(
             .GroupBy(x => new { x.VenueId, x.StartUtc, x.EndUtc }).Select(x => x.First()).ToArray();
         var occurrences = await db.EventOccurrences.AsNoTracking().Where(x => x.EventId == groupEvent.Id && x.Status == EventOccurrenceStatus.Scheduled)
             .OrderBy(x => x.StartUtc).ToListAsync(ct);
-        var capacitySufficient = active.All(x => x.RequiredCapacity <= x.Venue.Capacity);
+        var standing = await db.EventVenueWeeklyBookings.AsNoTracking().Include(x => x.Venue).Include(x => x.Exceptions)
+            .Where(x => x.EventId == groupEvent.Id).ToArrayAsync(ct);
+        var capacitySufficient = active.All(x => x.RequiredCapacity <= x.Venue.Capacity) && standing.All(x => x.RequiredCapacity <= x.Venue.Capacity && x.Venue.IsActive);
         var bookingsConfirmed = occurrences.Count > 0
             ? occurrences.All(occurrence => active.Any(x => x.EventOccurrenceId == occurrence.Id ||
-                (!x.EventOccurrenceId.HasValue && x.StartUtc <= occurrence.StartUtc && x.EndUtc >= occurrence.EndUtc)))
-            : active.Length > 0;
+                (!x.EventOccurrenceId.HasValue && x.StartUtc <= occurrence.StartUtc && x.EndUtc >= occurrence.EndUtc)) ||
+                standing.Any(x => EventVenueRecurrence.Covers(x, occurrence.StartUtc, occurrence.EndUtc)))
+            : active.Length > 0 || standing.Length > 0;
         var conflictsResolved = conflicts.Length == 0;
         var blockers = new List<LocalizedTextDto>();
         if (!capacitySufficient) blockers.Add(new("At least one venue reservation exceeds the venue capacity.", "至少一項場地預訂超過場地容量。"));
@@ -262,16 +282,11 @@ public sealed class EventVenueService(
     }
 
     private async Task<bool> CanManageCatalogue(Guid groupId, Guid memberId, CancellationToken ct)
-        => await authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, ct) ||
-           await db.GroupEvents.AsNoTracking().AnyAsync(x => x.GroupId == groupId &&
-               x.AccountableOwnerMemberId == memberId && !x.IsDeleted, ct) ||
-           await db.EventRoleAssignments.AsNoTracking().AnyAsync(x => x.Event.GroupId == groupId && x.MemberId == memberId &&
-               x.RoleRequirementKey == CoordinatorRoleKey && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null, ct);
+        => await authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, ct);
 
     private async Task<bool> CanCoordinate(GroupEvent groupEvent, Guid memberId, CancellationToken ct)
-        => await EventCompositionPersistence.CanManageEventAsync(db, authorization, groupEvent, memberId, ct) ||
-           await db.EventRoleAssignments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == memberId &&
-               x.RoleRequirementKey == CoordinatorRoleKey && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null, ct);
+        => await EventWorkAccess.OwnerAsync(db, groupEvent, memberId, ct) ||
+           await EventWorkAccess.RoleAsync(db, groupEvent, memberId, ModuleCode, "resource.coordinator", ct);
 
     private async Task<bool> IsModuleEnabled(Guid eventId, CancellationToken ct)
     {
@@ -297,7 +312,8 @@ public sealed class EventVenueService(
         => new() { Id = Guid.NewGuid(), Operation = operation, ScopeId = scopeId, Key = key, RequestHash = requestHash,
             ResultEntityId = resultId, CreatedUtc = now, ExpiresUtc = now.AddHours(24) };
     private static string? ValidateVenue(SaveEventVenueRequest x)
-        => string.IsNullOrWhiteSpace(x.Name.En) || string.IsNullOrWhiteSpace(x.Name.Zh)
+        => x.Kind is not ("venue" or "room") || !TimeZoneInfo.TryFindSystemTimeZoneById(x.TimeZone, out _) ? "A valid venue kind and time zone are required."
+            : string.IsNullOrWhiteSpace(x.Name.En) || string.IsNullOrWhiteSpace(x.Name.Zh)
             ? "Bilingual venue names are required."
             : x.Capacity <= 0 ? "Venue capacity must be greater than zero." : null;
     private static string? ValidateReservation(ReserveEventVenueRequest x)
@@ -318,7 +334,7 @@ public sealed class EventVenueService(
         => !string.IsNullOrWhiteSpace(actual) && string.Equals(actual.Trim(), expected, StringComparison.Ordinal);
     private static EventVenueDto ToVenueDto(EventVenue x) => new(x.Id, x.ManagingGroupId,
         new(x.NameEn, x.NameZh), new(x.AddressEn, x.AddressZh), x.Capacity, x.IsActive,
-        VenueETag(x), x.CreatedUtc, x.UpdatedUtc);
+        VenueETag(x), x.CreatedUtc, x.UpdatedUtc, x.TimeZone, x.Kind);
     private static EventVenueReservationDto ToReservationDto(EventVenueReservation x) => new(x.Id, x.VenueId, x.EventId,
         x.EventOccurrenceId, new(x.Venue.NameEn, x.Venue.NameZh), x.Venue.Capacity, x.StartUtc, x.EndUtc,
         x.RequiredCapacity, x.Status, x.ReservedByMemberId, x.ReleasedByMemberId, x.ReleasedUtc,

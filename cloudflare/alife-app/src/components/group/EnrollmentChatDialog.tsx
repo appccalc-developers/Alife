@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { translateUi, type UiTextKey } from '../../i18n/uiText'
 import type { GroupEventRecord } from '../../types/event'
 import type { EnrollmentDraft, EnrollmentCapacity } from '../../types/enrollment'
@@ -74,6 +75,9 @@ const EnrollmentChatDialog = ({
   if (!open) {
     return null
   }
+  let registrationVersion = 0
+  try { registrationVersion = JSON.parse(event.eventDataJson).registrationRulesVersion || 0 } catch { /* Legacy event. */ }
+  if (registrationVersion > 0) return <div className="space-y-3 rounded-2xl bg-white p-5"><p className="text-sm">{language === 'zh' ? '请在报名空间办理每位参加者的同意、材料和费用，并查看名额状态。' : 'Use the registration workspace for each participant’s consent, materials, fees and place status.'}</p><Link className="inline-flex min-h-11 items-center font-semibold text-[#176b5a]" to={`/events/${event.id}/registration-work`}>{language === 'zh' ? '进入报名办理' : 'Open registration'}</Link>{onClose ? <button type="button" className="ml-4 min-h-11" onClick={onClose}>{language === 'zh' ? '关闭' : 'Close'}</button> : null}</div>
 
   const title = language === 'zh'
     ? event.titleZh || event.titleEn || translateUi(language, 'untitled')

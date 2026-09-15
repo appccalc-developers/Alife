@@ -10,7 +10,8 @@ namespace Alife.Application.Events.Queries.GetGroupEvents;
 public sealed class GetGroupEventsQueryHandler(
     IEventReadService eventReadService,
     IGroupReadService groupReadService,
-    IGroupAuthorizationService groupAuthorizationService)
+    IGroupAuthorizationService groupAuthorizationService,
+    Alife.Application.Common.Interfaces.IAlifeDbContext? dbContext = null)
     : IRequestHandler<GetGroupEventsQuery, AppResult<IReadOnlyList<GroupEventSummaryDto>>>
 {
     public async Task<AppResult<IReadOnlyList<GroupEventSummaryDto>>> Handle(GetGroupEventsQuery request, CancellationToken cancellationToken)
@@ -51,13 +52,21 @@ public sealed class GetGroupEventsQueryHandler(
             return AppResult<IReadOnlyList<GroupEventSummaryDto>>.Success(events);
         }
 
+        var authorisedPlans = new HashSet<Guid>();
+        if (dbContext is not null && request.CurrentMemberId is { } actor)
+        {
+            var candidates = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToArrayAsync(
+                dbContext.GroupEvents.Where(x => x.GroupId == request.GroupId), cancellationToken);
+            foreach (var e in candidates)
+                if (await EventWorkAccess.PlanReaderAsync(dbContext,e,actor,cancellationToken)) authorisedPlans.Add(e.Id);
+        }
         var visibleEvents = events
-            .Where(EventVisibilityPolicy.IsPublished)
+            .Where(e => authorisedPlans.Contains(e.Id) || EventVisibilityPolicy.IsPublished(e))
             .Where(groupEvent => EventVisibilityPolicy.CanView(
                 groupEvent.Visibility,
                 isGroupMember,
-                isChurchMember))
-            .Select(groupEvent => isGroupMember
+                isChurchMember) || authorisedPlans.Contains(groupEvent.Id))
+            .Select(groupEvent => isGroupMember || authorisedPlans.Contains(groupEvent.Id)
                 ? groupEvent
                 : EventVisibilityPolicy.SanitizeForExpandedAudience(groupEvent))
             .ToList();

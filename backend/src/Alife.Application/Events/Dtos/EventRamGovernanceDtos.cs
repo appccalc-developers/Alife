@@ -68,7 +68,22 @@ public sealed record RamRevisionDto(Guid Id, int Version, int SchemaVersion, Gui
 public sealed record RamActionDto(Guid Id, Guid RevisionId, Guid ActorMemberId, string Action, string Reason,
     bool HealthSafetySigned, DateTime CreatedUtc);
 public sealed record RamEventPlanContextDto(Guid EventId, Guid GroupId, RamText Title, DateTime StartUtc,
-    DateTime EndUtc, EventPlanSnapshotDto? AcceptedPlan);
+    DateTime EndUtc, EventPlanSnapshotDto? AcceptedPlan)
+{
+    public System.Text.Json.JsonElement? Details { get; init; }
+    public IReadOnlyList<EventPlanReportDto> Reports { get; init; } = [];
+    public RegistrationRules? RegistrationRules { get; init; }
+    public int? RegistrationRulesVersion { get; init; }
+    public IReadOnlyList<EventPlanVenueDto> Venues { get; init; } = [];
+    public IReadOnlyList<EventPlanWeeklyVenueDto> WeeklyVenues { get; init; } = [];
+    public IReadOnlyList<EventRosterDefaultRequirement> RosterNeeds { get; init; } = [];
+    public IReadOnlyList<EventPlanSessionDto> Programme { get; init; } = [];
+}
+public sealed record EventPlanSessionDto(LocalizedTextDto Title, DateTime StartUtc, DateTime EndUtc, IReadOnlyList<EventPlanProgramItemDto> Items);
+public sealed record EventPlanProgramItemDto(LocalizedTextDto Title, LocalizedTextDto Description, int StartOffsetMinutes, int DurationMinutes);
+public sealed record EventPlanVenueDto(LocalizedTextDto Name, DateTime StartUtc, DateTime EndUtc, int Capacity);
+public sealed record EventPlanWeeklyVenueDto(LocalizedTextDto Name, DateOnly FirstDate, DateOnly? LastDate, int StartMinute, int EndMinute, string TimeZone, int Capacity, IReadOnlyList<DateOnly> ReleasedDates);
+public sealed record EventPlanReportDto(string ModuleCode, Guid RevisionId, int Version, LocalizedTextDto Text);
 public sealed record RamWorkspaceDto(EventRamAssessmentDto? Assessment, RamPolicyDto? Policy,
     IReadOnlyList<RamRevisionDto> History, IReadOnlyList<RamActionDto> Actions, IReadOnlyList<RamPerson> OnsiteCandidates,
     bool CanEdit, bool CanAudit, Guid CurrentMemberId, bool IsRequired, RamPolicyDto? LatestPolicy = null,

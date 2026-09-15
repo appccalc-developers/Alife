@@ -3,8 +3,8 @@ import { http } from '../../services/http'
 
 export type EventCapability = { moduleCode: string; status: 'coreAvailable' | 'partial' | 'unavailable'; description: { en: string; zh: string } }
 export const capabilityFallback: EventCapability[] = [
-  { moduleCode: 'MONEY.FINANCE', status: 'unavailable', description: { en: 'Budget, fees, claims and reconciliation tools are not available yet.', zh: '预算、收费、报销和对账工具尚未提供。' } },
-  { moduleCode: 'FOOD.HOSPITALITY', status: 'unavailable', description: { en: 'Menu, dietary needs and food-service tools are not available yet.', zh: '菜单、饮食需求及餐饮筹备工具尚未提供。' } },
+  { moduleCode: 'MONEY.FINANCE', status: 'partial', description: { en: 'Manual registration fees and independent fee approval are available. Budgets, purchasing, claims and ledgers remain unavailable.', zh: '支持报名费独立审批及人工收退款；预算、采购、报销和总账尚未提供。' } },
+  { moduleCode: 'FOOD.HOSPITALITY', status: 'partial', description: { en: 'Lead-authored preparation reports are available. Menus, allergy records and kitchen management remain unavailable.', zh: '支持负责人筹备报告；菜单、过敏资料与厨房管理尚未提供。' } },
   { moduleCode: 'FESTIVAL.OPERATIONS', status: 'unavailable', description: { en: 'Zone operations, command and incident tools are not available yet.', zh: '分区运营、现场指挥和事件处理工具尚未提供。' } },
   { moduleCode: 'COMMS.FOLLOWUP', status: 'partial', description: { en: 'Event content, posters and publication are available. Audience-confirmed broadcasts, delivery tracking and follow-up are not yet provided.', zh: '已有活动文案、海报和发布功能；收件人确认、广播发送、投递追踪及跟进流程尚未提供。' } },
 ]
