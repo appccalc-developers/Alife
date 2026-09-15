@@ -6,18 +6,18 @@ import { creationSettings, invalidateArrangementConfirmation, type CreationDraft
 import { creationInput, localText } from './CreationFields'
 import { useDetailsWorkspace } from './DetailsWorkspace'
 
-function DetailGroup({ field, label, children }: { field: DetailField; label: string; children: ReactNode }) {
+function DetailGroup({ field, label, children }: { field: string; label: string; children: ReactNode }) {
   const { updatedFields } = useDetailsWorkspace()
   return <fieldset tabIndex={-1} data-detail-field={field} data-ai-updated={updatedFields.includes(field)} className="event-detail-field"><legend>{label}</legend>{children}</fieldset>
 }
-function DetailsBilingualField({ field, label, value, onChange, zh, multiline = false }: {
-  field: DetailField; label: string; value: Bilingual; onChange: (value: Bilingual) => void; zh: boolean; multiline?: boolean
+export function DetailsBilingualField({ field, label, value, onChange, zh, multiline = false, maxLength }: {
+  field: string; label: string; value: Bilingual; onChange: (value: Bilingual) => void; zh: boolean; multiline?: boolean; maxLength?: number
 }) {
   const { readOnly } = useDetailsWorkspace(), id = useId()
   const primary = zh ? 'zh' : 'en', secondary = zh ? 'en' : 'zh'
-  const input = (locale: 'en' | 'zh') => <label className="event-detail-language" htmlFor={`${id}-${locale}`}><span>{locale === 'zh' ? '中文' : 'English'}</span>{multiline
-    ? <textarea id={`${id}-${locale}`} data-locale={locale} disabled={readOnly} rows={3} className={`${creationInput} py-2`} value={value[locale]} onChange={event => onChange({ ...value, [locale]: event.target.value })} />
-    : <input id={`${id}-${locale}`} data-locale={locale} disabled={readOnly} className={creationInput} value={value[locale]} onChange={event => onChange({ ...value, [locale]: event.target.value })} />}</label>
+  const input = (locale: 'en' | 'zh') => <label className="event-detail-language" htmlFor={`${id}-${locale}`}><span id={`${id}-${locale}-label`}>{locale === 'zh' ? '中文' : 'English'}</span>{multiline
+    ? <textarea id={`${id}-${locale}`} aria-labelledby={`${id}-${locale}-label`} data-locale={locale} maxLength={maxLength} disabled={readOnly} rows={3} className={`${creationInput} py-2`} value={value[locale]} onChange={event => onChange({ ...value, [locale]: event.target.value })} />
+    : <input id={`${id}-${locale}`} aria-labelledby={`${id}-${locale}-label`} data-locale={locale} maxLength={maxLength} disabled={readOnly} className={creationInput} value={value[locale]} onChange={event => onChange({ ...value, [locale]: event.target.value })} />}</label>
   return <DetailGroup field={field} label={label}>
     {input(primary)}
     <details className="event-detail-translation"><summary><Languages size={15} aria-hidden="true" /><span>{secondary === 'zh' ? '中文' : 'English'}</span><span className={value[secondary].trim() ? '' : 'event-detail-pending'}>{value[secondary].trim() ? (zh ? '已填写' : 'Added') : (zh ? '待补充' : 'Missing')}</span><ChevronDown size={15} aria-hidden="true" /></summary>{input(secondary)}</details>
@@ -53,7 +53,7 @@ export default function DetailsStep({ draft, setDraft: updateDraft, zh, type, ar
       <details className="event-detail-zone"><summary><Globe2 size={16} aria-hidden="true" /><span>{draft.timeZone || (zh ? '请选择活动时区' : 'Choose an event time zone')}</span><span>{zh ? '当地时间' : 'Local time'}</span><ChevronDown size={16} aria-hidden="true" /></summary>{textField('timeZone', zh ? '活动时区' : 'Event time zone')}</details>
       <div className="event-details-time-pair">{textField('startLocal', zh ? '开始时间' : 'Start time', 'datetime-local')}{textField('endLocal', zh ? '结束时间' : 'End time', 'datetime-local')}</div>
       {timesUnconfirmed ? <p className="event-detail-pending">{zh ? '预填时间待确认，请核对后填写或由助手更新。' : 'Prefilled times need confirmation. Review and edit them or ask the assistant to update them.'}</p> : null}
-      {archetype.isSeries ? <div className="event-detail-recurrence">{textField('intervalWeeks', zh ? '每隔几周举行' : 'Repeat every N weeks', 'number')}<p hidden={saved}>{zh ? `每 ${draft.intervalWeeks || '1'} 周同一时间举行，预先安排未来 12 周。` : `Repeats every ${draft.intervalWeeks || '1'} week(s), scheduling the next 12 weeks.`}</p></div> : null}
+      {archetype.isSeries ? <div className="event-detail-recurrence">{textField('intervalWeeks', zh ? '每隔几周举行' : 'Repeat every N weeks', 'number')}<p>{saved ? (zh ? '重复设置用于补充后续场次，已安排的场次及其资料会保留。' : 'Recurrence changes add future occurrences and preserve existing occurrences and their details.') : (zh ? `每 ${draft.intervalWeeks || '1'} 周同一时间举行，预先安排未来 12 周。` : `Repeats every ${draft.intervalWeeks || '1'} week(s), scheduling the next 12 weeks.`)}</p></div> : null}
       {bilingual('locationName', zh ? '地点说明' : 'Location')}
     </section>
     <section className="event-details-section" aria-label={zh ? '可见范围与报名' : 'Visibility and registration'}>

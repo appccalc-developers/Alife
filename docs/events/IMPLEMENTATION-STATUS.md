@@ -1,5 +1,17 @@
 # Event Management Implementation Status
 
+## 2026-09-15 — Shared details, task and registration form assistants
+
+Tracked in [Issue #792](https://github.com/appccalc-developers/Alife/issues/792).
+
+Implemented locally: Event details, the current new-task form and preparation's Registration rules and procedures share conversation, speech, error/retry, completion, pending-field focus and update feedback. Desktop columns stretch together; only the conversation consumes spare height and scrolls. Event details ends at Visibility and registration, including bilingual disclosure changes. Send is left and Voice input right below the text box; the redundant form-return link is removed. Narrow screens retain form/assistant tabs. Module, collapse and language changes retain input/conversation; hiding the assistant stops speech. Registration bilingual fields, including requirement labels, payment instructions and refund terms, now use current-language-first disclosure with Added/Missing markers. Unrelated venue-editor fields retain their existing presentation.
+
+The new stateless `POST /api/events/form-assistance` uses the existing Gemini configuration, strict task/registration field allowlists, bounded messages/history, local form time zone and draft revision. Backend team/registration authority is checked on every request, including preparation freeze when a task's stage changes. Responses are private/no-store and vary by Cookie/Authorization. Backend member, participant, material and approval records are excluded from model context; manual person/group/occurrence selections also stay local. Invalid or stale replies preserve the draft and input. Material IDs, including historical non-GUID IDs, survive edits; translation-only updates preserve existing text, order, type and limits. Empty or incomplete replies are rejected. AI adoption only changes the draft; Add task and Save registration plan remain explicit commits with existing server validation. No dependency, schema migration or new AI provider was introduced.
+
+Verification: 84 frontend Event unit tests and 12 focused tests against the rebuilt Worker pass. English/Chinese fixtures pass at 320/768/1280px for new and saved details plus both module assistants; final desktop regressions cover natural sizing, disclosure and AI updates. Voice/chat fixtures cover recognition failure, cleanup and retained input. Module fixtures cover scoped adoption, manual saves, bilingual fee/material fields, stale/retry behavior, language/module continuity, read-only forms and hidden speech. TypeScript/Vite/PWA production build and Wrangler dry-run build pass. The pre-existing idb-keyval mixed-import warning remains. Desktop/mobile screenshots were inspected. Event documentation generation/check validates 12 modules, 175 API contracts and equivalent three-language overview structures.
+
+Limits: browser APIs, speech and provider replies are fixtures. Live Gemini semantics, real microphone recognition and production persistence/deployment were not exercised. No deployment or database migration was performed.
+
 
 ## 2026-09-15 — Upstream activity plans and compact RAM review
 

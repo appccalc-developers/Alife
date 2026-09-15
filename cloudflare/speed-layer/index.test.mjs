@@ -7,6 +7,60 @@ import { EventPlanningSession } from './dist/app_ccalc/index.js'
 
 const ORIGIN = 'https://ccalc.live'
 
+const formFixture = (scope = 'tasks') => ({ eventId: '11111111-1111-1111-1111-111111111111', scope, revision: 7, language: 'zh', timeZone: 'Australia/Perth', message: '准备场地', history: [], form: scope === 'tasks'
+  ? { title: { en: '', zh: '' }, dueLocal: '', stage: 'preparation', requiresApproval: false, isRestricted: false }
+  : { purpose: { en: '', zh: '' }, audience: 'group', eligibility: { en: '', zh: '' }, capacity: 30, opensLocal: '2026-10-01T09:00', deadlineLocal: '2026-10-02T09:00', allowWaitlist: true, terms: { en: '', zh: '' }, privacyNotice: { en: '', zh: '' }, cancellationTerms: { en: '', zh: '' }, channel: 'app', manualReview: false, materials: [], feeMinor: 0, currency: 'NZD', moneyFlowScope: 'unspecified', paymentInstructions: { en: '', zh: '' }, refundTerms: { en: '', zh: '' } } })
+const sendForm = (input, cookie = 'alife_auth=form-owner') => dispatch(`${ORIGIN}/api/events/form-assistance`, { method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(input), env: { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture' } })
+const formReply = (field = 'title', finishReason = 'STOP') => Response.json({ candidates: [{ finishReason, content: { parts: [{ text: JSON.stringify({ form: { [field]: { en: 'Prepare venue', zh: '准备场地' } }, evidence: [{ field, quote: '准备场地' }], assistantReply: { en: 'Review your draft.', zh: '请核对草稿。' } }) }] } }] })
+
+test('form assistant authorizes each scope, uses private responses and excludes backend records', async () => {
+  for (const scope of ['tasks', 'registration']) {
+    const offset = fetchCalls.length
+    originResponses.push(Response.json({ canManage: true, canConfigure: true, members: [{ displayName: 'PRIVATE MEMBER' }], applications: ['PRIVATE PARTICIPANT'], approvals: ['PRIVATE APPROVAL'] }))
+    if (scope === 'tasks') originResponses.push(Response.json({ canEdit: true }))
+    originResponses.push(formReply(scope === 'tasks' ? 'title' : 'purpose'))
+    const response = await sendForm(formFixture(scope))
+    assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'private, no-store'); assert.match(response.headers.get('vary'), /Cookie/); assert.match(response.headers.get('vary'), /Authorization/)
+    const result = await response.json(); assert.equal(result.revision, 7); assert.equal(result.form[scope === 'tasks' ? 'title' : 'purpose'].zh, '准备场地')
+    const provider = fetchInits[offset + (scope === 'tasks' ? 2 : 1)]
+    const context = JSON.parse(JSON.parse(provider.body).contents[0].parts[0].text)
+    assert.equal(context.eventId, undefined); assert.equal(context.revision, undefined)
+    assert.doesNotMatch(provider.body, /PRIVATE|members|applications|approvals/)
+    assert.equal(new Headers(fetchInits[offset].headers).get('cookie'), 'alife_auth=form-owner')
+    assert.ok(fetchCalls.slice(offset).filter(x => String(x).includes('api.ccalc.live')).every((_, i) => !fetchInits[offset + i].method), 'authorization is read-only')
+  }
+})
+test('form assistant denies unauthenticated, non-editor, other-viewer and frozen requests before AI', async () => {
+  assert.equal((await sendForm(formFixture(), '')).status, 401); assert.equal(fetchCalls.length, 0)
+  for (const authority of [new Response('', { status: 403 }), Response.json({ canManage: false }), Response.json({ canManage: 'true' })]) {
+    originResponses.push(authority); assert.equal((await sendForm(formFixture(), 'alife_auth=other-viewer')).status, 403)
+  }
+  originResponses.push(Response.json({ canManage: true }), Response.json({ canEdit: false }))
+  assert.equal((await sendForm(formFixture())).status, 403)
+  originResponses.push(Response.json({ canManage: true, canConfigure: false }))
+  assert.equal((await sendForm(formFixture('registration'))).status, 403)
+  assert.ok(fetchCalls.every(url => !String(url).includes('generativelanguage')))
+})
+test('form assistant rejects private/unknown input and oversize bodies before provider work', async () => {
+  for (const input of [{ ...formFixture(), members: [] }, { ...formFixture(), scope: 'ram' }, { ...formFixture(), form: { ...formFixture().form, assignedMemberId: 'private' } }, { ...formFixture(), message: 'x'.repeat(8001) }]) assert.equal((await sendForm(input)).status, 400)
+  assert.equal((await sendForm({ ...formFixture(), message: 'x'.repeat(240001) })).status, 413)
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('form assistant cannot switch a permitted operational task into frozen preparation', async () => {
+  const input = formFixture(); input.form.stage = 'execution'; input.message = 'preparation'
+  originResponses.push(Response.json({ canManage: true }), Response.json({ canEdit: false }), Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ form: { stage: 'preparation' }, evidence: [{ field: 'stage', quote: 'preparation' }], assistantReply: { en: 'Review the stage.', zh: '请核对阶段。' } }) }] } }] }))
+  const response = await sendForm(input)
+  assert.equal(response.status, 403); assert.equal((await response.json()).form, undefined)
+  assert.equal(response.headers.get('cache-control'), 'private, no-store')
+})
+test('form assistant rejects truncated, malformed and cross-module output without a draft', async () => {
+  for (const provider of [formReply('title', 'MAX_TOKENS'), formReply('purpose'), Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{' }] } }] }), new Response('unavailable', { status: 503 })]) {
+    originResponses.push(Response.json({ canManage: true }), Response.json({ canEdit: true }), provider)
+    const response = await sendForm(formFixture()); assert.equal(response.status, 503); assert.equal((await response.json()).form, undefined)
+  }
+})
+
 test('frontend build revalidates SPA files in browsers while retaining hashed assets at the edge', async () => {
   const headers = await readFile(new URL('../alife-app/dist/_headers', import.meta.url), 'utf8')
 

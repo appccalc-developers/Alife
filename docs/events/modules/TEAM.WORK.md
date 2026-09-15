@@ -58,6 +58,10 @@ Enabled-module responsibilities use compact disclosure rows: collapsed rows show
 
 The [continuous preparation flow](../EVENT-SETUP-FLOW.md) enters team/tool settings immediately after creation, reusing the saved Event and arrangements before formal approval, poster preparation and explicit publication. Details, arrangements and team configuration can be revised repeatedly before approval. Approved preparation is frozen; a reviewed reopening request restores editing and requires fresh approval. Operational progress and member responses retain their existing authority. Existing workspace editors remain the operational authority.
 
+## AI form assistance
+
+The new-task form uses the shared [AI form assistant](../AI-DETAILS-ASSISTANT.md#tasks-and-registration-form-assistants). It fills one bilingual title, due time, stage and review/restriction options in the local draft. People and occurrences remain manual; Add task is explicit. It cannot update existing task status, assign authority, submit handoffs or approve. Conversation/voice, pending-field focus and completion share the details template; permission, private cache and stale-response checks remain enforced.
+
 ## Current implementation
 
 Current. Event team invitations, accepted roles, dependencies, blockers and deadlines retain their domain APIs. Ordinary tasks now have a named independent reviewer, approval status and immutable submission/action rounds; ETags, idempotency, current membership and specialist-source guards enforce handoff. Personal Center discovers live duties without notification records and opens restricted task details. Approved configuration remains frozen.
