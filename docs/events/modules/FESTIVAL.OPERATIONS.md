@@ -1,6 +1,6 @@
 # FESTIVAL.OPERATIONS
 
-> Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
+> Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#festival-operations) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
 ## Collaboration version 1
 
@@ -48,17 +48,13 @@ Contributes zone/command structure, accountable leads, crowd/first-aid/weather/e
 
 The command workspace shows zone state, accountable owners, unresolved incidents, weather/evacuation decisions, and readiness. It does not expose child or medical detail outside the authorised specialist flow.
 
-## Current implementation
+## Operational behavior
 
 Target only. Zone and ServiceSlot persistence foundations, multi-zone composition, dependency/role/readiness definitions, and a generic controlled surface exist. A live festival operations API and reachable business flow do not.
 
-## Open contract gaps
 
-Zone/stall operational state, crowd flow, first aid, lost-child handling, command log, weather/evacuation, incident escalation, and all dedicated API/UI behaviour.
 
-## Next useful vertical slice
 
-`festival-zone-command`: zone plan and lead, open/paused/closed state, command-level incident escalation, and overall readiness; a live map remains deferred.
 
 ## Availability presentation — 2026-09-13
 

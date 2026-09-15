@@ -1,6 +1,6 @@
 # PLACE.RESOURCE
 
-> Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
+> Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#place-resource) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
 ## Collaboration version 1
 
@@ -54,17 +54,24 @@ Preparation configuration follows the [formal-approval freeze and reopening cont
 
 During saved preparation, the existing authorized tool is embedded directly in **Arrangements → Programme and venue → Venue and resources**. It shares its operational API and permissions with the independent workspace route; there is no separate Team and tools preparation step. See [integrated preparation](../EVENT-SETUP-FLOW.md).
 
-## Current implementation
+## Operational behavior
 
-Current venue slice. Reusable venue catalogue/capacity, Event and occurrence reservations, history-preserving release, half-open overlap detection, ETags, idempotency, exact coordinator authorisation, readiness, occurrence-local Package invalidation/review, private APIs, reachable `EventVenueWorkspaceSurface`, and legacy `Session.PlaceJson` compatibility exist.
+venue slice. Reusable venue catalogue/capacity, Event and occurrence reservations, history-preserving release, half-open overlap detection, ETags, idempotency, exact coordinator authorisation, readiness, occurrence-local Package invalidation/review, private APIs, reachable `EventVenueWorkspaceSurface`, and legacy `Session.PlaceJson` compatibility exist.
 
-## Open contract gaps
 
-Equipment catalogue/allocation, setup, close-down, handover, return, and optional typed Session → Venue linking remain open.
 
-## Next useful vertical slice
 
-`resource-equipment-allocation`: equipment catalogue, quantity allocation, availability conflict, and existing-workflow contribution; setup/handover/return remain deferred.
+
+## Independent venues and rooms
+
+`/groups/:groupId/venues` is an independent catalogue and calendar, reachable from group management and relevant Event work. Catalogue authority is current group leader/co-leader; owning an Event does not grant it. Owners may reserve authorized group venues; calendar administration does not grant private plan editing. Names, addresses, capacity, kind (`venue`, `room`), time zone and enabled status belong to the catalogue. Equipment inventory is deferred.
+
+Calendars disclose Event names only to authorized viewers; others see Occupied. A weekly booking stores local first date, optional last date, start/end minutes, capacity and time zone. Blank last date is indefinite. Overnight intervals are supported within 24 hours. Calendar expansion uses the requested range (maximum 366 days), independently of the rolling twelve-week Event occurrence horizon. A Sunday morning remains occupied when queried a year later.
+
+Conflict checks cover single/single, single/weekly and weekly/weekly reservations; venue-row locks serialize competing writes. New invalid/ambiguous DST boundaries are explicitly rejected. Legacy unresolved local times are conservatively blocked and visibly flagged rather than treated as available. Single-date release/restore appends actor/time/reason history. Restoring checks new bookings and never overwrites another Event. Changing future dates creates a successor rule and retains the previous rule's past intervals and change reason. Authorized calendar history exposes relevant creation/change records and release/restore records in the selected dates. No long-term reservation extends Package approval validity.
+
+
+## Saved preparation compatibility
 
 ### Shared preparation editor
 

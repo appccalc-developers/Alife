@@ -108,7 +108,7 @@ AI is an assistant, not an authority.
 
 ## Event documentation
 
-Every Event module task, including Event code outside `docs/events/`, must follow `docs/events/AGENTS.md`. Read that file before changing Event contracts, module specifications, implementation status, or generated documentation. Never edit generated Event HTML directly.
+Every Event module task, including Event code outside `docs/events/`, follows the task reading matrix and update triggers in [docs/events/AGENTS.md](docs/events/AGENTS.md). Read the compact core once and affected topic/status/JSON sections as needed; do not recursively load all linked documents or reread unchanged context. That matrix owns Event documentation verification. Never edit generated Event HTML directly.
 
 For non-Event work, update authoritative documentation only when behavior, architecture, contracts, APIs/DTOs, authorization/privacy/cache behavior, migrations, user-visible acceptance scenarios, or language parity changes.
 

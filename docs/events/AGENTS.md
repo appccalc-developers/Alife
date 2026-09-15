@@ -1,41 +1,41 @@
-# Event Management documentation instructions
+# Event documentation and task reading
 
-These rules refine the repository-root `AGENTS.md` for `docs/events/` and Event module work elsewhere in the repository.
+Applies to every Event task, including code outside this directory. Repository [AGENTS.md](../../AGENTS.md) remains in force. This is the single Event reading/update policy; frontend instructions and skills refer here.
 
-## Required context
+## Task reading matrix
 
-For an ordinary Event module slice, normally read only:
+Read the compact [core contract](EVENT-CONTRACT.md) once. Search headings/JSON keys first, then read only affected sections, nearby implementation and tests. Content already in context need not be reread unless changed. A link is a reference, not an instruction to recursively load all dependencies.
 
-- repository-root `AGENTS.md`;
-- `EVENT-CONTRACT.md`;
-- the affected `modules/<MODULE>.md`;
-- the relevant portion of `event-contract.json`;
-- `IMPLEMENTATION-STATUS.md`.
+| Task | Additional reading |
+| --- | --- |
+| Restore existing behavior | Affected topic/module sections and its [current status](IMPLEMENTATION-STATUS.md) entry |
+| Change business behavior across modules | Affected stage, ownership, approval and specialist topics from the core reading map |
+| API, DTO, enum, authorization or cache change | Matching `event-contract.json` sections/entries, plus all applicable privacy, viewer, role and compatibility rules |
+| Frontend loading, routing or interaction repair | Relevant interaction/state/accessibility sections of [Workspace design](design/EVENT-WORKSPACE-DESIGN.md) and the affected flow; frontend AGENTS still applies |
+| New layout, visual material or substantial visual reshape | Relevant [design](design/EVENT-WORKSPACE-DESIGN.md), [visual tokens](design/EVENT-UI-VISUAL-TOKENS.md) and [reference area](design/EVENT-UI-REFERENCE-PAGES.md); render one pilot before expanding |
+| Historical regression, migration or evidence investigation | Relevant dated [history](IMPLEMENTATION-HISTORY.md), old proposal or migration; never treat old results as a current test run |
+| Product overview or documentation projection | Relevant README locales and generator/template; generated HTML is output, not authority |
 
-The generated long-form handbook is for people and broad architecture review. Do not load it for ordinary module work. Overview/onboarding work may also read `README.md` and `EventManagement-About.html`.
+Do not routinely load the full machine contract, historical log, execution proposals or generated long handbook. Reading budgets are guidance, never a reason to omit applicable authentication, privacy, cache isolation, bilingual compatibility or human-approval requirements.
 
-## Event Workspace design context
+## Documentation update triggers
 
-For Event UI/design work, also read [design/EVENT-WORKSPACE-DESIGN.md](design/EVENT-WORKSPACE-DESIGN.md), its visual tokens and the relevant reference area. Load these for frontend/design work rather than every backend-only module task.
+Review the final diff for documentation impact, then update only affected authoritative sources in the same change:
 
-Event-specific colour, graphics, six-level depth and interaction feedback extend the general workspace design. Preparation is nonlinear; preserving an owner's six-step wizard is not a requirement. Keep existing stage identifiers and server-defined approval/publication/execution gates. Plan B is not planned. Design guidance does not establish delivery: implement and evaluate one pilot before extending the style across Event Workspace.
+| Actual change | Required update |
+| --- | --- |
+| Bug fix restoring an existing rule | Changed acceptance/evidence or current status only when those facts change; no automatic contract/README rewrite |
+| Product behavior or module rule | Owning topic/module and its acceptance scenarios; core only when a shared invariant or architecture decision changes |
+| Exact interface, schema, enum or machine rule | Relevant JSON contract entry plus the affected topic; preserve backward compatibility |
+| Delivery, gaps, migration or verification facts | Update the relevant current-status row/section; add a dated history entry only for useful delivery or verification evidence |
+| User-facing overview | Equivalent Simplified Chinese, Traditional Chinese and English README sections |
+| README, machine JSON, generator or handbook template | Generate outputs, then run the check below; never edit generated HTML directly |
 
-## Documentation impact
+Topics own detailed business rules, modules own specialist operations/exceptions, JSON owns exact machine values, status owns delivery labels/gaps, and history owns dated evidence. Use links instead of copying rules into every source. Preserve important bookmarks when relocating sections. An explicitly scoped/versioned exception does not change other versions. Stop affected work and report unresolved normative conflicts unless the task already authorizes the necessary product/architecture decision.
 
-Before completing Event implementation or `/shipit`, review the complete diff for changes to:
+## Proportional verification
 
-- normative architecture or ADRs;
-- domain/public or machine-readable contracts;
-- module specifications and implementation/migration status;
-- APIs, DTOs, authorization, privacy, or caching;
-- user-visible behavior and acceptance scenarios;
-- `README.md`, generated documentation, and Simplified Chinese, Traditional Chinese, or English parity.
-
-Update every affected authoritative source in the same change, but do not mechanically edit unrelated documents or change normative architecture to excuse an implementation shortcut. If implementation conflicts with a normative contract, stop and report it unless the task authorizes the product/architecture decision.
-
-## Generated documentation
-
-- Never edit generated Event HTML directly.
-- When `README.md` changes, run `node docs/events/scripts/generate-event-docs.mjs` from the repository root in the same change.
-- Verify the Simplified Chinese, Traditional Chinese, and English `EventManagement-About.html` sections remain substantively equivalent.
-- Do not claim generation or parity verification unless it was performed against the current sources.
+- Keep repository security, compatibility and bilingual checks proportional to the actual change. UI behavior still needs the relevant rendered interaction checks; a logic repair does not require a new visual pilot.
+- After generator-input changes run `node docs/events/scripts/generate-event-docs.mjs`, then `node docs/events/scripts/generate-event-docs.mjs --check` from the repository root. For other Event documentation changes, run `--check` once; regenerate only if an affected projection is stale. Preserve the check and investigate failures rather than bypassing it.
+- Verify changed translations for meaning as well as generated structure. Check moved anchors and links. Successful commands need only a compact summary; expand relevant diagnostics on failure.
+- Report only checks actually run against the current source/artifact. Historical provider, database, browser or deployment results are not a new verification. No shared migration, external communication or Git publication is implied.

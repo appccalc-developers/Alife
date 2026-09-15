@@ -1,10 +1,10 @@
 # SAFEGUARDING.CHILD
 
-> Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
+> Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#safeguarding-child) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
 ## Collaboration version 1 — preparation and execution
 
-The [workspace contract](../EVENT-WORKSPACES.md) scopes this version's preparation to an accepted responsible lead and a bilingual versioned report. The lead writes in an independent page; the Event owner returns or adopts an immutable submitted revision into the formal plan. Later drafts cannot alter adopted text; frozen-plan changes require reopening. Submission and return project the next person's duty. Existing specialist execution tools and checks remain independent. This report does not certify specialist facts or grant access to private participant data.
+Uses the [shared report and handoff contract](../EVENT-WORKSPACES.md#tasks-and-reports): accepted module lead, versioned submission and owner adoption. Module-specific operations and privacy below still apply; a report neither certifies specialist facts nor grants participant-data access.
 
 ## Purpose
 
@@ -16,7 +16,7 @@ Protect children through explicit relationships, versioned consent, controlled c
 
 Required when confirmed `people.childrenPresent == true` (`children-present`). Child or guardian status is never inferred from age, surname, contact data, or enrollment JSON.
 
-During saved, unfrozen draft preparation this tool remains a Yes/No choice, including when the rule above applies. Disabling retains facts, ownership and saved records. Formal submission revalidates activation and dependencies and blocks missing required tools; see [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
+Saved-draft choices, preservation and submission revalidation follow [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
 
 ### Dependencies
 
@@ -54,14 +54,6 @@ Preparation configuration follows the [formal-approval freeze and reopening cont
 
 During saved preparation, the existing authorized tool is embedded directly in **Arrangements → Safety → Children participation / Child safeguarding**. It shares its operational API and permissions with the independent workspace route; there is no separate Team and tools preparation step. See [integrated preparation](../EVENT-SETUP-FLOW.md).
 
-## Current implementation
+## Operational behavior
 
-Current core flow. Explicit Enrollment-linked child records, confirmed guardian relationships, policy-bound consent, guardian-managed collectors, occurrence check-in/verified check-out, worker evidence, policy-backed readiness, ETag/idempotency, append-only minimal audit, exact server authorisation, minimum projections, private APIs, and reachable `EventSafeguardingWorkspace` exist.
-
-## Open contract gaps
-
-Full health-record integration, incident escalation, cross-Event worker-certification lifecycle, advanced policy administration, and policy-authorised re-entry remain open.
-
-## Next useful vertical slice
-
-`safeguarding-incident-escalation`: a minimum role-restricted incident record linked to the existing workflow and RAM evidence; full health records and broad policy/certification administration remain deferred.
+core flow. Explicit Enrollment-linked child records, confirmed guardian relationships, policy-bound consent, guardian-managed collectors, occurrence check-in/verified check-out, worker evidence, policy-backed readiness, ETag/idempotency, append-only minimal audit, exact server authorisation, minimum projections, private APIs, and reachable `EventSafeguardingWorkspace` exist.

@@ -21,7 +21,7 @@ Classify the work before designing:
 
 - **Public church site:** a welcoming digital front door for visitors, seekers, members, and new migrants.
 - **General authenticated workspace:** a calm, legible tool for members and non-technical group leaders.
-- **Event management workspace:** an expressive, graphical working environment governed by [Event Workspace design](../../../docs/events/design/EVENT-WORKSPACE-DESIGN.md) and its visual tokens. Use the existing four stages, nonlinear preparation and explicit business gates; evaluate one pilot area before wider rollout.
+- **Event management workspace:** use the [Event task reading matrix](../../../docs/events/AGENTS.md#task-reading-matrix). Read only relevant interaction/state guidance for behavior repairs; layout/material changes also use [Event Workspace design](../../../docs/events/design/EVENT-WORKSPACE-DESIGN.md), visual tokens and the affected reference area. Preserve four stages, nonlinear preparation and explicit business gates; pilot before expanding a visual rollout.
 - **Editor or preview:** a productive editing surface whose preview and published output are distinct and both need verification.
 
 Preserve the selected surface's visual language; Event management follows its scoped design guidance. Do not blend cinematic public-page styling into dense management workflows or turn public storytelling into a generic admin dashboard.

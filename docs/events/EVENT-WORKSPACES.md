@@ -1,6 +1,6 @@
 # Event collaboration workspaces, version 1
 
-> Normative feature contract. Read with [EVENT-CONTRACT.md](EVENT-CONTRACT.md), [event-contract.json](event-contract.json) and [EVENT-DUTIES.md](EVENT-DUTIES.md). Delivery evidence belongs in [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md). This contract scopes the larger target module contracts for the current collaboration version; it does not introduce a general workflow engine.
+> Normative topic delegated by [the core contract](EVENT-CONTRACT.md). Read only relevant sections using [the task matrix](AGENTS.md#task-reading-matrix). Exact interfaces remain in [event-contract.json](event-contract.json); delivery evidence is maintained in [current status](IMPLEMENTATION-STATUS.md).
 
 ## Entry and authority
 
@@ -14,7 +14,7 @@ All permissions are rechecked on the server using current membership, role accep
 
 ## Tasks and reports
 
-`TEAM.WORK` is displayed as **Tasks and handoffs / 任务与交接**. Its identifier, historical team memberships and task IDs remain. Owner identity remains fixed on the Event; this workspace lists enabled modules and reuses their role invitations alongside collaborator invitations and custom task delegation. Organizers have continuing responsibility, with no shift editor or AI assistance in this module. Optional `event.lead` remains an onsite responsibility in Safety. Cross-module tasks keep executor, deadline, dependency, blocker, result and independent review. New tasks specify a stage and optionally an occurrence; old task writes preserve those new fields. Only preparation tasks affect preparation readiness. An ordinary task never approves RAM, a Package or a specialist condition.
+`TEAM.WORK` is displayed as **Tasks and handoffs / 任务与交接**. Its identifier, historical team memberships and task IDs remain. Owner identity remains fixed on the Event; this workspace lists enabled modules and reuses their role invitations alongside collaborator invitations and custom task delegation. Organizers have continuing responsibility, with no organizer shift editor. The only AI form exception is the [new-task draft assistant](AI-DETAILS-ASSISTANT.md#tasks-and-registration-form-assistants). Optional `event.lead` remains an onsite responsibility in Safety. Cross-module tasks keep executor, deadline, dependency, blocker, result and independent review. New tasks specify a stage and optionally an occurrence; old task writes preserve those new fields. Only preparation tasks affect preparation readiness. An ordinary task never approves RAM, a Package or a specialist condition.
 
 `SAFEGUARDING.CHILD`, `PROGRAM.PRODUCTION`, `MOVE.STAY`, `FOOD.HOSPITALITY` and `COMMS.FOLLOWUP` share a bilingual report workspace at `/events/:eventId/reports/:moduleCode`. The accepted module lead authors, saves and submits; the owner returns with reasons or adopts a submitted revision. States are `draft`, `submitted`, `returned`, `adopted`. Each submission has immutable text, author, version and plan-version reference. Adoption references the exact revision. Editing a later draft does not change previously adopted text. Submitted revisions must be withdrawn or returned before further authoring. ETags, idempotency keys and history protect handoffs. Report adoption into a frozen formal plan requires the existing reopening/approval process.
 
@@ -22,41 +22,23 @@ Preparation cards show responsibility and acceptance, report, and submission/ado
 
 ## RAM context and handoff
 
-RAM appears after upstream modules as the preparation aggregation/review area. Upstream notifications schedule background AI candidates, and a final owner review of the latest synchronized version is required before formal Package submission. Current-language risk text is visible first; the other language expands. Human overrides use the authorized RAM editor. Synchronization status remains separate from independent safety approval; see [RAM background synchronization](modules/SAFETY.RAM.md#background-synchronization-and-final-owner-review--2026-09-15).
-
-RAM authors work independently of the owner. The same-church qualified reviewer pool remains authoritative. Author, submitter and onsite signer cannot act as independent reviewer. RAM submission binds the immutable RAM revision to the exact plan context and hash: Event details, accepted facts/modules/role requirements, adopted reports, full registration rules, saved programme sessions/items, venue reservations and default staffing requirements. Context excludes private programme payloads, protected operational lists and financial transactions.
-
-The review page and print view expose the submitted RAM and its corresponding complete plan context. A new unsubmitted draft is not substituted into the review page or legacy RAM API. Review actions require the current revision, unchanged context, current author authority and current reviewer qualifications. Return, revocation and material changes invalidate obsolete actions; serial server decisions and history resolve competing reviews. RAM approval never publishes the Event.
+See [ram context and handoff](modules/SAFETY.RAM.md#ram-context-and-handoff) for the authoritative operational rules.
 
 ## Registration rules and actual participants
 
-The owner configures versioned rules in preparation; list handling moves to `/events/:eventId/registration-work`. Rules contain purpose, responsible role, audience (`invited`, `group`, `church`, `public`), eligibility text and optional manual check, actual-person capacity, opening/deadline, waitlist, terms/privacy/cancellation, App/manual channels, fixed text/file requirements, optional fee and refund terms. Public eligibility is still bounded by the Event's published visibility. Capacity and deadline on upgraded Events are managed through these rules, not legacy Event writes.
-
-Procedure status, seat status and payment totals are separate. Creating or submitting a form is not final confirmation. Completion verifies applicable consent, required answers/material verification, eligibility check and current fee payment. Fees are minor-unit integers with an explicit currency; the UI displays currency units. Material types are JPG, PNG, PDF and TXT, with per-requirement count/size limits and server MIME/content validation.
-
-Applications distinguish the organizer from actual participants. Seats, consent, materials, fees and status belong to each person. The default is all-or-nothing family placement in FIFO order; the organizer must explicitly opt into splitting. A whole family waiting for enough places cannot silently be bypassed by a smaller group. Explicitly named adults/guardians and proxy authority are recorded without surname/contact inference. An adult organizer's data entry is not another adult's consent. Account holders confirm themselves; named guardians confirm children. For offline guests, the registration manager records the actual organizer, verified consent method/time/evidence and verifying actor. Revoking proxy authority denies subsequent application/material reads and writes through that proxy, including old links; revocation remains possible after expiry or rule changes.
-
-Before formal approval the manager may prepare internal invitation lists only. Sending requires a fresh approved Package. Before publication, invitees may complete procedures using a restricted invitation view. Invitations distinguish `now` and `byDeadline`, always with a deadline; both reserve actual-person places. Reserves count toward capacity and cannot jump existing waiters. Rejection, cancellation or expiry releases places. A minute-triggered server expiry job rechecks within the same Event capacity transaction, records changes once and promotes the FIFO queue. Application ETags, idempotency and an Event row lock protect repeated requests and the last place. Registration remains Event-wide; attendance and rosters remain occurrence-specific.
-
-Rules changing after applications exist require replacement/reconfirmation, not fabricated consent. Legacy enrollment IDs and child links remain. Upgrade creates only the one participant identifiable from each old enrollment record, retains unknown family JSON unchanged, and never synthesizes consent, payment or additional family members. Once versioned rules exist, legacy mutation paths cannot overwrite participant/capacity state.
+See [registration rules and actual participants](modules/PEOPLE.REGISTRATION.md#registration-rules-and-actual-participants) for the authoritative operational rules.
 
 ## Manual registration fees
 
-`MONEY.FINANCE` is **partial: registration fees**. The rules describe amount, currency, collection instructions, refunds and `moneyFlowScope=registrationFeesOnly`. The accepted finance owner submits the current rules version; a different accepted finance approver approves or returns. Current role separation is revalidated for approval, payment and readiness. Changes require a fresh decision. This version-specific finance readiness covers registration fees only; other confirmed money flows remain blockers.
-
-Finance actors manually record receipts and refunds with evidence and audit records. Refunds follow cancellation and cannot exceed the net paid amount. Registration managers see the state needed to process applications; finance-only views exclude consent/material/guardian details. No online payment provider, budget, purchasing, claims or ledger is added. Existing formal Package approval is still separately required.
+See [manual registration fees](modules/MONEY.FINANCE.md#manual-registration-fees) for the authoritative operational rules.
 
 ## Private registration materials
 
-Purpose `EventRegistrationMaterial` uses the existing private storage infrastructure with purpose-specific authorization. Upload checks current participant/proxy/registration responsibility and validates size and content. Generic file registration cannot create this purpose or private prefix, and generic file lists cannot enumerate it. Opening a material returns an authenticated backend download endpoint, not a reusable storage capability. The backend checks current access again when streaming. Storage accepts only authenticated backend requests; even a generic signed private URL cannot bypass this boundary. Removal soft-deletes the file and invalidates material verification. Participant/proxy/role revocation applies equally to dedicated and generic file entry points.
+See [private registration materials](modules/PEOPLE.REGISTRATION.md#private-registration-materials) for the authoritative operational rules.
 
 ## Independent venues and rooms
 
-`/groups/:groupId/venues` is an independent catalogue and calendar, reachable from group management and relevant Event work. Catalogue authority is current group leader/co-leader; owning an Event does not grant it. Owners may reserve authorized group venues; calendar administration does not grant private plan editing. Names, addresses, capacity, kind (`venue`, `room`), time zone and enabled status belong to the catalogue. Equipment inventory is deferred.
-
-Calendars disclose Event names only to authorized viewers; others see Occupied. A weekly booking stores local first date, optional last date, start/end minutes, capacity and time zone. Blank last date is indefinite. Overnight intervals are supported within 24 hours. Calendar expansion uses the requested range (maximum 366 days), independently of the rolling twelve-week Event occurrence horizon. A Sunday morning remains occupied when queried a year later.
-
-Conflict checks cover single/single, single/weekly and weekly/weekly reservations; venue-row locks serialize competing writes. New invalid/ambiguous DST boundaries are explicitly rejected. Legacy unresolved local times are conservatively blocked and visibly flagged rather than treated as available. Single-date release/restore appends actor/time/reason history. Restoring checks new bookings and never overwrites another Event. Changing future dates creates a successor rule and retains the previous rule's past intervals and change reason. Authorized calendar history exposes relevant creation/change records and release/restore records in the selected dates. No long-term reservation extends Package approval validity.
+See [independent venues and rooms](modules/PLACE.RESOURCE.md#independent-venues-and-rooms) for the authoritative operational rules.
 
 ## Compatibility and verification boundary
 
@@ -67,3 +49,10 @@ Focused service/API tests cover positive/negative authority, immutable adoption/
 ## Activity definitions and downstream RAM (2026-09-15)
 
 Tasks and handoffs contains an independent, owner-editable Activities and conditions section and optional activity links on custom tasks. RAM shows sources read-only and groups compact risk disclosures by the same stable IDs. Source changes invalidate analysis and signatures. Top-level scoring and manual AI recalculation are visible. Current Required Questions and RAM’s safety-role shift editor are removed. The main Roles and shifts module displays all Event roles, including safety; assignments and server-enforced module authority remain intact. Version history uses a latest-first table without list controls.
+
+
+## Capability availability and version boundaries
+
+a current capability catalogue and Workspace projection show `coreAvailable`, `partial` or `unavailable` with bilingual descriptions, separately from module selection, details confirmation and readiness. Before collaboration version 1, finance, food/hospitality and festival operations were unavailable and communications/follow-up was partial (existing content/posters/publication only). Version 1 finance fees and food reports follow their module contracts; festival remains unavailable. All entry points use the same status; confirmations cannot bypass required unavailable-module submission blockers. Historical Plan snapshots and proposal hashes remain unchanged.
+
+The 2026-09-13 authoring/capacity/roster extension kept all RAM, enrollment and roster responses private/no-store, with current server authorization and account-aware client refresh. Its additive migration is `20260913135531_EventPreparationAuthoringCapacityRoster`. Its exclusions (automatic rotation/recommendations, family/guest/occurrence enrollment, email/device push and catering delivery) describe that round; later explicit version-1 registration rules supersede the family/guest limitation only in their scope. Shared migrations, deployment and Git publication remain separately authorized actions.

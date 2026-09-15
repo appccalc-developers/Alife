@@ -1,6 +1,6 @@
 # Event Workspace UI cheatsheet
 
-Read [Workspace design](EVENT-WORKSPACE-DESIGN.md) for decisions, [Visual tokens](EVENT-UI-VISUAL-TOKENS.md) for exact visual guidance, and the relevant [reference area](EVENT-UI-REFERENCE-PAGES.md) before implementation.
+Follow the [task reading matrix](../AGENTS.md#task-reading-matrix). Read affected interaction rules for behavior repairs; visual work additionally uses [Workspace design](EVENT-WORKSPACE-DESIGN.md), [Visual tokens](EVENT-UI-VISUAL-TOKENS.md) and the relevant [reference area](EVENT-UI-REFERENCE-PAGES.md). This optional reminder adds no extra mandatory reading.
 
 ## Product decisions
 

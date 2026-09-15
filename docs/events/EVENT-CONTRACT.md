@@ -1,22 +1,30 @@
-# ALIFE Event Management Architecture Contract
+# ALIFE Event Management core contract
 
-> Documentation class: **Normative**. This document defines stable product and architecture meaning. [event-contract.json](event-contract.json) is co-authoritative for exact machine values. Current delivery state belongs in [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md), not here.
+<a id="alife-event-management-architecture-contract"></a>
+
+> Normative core. Read this compact contract once, then only the affected topic/module sections using [the task reading matrix](AGENTS.md#task-reading-matrix). This reorganization changes documentation ownership, not business rules, wire values or runtime behavior.
 
 ## Authority and change rule
 
-Repository security, privacy, compatibility, bilingual, and publishing rules in [AGENTS.md](../../AGENTS.md) remain in force. Within Event Management, authority is:
+Repository [security, privacy, compatibility and publishing rules](../../AGENTS.md) remain in force. This core delegates detailed business meaning to the topics and modules below; [event-contract.json](event-contract.json) remains co-authoritative for exact codes, enums, references and API contracts. Explicitly versioned exceptions apply only in their stated scope. A later dated implementation note or convenient implementation cannot silently replace a normative rule. Stop affected implementation and report unresolved normative conflicts unless the task authorizes the required product decision.
 
-1. the architecture decisions and invariants in this contract;
-2. exact codes, enums, references, rules, and API contracts in [event-contract.json](event-contract.json);
-3. explanatory examples and generated presentations.
+[Current status](IMPLEMENTATION-STATUS.md) describes delivery, not product authority. [Historical evidence](IMPLEMENTATION-HISTORY.md), old proposals and generated presentations are not current contracts or evidence of a freshly verified build.
 
-Implementation convenience must not silently alter this contract. If code and a normative rule disagree, report the conflict and stop unless the task explicitly authorises the product or architecture decision needed to resolve it.
+## Topic ownership and reading map
 
-## Collaboration workspaces version 1
+| Topic | Authoritative source | JSON sections when relevant |
+| --- | --- | --- |
+| Facts, deterministic composition, structures, templates, module catalogue | [Composition](EVENT-COMPOSITION.md) | composition, aggregates, archetypes, activityTypes, modules |
+| Package policy, scope, decisions, conditions, gates, invalidation, rollout | [Package approval](EVENT-PACKAGE-APPROVAL.md) | eventPackageApproval, policyContracts |
+| Stages, role-specific entry, common reports and handoffs | [Workspaces](EVENT-WORKSPACES.md) | eventWorkspaces, surfaceRegistry |
+| Nonlinear preparation, saved routes, freeze/reopen, poster and publication interaction | [Preparation](EVENT-SETUP-FLOW.md) | eventSetupFlow |
+| Arrangement forms, atomic creation, confirmations and save compatibility | [Creation arrangements](CREATION-ARRANGEMENTS.md) | eventCreationArrangements |
+| Personal duty projection, ordinary task review and delegation | [Duties](EVENT-DUTIES.md) | eventDuties |
+| AI details and task/registration form assistants | [AI form assistance](AI-DETAILS-ASSISTANT.md) | eventDetailsAssistant, eventFormAssistant |
+| Module operations, eligibility, privacy and version exceptions | [Module catalogue](EVENT-COMPOSITION.md#capability-modules) | affected module, authorizationRules, cachePolicies, apis |
+| Event UI presentation | [Design](design/EVENT-WORKSPACE-DESIGN.md), read by task type | no new wire semantics |
 
-[EVENT-WORKSPACES.md](EVENT-WORKSPACES.md) defines role-specific work through preparation, registration, occurrence delivery and follow-up. The accountable owner retains overall plan editing; accepted module leads own reports and operational actions. Independent RAM review receives the submitted report with its exact complete plan context. Personal Center provides persistent work entry independently of pending duties. Stage navigation grants no authority and introduces no generic workflow engine.
-
-New Events use collaboration version 1. Existing Events retain version 0 until explicit adoption of the new reports/rules. Version 1 scopes finance to independently approved manual registration fees and food to a responsible lead plus adopted report. Other finance and catering target operations remain deferred. Festival is unavailable and cannot be enabled. Complete plan context excludes protected participant, child, material and financial transaction data. Additive migrations, existing IDs and prior approval evidence remain authoritative.
+Do not load every linked source. API changes also read the matching apis/enums/authorization/cache entries; account- or role-sensitive work must retain all applicable visibility dimensions.
 
 ## Core thesis
 
@@ -37,116 +45,6 @@ Event Plan
 - Explicit human acceptance creates the authoritative Event Plan.
 - Every accepted plan is a versioned, immutable snapshot that retains its referenced archetype, Activity Type, module, and policy versions.
 - Later definition changes never rewrite an accepted plan, materialised occurrence, or historical role.
-
-## Event facts and deterministic composition
-
-Facts cover purpose and outcomes, owning identity, time and recurrence, people, place, money, transport, safeguarding, programme, food, scale, visibility, and real risk. Each fact records certainty and source. Candidate or unknown values remain distinct from confirmed `false`.
-
-Composition uses this precedence, defined exactly in the machine contract:
-
-1. confirmed facts;
-2. mandatory policies and prohibitions;
-3. still-valid human selections;
-4. Activity Type presets;
-5. archetype structure defaults;
-6. explainable recommendations;
-7. dependency closure and conflict resolution.
-
-For the same confirmed facts, definition versions, server-derived preparation phase and valid human selections, composition produces the same proposal and `proposalHash`. Compose and recompose never mutate stored Event state. On acceptance the server recomputes, validates the proposal hash and `If-Match`, applies idempotency, and writes a new immutable snapshot.
-
-Saved, unfrozen Events with `publicationStatus = draft` allow explicit Yes/No choices for every preparation tool, including TEAM.WORK, PEOPLE.REGISTRATION, SERVICE.ROSTER, SAFETY.RAM and SAFEGUARDING.CHILD. In this phase, an explicit No takes precedence over activation/default/dependency choices for the enabled tool list. It never changes confirmed facts, ownership or permissions. Formal Package submission and approval revalidate mandatory activation and dependency closure; disabled required tools appear as bilingual manifest blockers. Existing creation composition and non-draft retirement rules remain unchanged. See [the preparation flow](EVENT-SETUP-FLOW.md).
-
-A module with operational data, money, files, roles, submissions, or approvals cannot disappear silently. Its removal enters a blocking retirement workflow with preservation, cancellation, or transfer decisions and explicit human confirmation. Explicitly disabling a tool in saved draft preparation only changes the new Plan's enabled tools: all underlying records and prior snapshots remain, and re-enabling restores access through the existing authorised tools. This is not operational data retirement.
-
-## Structural model
-
-```text
-EventSeries 0..1 ─── 1..* Event
-Event       1    ─── 1..* EventOccurrence
-Event       0..1 ─── 0..* ChildEvent (one parent level only)
-Occurrence  1    ─── 0..* Session / Track
-Session     1    ─── 0..* ProgramItem
-Occurrence  1    ─── 0..* Zone
-Occurrence  1    ─── 0..* ServiceSlot / Shift
-```
-
-### EventSeries
-
-Stores reusable identity, an IANA time zone, local recurrence, exception dates, default team, and reusable settings. A recurring series maintains a rolling 12-week materialisation window. Later Series changes do not rewrite already materialised occurrences.
-
-### Event
-
-The ownership, visibility, governance, registration, and Event Plan boundary. During compatible migration the target `Event` concept maps to the existing `GroupEvent` persistence root. Each Event has exactly one owning group, one accountable owner, and at least one occurrence.
-
-### EventOccurrence
-
-One real delivery with resolved UTC start and end instants, programme, roster, attendance, exceptions, and incidents. A one-off Event has one initial occurrence. A recurring Event may materialise additional dates for rosters or exceptions without unbounded generation.
-
-### ChildEvent
-
-Used only when a unit needs an independent lifecycle boundary such as separate registration, RAM, fees, access, cancellation, or closure. Child Events stop at one parent level. Otherwise use a Session or Zone.
-
-### Session / Track and ProgramItem
-
-A Session or Track is a time/programme subdivision inside one occurrence. A ProgramItem is an ordered item within a Session. Neither creates an independent Event lifecycle.
-
-### Zone
-
-A spatial or operational subdivision inside one occurrence. A Zone may have an owner and operational state but does not independently own registration or governance.
-
-### ServiceSlot / Shift
-
-Role demand for an occurrence, optionally linked to a Session or ProgramItem. Preset slot counts are editable planning defaults only. They never establish safeguarding ratios, eligibility policy, or member assignment.
-
-Stable GUIDs identify records. Titles and language changes never change identity. Money uses integer `amountMinor` plus ISO 4217 `currency`, never floating point as the authoritative value.
-
-## Archetypes and Activity Types
-
-The four archetypes are immutable system categories. Their codes, structural semantics, and safety boundaries cannot be edited or extended through administration.
-
-| Archetype | Structural intent | Initial Activity Types |
-| --- | --- | --- |
-| `simple-social` | One light occurrence; no default sessions or zones | `shared-meal`, `fellowship-social`, `local-outing`, `outdoor-activity` |
-| `camp-retreat` | One multi-session camp or retreat | `church-camp`, `spiritual-retreat`, `children-youth-camp`, `training-camp` |
-| `recurring-gathering` | Series with a rolling 12-week occurrence window | `small-group-fellowship`, `worship-service`, `bible-study-course`, `prayer-meeting` |
-| `festival-celebration` | Multi-session, multi-zone live operation | `community-festival`, `church-celebration`, `public-outreach`, `concert-performance` |
-
-Activity Types are immutable, versioned templates inside one fixed archetype. The catalogue begins with sixteen system presets at version 2. Authorised system administrators may create, edit, deactivate, or reactivate templates within the four categories. A template's code and archetype never change after creation; every edit creates an audited next version.
-
-Only a current active version may be used for a new schema 1.1 compose, recompose, or create operation. Deactivation fails closed for new composition but never invalidates historical Events or snapshots. Templates never confirm child, RAM, transport, money, venue, or capacity facts. `MONEY.FINANCE` is never type-preselected.
-
-Legacy workflow-recommendation fields remain readable in stored Activity Types and Plan snapshots, but new composition ignores them and new templates persist no recommendation.
-
-## Capability modules
-
-The system owns these twelve capability codes:
-
-| Module | Target responsibility |
-| --- | --- |
-| [TEAM.WORK](modules/TEAM.WORK.md) | Enabled-module responsibilities, collaborator invitations, custom task delegation, bilingual preparation, blockers and hand-offs; organizers have continuing responsibility |
-| [PEOPLE.REGISTRATION](modules/PEOPLE.REGISTRATION.md) | Invitations, registration, capacity, waitlist, cancellation, tickets, and attendance |
-| [SERVICE.ROSTER](modules/SERVICE.ROSTER.md) | Service demand, eligibility, availability, assignment, confirmation, and substitution |
-| [MONEY.FINANCE](modules/MONEY.FINANCE.md) | Budget, fees, purchasing, claims, refunds, reconciliation, and close-out |
-| [SAFETY.RAM](modules/SAFETY.RAM.md) | Hazards, controls, emergency planning, independent approval, and incidents |
-| [SAFEGUARDING.CHILD](modules/SAFEGUARDING.CHILD.md) | Guardianship, consent, collection authority, duty access, check-in/out, and escalation |
-| [PROGRAM.PRODUCTION](modules/PROGRAM.PRODUCTION.md) | Sessions, run sheets, contributors, rehearsal, technical cues, and content confirmation |
-| [PLACE.RESOURCE](modules/PLACE.RESOURCE.md) | Venues, capacity, equipment, booking, conflict, setup, handover, and return |
-| [MOVE.STAY](modules/MOVE.STAY.md) | Drivers, vehicles, journeys, manifests, parking, accommodation, and overnight duty |
-| [FOOD.HOSPITALITY](modules/FOOD.HOSPITALITY.md) | Menus, dietary needs, procurement, kitchen shifts, food safety, serving, and cleaning |
-| [FESTIVAL.OPERATIONS](modules/FESTIVAL.OPERATIONS.md) | Zones, stalls, crowd flow, command, first aid, weather, evacuation, and escalation |
-| [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md) | Notices, public copy, change broadcasts, feedback, follow-up, and retention |
-
-Each module has an immutable versioned contract containing:
-
-- `ActivationRules`
-- `Dependencies`
-- `RoleRequirements`
-- legacy `WorkflowContributions` (read-only compatibility; new Plans emit an empty list)
-- `DataClassification`
-- `ReadinessRules`
-- `Version`
-
-Modules are designed, security-reviewed, and tested product capabilities. Churches and AI cannot add arbitrary module codes, component paths, permissions, or executable integrations. Unknown module codes and surface keys fail closed.
 
 ## Governance decisions
 
@@ -202,109 +100,6 @@ Package lifecycle and approval validity are separate. An approval may become inv
 
 Event Package enforcement is versioned and rollout-controlled. Existing Events never receive invented approval. Before enforcement, dry-run evaluation records non-sensitive differences without changing existing visibility or registration behaviour. Explicit transition, a policy deadline, or a safety-critical fail-closed rule moves a legacy Event into enforcement; rollout is reversible without deleting Package history.
 
-## Event Package Approval and lifecycle gates
-
-### Purpose and concept boundaries
-
-`EventPackage` is the immutable, structured approval projection of one Event or occurrence scope. It is assembled from the accepted Event Plan and authoritative module summaries; it is not another data-entry form. The following remain distinct:
-
-- Plan acceptance: human confirmation of the composed Plan and creation of an immutable Plan Snapshot.
-- Event Package Approval: an authorised human decision on one Package version.
-- Specialist approval: a RAM, safeguarding, finance, sponsorship, or exception decision owned by its domain.
-- Readiness: a projection of current evidence and blockers, never a human decision.
-- Ready to Proceed: a lifecycle-gate result derived from active Package approval, specialist decisions, conditions, and pre-event confirmation; clients cannot set it directly.
-- Duty notification: a discoverability record that links to an authoritative specialist action; reading or dismissing it cannot create or change the decision.
-
-AI may propose text or candidate facts but cannot generate an authoritative Package, submit, decide, satisfy or verify conditions, publish, open registration, accept payment, or confirm execution.
-
-### Governance policy version 1
-
-Governance is evaluated from confirmed facts and one immutable policy version. Unknown required facts never count as false. Multiple triggers take the strictest result.
-
-- `light`: group-visible, no registration or money flow, and no confirmed child, transport, accommodation, outdoor/remote, public-impact, or specialist-approval trigger. The accountable owner makes one explicit confirmation.
-- `standard`: public or expanded visibility, registration, church resources, sponsorship consideration, money flow below any policy escalation, or another standard policy trigger. One owning-group leader/co-leader who is not the submitter decides; when no eligible separate actor exists, the decision escalates to the root church.
-- `enhanced`: child/safeguarding, outdoor or remote risk, transport, accommodation/overnight duty, high-risk RAM, large-public-impact, external-partner, or policy-escalated finance facts. One root-church leader/co-leader or actor with `admin.events.approvePackages` decides and must be separate from the submitter and affected specialist authors.
-
-Version 1 requires one eligible overall approver, not a multi-person quorum. A later policy version may require quorum without changing historical decisions. Delegation is valid only when the policy permits it and records organisation, Package scope, granted permission, start, expiry, grantor, revocation, and audit. Conflicted actors recuse and the decision escalates. The server derives actor and authority from the authenticated context; clients never supply the effective approver identity or authority snapshot.
-
-Numerical attendance, amount, and risk thresholds are policy data, not hard-coded application constants. Missing or unsupported governance policy fails closed for new enforcement decisions.
-
-### Scope and coverage
-
-Each Package records `eventId`, `scopeType`, optional `scopeId`, `coverageMode`, covered occurrence information, Plan version, Package schema version, governance policy version, validity window, and supersession link.
-
-- A one-off Event uses Event scope and covers its initial occurrence.
-- A recurring Event uses either explicit occurrence IDs or `planBoundSeriesWindow` with a recorded start/end and baseline fingerprint.
-- A newly materialised occurrence inherits only when it is inside that window, uses the same accepted Plan and Series defaults, and introduces no Package-relevant exception.
-- Occurrence-versioned module sources are frozen per covered occurrence. An occurrence-local change creates a persisted open scoped review and required task, invalidates an earlier Package for that occurrence, and removes only that occurrence's inherited execution authority. The Event-level baseline and unrelated occurrences remain valid; an approved occurrence-scoped Package resolves the review. Packages created before granular occurrence source references fail closed at Event scope.
-- An Event-level governance-critical change invalidates every affected occurrence coverage.
-- A Child Event owns its own Package. A parent Package may reference the child's status but cannot approve it.
-
-### Governance policy administration
-
-The System Management policy editor manages global policies through bilingual business fields and an immutable-version selector. Reading server defaults or previewing impact is non-mutating. Initialization requires explicit administrator publication and defaults to `dryRun`; software suggestions (30/14/7-day validity, 72-hour confirmation window, 90-day transition) are not a claim that the SOP prescribes these values. Existing group-specific policies retain precedence.
-
-Restoration copies an understood historical version into a new draft, renews effective/transition dates for review, and publishes a new version with its source ID in the audit. It never rewrites history or reactivates previous approvals. Unrecognized structures cannot be silently converted. Only rules evaluated by the current engine have editable controls; approval counts do not implement a sequential pastoral/deacons approval chain, and recorded transition dates do not schedule an automatic mode change.
-
-`GET /api/admin/event-package-policies/defaults` returns validated-schema defaults and known bilingual trigger choices (including known template codes still needed by existing Events). `POST /api/admin/event-package-policies/preview` validates proposed rules and returns the current policy ID, affected Event and active-approval counts, and an impact token. Both require `admin.events.managePackagePolicies` and private/no-store responses. Preview covers only Events whose effective policy changes; a global replacement excludes Events with an effective group override.
-
-The editor supplies `expectedCurrentPolicyId` (`Guid.Empty` for initialization), optional `sourcePolicyId`, and the preview's `impactToken` to the existing publish endpoint. These additive fields preserve existing clients. The server serializes scope publication in a database transaction, rechecks current policy and impact, retires preceding versions, saves the new immediately effective version, invalidates affected approvals and records audit/idempotency state atomically. Stale editor requests return conflict and require fresh review. Retries retain the same request and idempotency key. Permissions and policy versions are never inferred from frontend controls.
-
-Formal preparation explains the matching Enhanced/Standard/Light policy conditions and selects the strictest matching tier. Its read-only assessment uses the current effective published group policy before global fallback. The expected latest approval reply is `scope start − preEventConfirmationWindowHours`, exactly when final confirmation opens; display the date, time, time zone and policy hours. Approval validity durations are separate. Passing the expected reply time prompts follow-up without adding a rejection gate. See [EVENT-SETUP-FLOW.md](EVENT-SETUP-FLOW.md) for the shared create/edit form, fixed saved template, arrangement identity and API contracts.
-
-### Canonical generation and submission
-
-The server validates `If-Match` for the current Event Plan, reads only system-defined module contribution contracts, orders source references deterministically, canonicalises JSON, and calculates `sourceVectorHash` and `contentHash`. The Package schema, policy, Plan, source vector, scope, and content all participate in the hash contract. Before commit, every required source version is revalidated. A changed source returns `event.package.sourceChanged`; a retry with the same idempotency key and request hash returns the same result, while key reuse with different input is rejected.
-
-A draft may be regenerated. Submission freezes the Package. Returned or rejected content is never edited in place; corrected source data produces a new Package version. Historical templates, policies, source summaries, decisions, and hashes are not rewritten.
-
-### Package lifecycle, decisions, and conditions
-
-Package lifecycle values are `draft`, `submitted`, `returnedForAmendment`, `rejected`, `approvedWithConditions`, `approved`, `withdrawn`, and `superseded`. `Under Review` is the user-facing label for `submitted` unless a later contract introduces a real review-claim transition. History queries are server-paged and can filter by status and exact Event/Occurrence scope without changing which Package is current.
-
-Approval validity values are `notDecided`, `active`, `invalidated`, `expired`, and `revoked`. Only the machine-contract-approved combination of lifecycle and validity can satisfy a gate. Source-decision revocation/expiry, a governance-critical change, policy expiry, or an expired required condition recalculates validity immediately. Revocation and correction append new decisions; they never update the original decision.
-
-Decision types are `approve`, `approveWithConditions`, `returnForAmendment`, `reject`, `revoke`, and the dedicated `conditionWaiver` exception decision. Revocation and condition waiver use separate append-only endpoints and cannot be smuggled through the ordinary decision command. Every decision binds Event, scope, Plan version, Package version, content hash, authenticated actor, authority snapshot, UTC time, and bilingual reason where a reason is required.
-
-Condition states are `open`, `evidenceSubmitted`, `verified`, `rejected`, `expired`, and `waived`. Conditions record affected gates, bilingual text, owner role, due time, minimum evidence reference, satisfaction actor/time, verification actor/time, and a linked restricted Readiness task. Evidence submission is not verification. An overdue unresolved condition is persisted as `expired`, audited without copying evidence content, and immediately recalculates every affected gate. Waiver exists only when the immutable governing policy explicitly enables it and policy-resolved authority is independent from the condition owner and evidence actors. Condition state projects one-way into its task; completing or editing the task cannot mark the condition verified or create a decision.
-
-### Lifecycle gates
-
-One evaluator returns `gate`, scope, `allowed`, evaluated time, Plan/Package/policy versions, stable blockers and warnings, bilingual messages, responsible role, and next-action code. A protected, viewer-specific Package capability projection recomputes Package, lifecycle, delegation, and per-condition actions from current server authority; frontends never infer permission from display text or expose controls merely because a Package is visible.
-
-- Publish requires an active approved current Package, verified publish conditions, current specialist decisions, approved sponsorship when required, approved public copy/assets, no publication blocker, and an authorised explicit Publish command.
-- Registration requires the applicable Package gate, enabled and complete registration configuration, capacity, deadline, privacy notice and consent, current RAM/safeguarding/sponsorship decisions, and an authorised explicit Open Registration command.
-- Payment or fee acceptance, whenever implemented, additionally requires the Registration gate and current Finance approval/policy. Missing payment capability remains unavailable; this contract does not add a provider.
-- Execute requires an active Package and specialist decisions, verified execute conditions, critical roles/evidence, no safety blocker, and an Event Lead confirmation made within the policy-defined pre-event window for the exact scope and Package version. An Event baseline can support an unaffected covered occurrence, but an open occurrence review returns `event.execute.occurrenceReviewRequired` until an approved occurrence Package resolves it.
-
-Before Publish, public Event lists, public projections, search/SEO metadata, sitemaps, shared caches, anonymous URLs, and usable QR codes expose nothing. Draft copy, posters, and forms remain protected previews. An old URL cannot accept a registration while the Registration gate is closed.
-
-If an already published or registration-open Event loses approval, policy chooses from `blockNewPublication`, `withdrawPublicProjection`, `pauseRegistration`, `blockExecution`, and `requireHumanNotificationReview`. Safety-critical or unclassified governance changes fail closed. Existing enrolments and audit history are preserved. Cancellation, postponement, unpublish, registration close, and reopen are explicit authorised, idempotent, audited commands with cache invalidation.
-
-Governance policies are immutable published versions managed through the dedicated `admin.events.managePackagePolicies` permission. Publishing a replacement retires the prior effective version, is idempotent and audited, and invalidates affected active approvals without rewriting their history. Approval validity durations come from that policy. Delegation is disabled unless the bound policy explicitly enables it for the Package tier; a delegation records organisation, Event/Occurrence scope, delegate, permission, start/end, grantor, revocation, concurrency token and audit history. The delegate must remain an approved organisation member, and delegation never bypasses submitter or specialist-author separation. During `dryRun`, lifecycle commands persist non-sensitive would-block reason codes in audit metadata; the policy workspace aggregates those observations over a bounded window before administrators choose `enforced`.
-
-### Material change and re-approval
-
-Change evaluation is policy-versioned and produces field-level differences, classification, affected scopes/modules/specialist decisions, Package validity impact, gate actions, responsible duties, and whether a human-reviewed participant notification is required.
-
-- `cosmetic`: presentation-only changes that do not alter meaning; record history without overall re-approval.
-- `operational`: non-governance-critical programme, staffing, or resource changes; revalidate only affected modules or occurrence scope.
-- `governanceCritical`: date, venue, capacity, child involvement, transport, accommodation, money flow, visibility, sponsor identity, accountable roles, risk, emergency, or policy-triggering changes; invalidate affected approval and require re-review.
-
-An unknown classification fails closed. Governance-critical RAM, venue, safeguarding, and transport source mutations invalidate only the applicable active Package coverage in the same unit of work, safely withdraw/pause/block bound lifecycle states, notify the accountable owner, and create a required re-review task while preserving enrolments and history. Runtime participant enrolment and child attendance records are not themselves governance source versions. Plan B is not planned. Do not introduce contingency decision cases, timers, fallback actors or automated activation; revise the design guidance if that product decision changes. Existing RAM assessment and mitigation remain separate.
-
-### Privacy, retention, and caching
-
-Packages, decisions, conditions, and source references are `approvalEvidence` and `private, no-store`; role-restricted module data keeps its stricter access rules. Package manifests contain minimum summaries and immutable references, never participant lists, child/health/contact records, passenger manifests, or full financial detail. The manifest carries stable governance trigger reasons, required specialist-decision codes, seven ordered bilingual summary sections, and warnings so reviewers can understand the decision without reading mutable source data. Only approved sanitised public allow-list projections use shared caching.
-
-Immutable audit means retaining the minimum decision chain, identifiers, versions, hashes, reason codes, and authority evidence. It does not authorise permanent retention of personal content. A condition's minimum evidence reference is `approvalEvidence`: it becomes inaccessible 90 days after the later of evidence submission or Event end; the irreversible SHA-256 hash, expiry/unavailable timestamps, actor and decision chain remain. Audit events never copy the reference content. Source modules may impose stricter expiry, deletion or anonymisation on the underlying evidence. Free-text reasons and condition evidence are length-limited and must not invite unnecessary sensitive data.
-
-An occurrence-scoped execution confirmation is persisted on that `EventOccurrence`, bound to its Package, actor, timestamp, enforcement mode and concurrency token. Confirming one occurrence never confirms the Event or sibling occurrences; a local material change invalidates that occurrence confirmation while preserving unrelated occurrence state.
-
-### Compatible rollout
-
-Enforcement modes are `off`, `dryRun`, and `enforced`. Existing Events start as `legacyUnassessed`; they keep current RAM, sponsorship, visibility, and registration behaviour during `dryRun`, while the new evaluator records only non-sensitive differences. A versioned rollout policy classifies each Event as `formalPackageRequired`, `legacyReadOnlyPackage`, `timeLimitedCompatibility`, or `safetyCriticalBlocked`. No classification invents missing facts or approval. Transition deadlines, exceptions, and changes of mode are audited. Rollback changes enforcement behaviour but never deletes Package records or makes a previously invalid Package active.
-
 ## Roles, policy, duties, and readiness
 
 - Event roles are explicit assignments with scope, state, and version. A title or group membership alone does not grant module authority.
@@ -313,6 +108,35 @@ Enforcement modes are `off`, `dryRun`, and `enforced`. Existing Events start as 
 - Readiness is a projection over the accepted plan and current evidence. A blocked or unknown requirement cannot be displayed as ready.
 - Generic `EventWorkflowRun`, `EventWorkflowStep`, template and artifact creation is retired from the active product and APIs. Historical tables and stored Plan fields remain untouched for non-destructive compatibility.
 - Dedicated flows such as RAM remain authoritative and expose current work through narrowly scoped Church Life lists and Personal Center duty notifications; they do not synchronise to a generic workflow engine.
+
+## Authorisation, privacy, and caching invariants
+
+- Frontend visibility never replaces server authorisation.
+- Every protected operation checks ownership, group membership, accepted role, purpose, and platform permission as applicable.
+- Responses are classified as `public`, `churchOrGroupVisible`, `eventTeam`, `roleRestricted`, `approvalEvidence`, or `userSpecific`.
+- Only an approved, sanitised public allow-list projection may use shared caching.
+- Church/group, team, restricted, approval, and user-specific responses are `private, no-store` and never share viewer ETags.
+- Sensitive data never enters shared cache, logs, analytics payloads, or AI prompts.
+- Unknown enum, module, policy, permission, or surface values fail closed.
+- Mutations that can be retried use idempotency and mutations of versioned state use `If-Match`/ETag concurrency.
+- Cache invalidation covers publication, withdrawal, visibility, sponsorship, membership, role, plan, and protected-record changes according to the data class.
+
+The exact authorisation rules, cache policies, data classifications, and surface registry are in [event-contract.json](event-contract.json).
+
+## API and persistence compatibility
+
+Migration is additive:
+
+- `GroupEvent` remains the compatible persistence root until a separately authorised cutover.
+- Supported Event creation/update routes, DTO fields, readable enum names, enrollment, review, RAM, and public projection behaviour remain compatible. The generic Event workflow/template/artifact API is retired while historical persistence is left unchanged. The Alife-app-only `/api/events/session/*` and `/api/events/extract` planning endpoints are retired; `/api/events/details-session/*` remains the Event details assistant contract.
+- `EventDataJson` remains readable and must not disappear silently.
+- Typed facts, snapshots, occurrences, structures, and module records are introduced alongside legacy structures, with dual-write only where explicitly implemented.
+- Backfill marks its source and never invents child, transport, safety, money, capacity, or sponsorship facts. Unknown remains unknown.
+- New sensitive projections use dedicated DTOs; persistence details never leak into frontend contracts.
+- Historical plans, occurrences, roles, and Activity Type references are never rewritten by later templates, archetypes, policies, or Series defaults.
+- Migration application is limited to an explicitly approved disposable/local database unless the user separately authorises a shared or production target.
+
+Exact endpoint contracts and accepted legacy schema versions are defined in [event-contract.json](event-contract.json). New endpoint implementation must preserve the authentication, authorisation, cache, ETag, and idempotency properties specified there.
 
 ## Human and AI authority boundary
 
@@ -330,120 +154,55 @@ AI may not:
 - persist an Event Plan or operational decision;
 - publish an Event or generated content.
 
-The creation [AI details assistant](AI-DETAILS-ASSISTANT.md) may populate reviewable form fields from explicit input and report presentation completeness separately from AI sufficiency. Time-only edits retain the current Event date and IANA zone; start/end/zone are jointly validated before adoption, and unbound or invalid model times cannot partially overwrite the draft. Local input strings remain separate from their zone, with UTC conversion only at save. Neither client-provided provenance nor either score confirms a domain fact, changes permissions or satisfies a governance gate. Final Event Plan acceptance remains explicit and server-validated.
+Form filling and time adoption follow [AI assistance](AI-DETAILS-ASSISTANT.md#draft-authority-and-time-adoption). The explicitly authorized [RAM background candidate exception](modules/SAFETY.RAM.md#authorized-synchronization-exception) permits unreviewed candidate persistence only; it grants no scoring, signature, approval or publication authority.
 
 Human confirmation must be explicit, attributable, and auditable. AI prompts contain only the minimum necessary data and never include restricted child, financial, approval, contact, or health information.
 
-## Authorisation, privacy, and caching invariants
-
-- Frontend visibility never replaces server authorisation.
-- Every protected operation checks ownership, group membership, accepted role, purpose, and platform permission as applicable.
-- Responses are classified as `public`, `churchOrGroupVisible`, `eventTeam`, `roleRestricted`, `approvalEvidence`, or `userSpecific`.
-- Only an approved, sanitised public allow-list projection may use shared caching.
-- Church/group, team, restricted, approval, and user-specific responses are `private, no-store` and never share viewer ETags.
-- Sensitive data never enters shared cache, logs, analytics payloads, or AI prompts.
-- Unknown enum, module, policy, permission, or surface values fail closed.
-- Mutations that can be retried use idempotency and mutations of versioned state use `If-Match`/ETag concurrency.
-- Cache invalidation covers publication, withdrawal, visibility, sponsorship, membership, role, plan, and protected-record changes according to the data class.
-
-The exact authorisation rules, cache policies, data classifications, and surface registry are in [event-contract.json](event-contract.json).
-
 ## Interface composition
-
-Preparation uses nonlinear planning within the existing `preparation`, `registration`, `execution`, and `followup` stages. There is no requirement to retain an owner six-step wizard. Human creation, formal submission/approval, independent poster adoption, explicit publication, registration opening and occurrence execution retain their actual business gates. A separate Review/Reflection stage is not currently introduced. The [Event Workspace design](design/EVENT-WORKSPACE-DESIGN.md) governs visual presentation and pilot rollout. Before approval, submitted/returned/rejected preparation remains editable across details, arrangements and creation review; source changes, including copy edits, require a new Package submission. Recomposition derives visibility/registration from the saved brief, and changed confirmed brief facts require plan review before approval. Approval freezes preparation until an eligible reviewer grants a manager's reopening request, which revokes Event approvals, withdraws publication and closes new registration while retaining history. Posters are outside formal approval and remain editable afterward. Arrangements embeds team responsibilities and the existing operational tools directly in its functional groups; explicit creation returns here and the old team/tools stage resolves here. After creation every stage addresses the same persisted Event. Navigation never grants authority or commits a draft. New composition-backed creations start unpublished with registration closed; legacy creations and existing rollout modes remain compatible. See [EVENT-SETUP-FLOW.md](EVENT-SETUP-FLOW.md).
 
 The accepted Event Plan determines which controlled surfaces are reachable. The frontend resolves `surfaceKey` through a compile-time registry. API or AI data may never supply an import path, component name, executable definition, URL, or arbitrary route.
 
-Event Workspace is the sole Event-management surface after creation. The generic `workspace.workflow` surface and workflow-template/artifact APIs are retired; old `?section=workflow` Detail bookmarks redirect to Workspace Overview without rewriting stored Plan JSON. Event Detail remains a member-facing view for enrollment, review, memories, and permitted personal actions; legacy edit and RAM bookmarks redirect into the corresponding Workspace surface.
-
 Every reachable surface provides appropriate loading, empty, error, success, blocked, and disabled states. Language switching changes presentation without changing entity identity or triggering avoidable refetches. Product wire text remains `{ "en": "...", "zh": "..." }`; a Traditional Chinese document locale does not change the wire key.
 
-## API and persistence compatibility
-
-Migration is additive:
-
-- `GroupEvent` remains the compatible persistence root until a separately authorised cutover.
-- Supported Event creation/update routes, DTO fields, readable enum names, enrollment, review, RAM, and public projection behaviour remain compatible. The generic Event workflow/template/artifact API is retired while historical persistence is left unchanged. The Alife-app-only `/api/events/session/*` and `/api/events/extract` planning endpoints are retired; `/api/events/details-session/*` remains the Event details assistant contract.
-- `EventDataJson` remains readable and must not disappear silently.
-- Typed facts, snapshots, occurrences, structures, and module records are introduced alongside legacy structures, with dual-write only where explicitly implemented.
-- Backfill marks its source and never invents child, transport, safety, money, capacity, or sponsorship facts. Unknown remains unknown.
-- New sensitive projections use dedicated DTOs; persistence details never leak into frontend contracts.
-- Historical plans, occurrences, roles, and Activity Type references are never rewritten by later templates, archetypes, policies, or Series defaults.
-- Migration application is limited to an explicitly approved disposable/local database unless the user separately authorises a shared or production target.
-
-Exact endpoint contracts and accepted legacy schema versions are defined in [event-contract.json](event-contract.json). New endpoint implementation must preserve the authentication, authorisation, cache, ETag, and idempotency properties specified there.
-
-## Normative acceptance scenarios
-
-Implementations must cover at least:
-
-- a simple meal that stays light while unknown safety or finance facts remain visible for confirmation;
-- a remote hike requiring RAM and transport readiness evidence;
-- a child camp with role-restricted safeguarding data and versioned policy inputs;
-- a recurring fellowship with a 12-week window and occurrence-local exceptions;
-- a public festival whose public projection waits for root-church sponsorship and all readiness gates;
-- cross-viewer cache isolation for anonymous, church, team, restricted, and self projections;
-- venue reservation capacity, overlap, release history, concurrency, and private caching;
-- transport manifest capacity, restricted visibility, personal projection, RAM evidence, and concurrency;
-- child consent, collector authority, minimum-disclosure duty projection, check-in/out state, and append-only audit;
-- template administration with fixed categories, immutable codes, versioning, dedicated permission, ETags, audit, and historical readability.
-
-The exact scenario assertions are in [event-contract.json](event-contract.json).
+Stage identifiers stay `preparation`, `registration`, `execution`, `followup`; preparation is nonlinear. Navigation grants no authority. Explicit creation, submission, specialist/Package decisions, publication, registration opening and occurrence execution retain their server gates. Plan B and a fifth Review/Reflection stage are not current capabilities. [Workspace entry](EVENT-WORKSPACES.md) and [route compatibility](EVENT-SETUP-FLOW.md#lifecycle-and-routing-compatibility) own the detailed behavior.
 
 ## Documentation projections
 
-- [README.md](README.md) is the compact normative overview.
-- [EventManagement-About.html](EventManagement-About.html) is generated from the three equivalent README language sections.
-- [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md) is operational and may change without altering this contract.
-- [modules](modules/TEAM.WORK.md) contains focused module contracts with clearly labelled operational status sections.
-- [generated/alife-event-composition-model.zh-TW-en.html](generated/alife-event-composition-model.zh-TW-en.html) is the generated long-form presentation. Its presentation template and retained historical prose are never an independent source of truth.
+The three-language [README](README.md) is a human overview and topic index. Its generated overview and the generated historical handbook cannot add normative rules. Module documents own operational requirements; the status summary owns delivery labels/gaps; history retains dated verification. Source changes and validation follow [AGENTS.md](AGENTS.md#documentation-update-triggers).
 
-## Versioned RAM governance
+## Moved sections and compatible bookmarks
 
-The [SAFETY.RAM module](modules/SAFETY.RAM.md) defines version 2 policy and assessment authority. Its controlled `safety.ram` surface renders the full assessment directly in Event Workspace and saved preparation; retired AI saved-event edit URLs redirect to Workspace. Policies are immutable root-church versions, managed with a separate permission plus approved church membership, with no group override or cross-church fallback. Likelihood × impact uses five manual-defined levels; colours require all 25 explicitly confirmed matrix cells. Initial defaults are unconfirmed and remain unpublished until a human administrator publishes them. For Alpha demonstration, an explicit draft-only preset maps scores 1–5 to Green, 6–19 to Yellow and 20–25 to Red, combining the legacy editor's Amber/Orange bands as the current Yellow. Loading it overwrites only the editable 25-cell draft, performs no save or publication, and does not replace church safety-authority review. Drafts may be saved before policy publication.
+Old top-level topic headings are retained below as anchors; their rules now live at the linked authoritative destination. This table is a migration index, not an additional reading requirement.
 
-Personal on-site confirmation binds to an immutable content/policy revision. Authors, submitters and on-site signers cannot review that revision. On submission, every eligible same-church reviewer with `admin.events.audit` receives one current duty, and the revision appears in Church Life / Independent RAM review; both open a read-only view of the complete accepted Event Plan together with the restricted RAM report and decision controls, then disappear when the exact revision is approved, returned, invalidated, or the reviewer loses eligibility. Yellow requires additional controls; Red residual risk requires explicit health/safety sign-off and independent Enhanced Package approval even when ordinary legacy Package rollout would not enforce it. RAM approval does not publish. When the accepted Plan enables RAM or safety facts/policy make it mandatory, RAM must pass independent review before Event Package submission. An explicit No remains valid when no higher-priority RAM trigger applies.
-
-Material content/personnel changes revoke current confirmation and approval eligibility, preserving historical evidence; cosmetic edits and policy publication alone do not revoke an existing approval. Frozen preparation follows existing reopening. Legacy scores are initial only, legacy approved history remains, and new submissions use version 2. Old client writes cannot overwrite version 2.
-
-All RAM/policy/history/print responses are private/no-store. Church Life review discovery and duty notifications carry only event/revision identity, title, owning group, submission time and residual level, never private hazards, contacts or medical details. The category-guidance endpoint remains enum-only. The explicitly authorized RAM authoring extension below accepts a reviewed non-sensitive brief and selected risk text; neither endpoint can score, sign, approve or persist an assessment. External factual queries, a separate incident system and automatic expiry are not part of this slice.
-
-
-Arrangement review uses independent default-false `moduleConfirmations` for all twelve module codes. Current Plan reads revoke only audited affected modules and RAM dependencies; accepted history is immutable. Legacy `arrangementConfirmations` remains a derived section summary and never automatically confirms modules. Upgraded Plans reject clients omitting module flags. This review remains separate from duties, safety signatures and formal approval. See [creation arrangements](CREATION-ARRANGEMENTS.md#module-confirmation-and-module-roles).
-
-## Creator ownership and role-based staffing
-
-New Events bind accountable ownership to the authenticated creator. The optional legacy owner field accepts only that same account; all owner-transfer invitations are rejected, including old pending invitations. Existing stored owners and immutable approvals are preserved; when a legacy owner field is empty, only its creator is the fallback. Owning-group leadership does not grant editing of another owner's Event details, Plan, preparation configuration or poster.
-
-`event.lead` is an optional, personally accepted on-site duty and may be held by the owner. It grants no Event-plan editing. RAM authors edit RAM, and independent RAM reviewers decide rather than alter the report; neither duty grants Event-plan editing. Specialist operations continue to use their own controlled permissions.
-
-Roster roles have explicit, ordered Event candidate groups, each attached to one module. Every new assignment or substitution checks candidate membership, existing eligibility and availability on the server. Being a candidate is neither acceptance nor authority. There is no implicit whole-group candidate list or automatic rotation. Existing assignments remain historical evidence. Candidate-list changes use concurrency checks and invalidate affected preparation/Package evidence without rewriting history.
-
-Series creation also requires ownership of its linked Event. Updating a series requires ownership of every affected Event; an empty series is editable only by its creator. Group leadership alone cannot use recurrence changes to bypass Event ownership.
-
-Event details is the first full-row Arrangements card, headed by the selected template's localized name. Its upper-right Show all/related modules control is independent of opening the retained form/AI child work areas; the creator summary remains visible. It does not add a policy module or confirmation. The existing preparation rail omits the separate Details entry; its legacy stage identifiers remain compatible but do not prescribe an ordered wizard in the nonlinear design. The Arrangements footer only returns to the top; explicit save/create actions retain their existing validation. Persisted Event/occurrence timestamps represent UTC instants, including legacy SQL responses without an offset suffix; preparation converts them once into the selected Event time zone and saves wall-clock edits back to explicit UTC.
-
-## Personal Center duties and task approval
-
-[Event duties and personal handoffs](EVENT-DUTIES.md) is the normative saved-Event projection contract. Current actor/source/version determines duties, independently of notification history; reading does not complete a business action. The existing current-notifications array adds stable task keys, source versions, occurrence/deadline and bilingual action metadata. Restricted direct handlers preserve exact-version authority, private/no-store and account isolation. Ordinary completion approval uses named independent reviewers and immutable rounds; specialist approvals remain authoritative. Owner progression is limited to one actionable next step, respects explicit lifecycle closure, and keeps processable post-event tasks and approvals.
-
-## Preparation first-round contract extension — 2026-09-13
-
-This change explicitly extends the RAM AI input boundary and introduces roster rule version 2. It does not change the architecture, provider, notification channel or historical Plan hashes.
-
-- **RAM authoring:** creation and saved Events share a controlled-memory editor, primary UI language with optional second-language fields, risk filters/copy/delete confirmation/discard, policy questions, field-level server checks and saved/submitted/history comparisons. `POST /api/events/ram-authoring/check` evaluates a draft without persistence. Context/check access requires group creation permission before creation, or current RAM edit permission and unfrozen preparation after saving. AI receives only the user's sending preview: non-sensitive brief and the selected hazard/consequence/controls/additional-action strings, plus activity/category/language enums. The Worker authorizes scope at the origin and verifies its source version before Gemini. Request/response byte bounds and timeouts fail without changing drafts. The returned field suggestions/questions are untrusted: explicit per-field adoption, then explicit Save/Create; changed original text, Event conditions or context invalidate old suggestions. Ratings, identities, contacts, medical/confidential details, signatures and approval fields are forbidden. No raw prompt or unadopted content is logged, shared-cached or browser-persisted.
-- **Delivery status:** a current capability catalogue and Workspace projection show `coreAvailable`, `partial` or `unavailable` with bilingual descriptions, separately from module selection, details confirmation and readiness. Finance, food/hospitality and festival operations are unavailable; communications/follow-up is partial (existing content/posters/publication only). All entry points use the same status; confirmations cannot bypass required unavailable-module submission blockers. Historical Plan snapshots and proposal hashes remain unchanged.
-- **Registration:** one account occupies one Event seat. Server-owned states are `confirmed`, `waitlisted`, `cancelled`. A serializable transaction locks the Event before membership/lifecycle checks, queue reads, seat allocation, cancellation, promotion and notification writes. Eligible waiters have FIFO priority over newcomers; cancellation/rejoining retains the enrollment ID and related evidence but obtains a new queue time. Cancellation preserves prior JSON in history. Closed/expired/ineligible/approval-blocked registration never promotes; reopening and approved capacity increases reconcile under the same lock. Capacity cannot shrink below confirmed count, and pre-existing excess is displayed without removing people. Legacy rows become confirmed with no fabricated queue/decision timestamps or notifications. Only clients explicitly opting into `X-Enrollment-Waitlist: 1` may join a full queue; old clients receive `event.enrollment.waitlistUpgradeRequired`. RAM requirements come from current Plan/safety rules, including v2 validity, rather than an unconditional approval check.
-- **Manual staffing:** future occurrences are sorted ascending, four per page. Managers stage choices in memory, review one summary and submit one idempotent batch carrying each occurrence and candidate-group ETag. Any conflict rejects the entire batch, including notifications. The server validates current group qualification, availability, duplicate member and pending-plus-confirmed count for every position. Old single-date assignment uses the same batch service. Invitees alone accept/decline; declined/ended/replaced records remain historical, and replacements require new consent. In-app invitations/results/end notices commit with business changes. Results go only to the still-authorized assigner and current Event owner. Existing duty projections and old links revalidate current authority and assignment state.
-- **Default requirements and approval:** Event-scoped immutable default versions contain role/count/relative time/eligibility only. Initial creation may adopt explicitly reviewed demands; old Events require explicit selection of a source occurrence. Extending 12 weeks creates missing dates and empty positions, respecting recurrence/time zone/exceptions and preserving existing rows/responses. A v2 Package freezes requirements, candidate configuration and default version; ordinary staffing and replies are live execution data and do not alter its source hash. Ordinary future vacancies do not block Plan approval, while execution of each recurring date requires enough currently eligible, available, personally confirmed members. Critical RAM/child/transport/command/on-site/qualified duties and unknown qualifications retain specialist review/invalidation; roster APIs cannot grant professional authority or change signers. Config/candidate changes still require reopening. Legacy frozen Packages keep rule 1; replacement after reopening uses rule 2. A Package retains its explicitly approved date window when further dates are materialized: extension neither invalidates nor silently expands that coverage. Newly uncovered dates need a covering occurrence approval before execution.
-
-All RAM, enrollment and roster responses remain `private, no-store`, with current server authorization and account-aware client refresh. Migration `20260913135531_EventPreparationAuthoringCapacityRoster` is additive; shared database application, deployment and Git publication are separate actions. Automatic rotation/recommendations, family/guest/occurrence enrollment, email/device push and catering delivery are outside this round.
-
-
-### RAM synchronization extension — 2026-09-15
-
-The authorized background RAM extension persists unreviewed bilingual candidate risks from aggregate upstream signals. Its separate freshness state is not an approval state. Current context, owner acknowledgment and the existing independent RAM decision are enforced before Package submission. See [SAFETY.RAM](modules/SAFETY.RAM.md#background-synchronization-and-final-owner-review--2026-09-15) for concurrency, privacy and migration requirements. This exception does not expand manual AI authoring payloads or authorize automatic scores, signatures, approval or publication.
-
-## Activity-plan authority and RAM review (2026-09-15)
-
-TEAM.WORK owns event activity definitions and shared conditions in the additive activity-plan record/API. RAM mirrors that authority, combines adopted specialist reports, identifies risk and retains human scoring/confirmation/independent approval. Source ETags participate in RAM context and Package source versions. Existing RAM activities require explicit owner adoption; source deletion retains orphaned risk evidence. Current question completeness is disabled while historical answers/policies/prints remain. Main SERVICE.ROSTER aggregates all module roles, including safety, under existing server permissions. See [TEAM.WORK](modules/TEAM.WORK.md) and [SAFETY.RAM](modules/SAFETY.RAM.md).
+| Previous section | Current location |
+| --- | --- |
+| <a id="event-facts-and-deterministic-composition"></a>Event facts and deterministic composition | [Authoritative section](EVENT-COMPOSITION.md#event-facts-and-deterministic-composition) |
+| <a id="structural-model"></a>Structural model | [Authoritative section](EVENT-COMPOSITION.md#structural-model) |
+| <a id="archetypes-and-activity-types"></a>Archetypes and Activity Types | [Authoritative section](EVENT-COMPOSITION.md#archetypes-and-activity-types) |
+| <a id="capability-modules"></a>Capability modules | [Authoritative section](EVENT-COMPOSITION.md#capability-modules) |
+| <a id="normative-acceptance-scenarios"></a>Normative acceptance scenarios | [Authoritative section](EVENT-COMPOSITION.md#normative-acceptance-scenarios) |
+| <a id="collaboration-workspaces-version-1"></a>Collaboration workspaces version 1 | [Authoritative section](EVENT-WORKSPACES.md) |
+| <a id="event-package-approval-and-lifecycle-gates"></a>Event Package Approval and lifecycle gates | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#event-package-approval-and-lifecycle-gates) |
+| <a id="versioned-ram-governance"></a>Versioned RAM governance | [RAM policy](modules/SAFETY.RAM.md#policy-and-assessment-compatibility), [module confirmation compatibility](CREATION-ARRANGEMENTS.md#module-confirmation-compatibility) |
+| <a id="creator-ownership-and-role-based-staffing"></a>Creator ownership and role-based staffing | [Ownership](modules/TEAM.WORK.md#creator-and-series-ownership), [candidates](modules/SERVICE.ROSTER.md#candidate-authority), [details/time compatibility](EVENT-SETUP-FLOW.md#details-placement-and-timestamp-compatibility) |
+| <a id="personal-center-duties-and-task-approval"></a>Personal Center duties and task approval | [Authoritative section](EVENT-DUTIES.md#projection-compatibility) |
+| <a id="preparation-first-round-contract-extension--2026-09-13"></a>Preparation first-round contract extension — 2026-09-13 | [Version scope](EVENT-WORKSPACES.md#capability-availability-and-version-boundaries), [RAM authoring](modules/SAFETY.RAM.md#manual-ai-authoring-boundary), [registration](modules/PEOPLE.REGISTRATION.md#version-0-seat-and-waitlist-compatibility), [manual roster](modules/SERVICE.ROSTER.md#atomic-manual-scheduling), [approval coverage](modules/SERVICE.ROSTER.md#default-requirements-and-approval-coverage) |
+| <a id="ram-synchronization-extension--2026-09-15"></a>RAM synchronization extension — 2026-09-15 | [Authoritative section](modules/SAFETY.RAM.md#authorized-synchronization-exception) |
+| <a id="activity-plan-authority-and-ram-review-2026-09-15"></a>Activity-plan authority and RAM review (2026-09-15) | [Authoritative section](modules/TEAM.WORK.md#activity-authority-across-modules) |
+| <a id="eventseries"></a>EventSeries | [Authoritative section](EVENT-COMPOSITION.md#eventseries) |
+| <a id="event"></a>Event | [Authoritative section](EVENT-COMPOSITION.md#event) |
+| <a id="eventoccurrence"></a>EventOccurrence | [Authoritative section](EVENT-COMPOSITION.md#eventoccurrence) |
+| <a id="childevent"></a>ChildEvent | [Authoritative section](EVENT-COMPOSITION.md#childevent) |
+| <a id="session--track-and-programitem"></a>Session / Track and ProgramItem | [Authoritative section](EVENT-COMPOSITION.md#session--track-and-programitem) |
+| <a id="zone"></a>Zone | [Authoritative section](EVENT-COMPOSITION.md#zone) |
+| <a id="serviceslot--shift"></a>ServiceSlot / Shift | [Authoritative section](EVENT-COMPOSITION.md#serviceslot--shift) |
+| <a id="purpose-and-concept-boundaries"></a>Purpose and concept boundaries | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#purpose-and-concept-boundaries) |
+| <a id="governance-policy-version-1"></a>Governance policy version 1 | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#governance-policy-version-1) |
+| <a id="scope-and-coverage"></a>Scope and coverage | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#scope-and-coverage) |
+| <a id="governance-policy-administration"></a>Governance policy administration | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#governance-policy-administration) |
+| <a id="canonical-generation-and-submission"></a>Canonical generation and submission | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#canonical-generation-and-submission) |
+| <a id="package-lifecycle-decisions-and-conditions"></a>Package lifecycle, decisions, and conditions | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#package-lifecycle-decisions-and-conditions) |
+| <a id="lifecycle-gates"></a>Lifecycle gates | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#lifecycle-gates) |
+| <a id="material-change-and-re-approval"></a>Material change and re-approval | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#material-change-and-re-approval) |
+| <a id="privacy-retention-and-caching"></a>Privacy, retention, and caching | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#privacy-retention-and-caching) |
+| <a id="compatible-rollout"></a>Compatible rollout | [Authoritative section](EVENT-PACKAGE-APPROVAL.md#compatible-rollout) |

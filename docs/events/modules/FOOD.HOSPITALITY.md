@@ -1,10 +1,10 @@
 # FOOD.HOSPITALITY
 
-> Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
+> Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#food-hospitality) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
 ## Collaboration version 1 — preparation and execution
 
-The [workspace contract](../EVENT-WORKSPACES.md) scopes this version's preparation to an accepted responsible lead and a bilingual versioned report. The lead writes in an independent page; the Event owner returns or adopts an immutable submitted revision into the formal plan. Later drafts cannot alter adopted text; frozen-plan changes require reopening. Submission and return project the next person's duty. Existing specialist execution tools and checks remain independent. This report does not certify specialist facts or grant access to private participant data.
+Uses the [shared report and handoff contract](../EVENT-WORKSPACES.md#tasks-and-reports): accepted module lead, versioned submission and owner adoption. Module-specific operations and privacy below still apply; a report neither certifies specialist facts nor grants participant-data access.
 
 ## Purpose
 
@@ -48,17 +48,13 @@ Contributes service requirement, headcount/serving aggregate, food-policy versio
 
 Participants submit their own needs through registration. Authorised hospitality leads receive a purpose-limited aggregate and actionable exceptions, with explicit safety sign-off and cleanup state.
 
-## Current implementation
+## Operational behavior
 
 Partial report support: accepted lead, bilingual drafting/submission/return/adoption, immutable history and independent work page. Menus, dietary/allergy records and kitchen operations remain target work.
 
-## Open contract gaps
 
-Menu, headcount, dietary/allergy summary, purchasing, kitchen shifts, food-safety evidence, vendor, serving, cleanup, and all dedicated API/UI behaviour.
 
-## Next useful vertical slice
 
-`dietary-menu-safety`: registration-derived dietary needs, an authorised minimum allergy summary, menu/servings, food-lead safety sign-off, and no health-record duplication.
 
 ## Historical availability — 2026-09-13 (superseded by version 1)
 
