@@ -1,11 +1,14 @@
 import EventCapabilityNotice, { capabilityStatusText, useEventCapabilities } from '../EventCapabilityNotice'
-import type { DetailField } from '../../../../../shared/eventDetails'
+import '../../../styles/eventPreparation.css'
+import type { DetailsFocusRequest } from './DetailsWorkspace'
+export { default as DetailsWorkspace } from './DetailsWorkspace'
+export { default as DetailsStep } from './DetailsStep'
 import { creationMessage } from '../../../utils/eventCreationCopy'
 import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import AppSectionCard from '../../layout/AppSectionCard'
 import AppBadge from '../../layout/AppBadge'
 import type { EventActivityType, EventArchetype, EventPlanProposal, ModuleDecision } from '../../../types/eventComposition'
-import { BilingualField, Field, creationInput, localText } from './CreationFields'
+import { localText } from './CreationFields'
 import { CreationProgrammeEditor, CreationRosterEditor, CreationVenueEditor, creationRosterModule } from './CreationArrangementEditors'
 import { TileButtons, ModuleDraftBoundary, ToolTileDeck, ToolTileGroup, EventToolSection, focusTilePanel, revealArrangementControl } from '../ArrangementTileDeck'
 import { Users, UserRoundCheck, CalendarCheck, ShieldCheck, Baby, Music, MapPin, Tent, Bus, Utensils, Wallet, MessagesSquare, ArrowLeft } from 'lucide-react'
@@ -28,50 +31,6 @@ export function TemplateStep({ draft, setDraft, zh, archetypes, type }: DraftPro
     {!category ? <p className="mt-4 text-sm text-[#66766f]">{zh ? '请选择上方的活动分类。' : 'Choose a category above.'}</p> : !category.activityTypes.length ? <p className="mt-4 text-sm">{zh ? '此分类暂无启用的模板，请选择其他分类。' : 'No active templates in this category. Choose another category.'}</p> : <div className="mt-4 grid gap-2 md:grid-cols-2" role="group" aria-label={zh ? '活动模板' : 'Event template'}>{category.activityTypes.map(item => <button key={item.code} type="button" aria-pressed={type?.code === item.code} className={choice(type?.code === item.code)} onClick={() => setDraft(current => selectCreationTemplate(current, item))}><strong className="block">{localText(item.name, zh)}</strong><span className="mt-1 block text-sm leading-6 text-[#66766f]">{localText(item.description, zh)}</span><span className="mt-2 block text-xs">{visibilityText(item.defaults.visibility, zh)} · {item.defaults.registrationMode === 'required' ? (zh ? '需要报名' : 'Registration needed') : (zh ? '无需报名' : 'No registration')}</span></button>)}</div>}
     {type && category ? <div className="mt-4 rounded-xl bg-[#e3f0eb] p-3 text-sm" role="status"><strong>{zh ? '已选择：' : 'Selected: '}{localText(type.name, zh)}</strong><p className="mt-1">{category.isSeries ? (zh ? '每周重复，预先安排未来 12 周的活动。' : 'Repeats weekly, with the next 12 weeks scheduled ahead.') : category.hasZones ? (zh ? '单次活动，可安排多个环节与现场区域。' : 'One event with multiple sessions and areas.') : category.hasSessions ? (zh ? '单次活动，可安排多个环节。' : 'One event with multiple sessions.') : (zh ? '单次活动。' : 'One event.')}</p><p className="mt-1 text-[#40554e]">{zh ? '模板建议不代表本次活动事实；请继续填写实际安排。' : 'Template suggestions do not confirm facts about this event. Continue to enter its arrangements.'}</p></div> : null}
   </AppSectionCard>
-}
-
-export function DetailsStep({ draft, setDraft: updateDraft, zh, type, archetype, ai, saved = false, registrationRulesManaged = false }: DraftProps & { type: EventActivityType; archetype: EventArchetype; ai: ReactNode; saved?: boolean; registrationRulesManaged?: boolean }) {
-  const settings = creationSettings(draft, type)
-  const setDraft: typeof updateDraft = action => updateDraft(previous => {
-    const next = typeof action === 'function' ? action(previous) : action
-    const conditions = (value: CreationDraft) => JSON.stringify([value.startLocal, value.endLocal, value.timeZone, value.intervalWeeks, value.maxCapacity, value.locationName])
-    if (conditions(previous) !== conditions(next)) return invalidateArrangementConfirmation(next)
-    if (JSON.stringify(previous.overrides) !== JSON.stringify(next.overrides)) return invalidateArrangementConfirmation(invalidateArrangementConfirmation(next, 'PEOPLE.REGISTRATION'), 'COMMS.FOLLOWUP')
-    return next
-  })
-  const mark = (current: CreationDraft, field: DetailField) => ({ ...current.detailSources, [field]: 'human' as const })
-  const textField = (key: 'startLocal' | 'endLocal' | 'maxCapacity' | 'timeZone' | 'intervalWeeks', label: string, inputType = 'text') => <Field label={label}><input className={creationInput} type={inputType} value={draft[key] ?? ''} min={inputType === 'number' ? 1 : undefined} max={key === 'intervalWeeks' ? 52 : undefined} step={inputType === 'number' ? 1 : undefined} onChange={e => setDraft(current => ({ ...current, [key]: e.target.value, detailSources: mark(current, key) }))} /></Field>
-  return <div className="space-y-4">
-    <div className="rounded-2xl border border-[#2f4b42]/20 bg-[#e3f0eb] p-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="text-sm text-[#66766f]">{zh ? '活动资料' : 'Event details'}</p>
-        <AppBadge>{zh ? '活动模板：' : 'Template: '}{localText(type.name, zh)}</AppBadge>
-      </div>
-    </div>
-    <div className="grid gap-4 md:grid-cols-2">
-      {(['title', 'description', 'locationName'] as const).map(key => <BilingualField key={key} label={key === 'title' ? (zh ? '活动名称' : 'Event title') : key === 'description' ? (zh ? '活动说明' : 'Description') : (zh ? '地点说明' : 'Location')} value={draft[key]} multiline={key === 'description'} onChange={value => setDraft(current => ({ ...current, [key]: value, detailSources: mark(current, key) }))} />)}
-      <p className="col-span-full text-sm text-[#66766f]">{zh ? `开始和结束时间均为 ${draft.timeZone || '所选活动时区'} 的当地时间，不是设备时区。` : `Start and end use local time in ${draft.timeZone || 'the selected event time zone'}, not the device time zone.`}{(!draft.detailSources?.startLocal || !draft.detailSources?.endLocal) ? (zh ? ' 预填时间尚未确认，请填写或让助手按您提供的时间更新。' : ' Prefilled times are unconfirmed; edit them or supply your times to the assistant.') : ''}</p>
-      {textField('startLocal', zh ? '开始时间' : 'Start time', 'datetime-local')}{textField('endLocal', zh ? '结束时间' : 'End time', 'datetime-local')}
-      <Field label={zh ? '可见范围' : 'Visibility'}><select className={creationInput} value={settings.visibility} onChange={e => { const value = e.target.value as typeof settings.visibility; setDraft(current => ({ ...current, overrides: { ...current.overrides, visibility: value }, detailSources: mark(current, 'visibility') })) }}>{['groupVisible', 'churchVisible', 'public'].map(value => <option key={value} value={value}>{visibilityText(value, zh)}</option>)}</select></Field>
-      <Field label={zh ? '报名方式' : 'Registration'}><select className={creationInput} value={settings.registrationMode} onChange={e => { const value = e.target.value as 'none' | 'required'; setDraft(current => ({ ...current, overrides: { ...current.overrides, registrationMode: value }, detailSources: mark(current, 'registrationMode') })) }}><option value="none">{zh ? '无需报名' : 'No registration'}</option><option value="required">{zh ? '需要报名' : 'Registration required'}</option></select></Field>
-      {settings.registrationMode === 'required' ? registrationRulesManaged ? <p className="self-center text-sm text-[#66766f]">{zh ? '人数上限和截止时间由“报名与参与者”中的报名规则管理。' : 'Capacity and deadline are managed in the Registration and participants rules.'}</p> : <>{textField('maxCapacity', zh ? '最多参加人数' : 'Capacity', 'number')}<p className="self-center text-sm text-[#66766f]">{zh ? '报名默认在活动开始前一天截止。' : 'Registration closes one day before the event starts.'}</p></> : null}
-      {textField('timeZone', zh ? '活动时区' : 'Event time zone')}
-      {archetype.isSeries ? <>{textField('intervalWeeks', zh ? '每隔几周举行' : 'Repeat every N weeks', 'number')}<p hidden={saved} className="self-center text-sm text-[#66766f]">{zh ? `每 ${draft.intervalWeeks || '1'} 周同一时间举行，预先安排未来 12 周。` : `Repeats every ${draft.intervalWeeks || '1'} week(s), scheduling the next 12 weeks.`}</p></> : null}
-    </div>
-    {ai}
-  </div>
-}
-
-export function DetailsWorkspace({ zh, active, form, assistant }: { zh: boolean; active: boolean; form: ReactNode; assistant: (active: boolean) => ReactNode }) {
-  const [aiOpen, setAiOpen] = useState(false)
-  return <div className="space-y-3">
-    {form}
-    <button type="button" className="flex min-h-11 w-full items-center justify-between rounded-xl border border-[#2f4b42]/20 bg-white px-3 py-2 text-left text-sm font-semibold" onClick={() => setAiOpen(value => !value)} aria-expanded={aiOpen}>
-      <span>{zh ? 'AI 资料助手' : 'AI details assistant'}</span>
-      <span className="text-xs text-[#66766f]">{aiOpen ? (zh ? '收起' : 'Collapse') : (zh ? '展开' : 'Expand')}</span>
-    </button>
-    {aiOpen ? <div>{assistant(active && aiOpen)}</div> : null}
-  </div>
 }
 
 const reasonCopy: Record<string, [string, string]> = {
@@ -105,19 +64,19 @@ function ModuleResult({ decision, zh }: { decision: ModuleDecision; zh: boolean 
   return <div className="rounded-xl bg-[#f5f2eb] p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><strong>{localText(decision.label, zh)}</strong><AppBadge variant={decision.status === 'required' ? 'warning' : 'neutral'}>{decision.status === 'required' ? (zh ? '必需' : 'Required') : (zh ? '已启用' : 'Enabled')}</AppBadge></div><p className="mt-1 text-[#66766f]">{moduleReason(decision, zh)}</p><EventCapabilityNotice code={decision.moduleCode} zh={zh} /></div>
 }
 
-const tileMeta: Record<string, { en: string; zh: string; color: string; icon: ReactNode }> = {
-  'TEAM.WORK': { en: 'Tasks & handoffs', zh: '任务与交接', color: '#e3f0eb', icon: <Users size={20} /> },
-  'PEOPLE.REGISTRATION': { en: 'Registration', zh: '邀请报名', color: '#e3f0eb', icon: <UserRoundCheck size={20} /> },
-  'SERVICE.ROSTER': { en: 'Roles & shifts', zh: '岗位轮班', color: '#e3f0eb', icon: <CalendarCheck size={20} /> },
-  'SAFETY.RAM': { en: 'RAM & safety', zh: 'RAM 安全', color: '#f6e5df', icon: <ShieldCheck size={20} /> },
-  'SAFEGUARDING.CHILD': { en: 'Safeguarding', zh: '儿童保护', color: '#f6e5df', icon: <Baby size={20} /> },
-  'PROGRAM.PRODUCTION': { en: 'Programme', zh: '节目安排', color: '#e7e9f5', icon: <Music size={20} /> },
-  'PLACE.RESOURCE': { en: 'Venues', zh: '场地资源', color: '#e7e9f5', icon: <MapPin size={20} /> },
-  'FESTIVAL.OPERATIONS': { en: 'Operations', zh: '现场运营', color: '#e7e9f5', icon: <Tent size={20} /> },
-  'MOVE.STAY': { en: 'Travel & stay', zh: '交通住宿', color: '#deedf1', icon: <Bus size={20} /> },
-  'FOOD.HOSPITALITY': { en: 'Food', zh: '餐饮接待', color: '#f3ead5', icon: <Utensils size={20} /> },
-  'MONEY.FINANCE': { en: 'Finance', zh: '费用财务', color: '#e8ecd9', icon: <Wallet size={20} /> },
-  'COMMS.FOLLOWUP': { en: 'Follow-up', zh: '沟通跟进', color: '#eedfeb', icon: <MessagesSquare size={20} /> },
+const tileMeta: Record<string, { en: string; zh: string; color: string; accent: string; ink: string; icon: ReactNode }> = {
+  'TEAM.WORK': { en: 'Tasks & handoffs', zh: '任务与交接', color: '#F5F3FF', accent: '#7C3AED', ink: '#5B21B6', icon: <Users size={20} /> },
+  'PEOPLE.REGISTRATION': { en: 'Registration', zh: '邀请报名', color: '#EFF6FF', accent: '#2563EB', ink: '#1E40AF', icon: <UserRoundCheck size={20} /> },
+  'SERVICE.ROSTER': { en: 'Roles & shifts', zh: '岗位轮班', color: '#F5F3FF', accent: '#7C3AED', ink: '#5B21B6', icon: <CalendarCheck size={20} /> },
+  'SAFETY.RAM': { en: 'RAM & safety', zh: 'RAM 安全', color: '#FFFBEB', accent: '#D97706', ink: '#92400E', icon: <ShieldCheck size={20} /> },
+  'SAFEGUARDING.CHILD': { en: 'Safeguarding', zh: '儿童保护', color: '#FDF4FF', accent: '#C026D3', ink: '#86198F', icon: <Baby size={20} /> },
+  'PROGRAM.PRODUCTION': { en: 'Programme', zh: '节目安排', color: '#EEF2FF', accent: '#4F46E5', ink: '#3730A3', icon: <Music size={20} /> },
+  'PLACE.RESOURCE': { en: 'Venues', zh: '场地资源', color: '#F0F9FF', accent: '#0284C7', ink: '#075985', icon: <MapPin size={20} /> },
+  'FESTIVAL.OPERATIONS': { en: 'Operations', zh: '现场运营', color: '#FFF1F2', accent: '#E11D48', ink: '#9F1239', icon: <Tent size={20} /> },
+  'MOVE.STAY': { en: 'Travel & stay', zh: '交通住宿', color: '#FFF7ED', accent: '#EA580C', ink: '#9A3412', icon: <Bus size={20} /> },
+  'FOOD.HOSPITALITY': { en: 'Food', zh: '餐饮接待', color: '#FFF7ED', accent: '#EA580C', ink: '#9A3412', icon: <Utensils size={20} /> },
+  'MONEY.FINANCE': { en: 'Finance', zh: '费用财务', color: '#F0FDFA', accent: '#0F766E', ink: '#134E4A', icon: <Wallet size={20} /> },
+  'COMMS.FOLLOWUP': { en: 'Follow-up', zh: '沟通跟进', color: '#FFF1F2', accent: '#E11D48', ink: '#9F1239', icon: <MessagesSquare size={20} /> },
 }
 function ArrangementModule({ draft, setDraft, zh, decision, current, type, groupId, saved = false, ramPanel, ramDirty = false, readOnly = false, modulePanels, rolePanels, activeModules = [] }: DraftProps & { activeModules?: string[]; decision: ModuleDecision; current: boolean; type: EventActivityType; groupId: string; saved?: boolean; ramPanel?: ReactNode; ramDirty?: boolean; readOnly?: boolean; modulePanels?: Record<string, ReactNode>; rolePanels?: Record<string, ReactNode> }) {
   const planningOnly = ['MONEY.FINANCE', 'FOOD.HOSPITALITY', 'FESTIVAL.OPERATIONS', 'COMMS.FOLLOWUP'].includes(decision.moduleCode)
@@ -137,7 +96,7 @@ function ArrangementModule({ draft, setDraft, zh, decision, current, type, group
   </ToolTileDeck>
 }
 
-export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, proposal, current, status, groupId, saved = false, ramPanel, ramDirty = false, modulePanels, rolePanels, ownerPanel, detailsPanel, detailsDraft = draft, detailsDirty = false, focusModule, savedModules = {}, onUnsavedTools }: DraftProps & { onUnsavedTools?: (dirty: boolean) => void; savedModules?: Record<string, number>; type: EventActivityType; ownerPanel?: ReactNode; detailsPanel?: (active: boolean) => ReactNode; detailsDraft?: CreationDraft; detailsDirty?: boolean; proposal: EventPlanProposal | null; current: boolean; status: ReactNode; groupId: string; saved?: boolean; ramPanel?: ReactNode; ramDirty?: boolean; readOnly?: boolean; modulePanels?: Record<string, ReactNode>; rolePanels?: Record<string, ReactNode>; focusModule?: string | null }) {
+export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, proposal, current, status, groupId, saved = false, ramPanel, ramDirty = false, modulePanels, rolePanels, ownerPanel, detailsPanel, detailsDraft = draft, detailsDirty = false, detailsFocusRequest, focusModule, savedModules = {}, onUnsavedTools }: DraftProps & { onUnsavedTools?: (dirty: boolean) => void; savedModules?: Record<string, number>; type: EventActivityType; ownerPanel?: ReactNode; detailsPanel?: (active: boolean) => ReactNode; detailsDraft?: CreationDraft; detailsDirty?: boolean; detailsFocusRequest?: DetailsFocusRequest; proposal: EventPlanProposal | null; current: boolean; status: ReactNode; groupId: string; saved?: boolean; ramPanel?: ReactNode; ramDirty?: boolean; readOnly?: boolean; modulePanels?: Record<string, ReactNode>; rolePanels?: Record<string, ReactNode>; focusModule?: string | null }) {
   const [active, setActive] = useState<string | null>(null), [visited, setVisited] = useState<string[]>([])
   const [showAllModules, setShowAllModules] = useState(false)
   const capabilities = useEventCapabilities()
@@ -161,6 +120,7 @@ export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, 
   const [baseline, setBaseline] = useState<Record<string, string>>(() => Object.fromEntries(creationModuleCodes.map(code => [code, moduleSignature(code)])))
   const edited = Object.fromEntries(decisions.map(item => [item.moduleCode, baseline[item.moduleCode] !== moduleSignature(item.moduleCode)]))
   const choose = (code: string) => { const next = active === code ? null : code; setActive(next); setVisited(previous => previous.includes(code) ? previous : [...previous, code]); setConfirmationError(''); requestAnimationFrame(() => next ? focusTilePanel(document.getElementById(`module-heading-${code}`)) : focusTilePanel(grid.current?.querySelector<HTMLButtonElement>(`[data-arrangement-tile="${code}"]`) ?? null)) }
+  useEffect(() => { if (detailsFocusRequest) { setActive('EVENT.DETAILS'); setVisited(previous => previous.includes('EVENT.DETAILS') ? previous : [...previous, 'EVENT.DETAILS']) } }, [detailsFocusRequest])
   const focusedLink = useRef<string | null>(null)
   const target = focusModule === 'EVENT.DETAILS' ? focusModule : decisions.find(item => item.moduleCode === focusModule?.toUpperCase())?.moduleCode
   useEffect(() => { if (!target) { focusedLink.current = null; return }; if (focusedLink.current === target) return; focusedLink.current = target; setActive(target); setVisited(previous => previous.includes(target) ? previous : [...previous, target]); requestAnimationFrame(() => focusTilePanel(document.getElementById(`module-heading-${target}`))) }, [target])
@@ -180,17 +140,17 @@ export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, 
   const defaultRoles = Object.fromEntries(decisions.map(decision => [decision.moduleCode, <ArrangementRoles key={decision.moduleCode} roles={proposal?.roleRequirements.filter(role => role.moduleCode === decision.moduleCode && role.roleCode !== 'event.accountableOwner') ?? []} zh={zh} />]))
   const modeToggleLabel = showAllModules ? (zh ? `显示相关模块（${relatedCount}/${totalCount}）` : `Show related modules (${relatedCount}/${totalCount})`) : (zh ? `显示所有模块（${totalCount}）` : `Show all modules (${totalCount})`)
   const modeToggle = <button type="button" className="inline-flex min-h-11 max-w-[60%] shrink-0 items-center justify-center rounded-xl border border-[#2f4b42]/25 bg-[#f9f9f9] px-3 py-2 text-sm font-semibold" aria-pressed={showAllModules} onClick={() => setShowAllModules(value => !value)}>{modeToggleLabel}</button>
-  return <div className="space-y-4" data-arrangement-overview>{status}
+  return <div className="event-arrangements-pilot space-y-4" data-arrangement-overview>{status}
     {!detailsPanel ? <div className="flex justify-end">{modeToggle}</div> : null}
-    <div ref={grid} className="space-y-3">{detailsPanel ? <div data-event-details-card className="rounded-2xl border-2 border-[#14564f] bg-[#e3f0eb] p-4 text-[#0d4f43] shadow-sm">
-      <header className="mb-2 flex items-start justify-between gap-2"><h2 className="flex min-h-11 min-w-0 items-center gap-2 break-words font-semibold"><CalendarCheck size={20} className="shrink-0" /><span className="min-w-0">{localText(type.name, zh)}</span></h2>{modeToggle}</header>
+    <div ref={grid} className="space-y-3">{detailsPanel ? <div data-event-details-card data-selected={active === 'EVENT.DETAILS'} className="event-arrangement-context">
+      <header className="event-arrangement-context-header"><h2 className="flex min-h-11 min-w-0 items-center gap-2 break-words font-semibold"><CalendarCheck size={20} className="shrink-0" /><span className="min-w-0">{localText(type.name, zh)}</span></h2>{modeToggle}</header>
       <button type="button" data-arrangement-tile="EVENT.DETAILS" aria-expanded={active === 'EVENT.DETAILS'} aria-controls="tile-panel-EVENT.DETAILS" onClick={() => choose('EVENT.DETAILS')} className="w-full min-h-11 text-left focus-visible:outline focus-visible:outline-2">
         {detailsDirty ? <span className="block text-xs">{zh ? '未保存' : 'Unsaved'}</span> : null}
-        <strong className="mt-2 block break-words text-xl">{localText(detailsDraft.title, zh) || (zh ? '尚未填写活动名称' : 'Add an event title')}</strong>
-        <span className="mt-2 block text-sm">{detailsDraft.startLocal.replace('T', ' ')} – {detailsDraft.endLocal.replace('T', ' ')} · {detailsDraft.timeZone}</span>
-      </button><div className="mt-3 text-sm"><strong>{zh ? '活动总负责人（创建者）' : 'Accountable owner (creator)'}</strong>{ownerPanel}</div>
-    </div> : null}<TileButtons label={zh ? '活动模块总览' : 'Event module overview'} active={active} onSelect={choose} items={moduleChoices.map(decision => { const meta = tileMeta[decision.moduleCode]; const selected = draft.moduleOverrides[decision.moduleCode] ?? decision.status !== 'inactive'; return { id: decision.moduleCode, title: localText(decision.label, zh), shortTitle: meta ? (zh ? meta.zh : meta.en) : undefined, icon: meta?.icon, color: meta?.color, confirmed: draft.moduleConfirmations?.[decision.moduleCode] === true, dirty: Object.values(toolDrafts[decision.moduleCode] || {}).some(Boolean) || edited[decision.moduleCode] || ( decision.moduleCode === 'SAFETY.RAM' && ramDirty), status: [selected ? (zh ? '已启用' : 'Enabled') : (zh ? '未启用' : 'Off'), capabilities.find(c => c.moduleCode === decision.moduleCode && c.status !== 'coreAvailable') ? capabilityStatusText(capabilities.find(c => c.moduleCode === decision.moduleCode)!.status, zh) : ''].filter(Boolean).join(' · '), faded: showAllModules && decision.status === 'inactive' } })} /></div>
-    <div ref={panelsRef}>{detailsPanel && visited.includes('EVENT.DETAILS') ? <section hidden={active !== 'EVENT.DETAILS'} id="tile-panel-EVENT.DETAILS" data-module-editor="EVENT.DETAILS" className="arrangement-editor min-w-0 border-t-2 border-[#176b5a] pt-3"><button type="button" className="min-h-11 text-sm font-semibold" onClick={() => choose('EVENT.DETAILS')}>{zh ? '返回模块总览' : 'Back to modules'}</button><h2 id="module-heading-EVENT.DETAILS" tabIndex={-1} className="scroll-mt-24 text-xl font-bold outline-none">{zh ? '活动资料' : 'Event details'}</h2>{detailsPanel(active === 'EVENT.DETAILS')}</section> : null}{decisions.filter(decision => visited.includes(decision.moduleCode)).map(decision => <section key={decision.moduleCode} hidden={active !== decision.moduleCode} id={`tile-panel-${decision.moduleCode}`} aria-label={localText(decision.label, zh)} data-module-editor={decision.moduleCode} className="arrangement-editor min-w-0 border-t-2 border-[#176b5a] pt-3">
+        <strong className="event-arrangement-title">{localText(detailsDraft.title, zh) || (zh ? '尚未填写活动名称' : 'Add an event title')}</strong>
+        <span className="event-arrangement-date">{detailsDraft.startLocal.replace('T', ' ')} – {detailsDraft.endLocal.replace('T', ' ')} · {detailsDraft.timeZone}</span>
+      </button><div className="event-arrangement-owner"><strong>{zh ? '活动总负责人（创建者）' : 'Accountable owner (creator)'}</strong>{ownerPanel}</div>
+    </div> : null}<TileButtons zh={zh} compact label={zh ? '活动模块总览' : 'Event module overview'} active={active} onSelect={choose} items={moduleChoices.map(decision => { const meta = tileMeta[decision.moduleCode]; const selected = draft.moduleOverrides[decision.moduleCode] ?? decision.status !== 'inactive'; return { id: decision.moduleCode, title: localText(decision.label, zh), shortTitle: meta ? (zh ? meta.zh : meta.en) : undefined, icon: meta?.icon, color: meta?.color, accent: meta?.accent, ink: meta?.ink, enabled: selected, capability: capabilities.find(c => c.moduleCode === decision.moduleCode && c.status !== 'coreAvailable') ? capabilityStatusText(capabilities.find(c => c.moduleCode === decision.moduleCode)!.status, zh) : undefined, confirmed: draft.moduleConfirmations?.[decision.moduleCode] === true, dirty: Object.values(toolDrafts[decision.moduleCode] || {}).some(Boolean) || edited[decision.moduleCode] || ( decision.moduleCode === 'SAFETY.RAM' && ramDirty), status: [selected ? (zh ? '已启用' : 'Enabled') : (zh ? '未启用' : 'Off'), capabilities.find(c => c.moduleCode === decision.moduleCode && c.status !== 'coreAvailable') ? capabilityStatusText(capabilities.find(c => c.moduleCode === decision.moduleCode)!.status, zh) : ''].filter(Boolean).join(' · '), faded: showAllModules && decision.status === 'inactive' } })} /></div>
+    <div ref={panelsRef}>{detailsPanel && visited.includes('EVENT.DETAILS') ? <section hidden={active !== 'EVENT.DETAILS'} id="tile-panel-EVENT.DETAILS" data-module-editor="EVENT.DETAILS" className="event-details-editor min-w-0"><button type="button" className="min-h-11 text-sm font-semibold" onClick={() => choose('EVENT.DETAILS')}>{zh ? '返回模块总览' : 'Back to modules'}</button><h2 id="module-heading-EVENT.DETAILS" tabIndex={-1} className="scroll-mt-24 text-xl font-bold outline-none">{zh ? '活动资料' : 'Event details'}</h2>{detailsPanel(active === 'EVENT.DETAILS')}</section> : null}{decisions.filter(decision => visited.includes(decision.moduleCode)).map(decision => <section key={decision.moduleCode} hidden={active !== decision.moduleCode} id={`tile-panel-${decision.moduleCode}`} aria-label={localText(decision.label, zh)} data-module-editor={decision.moduleCode} className="arrangement-editor min-w-0 border-t-2 border-[#176b5a] pt-3">
       <header className="mb-4 space-y-2"><p className="text-xs text-[#66766f]">{arrangementGroups.find(group => group.modules.some(code => code === decision.moduleCode))?.[zh ? 'zh' : 'en']}</p><button type="button" onClick={() => choose(decision.moduleCode)} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#176b5a]"><ArrowLeft size={16} />{zh ? '返回模块总览' : 'Back to modules'}</button><div className="flex flex-wrap items-center justify-between gap-3"><h2 id={`module-heading-${decision.moduleCode}`} tabIndex={-1} className="scroll-mt-24 text-xl font-bold outline-none">{localText(decision.label, zh)}</h2><label data-module-confirmation className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" disabled={!current || Object.values(toolDrafts[decision.moduleCode] || {}).some(Boolean) || (saved && decision.moduleCode === 'SAFETY.RAM' && ramDirty)} checked={draft.moduleConfirmations?.[decision.moduleCode] === true} onChange={event => confirmModuleDetails(decision.moduleCode, event.target.checked)} />{zh ? '填写已确认' : 'Details confirmed'}</label></div><p className="text-xs text-[#66766f]">{zh ? '填写确认不代表本人接受职责、RAM 签署或安全审批。' : 'Details confirmation does not accept a role, sign RAM or grant safety approval.'}</p></header>
       {confirmationError ? <p role="alert" className="mb-3 text-sm text-rose-800">{confirmationError}</p> : null}
       <EventCapabilityNotice code={decision.moduleCode} zh={zh} /><ModuleDraftBoundary code={decision.moduleCode} onChange={reportDraft}><ArrangementModule {...{ draft, setDraft, zh, type, decision, current, groupId, saved, ramPanel, ramDirty, readOnly, modulePanels }} rolePanels={rolePanels ?? defaultRoles} activeModules={decisions.filter(item => item.status === 'required' || item.status === 'selected').map(item => item.moduleCode)} /></ModuleDraftBoundary>

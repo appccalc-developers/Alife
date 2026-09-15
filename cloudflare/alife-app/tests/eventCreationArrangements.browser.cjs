@@ -1,5 +1,6 @@
 // All application APIs are fixtures. Run against Vite; no real events are created.
 const assert = require('node:assert/strict');
+const { showDetailsPane, expandTranslation } = require('./helpers/eventDetailsWorkspace.cjs');
 const { chromium } = require(process.env.ALIFE_PLAYWRIGHT_MODULE || 'playwright');
 const os = require('node:os');
 const path = require('node:path');
@@ -12,7 +13,7 @@ const venue = { id: 'venue-1', managingGroupId: 'qa-group', name: label('Main ha
 const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
 
 (async () => {
-  const browser = await chromium.launch({ headless: true }); let lastPage = null;
+  const browser = await chromium.launch({ headless: true, ...(process.env.ALIFE_BROWSER_EXECUTABLE ? { executablePath: process.env.ALIFE_BROWSER_EXECUTABLE } : {}) }); let lastPage = null;
   try {
     for (const language of (process.env.ALIFE_QA_LANGUAGES || 'zh,en').split(',')) for (const width of (process.env.ALIFE_QA_WIDTHS || '320,375,768,1280').split(',').map(Number)) {
       const zh = language === 'zh', t = (en, cn) => zh ? cn : en;
@@ -54,7 +55,7 @@ const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
       const region = (en, cn) => page.getByRole('region', { name: t(en, cn), exact: true });
       const fillText = async (root, title, en, cn) => {
         const group = root.getByRole('group', { name: title, exact: true });
-        await group.getByLabel('English', { exact: true }).fill(en); await group.getByLabel('中文', { exact: true }).fill(cn);
+        await expandTranslation(group); await group.getByLabel('English', { exact: true }).fill(en); await group.getByLabel('中文', { exact: true }).fill(cn);
       };
       await page.goto(`${base}/events/new?groupId=qa-group`, { waitUntil: 'domcontentloaded', timeout: 45000 });
       await page.getByRole('button', { name: /轻松相聚|Simple social/ }).click();
@@ -83,8 +84,9 @@ const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
       assert.equal(await top.locator('button').count(), 12);
       assert.equal((await modeButton.textContent() || '').trim(), zh ? `显示相关模块（${relatedCount}/${modules.length}）` : `Show related modules (${relatedCount}/${modules.length})`);
       assert.equal(await page.locator('[data-module-editor]:visible').count(), 0);
-      assert.equal(await top.evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), width >= 1024 ? 6 : width >= 768 ? 4 : 3);
-      for (const code of ['MONEY.FINANCE', 'FOOD.HOSPITALITY', 'FESTIVAL.OPERATIONS']) assert.ok((await tile(code).innerText()).includes(t('Not yet available', '尚未提供')));
+      assert.equal(await top.evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), width >= 1280 ? 6 : width >= 1024 ? 4 : width >= 768 ? 3 : 2);
+      assert.ok((await tile('FESTIVAL.OPERATIONS').innerText()).includes(t('Not yet available', '尚未提供')));
+      for (const code of ['MONEY.FINANCE', 'FOOD.HOSPITALITY']) assert.ok((await tile(code).innerText()).includes(t('Partly available', '部分提供')));
       assert.ok((await tile('COMMS.FOLLOWUP').innerText()).includes(t('Partly available', '部分提供')));
       await page.screenshot({ path: path.join(os.tmpdir(), `alife-module-overview-${language}-${width}.png`) });
       const initialRoster = await open('SERVICE.ROSTER');
@@ -159,21 +161,17 @@ const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
       const programme = await enable('PROGRAM.PRODUCTION');
       await work(programme, 'Role shifts', '岗位轮班');
       assert.equal(await programme.getByLabel(t('People needed','所需人数'), { exact: true }).inputValue(), '4');
-      await work(programme, 'Programme plan', '节目安排');
-      await next(); await page.getByRole('alert').filter({ hasText: /节目|programme/ }).waitFor();
-      await programme.getByRole('button', { name: t('Add session','添加环节'), exact: true }).click();
-      await programme.getByRole('button', { name: t('Add programme item','添加节目'), exact: true }).click();
-      await fillText(programme, t('Programme title','节目名称'), 'Welcome and prayer','欢迎与祷告');
-      await programme.getByLabel(t('Duration (minutes)','时长（分钟）'), { exact: true }).fill('15');
-      const programmeCard = await work(programme, 'Programme plan', '节目安排');
-      const duration = programme.getByLabel(t('Duration (minutes)','时长（分钟）'), { exact: true });
-      await duration.fill('0');
-      await programmeCard.locator(':scope > summary').click();
+      // Current collaboration UI prepares programme reports after creation.
+      await programme.getByText(/After saving the event|保存活动后/).waitFor();
+      assert.equal(await programme.getByRole('button', { name: t('Add session','添加环节'), exact: true }).count(), 0);
+      const roleCard = await work(programme, 'Role shifts', '岗位轮班');
+      const demand = programme.getByLabel(t('People needed','所需人数'), { exact: true });
+      await demand.fill('0'); await roleCard.locator(':scope > summary').click();
       await programme.getByRole('checkbox', { name: t('Details confirmed', '填写已确认'), exact: true }).click();
-      await duration.waitFor({ state: 'visible' });
-      await page.waitForFunction(input => document.activeElement === input, await duration.elementHandle());
+      await demand.waitFor({ state: 'visible' });
+      await page.waitForFunction(input => document.activeElement === input, await demand.elementHandle());
       assert.equal(await programme.getByRole('checkbox', { name: t('Details confirmed', '填写已确认'), exact: true }).isChecked(), false);
-      await duration.fill('15');
+      await demand.fill('4');
       const venues = await enable('PLACE.RESOURCE'); await work(venues, 'Venue plan','场地安排');
       await venues.getByRole('button', { name: t('Add venue booking','添加场地安排'), exact: true }).click();
       await venues.getByLabel(t('Choose venue','选择场地')).selectOption('venue-1');
@@ -195,16 +193,15 @@ const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
       await open('PROGRAM.PRODUCTION');
       const confirmation = programme.getByRole('checkbox', { name: t('Details confirmed','填写已确认'), exact: true });
       assert.equal(await confirmation.isChecked(), false); await confirmation.check();
-      await programme.getByLabel(t('Duration (minutes)','时长（分钟）'), { exact: true }).fill('20');
+      await programme.getByLabel(t('People needed','所需人数'), { exact: true }).fill('5');
       assert.equal(await confirmation.isChecked(), false); assert.equal(await venueConfirmation.isChecked(), true); await confirmation.check();
       await open('PLACE.RESOURCE'); assert.equal(await venues.getByLabel(t('Expected attendance','所需人数')).inputValue(), '30');
       await next(); await page.getByRole('heading', { name: t('Review event plan', '确认活动方案'), exact: true }).waitFor();
       await page.getByRole('heading', { name: t('Module confirmation and responsible roles', '模块确认与负责人'), exact: true }).waitFor();
-      await page.getByText(t('Welcome and prayer', '欢迎与祷告'), { exact: false }).filter({ visible: true }).waitFor();
       await page.getByRole('button', { name: t('Confirm and create event', '确认创建活动'), exact: true }).click();
       await page.getByRole('alert').filter({ hasText: /conflict|冲突/ }).waitFor();
       assert.equal(creates.length, 1); const payload = creates[0].body.arrangements;
-      assert.equal(payload.serviceSlots[0].requiredCount, 4); assert.equal(payload.sessions[0].items[0].title.zh, '欢迎与祷告');
+      assert.equal(payload.serviceSlots[0].requiredCount, 5); assert.deepEqual(payload.sessions, []);
       assert.equal(payload.venueBookings[0].venueETag, '"venue-v1"'); assert.equal(payload.venueBookings[0].requiredCapacity, 30);
       await next(); await page.getByRole('button', { name: t('Confirm and create event', '确认创建活动'), exact: true }).click();
       await page.getByRole('alert').filter({ hasText: /Temporary/ }).waitFor();

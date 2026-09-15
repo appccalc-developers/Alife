@@ -1,10 +1,21 @@
-import { Children, isValidElement, createContext, useCallback, useContext, useEffect, useId, useState, type ComponentProps, type ReactNode } from 'react'
-import { ChevronDown, CheckCircle2, Circle, LayoutGrid, Pencil } from 'lucide-react'
+import { Children, isValidElement, createContext, useCallback, useContext, useEffect, useId, useState, type ComponentProps, type CSSProperties, type ReactNode } from 'react'
+import { ChevronDown, CheckCircle2, Circle, CircleDashed, LayoutGrid, Pencil, Power } from 'lucide-react'
 import AppSectionCard from '../layout/AppSectionCard'
 import AppBadge from '../layout/AppBadge'
 
-export type ArrangementTile = { id: string; title: string; shortTitle?: string; icon?: ReactNode; color?: string; status?: string; confirmed?: boolean; dirty?: boolean; faded?: boolean }
-export function TileButtons({ items, active, onSelect, label }: { items: ArrangementTile[]; active: string | null; onSelect: (id: string) => void; label: string }) {
+export type ArrangementTile = { id: string; title: string; shortTitle?: string; icon?: ReactNode; color?: string; accent?: string; ink?: string; enabled?: boolean; capability?: string; status?: string; confirmed?: boolean; dirty?: boolean; faded?: boolean }
+export function TileButtons({ items, active, onSelect, label, compact = false, zh = false }: { items: ArrangementTile[]; active: string | null; onSelect: (id: string) => void; label: string; compact?: boolean; zh?: boolean }) {
+  if (compact) return <div className="event-module-grid" role="group" aria-label={label}>{items.map(item => {
+    const enabled = item.enabled ? (zh ? '已启用' : 'Enabled') : (zh ? '未启用' : 'Off')
+    const confirmed = item.confirmed ? (zh ? '填写已确认' : 'Details confirmed') : (zh ? '待确认' : 'Pending')
+    const dirty = item.dirty ? (zh ? '未保存' : 'Unsaved') : ''
+    return <button key={item.id} type="button" data-arrangement-tile={item.id} aria-label={[item.title, enabled, confirmed, dirty, item.capability].filter(Boolean).join(' · ')} aria-expanded={active === item.id} aria-controls={`tile-panel-${item.id}`} onClick={() => onSelect(item.id)} className="event-module-card" data-selected={active === item.id} data-inactive={item.faded || undefined} style={{ '--event-domain-surface': item.color, '--event-domain-accent': item.accent, '--event-domain-ink': item.ink } as CSSProperties}>
+      <span className="event-module-identity"><span className="event-module-graphic" aria-hidden="true">{item.icon || <LayoutGrid size={20} />}</span><strong>{item.shortTitle || item.title}</strong></span>
+      <span className="event-module-signals"><span><Power size={13} aria-hidden="true" />{enabled}</span><span>{item.confirmed ? <CheckCircle2 size={14} aria-hidden="true" /> : <Circle size={14} aria-hidden="true" />}{confirmed}</span></span>
+      {item.capability ? <span className="event-module-capability"><CircleDashed size={14} aria-hidden="true" />{item.capability}</span> : null}
+      {dirty ? <span className="event-module-dirty"><Pencil size={13} aria-hidden="true" />{dirty}</span> : null}
+    </button>
+  })}</div>
   return <div className="arrangement-tile-grid" role="group" aria-label={label}>{items.map(item => <button key={item.id} type="button" data-arrangement-tile={item.id} aria-label={item.title} aria-expanded={active === item.id} aria-controls={`tile-panel-${item.id}`} onClick={() => onSelect(item.id)} className={`arrangement-tile ${active === item.id ? 'is-active' : ''} ${item.faded ? 'is-faded' : ''}`} style={{ backgroundColor: item.color || '#e3f0eb' }}>
     <span className="arrangement-tile-icon">{item.dirty ? <span className="arrangement-tile-dirty"><Pencil size={12} aria-hidden="true" />{label.includes('模块') ? '未保存' : 'Unsaved'}</span> : <span aria-hidden="true">{item.icon || <LayoutGrid size={19} />}</span>}</span><strong>{item.shortTitle || item.title}</strong>
     {item.status ? <span className="arrangement-tile-status">{item.status}</span> : null}

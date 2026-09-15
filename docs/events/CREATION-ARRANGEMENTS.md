@@ -19,6 +19,10 @@ Enabled roles/programme editors require complete initial rows. Venue selection m
 
 These initial editors cover slot demand, programme structure and venue reservations. Member invitations/assignments, production cues and equipment workflows retain their separate module contracts. Creating arrangements does not publish an event, approve a Package, certify safety or bypass lifecycle gates.
 
+## Preparation visual pilot
+
+The overview uses compact ALIFE Prism Glass domain-coloured cards (translucent surfaces, reflected light, functional colour coding and spatial depth) at 2/3/4/6 columns (breakpoints 768/1024/1280px), with a compact Event context header, distinct selected depth and unchanged related/all filtering. The shared details workspace groups current-language-first bilingual fields and pairs the form with the existing warm conversational assistant on sufficiently wide desktops. Narrow screens switch between mounted form and assistant panels. Missing-field links reveal/focus hidden translations or time-zone controls; read-only users retain disclosure and navigation. Saved details and module choices require an explicit save, including AI-filled drafts. See [details presentation](AI-DETAILS-ASSISTANT.md#details-workspace-presentation). Other module interiors, role acceptance, RAM and business gates remain unchanged.
+
 ## Additive creation request
 
 After successful creation, the [continuous preparation flow](EVENT-SETUP-FLOW.md) continues team and tool setup on the same saved Event before poster preparation, formal approval and explicit publication. Composition-backed or version-2-RAM creation starts unpublished with registration closed.

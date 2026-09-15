@@ -1,4 +1,4 @@
-import { detailFields, localTimeToUtc, type DetailSources } from '../../../shared/eventDetails.ts'
+import { detailFields, isTimeZone, localTimeToUtc, type DetailField, type DetailSources } from '../../../shared/eventDetails.ts'
 import type { EventDto, EventVisibility, MultilingualString } from '../types/event'
 import type { EventActivityType, EventArchetype, EventFactInput, EventPlanComposeRequest, EventSeriesSetup, ModuleDecision } from '../types/eventComposition'
 import { createEmptyEventRamDraft } from './eventRam.ts'
@@ -92,22 +92,24 @@ export const composeCreationDraft = (draft: CreationDraft, type: EventActivityTy
 export const changeOptionalModule = (draft: CreationDraft, decision: ModuleDecision, selected: boolean): CreationDraft =>
   decision.status === 'required' ? draft : { ...draft, moduleOverrides: { ...draft.moduleOverrides, [decision.moduleCode]: selected } }
 
-export const validateCreationDraft = (draft: CreationDraft, type: EventActivityType, archetype: EventArchetype, zh: boolean): string => {
-  if (!draft.title.en.trim() && !draft.title.zh.trim()) return zh ? '请填写活动名称。' : 'Enter an event title.'
-  if (!draft.description.en.trim() && !draft.description.zh.trim()) return zh ? '请填写活动说明。' : 'Enter an event description.'
+export const creationDraftIssue = (draft: CreationDraft, type: EventActivityType, archetype: EventArchetype, zh: boolean): { field: DetailField; message: string } | null => {
+  if (!draft.title.en.trim() && !draft.title.zh.trim()) return { field: 'title', message: zh ? '请填写活动名称。' : 'Enter an event title.' }
+  if (!draft.description.en.trim() && !draft.description.zh.trim()) return { field: 'description', message: zh ? '请填写活动说明。' : 'Enter an event description.' }
   let start: number, end: number
-  try { start = Date.parse(localTimeToUtc(draft.startLocal, draft.timeZone)); end = Date.parse(localTimeToUtc(draft.endLocal, draft.timeZone)) }
-  catch { return zh ? '请检查活动时区和日期时间；夏令时跳过或重复的时间须重新选择。' : 'Check the event time zone and dates; choose a different time for a daylight-saving gap or overlap.' }
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return zh ? '请输入有效时间，结束时间须晚于开始时间。' : 'Enter valid dates with the end after the start.'
-  if (creationSettings(draft, type).registrationMode === 'required' && (!Number.isInteger(Number(draft.maxCapacity)) || Number(draft.maxCapacity) < 1)) return zh ? '请填写大于零的整数容量。' : 'Enter a whole-number capacity greater than zero.'
+  let timeField: DetailField = isTimeZone(draft.timeZone) ? 'startLocal' : 'timeZone'
+  try { start = Date.parse(localTimeToUtc(draft.startLocal, draft.timeZone)); timeField = 'endLocal'; end = Date.parse(localTimeToUtc(draft.endLocal, draft.timeZone)) }
+  catch { return { field: timeField, message: zh ? '请检查活动时区和日期时间；夏令时跳过或重复的时间须重新选择。' : 'Check the event time zone and dates; choose a different time for a daylight-saving gap or overlap.' } }
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return { field: 'endLocal', message: zh ? '请输入有效时间，结束时间须晚于开始时间。' : 'Enter valid dates with the end after the start.' }
+  if (creationSettings(draft, type).registrationMode === 'required' && (!Number.isInteger(Number(draft.maxCapacity)) || Number(draft.maxCapacity) < 1)) return { field: 'maxCapacity', message: zh ? '请填写大于零的整数容量。' : 'Enter a whole-number capacity greater than zero.' }
   if (archetype.isSeries) {
-    if (!Number.isInteger(Number(draft.intervalWeeks ?? '1')) || Number(draft.intervalWeeks ?? '1') < 1 || Number(draft.intervalWeeks ?? '1') > 52) return zh ? '重复间隔须为 1–52 周。' : 'Repeat interval must be 1–52 weeks.'
+    if (!Number.isInteger(Number(draft.intervalWeeks ?? '1')) || Number(draft.intervalWeeks ?? '1') < 1 || Number(draft.intervalWeeks ?? '1') > 52) return { field: 'intervalWeeks', message: zh ? '重复间隔须为 1–52 周。' : 'Repeat interval must be 1–52 weeks.' }
     try { new Intl.DateTimeFormat('en', { timeZone: draft.timeZone }).format() }
-    catch { return zh ? '请选择有效的时区。' : 'Enter a valid time zone.' }
-    if (!draft.timeZone.trim()) return zh ? '请填写时区。' : 'Enter a time zone.'
+    catch { return { field: 'timeZone', message: zh ? '请选择有效的时区。' : 'Enter a valid time zone.' } }
+    if (!draft.timeZone.trim()) return { field: 'timeZone', message: zh ? '请填写时区。' : 'Enter a time zone.' }
   }
-  return ''
+  return null
 }
+export const validateCreationDraft = (draft: CreationDraft, type: EventActivityType, archetype: EventArchetype, zh: boolean): string => creationDraftIssue(draft, type, archetype, zh)?.message ?? ''
 
 export const creationEvent = (draft: CreationDraft, type: EventActivityType, displayName: string): EventDto => {
   const settings = creationSettings(draft, type)

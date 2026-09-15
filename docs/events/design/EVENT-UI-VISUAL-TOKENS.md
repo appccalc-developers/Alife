@@ -1,6 +1,6 @@
 # Event Workspace visual tokens
 
-> Adopted semantic design guidance, 2026-09-15. Values below are pilot starting values, not a claim that CSS or components already implement them. Read [Workspace design](EVENT-WORKSPACE-DESIGN.md) for scope and business boundaries.
+> Adopted semantic design guidance, 2026-09-15. Values below are the semantic source of truth; the bounded preparation pilot implements these in eventPreparation.css. Other Event surfaces have not completed rollout. Read [Workspace design](EVENT-WORKSPACE-DESIGN.md) for scope and business boundaries.
 
 ## Domain palette
 
@@ -27,6 +27,27 @@ Retain stable identity across pages and states. Safeguarding uses **Magenta / Pl
 The newly completed domain mappings are starting choices for the pilot. Availability remains governed by the capability catalogue; a palette row never enables a feature. Risk-domain amber does not replace the church's published RAM matrix colours or risk classification. Approval-domain green does not imply an approved decision.
 
 Prefer neutral/lightly tinted large surfaces, distinct identity headers or graphics, and stronger selection. Treat the original neutral/domain/status area ratios as a balancing aid, not a quota. Make visual richness apparent without saturating every surface.
+
+## ALIFE Prism Glass material
+
+**Prism Glass = translucent coloured surfaces + reflected light + functional colour coding + spatial depth.** It is the material language for meaningful workspace objects: Event capability/module cards, documents, approvals, resources and status cards. The preparation pilot applies it to its module cards; other object types adopt it when their own area is implemented and inspected.
+
+The domain palette supplies the tint and deep text colour. A fixed upper-left reflection, a light inner edge and a shaded lower edge make the surface legible as glass. Resting, hovered and selected objects use the existing depth levels; selection and keyboard focus remain separate. Glass does not communicate a new status or change capability availability, permissions or business decisions. Large reading surfaces, form fields, conversation bubbles and the global shell keep their appropriate existing materials.
+
+| Pilot material token / layer | Value and role |
+| --- | --- |
+| Translucent body | domain light surface at 78% opacity |
+| Domain tint | same-domain accent from 6% to 18% opacity across the body |
+| `--event-prism-reflection` | fixed 135° white reflection, 88% → 28% → transparent |
+| `--event-prism-edge-light` | white top and side inset edges; shaded lower inset edge completes the thickness |
+| `--event-prism-blur` | 10px backdrop blur, confined to the object |
+| `--event-object-shadow` | resting/hovered/selected depth from the six-level model |
+
+Measure contrast against the browser-composited surface, including tint and reflected light; normal text must remain at least 4.5:1 throughout the content area. Text and state graphics stay opaque. Reflections stay still, and hover never animates blur. Browsers without colour mixing/backdrop support use the opaque domain surface. Reduced transparency removes the translucent layers and blur; forced colours uses system surfaces, text and outlines. Reduced motion preserves the static material and removes movement.
+
+简体中文：**ALIFE Prism Glass（棱光玻璃）**由半透明彩色表面、反射光、功能性领域配色与空间深度构成，是工作对象的材质语言。优先用于活动模块、文档、审批、资源及状态卡；当前试点已用于模块卡。文字和状态图形保持不透明，并核验合成后的对比度；减少透明度或强制颜色模式保留清晰的实体表面与边界。
+
+繁體中文：**ALIFE Prism Glass（稜光玻璃）**由半透明彩色表面、反射光、功能性領域配色與空間深度構成，是工作物件的材質語言。優先用於活動模組、文件、審批、資源及狀態卡；目前試點已用於模組卡。文字與狀態圖形保持不透明，並核驗合成後的對比度；減少透明度或強制色彩模式保留清晰的實體表面與邊界。
 
 ## Text, surfaces and focus
 
