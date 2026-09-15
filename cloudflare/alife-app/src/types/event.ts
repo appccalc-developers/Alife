@@ -68,6 +68,7 @@ export type EventRamDraft = {
 export type EventRamStatus = 'draft' | 'awaitingReview' | 'approved'
 
 export type EventRamAssessmentRecord = {
+  sync?: import('./ramGovernance').RamSyncState
   eventId: string
   groupId: string
   ramDataJson: string

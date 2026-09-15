@@ -111,7 +111,7 @@ export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, 
   const grid = useRef<HTMLDivElement>(null), panelsRef = useRef<HTMLDivElement>(null), savedRef = useRef(savedModules)
   const decisions = proposal?.moduleDecisions ?? []
   const relevantModules = decisions.filter(item => item.status !== 'inactive')
-  const moduleChoices = showAllModules ? decisions : relevantModules
+  const moduleChoices = [...(showAllModules ? decisions : relevantModules)].sort((a, b) => Number(a.moduleCode === 'SAFETY.RAM') - Number(b.moduleCode === 'SAFETY.RAM'))
   const relatedCount = relevantModules.length
   const totalCount = decisions.length || creationModuleCodes.length
   const visibleIds = new Set(moduleChoices.map(item => item.moduleCode))

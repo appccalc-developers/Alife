@@ -1,3 +1,4 @@
+import RamSyncPanel from './RamSyncPanel'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ramService } from '../../services/ramGovernanceService'
@@ -25,6 +26,7 @@ export default function EventRamWorkspace({ eventId, language, onDirtyChange, on
   const [draft, setDraft] = useState<RamDraft | null>(null)
   const [policyId, setPolicyId] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [newVersion, setNewVersion] = useState(false)
   const [busy, setBusy] = useState(false)
   const [authoringBusy, setAuthoringBusy] = useState(false)
   const [comparison, setComparison] = useState<RamPrint | null>(null)
@@ -42,7 +44,7 @@ export default function EventRamWorkspace({ eventId, language, onDirtyChange, on
     const sequence = ++loadSequence.current
     const data = await ramService.workspace(eventId)
     if (sequence !== loadSequence.current) return
-    setWorkspace(data); setDraft(upgradeRam(data.assessment?.ramDataJson)); setDirty(false)
+    setWorkspace(data); setDraft(upgradeRam(data.assessment?.ramDataJson)); setDirty(false); setNewVersion(false)
     setPolicyId(data.assessment?.schemaVersion === 2 ? data.assessment.policyVersionId : data.policy?.id || null)
   }, [eventId, viewerId])
   useEffect(() => { let live = true; setWorkspace(null); setDraft(null); setPrint(null); setError(''); void load().catch(e => { if (live) setError(normalizeApiError(e).message) }); return () => { live = false; loadSequence.current++ } }, [load])
@@ -76,6 +78,8 @@ export default function EventRamWorkspace({ eventId, language, onDirtyChange, on
   const history = workspace.history.filter(r => !historyFilter || String(r.version).includes(historyFilter)).sort((a, b) => historySort === 'desc' ? b.version - a.version : a.version - b.version)
   const titles: Record<string, string> = { 'request-confirmation': zh ? '固定版本并请求本人确认' : 'Freeze version and request personal confirmation', confirm: zh ? '本人确认出席并领导此版本活动' : 'I confirm I will attend and lead this version', submit: zh ? '申请 RAM 独立审核' : 'Request independent RAM review', approve: zh ? '通过 RAM 独立审核' : 'Approve independent RAM review', return: zh ? '退回修改' : 'Return for changes', 'request-review': zh ? '请求重审' : 'Request re-review', 'snapshot-draft': zh ? '保存打印快照' : 'Save print snapshot' }
   return <div className="space-y-5" data-ram-workspace>
+    <RamSyncPanel eventId={eventId} zh={zh} onVersionChange={etag => { if (etag !== (workspace.assessment?.eTag || 'new')) { if (dirty || busy || authoringBusy) setNewVersion(true); else void load().catch(e => setError(normalizeApiError(e).message)) } }} />
+    {newVersion ? <p role="alert" className="text-sm text-amber-900">{zh ? '后台已有新版本，当前输入已保留。请先复制要保留的修改，再撤销未保存修改、刷新，并重新填写。' : 'A newer version is available. Copy any edits you want to keep, then discard unsaved changes, refresh and reapply your edits.'}</p> : null}
     {showEventPlan && workspace.eventPlanContext ? <RamEventPlanContext context={workspace.eventPlanContext} zh={zh} /> : null}
     {comparison ? <NativeSectionCard title={zh ? `与 v${comparison.revision.version} 对照` : `Compare with v${comparison.revision.version}`}><RamChangeList changes={ramChanges(upgradeRam(comparison.ramDataJson), draft)} zh={zh} /><p className="mt-3 text-sm">{comparison.actions.filter(a => a.action === 'return').map(a => a.reason).join('；')}</p></NativeSectionCard> : null}
     <NativeSectionCard title={zh ? '风险评估与管理' : 'Risk Assessment and Management'} subtitle={zh ? '识别 → 初始评分 → 控制 → 剩余评分 → 本人确认 → 独立审核' : 'Identify → initial rating → controls → residual rating → personal confirmation → independent review'}>

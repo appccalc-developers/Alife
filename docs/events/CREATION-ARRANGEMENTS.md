@@ -21,6 +21,8 @@ These initial editors cover slot demand, programme structure and venue reservati
 
 ## Preparation visual pilot
 
+The RAM capability card is ordered last, downstream of the other modules. Saved arrangements/review also show its live background synchronization status. Background analysis starts only after Event data is saved; the uncreated form remains a local draft. The final submission modal waits for current RAM and records an explicit owner review, while independent RAM approval retains its existing authority. See [RAM synchronization](modules/SAFETY.RAM.md#background-synchronization-and-final-owner-review--2026-09-15).
+
 The overview uses compact ALIFE Prism Glass domain-coloured cards (translucent surfaces, reflected light, functional colour coding and spatial depth) at 2/3/4/6 columns (breakpoints 768/1024/1280px), with a compact Event context header, distinct selected depth and unchanged related/all filtering. The shared details workspace groups current-language-first bilingual fields and pairs the form with the existing warm conversational assistant on sufficiently wide desktops. Narrow screens switch between mounted form and assistant panels. Missing-field links reveal/focus hidden translations or time-zone controls; read-only users retain disclosure and navigation. Saved details and module choices require an explicit save, including AI-filled drafts. See [details presentation](AI-DETAILS-ASSISTANT.md#details-workspace-presentation). Other module interiors, role acceptance, RAM and business gates remain unchanged.
 
 ## Additive creation request

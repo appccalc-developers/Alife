@@ -1,3 +1,5 @@
+import RamReviewModal from './RamReviewModal'
+import { ramService } from '../../services/ramGovernanceService'
 import { useCallback, useEffect, useState } from 'react'
 import EventApprovalAssessmentPanel, { approvalTierLabel } from './EventApprovalAssessment'
 import type { EventApprovalAssessment } from '../../types/eventPackage'
@@ -36,6 +38,7 @@ const localize = (value: { en: string; zh: string }, language: Language) => valu
 
 export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canManage, language, showPublicationActions = true, onBusyChange, onChanged, packageId, conditionId, occurrenceId, beforeAction }: Props) => {
   const zh = language === 'zh'
+  const [ramReviewOpen, setRamReviewOpen] = useState(false)
   const [state, setState] = useState<State>('loading')
   const [history, setHistory] = useState<EventPackage[]>([])
   const [historyTotal, setHistoryTotal] = useState(0)
@@ -156,7 +159,7 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
     if (confirmed) await mutate(() => eventPackageService.decide(eventId, current.id, current.eTag, request))
   }
 
-  const submit = async () => {
+  const completeSubmission = async () => {
     if (!current) return
     const confirmed = await requestConfirmation({
       title: zh ? '确认提交正式审批' : 'Submit for formal approval?',
@@ -166,6 +169,16 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
       confirmLabel: zh ? '提交正式审批' : 'Submit for approval',
     })
     if (confirmed) await mutate(() => eventPackageService.submit(eventId, current.id, current.eTag))
+  }
+
+  const submit = async () => {
+    setError('')
+    try {
+      await beforeAction?.()
+      const ram = await ramService.sync(eventId)
+      if (ram.isRequired) setRamReviewOpen(true)
+      else await completeSubmission()
+    } catch (e) { setError(normalizeApiError(e).message) }
   }
 
   const eventHistory = history.filter((item) => item.scopeType === scopeType &&
@@ -255,6 +268,7 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
       </form> : null}
       {capabilities?.canManageDelegations ? <details className="mt-5 rounded-2xl border border-[#2f4b42]/15 bg-white p-4"><summary className="cursor-pointer font-black text-[#18332d]">{zh ? '限时审批委派' : 'Time-limited approval delegation'}</summary><p className="mt-2 text-xs text-[#66766f]">{zh ? '仅在当前政策明确启用委派时生效；服务端会检查组织成员资格、作用域、期限和职责分离。' : 'Effective only when the current policy enables delegation. The server checks organisation membership, scope, expiry, and separation of duties.'}</p><form className="mt-3 grid gap-3 tablet:grid-cols-[1fr_1fr_auto]" onSubmit={(event) => { event.preventDefault(); void mutate(() => eventPackageDelegationService.grantForEvent(groupId, eventId, delegateMemberId.trim(), new Date().toISOString(), new Date(delegateExpires).toISOString())) }}><label className={labelClass}>{zh ? '受委派成员 ID' : 'Delegate member ID'}<input className={fieldClass} value={delegateMemberId} onChange={(event) => setDelegateMemberId(event.target.value)} required /></label><label className={labelClass}>{zh ? '到期时间' : 'Expires'}<input className={fieldClass} type="datetime-local" value={delegateExpires} onChange={(event) => setDelegateExpires(event.target.value)} required /></label><AppActionButton className="self-end" type="submit" disabled={busy || !delegateMemberId.trim() || !delegateExpires}>{zh ? '创建本活动委派' : 'Grant for this event'}</AppActionButton></form>{delegations.filter((item) => !item.revokedUtc && new Date(item.expiresUtc) > new Date()).map((item) => <div key={item.id} className="mt-3 rounded-xl border border-[#2f4b42]/10 p-3 text-sm"><strong>{item.delegatedToMemberId}</strong><p className="text-xs text-[#66766f]">{item.scopeType} · {new Date(item.expiresUtc).toLocaleString()}</p><div className="mt-2 grid gap-2 tablet:grid-cols-[1fr_1fr_auto]"><input className={fieldClass} value={delegationRevokeEn} onChange={(event) => setDelegationRevokeEn(event.target.value)} placeholder={zh ? '撤销理由（英文）' : 'Revocation reason (English)'} /><input className={fieldClass} value={delegationRevokeZh} onChange={(event) => setDelegationRevokeZh(event.target.value)} placeholder={zh ? '撤销理由（中文）' : 'Revocation reason (Chinese)'} /><AppActionButton variant="danger" disabled={busy || !delegationRevokeEn.trim() || !delegationRevokeZh.trim()} onClick={() => void mutate(() => eventPackageDelegationService.revoke(item, { en: delegationRevokeEn.trim(), zh: delegationRevokeZh.trim() }))}>{zh ? '撤销委派' : 'Revoke'}</AppActionButton></div></div>)}</details> : null}
       {confirmationModal}
+      {ramReviewOpen ? <RamReviewModal eventId={eventId} zh={zh} onClose={() => setRamReviewOpen(false)} onReviewed={async () => { setRamReviewOpen(false); await completeSubmission() }} /> : null}
     </AppSectionCard>
   )
 }

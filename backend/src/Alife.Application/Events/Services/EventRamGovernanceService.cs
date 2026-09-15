@@ -170,6 +170,9 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         ram.SchemaVersion=2; ram.AuthorMemberId=actor; ram.PolicyVersionId=policy?.Id;
         ram.RamDataJson=RamEvaluator.Serialize(evaluation.Draft); ram.ResidualLevel=evaluation.ResidualLevel;
         Invalidate(ram,wasReviewed?"ReviewRequired":"Draft");
+        ram.SyncReviewedByMemberId = null; ram.SyncReviewedAt = null;
+        if (ram.IsUpdated) ram.SyncStatus = "AI_Updated";
+        else RamSyncPolicy.Schedule(ram, DateTime.UtcNow);
         var authorTasks = await db.EventTasks.Where(x => x.EventId == eventId && x.SourceType == "ramAssessment" && x.SourceId == eventId && x.Status != EventTaskStatus.Done && x.Status != EventTaskStatus.Cancelled).ToListAsync(ct);
         foreach(var task in authorTasks) { task.AssignedMemberId = actor; task.UpdatedUtc = DateTime.UtcNow; task.ConcurrencyToken = Guid.NewGuid(); }
         e.UpdatedUtc=DateTime.UtcNow;
@@ -289,6 +292,8 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         }
         if(action is "request-review" or "return")
         {
+            ram.SyncReviewedAt = null; ram.SyncReviewedByMemberId = null;
+            if (ram.IsUpdated) ram.SyncStatus = "AI_Updated";
             var policy=await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==ram.PolicyVersionId,ct);
             var days=policy is null?7:PolicyDto(policy).Data.ReviewRules.ReviewReminderDays;
             db.EventTasks.Add(new(){Id=Guid.NewGuid(),EventId=eventId,AssignedMemberId=ram.AuthorMemberId??EventDutyAccess.OwnerId(e),

@@ -1,3 +1,4 @@
+import RamSyncPanel from './RamSyncPanel'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AppActionButton from '../layout/AppActionButton'
 import type { DetailsFocusRequest } from './creation/DetailsWorkspace'
@@ -237,6 +238,7 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
       </div> : null}
       {stage === 'review' && (review?.proposal || plan?.plan) ? <ReviewStep {...{ draft, zh, type, archetype }} saved roleSummary={rolePanel(undefined, true)} proposal={review?.proposal ?? plan!.plan} /> : null}
       <fieldset disabled={readOnly || unsavedTools || ramDirty || ramBusy || anyToolBusy} className="min-w-0"><div role="group" aria-label={zh ? '筹备操作' : 'Preparation actions'} className="flex flex-wrap items-center justify-between gap-3">
+        {stage === 'arrangements' || stage === 'review' ? <RamSyncPanel eventId={eventId} zh={zh} /> : null}
         {stage === 'review' ? <AppActionButton variant="primary" disabled={dirty} onClick={() => go('approval')}>{zh ? '准备正式审批' : 'Prepare formal approval'}</AppActionButton> : null}
       </div></fieldset>
       {notice ? <p role="status" className="text-sm text-[#176b5a]">{notice}</p> : null}

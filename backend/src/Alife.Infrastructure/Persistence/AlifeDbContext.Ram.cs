@@ -13,6 +13,11 @@ public partial class AlifeDbContext
     {
         model.Entity<EventRamAssessment>(b =>
         {
+            b.Property(x => x.SyncStatus).HasMaxLength(24).HasDefaultValue("Draft");
+            b.Property(x => x.SyncError).HasMaxLength(64);
+            b.Property(x => x.EvaluatedContextHash).HasMaxLength(64);
+            b.Property(x => x.AiRiskDraftJson).HasDefaultValue("[]");
+            b.HasIndex(x => new { x.IsUpdated, x.SyncDueUtc });
             b.Property(x => x.SchemaVersion).HasDefaultValue(1);
             b.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
             b.Property(x => x.Validity).HasMaxLength(32).HasDefaultValue("Legacy");

@@ -22,6 +22,8 @@ Preparation cards show responsibility and acceptance, report, and submission/ado
 
 ## RAM context and handoff
 
+RAM appears after upstream modules as the preparation aggregation/review area. Upstream notifications schedule background AI candidates, and a final owner review of the latest synchronized version is required before formal Package submission. Current-language risk text is visible first; the other language expands. Human overrides use the authorized RAM editor. Synchronization status remains separate from independent safety approval; see [RAM background synchronization](modules/SAFETY.RAM.md#background-synchronization-and-final-owner-review--2026-09-15).
+
 RAM authors work independently of the owner. The same-church qualified reviewer pool remains authoritative. Author, submitter and onsite signer cannot act as independent reviewer. RAM submission binds the immutable RAM revision to the exact plan context and hash: Event details, accepted facts/modules/role requirements, adopted reports, full registration rules, saved programme sessions/items, venue reservations and default staffing requirements. Context excludes private programme payloads, protected operational lists and financial transactions.
 
 The review page and print view expose the submitted RAM and its corresponding complete plan context. A new unsubmitted draft is not substituted into the review page or legacy RAM API. Review actions require the current revision, unchanged context, current author authority and current reviewer qualifications. Return, revocation and material changes invalidate obsolete actions; serial server decisions and history resolve competing reviews. RAM approval never publishes the Event.

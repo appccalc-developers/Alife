@@ -5447,6 +5447,42 @@
       "auth": "Event owner or catalogue administrator",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/ram/sync",
+      "request": "none",
+      "response": "RamSyncOverviewDto",
+      "auth": "current RAM reader",
+      "cache": "private, no-store; Vary Authorization; user routes also Vary Cookie",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/ram/sync/retry",
+      "request": "expectedETag",
+      "response": "RamSyncOverviewDto",
+      "auth": "current owner or accepted RAM author; unfrozen preparation",
+      "cache": "private, no-store; Vary Authorization; user routes also Vary Cookie",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/ram/sync/review",
+      "request": "expectedETag",
+      "response": "RamSyncOverviewDto",
+      "auth": "current accountable owner; latest synchronized context; unfrozen preparation",
+      "cache": "private, no-store; Vary Authorization; user routes also Vary Cookie",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/ram/identify",
+      "request": "bounded aggregate module/activity enums, booleans and counts",
+      "response": "bounded bilingual risk candidates",
+      "auth": "dedicated RAM_SYNC_API_TOKEN on speed layer; no user authorization or cache token",
+      "cache": "private, no-store; Vary Authorization; user routes also Vary Cookie",
+      "mutation": true
     }
   ],
   "acceptanceScenarios": [
@@ -5959,6 +5995,24 @@
         "separate saved/draft ratings",
         "saved/previous-submitted/selected-history comparison and return reasons"
       ]
+    },
+    "backgroundSync": {
+      "states": [
+        "Draft",
+        "Syncing",
+        "AI_Updated",
+        "Outdated",
+        "Reviewed"
+      ],
+      "dto": "assessment.sync: status, isUpdated, lastEvaluatedAt, error, reviewedByMemberId, reviewedAt",
+      "compatibility": "Existing RAM approval status remains unchanged; sync_status is a separate persistent column.",
+      "trigger": "upstream module or plan invalidation; cosmetic notifications refresh existing RAM; same-transaction persisted due job; exclude event.ram.*",
+      "worker": "Azure TimerTrigger every 30 seconds, 15-second debounce, ten events per pass, two-minute lease, five attempts with exponential backoff",
+      "aiInput": "Locally derived module/activity enums, booleans and counts; no raw text, names, contacts, medical/child records or full reports",
+      "aiOutput": "1-20 bilingual candidate risks; no scores, answers, identities or approval; preserve human overrides",
+      "gate": "fresh context hash plus final owner-reviewed sync; retain current independent RAM approval and Package source-vector gates",
+      "privacy": "private/no-store; dedicated backend-to-Worker RAM_SYNC_API_TOKEN",
+      "migration": "20260915074357_AddRamBackgroundSynchronization"
     }
   },
   "roleRosterGroups": {

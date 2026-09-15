@@ -46,7 +46,16 @@ public sealed class EventPackageInvalidationService(
         CancellationToken cancellationToken)
     {
         if (string.Equals(classification, "cosmetic", StringComparison.Ordinal))
+        {
+            // Refresh existing RAM for every upstream notification, while retaining the
+            // existing rule that a cosmetic edit does not immediately revoke approvals.
+            if (!changeCode.StartsWith("event.ram.", StringComparison.Ordinal))
+            {
+                var existingRam = groupEvent.RamAssessment ?? await db.EventRamAssessments.FirstOrDefaultAsync(x => x.EventId == groupEvent.Id, cancellationToken);
+                if (existingRam is not null) RamSyncPolicy.Schedule(existingRam, DateTime.UtcNow);
+            }
             return new(0, false, false, false);
+        }
 
         var now = DateTime.UtcNow;
         if (changeCode != "event.plan.accepted")
@@ -57,21 +66,23 @@ public sealed class EventPackageInvalidationService(
                 BeforeJson = "{}", AfterJson = EventPackageCanonicalizer.Serialize(new
                 {
                     section = EventArrangementConfirmationPolicy.GroupForModule(affectedModuleCode), moduleCode = affectedModuleCode, changeCode,
-                    invalidatesRam = !changeCode.StartsWith("event.ram.", StringComparison.Ordinal) &&
-                        (affectedModuleCode is null or "PLACE.RESOURCE" or "MOVE.STAY" or "TEAM.WORK" or "PROGRAM.PRODUCTION" or "PEOPLE.REGISTRATION" or "SAFEGUARDING.CHILD" or "SAFETY.RAM" || groupEvent.CollaborationVersion >= 1 && changeCode == "event.report.adopted")
+                    invalidatesRam = !changeCode.StartsWith("event.ram.", StringComparison.Ordinal)
                 }), MetadataJson = "{}", OccurredUtc = now
             });
         // Changes to safety inputs invalidate the RAM signature as well as Package eligibility.
         // RAM transitions have already set their own state and must not invalidate themselves.
-        if (!changeCode.StartsWith("event.ram.", StringComparison.Ordinal) &&
-            (affectedModuleCode is null or "PLACE.RESOURCE" or "MOVE.STAY" or "TEAM.WORK" or "PROGRAM.PRODUCTION" or "PEOPLE.REGISTRATION" or "SAFEGUARDING.CHILD" or "SAFETY.RAM" || groupEvent.CollaborationVersion >= 1 && changeCode == "event.report.adopted"))
+        if (!changeCode.StartsWith("event.ram.", StringComparison.Ordinal))
         {
             var ram = groupEvent.RamAssessment ?? await db.EventRamAssessments.FirstOrDefaultAsync(x => x.EventId == groupEvent.Id, cancellationToken);
-            if (ram is not null)
+            if (ram is null)
             {
-                await EventRamGovernanceService.ArchiveLegacyAsync(db, ram, actorMemberId, cancellationToken);
-                EventRamGovernanceService.Invalidate(ram);
+                ram = new() { EventId = groupEvent.Id, SchemaVersion = 2, CreatedUtc = now, RamDataJson = RamEvaluator.Serialize(new Alife.Application.Events.Dtos.RamV2Draft()) };
+                db.EventRamAssessments.Add(ram); groupEvent.RamAssessment = ram;
             }
+            await EventRamGovernanceService.ArchiveLegacyAsync(db, ram, actorMemberId, cancellationToken);
+            EventRamGovernanceService.Invalidate(ram);
+            // Persist the coalesced job in the same transaction as the upstream change.
+            RamSyncPolicy.Schedule(ram, now);
         }
         var candidates = await db.EventPackages
             .Include(x => x.Decisions)

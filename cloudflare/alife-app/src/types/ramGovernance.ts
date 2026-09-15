@@ -1,6 +1,8 @@
 import type { EventRamAssessmentRecord, MultilingualString } from './event'
 import type { EventPlanSnapshot } from './eventComposition'
 export type RamText = MultilingualString
+export type RamSyncState = { status: 'Draft' | 'Syncing' | 'AI_Updated' | 'Outdated' | 'Reviewed'; isUpdated: boolean; lastEvaluatedAt: string | null; error: string | null; reviewedByMemberId: string | null; reviewedAt: string | null }
+export type RamSyncOverview = { isRequired: boolean; eTag: string; sync: RamSyncState; canReview: boolean; canRetry: boolean }
 export type RamLevel = 'Green' | 'Yellow' | 'Red' | 'Incomplete'
 export type RamScale = { value: number; label: RamText; description: RamText }
 export type RamQuestion = { code: string; activityType: string; categoryCode: string; text: RamText; guidance: RamText }
