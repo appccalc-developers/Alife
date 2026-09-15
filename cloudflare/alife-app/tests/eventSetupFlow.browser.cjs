@@ -283,13 +283,13 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       const readOnlyTeam = await open('TEAM.WORK');
       assert.equal(await readOnlyTeam.locator('details[data-tool-panel][open]').count(), 1);
       const readOnlySettings = await work(readOnlyTeam, 'Settings and responsibilities', '设置与职责');
-      assert.equal(await readOnlySettings.getByRole('button', { name: t('Yes', '是'), exact: true }).isDisabled(), true);
+      assert.equal(await readOnlySettings.getByRole('switch').isDisabled(), true);
       await readOnlySettings.locator(':scope > summary').press('Enter');
       assert.equal(await readOnlySettings.getAttribute('open'), null, 'read-only cards can collapse');
       await readOnlySettings.locator(':scope > summary').press('Space');
       assert.notEqual(await readOnlySettings.getAttribute('open'), null, 'read-only cards can expand');
-      const readOnlyTasks = await work(readOnlyTeam, 'Tasks & readiness', '任務與準備度');
-      assert.equal(await readOnlyTasks.getByRole('button', { name: t('Add task', '新增任務'), exact: true }).isDisabled(), true);
+      const readOnlyTasks = await work(readOnlyTeam, 'Custom tasks and preparation', '自定义任务与准备情况');
+      assert.equal(await readOnlyTasks.getByRole('button', { name: t('Add task', '新增任务'), exact: true }).isDisabled(), true);
       await readOnlyTasks.locator(':scope > summary').press('Enter');
       assert.equal(await readOnlyTasks.getAttribute('open'), null, 'disclosure remains usable inside a disabled business fieldset');
       await readOnlyTasks.locator(':scope > summary').press('Space');
@@ -334,12 +334,12 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       assert.deepEqual(rosterGroups[0].memberIds, ['qa2','qa']);
       await registration.screenshot({ path: path.join(os.tmpdir(), `alife-role-roster-${language}-${width}.png`) });
       if (process.env.ALIFE_QA_ROSTER_ONLY === '1') { assert.deepEqual(errors, []); console.log(`PASS role roster ${language} ${width}`); await context.close(); continue; }
-      await open('TEAM.WORK'); await work(team, 'Tasks & readiness', '任務與準備度');
+      await open('TEAM.WORK'); await work(team, 'Custom tasks and preparation', '自定义任务与准备情况');
       await team.getByLabel(t('English title', '英文標題'), { exact: true }).fill('Prepare tables');
       await tile('TEAM.WORK').click(); await open('TEAM.WORK');
       assert.equal(await team.getByLabel(t('English title','英文標題'), { exact: true }).inputValue(), 'Prepare tables');
       await team.getByLabel(t('Chinese title', '中文標題'), { exact: true }).fill('安排桌椅');
-      await Promise.all([page.waitForResponse(response => response.url().endsWith('/tasks') && response.request().method() === 'POST' && response.ok()), team.getByRole('button', { name: t('Add task', '新增任務'), exact: true }).click()]);
+      await Promise.all([page.waitForResponse(response => response.url().endsWith('/tasks') && response.request().method() === 'POST' && response.ok()), team.getByRole('button', { name: t('Add task', '新增任务'), exact: true }).click()]);
       await page.waitForFunction(() => !document.querySelector('[data-module-editor]:not([hidden])')?.closest('fieldset:disabled'));
       assert.equal(taskSaves.length, 1); assert.equal(taskSaves[0].title.en, 'Prepare tables');
       assert.deepEqual(errors, []);
@@ -379,7 +379,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       assert.equal(await ram.getByLabel(t('Participant count','参与人数'), { exact: true }).count(), 1);
       await page.getByRole('button', { name: t('Add risk', '添加风险'), exact: true }).waitFor();
       await checkLayout('ram-entry');
-      const toolGroup = item => page.getByRole('group', { name: `${item.label[language]} · ${t('Enable', '是否启用')}`, exact: true });
+      const toolGroup = item => page.locator(`[data-module-editor="${item.moduleCode}"]`);
       const programme = page.getByRole('region', { name: t('Programme and production', '节目与制作'), exact: true });
       const sessionForm = programme.locator('form').filter({ has: page.getByLabel('Session English title', { exact: true }) });
       const programmeConfirmed = programme.getByRole('checkbox', { name: t('Details confirmed', '填写已确认'), exact: true });
@@ -409,21 +409,23 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
 
       if (process.env.ALIFE_QA_TILES_ONLY === '1') { assert.deepEqual(errors, []); console.log(`PASS saved tiles ${language} ${width}: ordered candidates, module/RAM/programme/venue drafts, confirmations, print isolation`); await context.close(); continue; }
       const firstSaveCount = acceptedPlans.length;
-      const originallyRequired = savedPlan.moduleDecisions.filter(item => item.status === 'required');
-      assert.equal(originallyRequired.length, 5);
+      const requiredModules = savedPlan.moduleDecisions.filter(item => item.status === 'required');
+      const originallyRequired = requiredModules.filter(item => item.moduleCode !== 'TEAM.WORK');
+      assert.equal(requiredModules.length, 5);
+      await settings('TEAM.WORK'); assert.equal(await team.getByRole('switch').getAttribute('aria-checked'), 'true'); assert.equal(await team.getByRole('switch').isDisabled(), true);
       for (const item of originallyRequired) {
         const selectionSaves = acceptedPlans.length; await settings(item.moduleCode); const group = toolGroup(item);
-        assert.equal(await group.getByRole('button', { name: t('Yes', '是'), exact: true }).getAttribute('aria-pressed'), 'true');
-        await clickWhenEnabled(group.getByRole('button', { name: t('No', '否'), exact: true })); await waitForArrangementSave(selectionSaves);
+        assert.equal(await group.getByRole('switch').getAttribute('aria-checked'), 'true');
+        await clickWhenEnabled(group.getByRole('switch')); await waitForArrangementSave(selectionSaves);
       }
-      await settings('COMMS.FOLLOWUP'); await clickWhenEnabled(toolGroup(savedPlan.moduleDecisions.find(item => item.moduleCode === 'COMMS.FOLLOWUP')).getByRole('button', { name: t('Yes', '是'), exact: true }));
+      await settings('COMMS.FOLLOWUP'); await clickWhenEnabled(toolGroup(savedPlan.moduleDecisions.find(item => item.moduleCode === 'COMMS.FOLLOWUP')).getByRole('switch'));
       const firstAccepted = await waitForArrangementSave(firstSaveCount);
       assert.equal(Object.keys(firstAccepted.body.composition.moduleConfirmations).length, 12);
       assert.equal(firstAccepted.body.arrangements, undefined, 'selection save must preserve operational rows'); assert.equal(arrangements.sessions[0].details.title.en, 'Revised opening');
       assert.ok(firstAccepted.headers['if-match']); assert.ok(firstAccepted.headers['idempotency-key']);
       for (const item of originallyRequired) {
         assert.equal(firstAccepted.body.composition.humanSelections.find(selection => selection.moduleCode === item.moduleCode).selected, false);
-        await settings(item.moduleCode); assert.equal(await toolGroup(item).getByRole('button', { name: t('No', '否'), exact: true }).getAttribute('aria-pressed'), 'true');
+        await settings(item.moduleCode); assert.equal(await toolGroup(item).getByRole('switch').getAttribute('aria-checked'), 'false');
       }
       await stage(/Details|活动资料/); assert.equal(await titleGroup().getByLabel('English', { exact: true }).inputValue(), 'Revised meal');
       assert.equal(detailSaves.length, 1); assert.ok(detailSaves[0].headers['if-match']); assert.equal(JSON.parse(detailSaves[0].body.eventDataJson).privateContact, 'preserved');
@@ -432,8 +434,8 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       for (const item of originallyRequired) {
         const selectionSaves = acceptedPlans.length; await settings(item.moduleCode); const group = toolGroup(item);
         await group.waitFor();
-        assert.equal(await group.getByRole('button', { name: t('No', '否'), exact: true }).getAttribute('aria-pressed'), 'true');
-        await clickWhenEnabled(group.getByRole('button', { name: t('Yes', '是'), exact: true })); await waitForArrangementSave(selectionSaves);
+        assert.equal(await group.getByRole('switch').getAttribute('aria-checked'), 'false');
+        await clickWhenEnabled(group.getByRole('switch')); await waitForArrangementSave(selectionSaves);
       }
       await checkLayout('optional-tools');
       const secondAccepted = await waitForArrangementSave(secondSaveCount);
@@ -458,10 +460,10 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await page.reload(); await settings('SAFETY.RAM'); await confirmed.waitFor(); assert.equal(await confirmed.isChecked(), true);
       const showAllForToggle = page.getByRole('button', { name: /Show all modules|显示所有模块/ });
       if (await showAllForToggle.isVisible()) await showAllForToggle.click();
-      await clickWhenEnabled(ram.getByRole('button', { name: t('No', '否'), exact: true }));
+      await clickWhenEnabled(ram.getByRole('switch'));
       assert.equal(await confirmed.isChecked(), false);
       assert.equal(await ram.getByRole('heading', { name: t('RAM author', 'RAM 填表人'), exact: true }).count(), 0);
-      await clickWhenEnabled(ram.getByRole('button', { name: t('Yes', '是'), exact: true }));
+      await clickWhenEnabled(ram.getByRole('switch'));
       for (let attempt = 0; attempt < 150 && !await confirmed.isEnabled(); attempt += 1) await page.waitForTimeout(100);
       assert.equal(await confirmed.isEnabled(), true);
       assert.equal(await confirmed.isChecked(), false);

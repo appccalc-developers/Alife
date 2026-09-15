@@ -108,7 +108,7 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
   useEffect(() => { void load() }, [load])
 
   useEffect(() => {
-    if (stage !== 'arrangements' || loading || !focusModule || !resolveEventSurface(focusModule)) return
+    if (stage !== 'arrangements' || loading || !focusModule || !resolveEventSurface(focusModule) || window.matchMedia('(min-width: 1024px)').matches) return
     const timer = window.setTimeout(() => document.getElementById(`arrangement-${focusModule}`)?.scrollIntoView({ block: 'start', behavior: 'instant' }), 100)
     return () => window.clearTimeout(timer)
   }, [stage, loading, focusModule])
@@ -219,7 +219,7 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
     finally { if (live.current) setLoading(false) }
   }
   const proposal = review?.proposal ?? plan?.plan
-  const rolePanel = (moduleCode?: string, summary = false) => <ArrangementRoles roles={(proposal?.roleRequirements ?? []).filter(role => moduleCode ? (role.moduleCode === moduleCode || moduleCode === 'SAFETY.RAM' && role.roleCode === 'event.lead') && role.roleCode !== 'event.accountableOwner' : summary || role.roleCode === 'event.accountableOwner')} zh={zh} moduleLabels={Object.fromEntries((proposal?.moduleDecisions ?? []).map(item => [item.moduleCode, zh ? item.label.zh : item.label.en]))} state={roleState} eventId={eventId} readOnly={readOnly} summary={summary} onSaved={toolSaved} onBusy={value => setToolBusy(previous => ({ ...previous, roles: value }))} ownerName={record?.accountableOwnerMemberId || undefined} />
+  const rolePanel = (moduleCode?: string, summary = false) => <ArrangementRoles roles={(proposal?.roleRequirements ?? []).filter(role => moduleCode ? (role.moduleCode === moduleCode || moduleCode === 'SAFETY.RAM' && role.roleCode === 'event.lead') && role.roleCode !== 'event.accountableOwner' : summary || role.roleCode === 'event.accountableOwner')} zh={zh} compact moduleLabels={Object.fromEntries((proposal?.moduleDecisions ?? []).map(item => [item.moduleCode, zh ? item.label.zh : item.label.en]))} state={roleState} eventId={eventId} readOnly={readOnly} summary={summary} onSaved={toolSaved} onBusy={value => setToolBusy(previous => ({ ...previous, roles: value }))} ownerName={record?.accountableOwnerMemberId || undefined} />
   const content = <div hidden={!['details', 'arrangements', 'review'].includes(stage)} className="space-y-4">
     {loading ? <p role="status">{zh ? '正在读取活动筹备资料……' : 'Loading event preparation…'}</p> : null}
     {error ? <div role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{error}</div> : null}

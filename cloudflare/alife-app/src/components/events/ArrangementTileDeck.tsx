@@ -23,7 +23,10 @@ export function TileButtons({ items, active, onSelect, label, compact = false, z
 
   </button>)}</div>
 }
-export function focusTilePanel(element: HTMLElement | null) { element?.focus({ preventScroll: true }); element?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }) }
+export function focusTilePanel(element: HTMLElement | null, scroll = true) {
+  element?.focus({ preventScroll: true })
+  if (scroll) element?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
+}
 
 const DraftContext = createContext<((id: string, dirty: boolean) => void) | null>(null)
 export function ModuleDraftBoundary({ code, onChange, children }: { code: string; onChange: (code: string, id: string, dirty: boolean) => void; children: ReactNode }) {
@@ -71,7 +74,7 @@ export function revealArrangementControl(control: HTMLElement) {
 }
 
 // Opt-in adapter for preparation only. Repeated cards inside a detail remain ordinary content.
-export function EventToolSection({ summary, defaultOpen = false, ...props }: ComponentProps<typeof AppSectionCard> & { summary?: string; defaultOpen?: boolean }) {
+export function EventToolSection({ summary, defaultOpen = false, headerAction, ...props }: ComponentProps<typeof AppSectionCard> & { summary?: string; defaultOpen?: boolean; headerAction?: ReactNode }) {
   const zh = useContext(ToolDeckContext), id = useId()
   const [open, setOpen] = useState(defaultOpen)
   if (zh === null || !props.title) return <AppSectionCard {...props} />
@@ -81,6 +84,7 @@ export function EventToolSection({ summary, defaultOpen = false, ...props }: Com
   return <details open={open} onToggle={event => { if (event.target === event.currentTarget) setOpen(event.currentTarget.open) }} data-tool-panel className="arrangement-tool-card" onInvalidCapture={event => revealArrangementControl(event.target as HTMLElement)}>
     <summary aria-controls={id} className="arrangement-tool-summary">
       <span className="min-w-0 flex-1"><span className="block font-bold text-[#18332d]">{props.title}</span><span className="mt-1 block text-sm font-normal text-[#66766f]" data-tool-summary>{status}</span></span>
+      {headerAction ? <span className="arrangement-tool-header-action" onClick={event => { event.preventDefault(); event.stopPropagation() }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') event.stopPropagation() }}>{headerAction}</span> : null}
       <ChevronDown size={20} className="arrangement-tool-chevron shrink-0 text-[#176b5a]" aria-hidden="true" />
     </summary>
     <div id={id} className="arrangement-tool-detail">

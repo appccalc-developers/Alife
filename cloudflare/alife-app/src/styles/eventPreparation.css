@@ -93,7 +93,6 @@
   .event-module-capability { border-top-color: color-mix(in srgb, var(--event-domain-accent) 18%, transparent); }
 }
 .event-details-editor { padding-top: 12px; }
-.event-details-editor > button { color: #3730a3; }
 .event-details-editor > h2 { font-size: 20px; margin-bottom: 4px; }
 .event-details-workspace, .event-details-columns { min-width: 0; }
 .event-details-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: var(--event-text-secondary); font-size: 13px; }
