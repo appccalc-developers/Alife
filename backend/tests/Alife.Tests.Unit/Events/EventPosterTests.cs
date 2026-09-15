@@ -35,7 +35,7 @@ public class EventPosterTests
     public async Task PosterAdoption_RequiresActiveFormalApproval(EventPackageApprovalValidity validity)
     {
         await using var db = Database(); var item = Event(); item.EventPackages.Single().ApprovalValidityStatus = validity;
-        db.GroupEvents.Add(item); await db.SaveChangesAsync();
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = item.GroupId, MemberId = item.AccountableOwnerMemberId, Status = MembershipStatus.Approved }); db.GroupEvents.Add(item); await db.SaveChangesAsync();
         var handler = new EventPosterHandler(db, Substitute.For<IGroupAuthorizationService>(), Substitute.For<IEventCacheInvalidationService>());
         var info = (await handler.Handle(new GetEventPosterQuery(item.Id, item.AccountableOwnerMemberId), default)).Value!;
         var result = await handler.Handle(new SaveEventPosterCommand(item.Id, item.AccountableOwnerMemberId, "https://example.org/poster.png", info.ETag, "before-approval"), default);
@@ -48,7 +48,7 @@ public class EventPosterTests
     {
         await using var db = Database(); var item = Event();
         item.RamAssessment = new() { EventId = item.Id, Status = EventRamStatus.Approved, RamDataJson = "{\"leaderConfirmed\":true}" };
-        db.GroupEvents.Add(item); await db.SaveChangesAsync();
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = item.GroupId, MemberId = item.AccountableOwnerMemberId, Status = MembershipStatus.Approved }); db.GroupEvents.Add(item); await db.SaveChangesAsync();
         var cache = Substitute.For<IEventCacheInvalidationService>();
         var handler = new EventPosterHandler(db, Substitute.For<IGroupAuthorizationService>(), cache);
         var workspace = (await handler.Handle(new GetEventPosterQuery(item.Id, item.AccountableOwnerMemberId), default)).Value!;
@@ -78,7 +78,7 @@ public class EventPosterTests
     [InlineData("https://user:secret@example.org/poster.png")]
     public async Task InvalidPosterUrls_FailWithoutMutatingEvent(string url)
     {
-        await using var db = Database(); var item = Event(); db.GroupEvents.Add(item); await db.SaveChangesAsync();
+        await using var db = Database(); var item = Event(); db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = item.GroupId, MemberId = item.AccountableOwnerMemberId, Status = MembershipStatus.Approved }); db.GroupEvents.Add(item); await db.SaveChangesAsync();
         var original = item.EventDataJson; var handler = new EventPosterHandler(db, Substitute.For<IGroupAuthorizationService>(), Substitute.For<IEventCacheInvalidationService>());
         var workspace = (await handler.Handle(new GetEventPosterQuery(item.Id, item.AccountableOwnerMemberId), default)).Value!;
         var result = await handler.Handle(new SaveEventPosterCommand(item.Id, item.AccountableOwnerMemberId, url, workspace.ETag, "invalid"), default);
@@ -90,7 +90,8 @@ public class EventPosterTests
     public async Task TeamCanReviewButCannotAdopt_AndOutsiderCannotReadTheDraft()
     {
         await using var db = Database(); var item = Event(); var member = Guid.NewGuid();
-        db.GroupEvents.Add(item); db.EventTeamMembers.Add(new() { Id = Guid.NewGuid(), EventId = item.Id, MemberId = member, Status = EventTeamMemberStatus.Accepted });
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = item.GroupId, MemberId = member, Status = MembershipStatus.Approved });
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = item.GroupId, MemberId = item.AccountableOwnerMemberId, Status = MembershipStatus.Approved }); db.GroupEvents.Add(item); db.EventTeamMembers.Add(new() { Id = Guid.NewGuid(), EventId = item.Id, MemberId = member, Status = EventTeamMemberStatus.Accepted });
         await db.SaveChangesAsync(); var handler = new EventPosterHandler(db, Substitute.For<IGroupAuthorizationService>(), Substitute.For<IEventCacheInvalidationService>());
         var team = await handler.Handle(new GetEventPosterQuery(item.Id, member), default);
         Assert.True(team.IsSuccess); Assert.False(team.Value!.CanManage);
@@ -102,7 +103,7 @@ public class EventPosterTests
     [Fact]
     public async Task ChangedEventBrief_InvalidatesPosterReviewBeforeAdoption()
     {
-        await using var db = Database(); var item = Event(); db.GroupEvents.Add(item); await db.SaveChangesAsync();
+        await using var db = Database(); var item = Event(); db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = item.GroupId, MemberId = item.AccountableOwnerMemberId, Status = MembershipStatus.Approved }); db.GroupEvents.Add(item); await db.SaveChangesAsync();
         var handler = new EventPosterHandler(db, Substitute.For<IGroupAuthorizationService>(), Substitute.For<IEventCacheInvalidationService>());
         var before = (await handler.Handle(new GetEventPosterQuery(item.Id, item.AccountableOwnerMemberId), default)).Value!;
         item.StartDate = item.StartDate.AddHours(1); await db.SaveChangesAsync();

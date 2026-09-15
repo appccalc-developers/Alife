@@ -47,12 +47,11 @@ public static class EventCompositionPersistence
         GroupEvent groupEvent,
         Guid memberId,
         CancellationToken cancellationToken)
-        => Task.FromResult(memberId != Guid.Empty && (groupEvent.AccountableOwnerMemberId == Guid.Empty ? groupEvent.CreatedByMemberId : groupEvent.AccountableOwnerMemberId) == memberId);
+        => EventWorkAccess.OwnerAsync(dbContext, groupEvent, memberId, cancellationToken);
 
     public static async Task<bool> CanAuthorRamAsync(IAlifeDbContext db, GroupEvent e, Guid actor, CancellationToken ct)
-        => actor != Guid.Empty && (e.AccountableOwnerMemberId == Guid.Empty ? e.CreatedByMemberId : e.AccountableOwnerMemberId) == actor || await db.EventRoleAssignments.AsNoTracking().AnyAsync(x =>
-            x.EventId == e.Id && x.MemberId == actor && x.RoleRequirementKey == "SAFETY.RAM:ram.author" &&
-            x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null, ct);
+        => e.CollaborationVersion == 0 && await EventWorkAccess.OwnerAsync(db,e,actor,ct) ||
+            await EventWorkAccess.RoleAsync(db,e,actor,"SAFETY.RAM","ram.author",ct);
 
     public static async Task<bool> CanViewEventTeamAsync(
         IAlifeDbContext dbContext,
@@ -61,20 +60,7 @@ public static class EventCompositionPersistence
         Guid memberId,
         CancellationToken cancellationToken)
     {
-        if (await CanManageEventAsync(dbContext, groupAuthorizationService, groupEvent, memberId, cancellationToken) ||
-            await groupAuthorizationService.IsLeaderOrCoLeaderAsync(groupEvent.GroupId, memberId, cancellationToken))
-        {
-            return true;
-        }
-
-        return await dbContext.EventRoleAssignments.AsNoTracking().AnyAsync(
-            x => x.EventId == groupEvent.Id && x.MemberId == memberId &&
-                x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null,
-            cancellationToken) ||
-            await dbContext.EventTeamMembers.AsNoTracking().AnyAsync(
-                x => x.EventId == groupEvent.Id && x.MemberId == memberId &&
-                    x.Status == EventTeamMemberStatus.Accepted && x.EndedUtc == null,
-                cancellationToken);
+        return await EventWorkAccess.PlanReaderAsync(dbContext, groupEvent, memberId, cancellationToken);
     }
 
     public static async Task<Guid?> FindChurchRootIdAsync(
@@ -257,7 +243,8 @@ public static class EventCompositionPersistence
         }
 
         var roles = await dbContext.EventRoleAssignments.AsNoTracking()
-            .Where(x => x.EventId == groupEvent.Id && x.EndedUtc == null).ToListAsync(cancellationToken);
+            .Where(x => x.EventId == groupEvent.Id && x.EndedUtc == null && dbContext.GroupMemberships.Any(m =>
+                m.GroupId == groupEvent.GroupId && m.MemberId == x.MemberId && m.Status == MembershipStatus.Approved)).ToListAsync(cancellationToken);
         foreach (var requirement in plan.RoleRequirements.Where(x => x.Minimum > 0))
         {
             var accepted = roles.Count(x => x.RoleRequirementKey == requirement.RequirementKey &&
@@ -275,7 +262,7 @@ public static class EventCompositionPersistence
         }
 
         var tasks = await dbContext.EventTasks.AsNoTracking().Where(x => x.EventId == groupEvent.Id && x.SourceType == null && x.Status != EventTaskStatus.Cancelled && !dbContext.EventPackageConditions.Any(c => c.ReadinessTaskId == x.Id)).ToListAsync(cancellationToken);
-        foreach (var task in tasks.Where(x => x.IsRequired && (x.Status == EventTaskStatus.Blocked ||
+        foreach (var task in tasks.Where(x => x.Stage == "preparation" && x.IsRequired && (x.Status == EventTaskStatus.Blocked ||
             (x.DueUtc < checkedUtc && x.Status != EventTaskStatus.Done) || (x.RequiresApproval && x.Status != EventTaskStatus.Done))))
         {
             Add("TEAM.WORK", new($"Required task {task.TitleEn} is blocked, overdue, or awaiting approval.",
@@ -297,6 +284,35 @@ public static class EventCompositionPersistence
         }
 
         var satisfiedOperationalRules = new HashSet<(string ModuleCode, string RuleCode)>();
+        if (groupEvent.CollaborationVersion >= 1)
+        {
+            var adopted = await dbContext.EventModuleReports.AsNoTracking().Where(x => x.EventId == groupEvent.Id && x.AdoptedRevisionId != null).Select(x => x.ModuleCode).ToArrayAsync(cancellationToken);
+            foreach (var module in plan.ModuleDecisions.Where(x => x.Status != EventModuleDecisionStatus.Inactive && EventWorkAccess.ReportRoles.ContainsKey(x.ModuleCode)))
+            {
+                if (!adopted.Contains(module.ModuleCode)) Add(module.ModuleCode, new("The module lead's submitted report must be adopted by the event owner.", "活动负责人须采用模块负责人提交的报告。"));
+                // Version 1 uses the adopted report as the programme, hospitality and communication plan.
+                // Child and transport specialist checks below are retained independently.
+                if (module.ModuleCode is "PROGRAM.PRODUCTION" or "FOOD.HOSPITALITY" or "COMMS.FOLLOWUP")
+                    foreach (var rule in EventCompositionDefinitions.ModulesByCode[module.ModuleCode].ReadinessRules)
+                        satisfiedOperationalRules.Add((module.ModuleCode, rule));
+            }
+            var registration = await dbContext.EventRegistrationPolicies.AsNoTracking().FirstOrDefaultAsync(x => x.EventId == groupEvent.Id, cancellationToken);
+            if (plan.ModuleDecisions.Any(x => x.ModuleCode == "PEOPLE.REGISTRATION" && x.Status != EventModuleDecisionStatus.Inactive))
+            {
+                if (registration is null) Add("PEOPLE.REGISTRATION", new("Define registration rules and procedures.", "请填写报名规则与办理程序。"));
+                else foreach (var rule in EventCompositionDefinitions.ModulesByCode["PEOPLE.REGISTRATION"].ReadinessRules)
+                    satisfiedOperationalRules.Add(("PEOPLE.REGISTRATION", rule));
+            }
+            if (plan.ModuleDecisions.Any(x => x.ModuleCode == "MONEY.FINANCE" && x.Status != EventModuleDecisionStatus.Inactive))
+            {
+                var fees = registration is null ? null : EventRegistrationWorkService.Rules(registration);
+                if (fees?.MoneyFlowScope != "registrationFeesOnly" || fees.FeeMinor <= 0)
+                    Add("MONEY.FINANCE", new("Only registration fees are supported. Other money flows require finance capabilities that are not available.", "目前仅支持报名费；其他金流所需的财务能力尚未提供。"));
+                else if (!await EventRegistrationWorkService.HasCurrentFeeApprovalAsync(dbContext, groupEvent, registration!, cancellationToken)) Add("MONEY.FINANCE", new("Current independent registration fee approval is required.", "报名费尚需有效的独立审批。"));
+                else foreach (var rule in EventCompositionDefinitions.ModulesByCode["MONEY.FINANCE"].ReadinessRules)
+                    satisfiedOperationalRules.Add(("MONEY.FINANCE", rule));
+            }
+        }
         if (plan.ModuleDecisions.Any(x => x.ModuleCode == "PLACE.RESOURCE" &&
             x.Status is EventModuleDecisionStatus.Required or EventModuleDecisionStatus.Selected))
         {
@@ -308,10 +324,12 @@ public static class EventCompositionPersistence
             var occurrences = await dbContext.EventOccurrences.AsNoTracking()
                 .Where(x => x.EventId == groupEvent.Id && x.Status == EventOccurrenceStatus.Scheduled)
                 .Select(x => new { x.Id, x.StartUtc, x.EndUtc }).ToListAsync(cancellationToken);
-            var capacitySufficient = reservations.All(x => x.RequiredCapacity <= x.VenueCapacity);
+            var standing = await dbContext.EventVenueWeeklyBookings.AsNoTracking().Include(x => x.Exceptions).Include(x => x.Venue).Where(x => x.EventId == groupEvent.Id).ToArrayAsync(cancellationToken);
+            var capacitySufficient = reservations.All(x => x.RequiredCapacity <= x.VenueCapacity) && standing.All(x => x.RequiredCapacity <= x.Venue.Capacity && x.Venue.IsActive);
             var bookingsConfirmed = occurrences.Count > 0
                 ? occurrences.All(occurrence => reservations.Any(x => x.EventOccurrenceId == occurrence.Id ||
-                    (!x.EventOccurrenceId.HasValue && x.StartUtc <= occurrence.StartUtc && x.EndUtc >= occurrence.EndUtc)))
+                    (!x.EventOccurrenceId.HasValue && x.StartUtc <= occurrence.StartUtc && x.EndUtc >= occurrence.EndUtc)) ||
+                    standing.Any(x => EventVenueRecurrence.Covers(x, occurrence.StartUtc, occurrence.EndUtc)))
                 : reservations.Count > 0;
             var venueIds = reservations.Select(x => x.VenueId).Distinct().ToArray();
             var otherReservations = venueIds.Length == 0 ? [] : await dbContext.EventVenueReservations.AsNoTracking()
@@ -458,7 +476,7 @@ public static class EventCompositionPersistence
                 new EventWorkspaceItemDto("workspace.governance", null, "tab", "governance", null,
                     new LocalizedTextDto("Governance", "審批治理"), 15, EventReadinessStatus.Blocked, [blocker], []),
                 new EventWorkspaceItemDto(team.SurfaceKey, team.Code, "tab", "team", null,
-                    new LocalizedTextDto("Team", "團隊"), team.NavigationOrder, EventReadinessStatus.Blocked, [blocker], [])
+                    new LocalizedTextDto("Tasks and handoffs", "任務與交接"), team.NavigationOrder, EventReadinessStatus.Blocked, [blocker], [])
             ],
             new EventPlanDiffDto([], [], [], []),
             [warning]);

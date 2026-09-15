@@ -65,5 +65,5 @@ export async function handleSundayBulletin(request, env) {
 
 export const isBulletinPath = (path) => {
   const normalized = path.replace(/^\/+|\/+$/g, '');
-  return normalized === 'private' || normalized === 'private/sunday-bulletins' || normalized.startsWith('private/sunday-bulletins/');
+  return normalized === 'private' || normalized === 'private/sunday-bulletins' || normalized.startsWith('private/sunday-bulletins/') || normalized === 'private/event-registration' || normalized.startsWith('private/event-registration/');
 };

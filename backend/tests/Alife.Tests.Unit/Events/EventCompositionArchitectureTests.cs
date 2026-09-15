@@ -112,12 +112,14 @@ public class EventCompositionArchitectureTests
         foreach (var code in new[]
         {
             "TEAM.WORK", "PEOPLE.REGISTRATION", "SAFETY.RAM",
-            "PROGRAM.PRODUCTION", "PLACE.RESOURCE", "FESTIVAL.OPERATIONS"
+            "PROGRAM.PRODUCTION", "PLACE.RESOURCE"
         })
         {
             Assert.NotEqual(EventModuleDecisionStatus.Inactive,
                 result.Value!.ModuleDecisions.Single(x => x.ModuleCode == code).Status);
         }
+        Assert.Equal(EventModuleDecisionStatus.Inactive, result.Value!.ModuleDecisions.Single(x => x.ModuleCode == "FESTIVAL.OPERATIONS").Status);
+        Assert.Contains("capability-unavailable",result.Value.ModuleDecisions.Single(x => x.ModuleCode == "FESTIVAL.OPERATIONS").ReasonCodes);
         Assert.Equal(EventReadinessStatus.Blocked, result.Value!.Readiness.Status);
         Assert.Contains(result.Value.Readiness.Blockers,
             x => x.En.Contains("sponsorship", StringComparison.OrdinalIgnoreCase));
@@ -219,6 +221,7 @@ public class EventCompositionArchitectureTests
             AcceptedByMemberId = ownerId, AcceptedUtc = DateTime.UtcNow,
             IsActive = true, CreatedUtc = DateTime.UtcNow
         });
+        dbContext.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = ownerId, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
         await dbContext.SaveChangesAsync();
 
         var authorization = Substitute.For<IGroupAuthorizationService>();
@@ -479,6 +482,7 @@ public class EventCompositionArchitectureTests
         var ownerId = Guid.NewGuid();
         var groupEvent = CreateEvent(groupId, ownerId);
         dbContext.GroupEvents.Add(groupEvent);
+        dbContext.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = ownerId, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
         await dbContext.SaveChangesAsync();
         var authorization = Substitute.For<IGroupAuthorizationService>();
         authorization.IsLeaderOrCoLeaderAsync(groupId, ownerId, Arg.Any<CancellationToken>()).Returns(true);
@@ -573,6 +577,7 @@ public class EventCompositionArchitectureTests
             AcceptedByMemberId = ownerId, AcceptedUtc = DateTime.UtcNow,
             IsActive = true, CreatedUtc = DateTime.UtcNow
         });
+        dbContext.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = ownerId, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
         await dbContext.SaveChangesAsync();
         var authorization = Substitute.For<IGroupAuthorizationService>();
         authorization.IsApprovedMemberAsync(groupId, financeMemberId, Arg.Any<CancellationToken>()).Returns(true);

@@ -2,15 +2,19 @@
 
 > Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
 
+## Collaboration version 1
+
+The display name is **Tasks and handoffs / 任务与交接**, with the same module code and historical records. Overall ownership is configured once on the Event, module responsibilities in each module, and optional onsite lead under Safety. This module handles cross-module tasks, dependencies, blockers, executors, results and independent handoff review. Tasks have a stage and optional occurrence; legacy writes preserve these fields. Only preparation tasks contribute preparation blockers. Specialist decisions cannot be completed by ordinary task checkboxes. Persistent entry and server authority follow [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+
 ## Purpose
 
-Provide the accountable team, roles, tasks, artifacts, blockers, deadlines, and hand-offs needed to prepare, deliver, and close every Event.
+Coordinate cross-module tasks, executors, deadlines, dependencies, blockers, results and handoffs through preparation, delivery and follow-up. Event ownership and module responsibilities remain configured at their own source.
 
 ## Target contract
 
 ### Workspace placement
 
-During preparation, team invitations, accepted roles and tasks render directly in Arrangements → People and volunteers → Team and tasks. Creation and the legacy `stage=setup&module=team.work` entry return to that section; no separate Team and tools step remains. Invitations still require a saved Event and personal acceptance. Existing direct operational routes remain available.
+During preparation, tasks and historical team responses render in Arrangements → Tasks and handoffs; duplicate ownership/module-role configuration is removed. Creation and the legacy `stage=setup&module=team.work` entry return to that section; no separate Team and tools step remains. Invitations still require a saved Event and personal acceptance. Existing direct operational routes remain available.
 
 ### Activation
 

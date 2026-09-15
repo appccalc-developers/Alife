@@ -6,6 +6,7 @@ namespace Alife.Application.Events.Services;
 
 public interface IEventPackageService
 {
+    Task<bool> IsRegistrationApprovalCurrentAsync(Guid eventId, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<EventDuty>> ListDutiesAsync(Guid memberId, IReadOnlyList<Alife.Domain.Entities.GroupEvent> events, CancellationToken ct);
     Task<AppResult<EventApprovalAssessmentDto>> GetApprovalAssessmentAsync(Guid eventId, Guid memberId,
         EventPackageScopeType scopeType, Guid? scopeId, CancellationToken ct);

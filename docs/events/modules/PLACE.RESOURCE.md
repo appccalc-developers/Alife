@@ -2,6 +2,10 @@
 
 > Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
 
+## Collaboration version 1
+
+Version 1 supplies an independent **venue and room catalogue/calendar** under group management. Catalogue administration is separate from Event ownership and plan editing. Single and indefinite local weekly reservations share server conflict checks and venue locks; they do not depend on the twelve-week occurrence horizon. Exceptions release/restore one date with reason and actor history; restoration cannot overwrite new bookings. Future-rule changes retain past bookings. DST ambiguity is explicit, never silently free. Calendar titles obey Event visibility; other viewers see Occupied. Equipment inventory remains deferred and standing bookings never extend approval coverage. See [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+
 ## Purpose
 
 Coordinate venue capacity, bookings, equipment, setup, handover, return, and conflicts while keeping legacy Session place data compatible.

@@ -77,6 +77,8 @@ public static class EventCreationArrangements
         var newVenues = new List<EventVenue>();
         var reservedVenues = new Dictionary<Guid, EventVenue>();
         var reservations = new List<EventVenueReservation>();
+        foreach (var id in bookings.Where(x => x?.VenueId != null).Select(x => x.VenueId!.Value).Distinct().Order())
+            await db.LockEventVenueAsync(id, ct);
         foreach (var booking in bookings)
         {
             if (booking is null || !ValidTime(booking.StartOffsetMinutes, booking.EndOffsetMinutes) || booking.RequiredCapacity is < 1 or > 1000000 ||
@@ -93,13 +95,18 @@ public static class EventCreationArrangements
             else
             {
                 var source = booking.NewVenue!;
+                if (!await db.GroupMemberships.AnyAsync(x => x.GroupId == groupEvent.GroupId && x.MemberId == actorId &&
+                    x.Status == MembershipStatus.Approved && (x.Role == MembershipRole.Leader || x.Role == MembershipRole.CoLeader), ct))
+                    return AppResult<PreparedEventArrangements>.Forbidden("Only catalogue administrators may add a venue. Select an existing venue or ask a group leader to create one.");
+                if (source.Kind is not ("venue" or "room") || !TimeZoneInfo.TryFindSystemTimeZoneById(source.TimeZone, out _))
+                    return Invalid("A valid venue kind and time zone are required.");
                 if (!ValidText(source.Name, 240) || source.Address is not null && !ValidText(source.Address, 1000, false) ||
                     source.Capacity is < 1 or > 1000000 || !source.IsActive)
                     return Invalid("New venues need bilingual names, a positive capacity and active status.");
                 venue = new EventVenue { Id = Guid.NewGuid(), ManagingGroupId = groupEvent.GroupId,
                     NameEn = source.Name.En.Trim(), NameZh = source.Name.Zh.Trim(),
                     AddressEn = source.Address?.En.Trim() ?? "", AddressZh = source.Address?.Zh.Trim() ?? "",
-                    Capacity = source.Capacity, IsActive = true, CreatedByMemberId = actorId, CreatedUtc = now, UpdatedUtc = now };
+                    Capacity = source.Capacity, IsActive = true, Kind = source.Kind, TimeZone = source.TimeZone, CreatedByMemberId = actorId, CreatedUtc = now, UpdatedUtc = now };
                 newVenues.Add(venue);
             }
             if (booking.RequiredCapacity > venue.Capacity) return Invalid("The selected venue capacity is below the requested attendance.");
@@ -111,7 +118,8 @@ public static class EventCreationArrangements
                 if (reservations.Any(x => x.VenueId == venue.Id && x.StartUtc < end && start < x.EndUtc) ||
                     await db.EventVenueReservations.AsNoTracking().AnyAsync(x => x.VenueId == venue.Id &&
                         x.Status == EventVenueReservationStatus.Confirmed && x.StartUtc < end && start < x.EndUtc &&
-                        (replacedReservationIds == null || !replacedReservationIds.Contains(x.Id)), ct))
+                        (replacedReservationIds == null || !replacedReservationIds.Contains(x.Id)), ct) ||
+                    await EventVenueRecurrence.ConflictsAsync(db, venue.Id, start, end, ct))
                     return AppResult<PreparedEventArrangements>.Conflict("A selected venue conflicts with another booking. Adjust the venue or time in Arrangements.");
                 reservations.Add(new EventVenueReservation { Id = Guid.NewGuid(), VenueId = venue.Id,
                     EventId = groupEvent.Id, EventOccurrenceId = occurrence.Id, StartUtc = start, EndUtc = end,

@@ -24,6 +24,11 @@ public static class DependencyInjection
         services.AddScoped<IEventSafeguardingService, EventSafeguardingService>();
         services.AddScoped<IEventPackageService, EventPackageService>();
         services.AddScoped<EventDutyProjectionService>();
+        services.AddScoped<EventModuleReportService>();
+        services.AddScoped<EventWorkService>();
+        services.AddScoped<EventVenueCalendarService>();
+        services.AddScoped<EventRegistrationWorkService>();
+        services.AddScoped<EventRegistrationMaterialService>();
         services.AddScoped<EventRamGovernanceService>();
         services.AddScoped<IEventPackageInvalidationService, EventPackageInvalidationService>();
         services.AddScoped<IEventPackageDelegationService, EventPackageDelegationService>();

@@ -48,7 +48,7 @@ public class EventsController(
             return this.ToActionResult(result);
         }
 
-        this.ApplyPrivateNoCacheHeaders();
+        this.ApplyPrivateNoStoreHeaders();
         return this.ToActionResult(result);
     }
 

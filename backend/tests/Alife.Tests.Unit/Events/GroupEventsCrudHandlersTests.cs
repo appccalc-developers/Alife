@@ -418,6 +418,7 @@ public class GroupEventsCrudHandlersTests
             CreatedUtc = createdUtc,
             UpdatedUtc = createdUtc
         });
+        dbContext.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = currentMemberId, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
         await dbContext.SaveChangesAsync();
 
         groupAuthorizationService
@@ -468,6 +469,7 @@ public class GroupEventsCrudHandlersTests
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow
         });
+        dbContext.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = currentMemberId, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
         await dbContext.SaveChangesAsync();
 
         groupAuthorizationService

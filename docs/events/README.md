@@ -83,6 +83,8 @@ AI 可以建议候选事实和解释原因，但不能确认事实、分配权�
 
 RAM、Package、报名、排班等专业流程由各自的权威处理程序和职务待办管理。历史 `EventWorkflowRun`／Step／Artifact 数据结构及旧 Plan 字段只为既有记录的非破坏性读取而保留；新活动不再创建或同步通用工作流记录。
 
+活动采用[按阶段与职责组织的工作空间](EVENT-WORKSPACES.md)：个人中心保留“我的活动工作”，即使待办已完成仍可进入。总负责人编辑整体方案；模块负责人独立提交文字报告，由总负责人采用确定版本；RAM 审核人查看送审报告及对应的完整方案。报名规则在筹备时制定，名单、家庭与访客代报、材料和人工报名费在独立页面办理；程序、名额、付款状态分别显示。场地与房间有独立管理日历，支持无限期每周占用、单次释放和冲突检查。筹备、公开报名、逐场执行及善后按当前职责授权，公布前普通成员不能读取方案。财务仅部分支持报名费，餐饮仅部分支持报告，节庆现场运营不可启用。
+
 ### 继续阅读
 
 - [EVENT-CONTRACT.md](EVENT-CONTRACT.md) — 完整规范架构、ADR 和不变量
@@ -175,6 +177,8 @@ AI 可以建議候選事實和解釋原因，但不能確認事實、分配權�
 
 RAM、Package、報名、排班等專業流程由各自的權威處理程序和職務待辦管理。歷史 `EventWorkflowRun`／Step／Artifact 資料結構及舊 Plan 欄位只為既有記錄的非破壞性讀取而保留；新活動不再建立或同步通用工作流記錄。
 
+活動採用[按階段與職責組織的工作空間](EVENT-WORKSPACES.md)：個人中心保留「我的活動工作」，即使待辦已完成仍可進入。總負責人編輯整體方案；模組負責人獨立提交文字報告，由總負責人採用確定版本；RAM 審核人檢視送審報告及對應的完整方案。報名規則在籌備時制定，名單、家庭與訪客代報、材料和人工報名費在獨立頁面辦理；程序、名額、付款狀態分別顯示。場地與房間有獨立管理日曆，支援無限期每週佔用、單次釋放和衝突檢查。籌備、公開報名、逐場執行及善後按目前職責授權，公布前普通成員不能讀取方案。財務僅部分支援報名費，餐飲僅部分支援報告，節慶現場營運不可啟用。
+
 ### 繼續閱讀
 
 - [EVENT-CONTRACT.md](EVENT-CONTRACT.md) — 完整規範架構、ADR 和不變量
@@ -266,6 +270,8 @@ AI may propose candidate facts and explain recommendations. It cannot confirm fa
 ### Specialist flows and historical compatibility
 
 RAM, Package, enrollment, roster, and other specialist processes use their authoritative handlers and duty tasks. Historical `EventWorkflowRun` / Step / Artifact storage and old Plan fields remain only for non-destructive reading of existing records; new Events no longer create or synchronise general workflow records.
+
+Events use [workspaces organized by stage and responsibility](EVENT-WORKSPACES.md). Personal Center keeps My event work available after a duty is completed. The accountable owner edits the overall plan; module leads independently submit reports for adoption as exact versions; RAM reviewers read the submitted report and its corresponding complete plan. Preparation defines registration rules, while separate pages handle lists, family/guest applications, materials and manual fees, with procedure, place and payment states distinguished. An independent venue/room calendar supports indefinite weekly reservations, single-date release and conflict checking. Preparation, registration, occurrence delivery and follow-up depend on current responsibilities; ordinary members cannot read unpublished plans. Finance partially supports registration fees, food partially supports reports, and festival operations cannot be enabled.
 
 ### Continue reading
 

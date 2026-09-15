@@ -124,6 +124,9 @@ public sealed partial class EventOperationsService(
     {
         var access = await RequireManager(eventId, memberId, ct);
         if (!access.IsSuccess) return ConvertFailure<EventTaskDto>(access);
+        if (request.Stage is not ("preparation" or "registration" or "execution" or "followup") ||
+            request.EventOccurrenceId.HasValue && !await db.EventOccurrences.AnyAsync(x => x.Id == request.EventOccurrenceId && x.EventId == eventId, ct))
+            return AppResult<EventTaskDto>.Validation("Choose a valid stage and an occurrence belonging to this event.");
         if (!await EligibleTaskMember(access.Value!, memberId, ct)) return AppResult<EventTaskDto>.Forbidden("Current Event membership is required.");
         var validation = await ValidateTaskRequest(access.Value!, request.Title, request.AssignedMemberId, ct);
         if (validation is not null) return AppResult<EventTaskDto>.Validation(validation);
@@ -133,7 +136,7 @@ public sealed partial class EventOperationsService(
         if (reviewer.HasValue && (reviewer == request.AssignedMemberId || !await EligibleTaskMember(access.Value!, reviewer.Value, ct)))
             return AppResult<EventTaskDto>.Validation("Select an eligible reviewer other than the assignee.");
         var now = DateTime.UtcNow;
-        var entity = new EventTask { Id = Guid.NewGuid(), EventId = eventId,
+        var entity = new EventTask { Id = Guid.NewGuid(), EventId = eventId, Stage = request.Stage, EventOccurrenceId = request.EventOccurrenceId,
             TitleEn = request.Title.En.Trim(), TitleZh = request.Title.Zh.Trim(), DescriptionEn = request.Description?.En.Trim() ?? "",
             DescriptionZh = request.Description?.Zh.Trim() ?? "", AssignedMemberId = request.AssignedMemberId,
             DueUtc = request.DueUtc, IsRequired = request.IsRequired, RequiresApproval = request.RequiresApproval,
@@ -141,10 +144,10 @@ public sealed partial class EventOperationsService(
             ApprovalStatus = request.RequiresApproval ? EventTaskApprovalStatus.NotSubmitted : EventTaskApprovalStatus.NotRequired,
             CreatedUtc = now, UpdatedUtc = now };
         db.EventTasks.Add(entity);
-        if ((entity.IsRequired || entity.RequiresApproval) && packageInvalidation is not null)
+        if (entity.Stage == "preparation" && (entity.IsRequired || entity.RequiresApproval) && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 access.Value!, memberId, "TEAM.WORK", "event.task.created", "operational", ct);
-        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
+        try { if (entity.Stage == "preparation") { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); } else await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { return AppResult<EventTaskDto>.Conflict("The task could not be created because related data changed; reload and try again."); }
         return AppResult<EventTaskDto>.Success(ToTaskDto(entity));
     }
@@ -202,12 +205,12 @@ public sealed partial class EventOperationsService(
         task.ReviewerMemberId = request.RequiresApproval ? reviewer : null;
         task.CompletedUtc = request.Status == EventTaskStatus.Done ? DateTime.UtcNow : null;
         task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
-        if (changesReadiness && packageInvalidation is not null)
+        if (task.Stage == "preparation" && changesReadiness && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.readinessChanged", "operational", ct);
         try
         {
-            if (changesPreparation)
+            if (changesPreparation && task.Stage == "preparation")
             {
                 if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage);
             }
@@ -227,10 +230,10 @@ public sealed partial class EventOperationsService(
         if (!Matches(ifMatch, TaskETag(task))) return AppResult<EventTaskDto>.PreconditionFailed("The task changed; reload before cancelling.");
         InvalidateTaskApproval(task, memberId);
         task.Status = EventTaskStatus.Cancelled; task.CompletedUtc = null; task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
-        if ((task.IsRequired || task.RequiresApproval) && packageInvalidation is not null)
+        if (task.Stage == "preparation" && (task.IsRequired || task.RequiresApproval) && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.cancelled", "governanceCritical", ct);
-        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
+        try { if (!await SaveTaskConfigurationAsync(task, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventTaskDto>.PreconditionFailed("The task changed while cancelling; reload and try again."); }
         return AppResult<EventTaskDto>.Success(ToTaskDto(task));
     }
@@ -251,10 +254,10 @@ public sealed partial class EventOperationsService(
         db.EventTaskDependencies.Add(new EventTaskDependency { Id = Guid.NewGuid(), EventTaskId = taskId,
             DependsOnEventTaskId = request.DependsOnEventTaskId, DependencyType = NormalizeDependency(request.DependencyType), CreatedUtc = DateTime.UtcNow });
         task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
-        if (packageInvalidation is not null)
+        if (task.Stage == "preparation" && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 access.Value!, memberId, "TEAM.WORK", "event.task.dependencyAdded", "operational", ct);
-        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
+        try { if (!await SaveTaskConfigurationAsync(task, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventTaskDto>.PreconditionFailed("The task changed while adding the dependency; reload and try again."); }
         catch (DbUpdateException) { return AppResult<EventTaskDto>.Conflict("The dependency already exists or related task data changed."); }
         return await ReloadTask(eventId, taskId, ct);
@@ -271,10 +274,10 @@ public sealed partial class EventOperationsService(
         if (await IsSystemTask(task, ct)) return AppResult<EventTaskDto>.Conflict("Use the authoritative specialist workflow.");
         InvalidateTaskApproval(task, memberId);
         db.EventTaskDependencies.Remove(dependency); task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
-        if (packageInvalidation is not null)
+        if (task.Stage == "preparation" && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.dependencyRemoved", "operational", ct);
-        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
+        try { if (!await SaveTaskConfigurationAsync(task, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventTaskDto>.PreconditionFailed("The task changed while removing the dependency; reload and try again."); }
         return await ReloadTask(eventId, taskId, ct);
     }
@@ -291,7 +294,7 @@ public sealed partial class EventOperationsService(
         db.EventTaskBlockers.Add(new EventTaskBlocker { Id = Guid.NewGuid(), EventTaskId = task.Id, Reason = request.Reason.Trim(),
             CreatedByMemberId = memberId, CreatedUtc = DateTime.UtcNow });
         task.Status = EventTaskStatus.Blocked; task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
-        if (packageInvalidation is not null)
+        if (task.Stage == "preparation" && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.blocked", "governanceCritical", ct);
         try { await db.SaveChangesAsync(ct); }
@@ -314,7 +317,7 @@ public sealed partial class EventOperationsService(
         blocker.Resolution = request.Resolution.Trim(); blocker.ResolvedByMemberId = memberId; blocker.ResolvedUtc = DateTime.UtcNow;
         if (task.Blockers.All(x => x.ResolvedUtc.HasValue)) task.Status = EventTaskStatus.InProgress;
         task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
-        if (packageInvalidation is not null)
+        if (task.Stage == "preparation" && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.blockerResolved", "operational", ct);
         try { await db.SaveChangesAsync(ct); }
@@ -654,11 +657,16 @@ public sealed partial class EventOperationsService(
 
     private static EventTeamMemberDto ToTeamMemberDto(EventTeamMember x, string? displayName = null) => new(x.Id, x.EventId, x.MemberId,
         displayName ?? x.Member?.DisplayName ?? "", x.Status, x.JoinedUtc, x.DeclinedUtc, x.EndedUtc);
+    private async Task<bool> SaveTaskConfigurationAsync(EventTask task, CancellationToken ct)
+    {
+        if (task.Stage == "preparation") return await EventPreparationPolicy.SaveEditableAsync(db, task.EventId, ct);
+        await db.SaveChangesAsync(ct); return true;
+    }
     private static EventTaskDto ToTaskDto(EventTask x) => new(x.Id, x.EventId, x.WorkflowStepId, new(x.TitleEn, x.TitleZh),
         new(x.DescriptionEn, x.DescriptionZh), x.AssignedMemberId, x.Status, x.IsRequired, x.RequiresApproval, x.IsRestricted,
         x.DueUtc, x.CompletedUtc, TaskETag(x), x.Dependencies.Select(d => new EventTaskDependencyDto(d.Id, d.DependsOnEventTaskId, d.DependencyType)).ToArray(),
         x.Blockers.Select(b => new EventTaskBlockerDto(b.Id, b.Reason, b.CreatedByMemberId, b.CreatedUtc, b.ResolvedByMemberId, b.Resolution, b.ResolvedUtc)).ToArray(),
-        x.ReviewerMemberId, x.ApprovalStatus, x.ApprovalRound, x.SourceType, x.SourceId);
+        x.ReviewerMemberId, x.ApprovalStatus, x.ApprovalRound, x.SourceType, x.SourceId, x.Stage, x.EventOccurrenceId);
     private static EventProgrammeDto ToProgrammeDto(EventOccurrence x, bool canManage) => new(x.EventId, x.Id, ProgrammeETag(x),
         x.Sessions.OrderBy(s => s.StartUtc).Select(s => new EventSessionDto(s.Id, s.OccurrenceId, new(s.TitleEn, s.TitleZh), s.StartUtc, s.EndUtc,
             s.PlaceJson, s.LeadMemberId, s.Status, s.ProgramItems.OrderBy(i => i.SortOrder).Select(i => new EventProgramItemDto(i.Id, i.SessionId,

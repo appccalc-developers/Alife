@@ -26,6 +26,12 @@ public sealed class GetFileAssetOpenUrlQueryHandler(
         {
             return AppResult<string>.NotFound("File not found.");
         }
+        if (fileAsset.Purpose == FileAssetPurpose.EventRegistrationMaterial || fileAsset.ObjectKey.StartsWith("private/event-registration/", StringComparison.Ordinal))
+        {
+            if (fileAsset.RelatedEntityId is not { } person || !await Alife.Application.Events.Services.EventRegistrationMaterialService.CanAccessAsync(dbContext, person, request.CurrentMemberId, cancellationToken))
+                return AppResult<string>.Forbidden("Participant material access is required.");
+            return AppResult<string>.Success($"/api/file-assets/{fileAsset.Id}/registration-material");
+        }
 
         // The dedicated endpoint rechecks current church membership before signing.
         if (fileAsset.Purpose == FileAssetPurpose.SundayBulletin)

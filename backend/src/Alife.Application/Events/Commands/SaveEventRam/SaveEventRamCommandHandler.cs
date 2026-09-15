@@ -40,7 +40,7 @@ public sealed class SaveEventRamCommandHandler(
 
         var now = DateTime.UtcNow;
         var ram = groupEvent.RamAssessment;
-        if (ram?.SchemaVersion >= 2)
+        if (groupEvent.CollaborationVersion >= 1 || ram?.SchemaVersion >= 2)
             return AppResult<EventRamAssessmentDto>.Conflict(EventRamGovernanceService.UpgradeMessage);
         if (ram is not null) await EventRamGovernanceService.ArchiveLegacyAsync(dbContext, ram, request.CurrentMemberId, cancellationToken);
         if (ram is null)

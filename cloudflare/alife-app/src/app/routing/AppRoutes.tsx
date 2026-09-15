@@ -70,6 +70,10 @@ const SermonsView = lazy(() => import('../../views/SermonsView'))
 const SermonVideoView = lazy(() => import('../../views/SermonVideoView'))
 const TasksView = lazy(() => import('../../views/TasksView'))
 const EventDutyView = lazy(() => import('../../views/EventDutyView'))
+const EventWorkView = lazy(() => import('../../views/EventWorkView'))
+const EventRegistrationWorkView = lazy(() => import('../../views/EventRegistrationWorkView'))
+const EventVenueCalendarView = lazy(() => import('../../views/EventVenueCalendarView'))
+const EventReportView = lazy(() => import('../../views/EventWorkView').then(module => ({ default: module.EventReportView })))
 const EventTaskView = lazy(() => import('../../views/EventTaskView'))
 
 const AdminRoute = ({ children, permission }: { children: ReactElement; permission?: string }) => {
@@ -316,6 +320,11 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path={PERSONAL_CENTER_PATH} element={<MemberRoute><PersonalCenterView /></MemberRoute>} />
           <Route path={PROFILE_SETTINGS_PATH} element={<MemberRoute><ProfileView /></MemberRoute>} />
           <Route path="/tasks" element={<MemberRoute><TasksView /></MemberRoute>} />
+          <Route path="/event-work" element={<MemberRoute><EventWorkView /></MemberRoute>} />
+          <Route path="/events/:eventId/registration-work" element={<MemberRoute><EventRegistrationWorkView /></MemberRoute>} />
+          <Route path="/groups/:groupId/venues" element={<MemberRoute><EventVenueCalendarView /></MemberRoute>} />
+          <Route path="/events/:eventId/work" element={<MemberRoute><EventWorkView /></MemberRoute>} />
+          <Route path="/events/:eventId/reports/:moduleCode" element={<MemberRoute><EventReportView /></MemberRoute>} />
           <Route path="/events/:eventId/duties/:sourceType/:sourceId" element={<MemberRoute><EventDutyView /></MemberRoute>} />
           <Route path="/events/:eventId/tasks/:taskId" element={<MemberRoute><EventTaskView /></MemberRoute>} />
           <Route path="/sermons" element={<SermonsView />} />

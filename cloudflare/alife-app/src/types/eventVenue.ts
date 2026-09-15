@@ -1,6 +1,8 @@
 import type { LocalizedText } from './eventComposition'
 
 export type EventVenue = {
+  timeZone?: string
+  kind?: 'venue' | 'room'
   id: string
   managingGroupId: string
   name: LocalizedText
@@ -58,6 +60,8 @@ export type EventVenueWorkspace = {
 }
 
 export type SaveEventVenueRequest = {
+  timeZone?: string
+  kind?: 'venue' | 'room'
   name: LocalizedText
   address: LocalizedText
   capacity: number

@@ -12,6 +12,8 @@ public sealed class EventVenue
     public string AddressEn { get; set; } = string.Empty;
     public string AddressZh { get; set; } = string.Empty;
     public int Capacity { get; set; }
+    public string TimeZone { get; set; } = "Pacific/Auckland";
+    public string Kind { get; set; } = "venue";
     public bool IsActive { get; set; } = true;
     public Guid ConcurrencyToken { get; set; } = Guid.NewGuid();
     public Guid CreatedByMemberId { get; set; }

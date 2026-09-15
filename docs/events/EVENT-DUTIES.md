@@ -2,6 +2,12 @@
 
 This is the authoritative contract for saved Event responsibilities in Personal Center. It complements [TEAM.WORK](modules/TEAM.WORK.md), [SAFETY.RAM](modules/SAFETY.RAM.md) and existing Package governance. It does not introduce a generic workflow engine, document repository or external delivery channel.
 
+## Persistent work and version 1 handoffs
+
+Personal Center's **My event work / 我的活动工作** remains accessible after a pending duty is completed. The filtered Event work list is independent of notification existence. Report submission goes to the owner; return goes to the accepted author. Directed invitations go to invitees; unfinished consent/material/eligibility work goes to the participant or authorized registration manager, and fee review to the independent finance approver. Roster shortages go to the coordinator and assignment responses return to that work page. Stage/occurrence-scoped tasks support follow-up without closing a recurring Event. See [EVENT-WORKSPACES.md](EVENT-WORKSPACES.md).
+
+For collaboration version 1, an owner without an accepted RAM-author role coordinates assignment but cannot substitute as author. Independent reviewers read only submitted RAM versions with their complete corresponding plan background; obsolete versions and revoked roles remain unavailable. Legacy author fallback applies only to version 0.
+
 ## Discovery and handling
 
 `GET /api/notifications/current` keeps its existing response array. Current business records project duties even when no notification has ever existed. Every Event duty has `completionMode=workflow`, a stable actor-bound `taskKey`, `sourceType`, `sourceId`, `sourceVersion`, Event/group identifiers, optional occurrence/deadline, and bilingual `actionLabel`. Opening or marking a notification read never changes a business responsibility.
@@ -20,7 +26,7 @@ Summaries contain action and Event identity, occurrence, date and deadline only,
 | Roster assignment | Current approved invited assignee for a non-cancelled live slot | Response removes it; replacement ends old assignment; an uncovered required position goes to the coordinator/owner |
 | Ordinary task | Current eligible executor | Completion removes a task without approval; submission hands approval tasks to the named reviewer |
 | Task review | Current eligible named independent reviewer | Approve completes; return with a reason hands work back; withdrawal or responsibility changes invalidate that submission |
-| RAM preparation | Current eligible author; owner coordinates when no other qualified author exists | Draft, returned and re-review work persists; request for confirmation hands the immutable revision to its onsite signer; confirmation hands submission back to the author |
+| RAM preparation | Current eligible author; the owner coordinates missing author responsibility (legacy version 0 fallback only) | Draft, returned and re-review work persists; request for confirmation hands the immutable revision to its onsite signer; confirmation hands submission back to the author |
 | RAM review | Current same-church reviewer qualified under existing RAM policy | Excludes author, submitter and onsite signer; approval, return or revision invalidation ends the old duty |
 | Package approval | Existing policy-resolved authority | A person's active decision removes their duty; reaching quorum removes remaining review duties; returned/stale preparation goes to the owner |
 | Package condition | Accepted owner role, then policy-resolved verifier | Evidence is not verification; rejection returns work; verification or waiver resolves it; expired conditions require owner recovery |

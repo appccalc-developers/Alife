@@ -14,10 +14,10 @@ public sealed record EventTaskDto(Guid Id, Guid EventId, Guid? WorkflowStepId, L
     bool RequiresApproval, bool IsRestricted, DateTime? DueUtc, DateTime? CompletedUtc, string ETag,
     IReadOnlyList<EventTaskDependencyDto> Dependencies, IReadOnlyList<EventTaskBlockerDto> Blockers,
     Guid? ReviewerMemberId = null, EventTaskApprovalStatus ApprovalStatus = EventTaskApprovalStatus.NotRequired,
-    int ApprovalRound = 0, string? SourceType = null, Guid? SourceId = null);
+    int ApprovalRound = 0, string? SourceType = null, Guid? SourceId = null, string Stage = "preparation", Guid? EventOccurrenceId = null);
 public sealed record CreateEventTaskRequest(LocalizedTextDto Title, LocalizedTextDto? Description,
     Guid? AssignedMemberId, DateTime? DueUtc, bool IsRequired = false, bool RequiresApproval = false,
-    bool IsRestricted = false, Guid? WorkflowStepId = null, Guid? ReviewerMemberId = null);
+    bool IsRestricted = false, Guid? WorkflowStepId = null, Guid? ReviewerMemberId = null, string Stage = "preparation", Guid? EventOccurrenceId = null);
 public sealed record UpdateEventTaskRequest(LocalizedTextDto Title, LocalizedTextDto? Description,
     Guid? AssignedMemberId, DateTime? DueUtc, EventTaskStatus Status, bool IsRequired,
     bool RequiresApproval, bool IsRestricted, Guid? ReviewerMemberId = null, bool ClearReviewer = false);

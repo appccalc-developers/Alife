@@ -12,6 +12,12 @@ Repository security, privacy, compatibility, bilingual, and publishing rules in 
 
 Implementation convenience must not silently alter this contract. If code and a normative rule disagree, report the conflict and stop unless the task explicitly authorises the product or architecture decision needed to resolve it.
 
+## Collaboration workspaces version 1
+
+[EVENT-WORKSPACES.md](EVENT-WORKSPACES.md) defines role-specific work through preparation, registration, occurrence delivery and follow-up. The accountable owner retains overall plan editing; accepted module leads own reports and operational actions. Independent RAM review receives the submitted report with its exact complete plan context. Personal Center provides persistent work entry independently of pending duties. Stage navigation grants no authority and introduces no generic workflow engine.
+
+New Events use collaboration version 1. Existing Events retain version 0 until explicit adoption of the new reports/rules. Version 1 scopes finance to independently approved manual registration fees and food to a responsible lead plus adopted report. Other finance and catering target operations remain deferred. Festival is unavailable and cannot be enabled. Complete plan context excludes protected participant, child, material and financial transaction data. Additive migrations, existing IDs and prior approval evidence remain authoritative.
+
 ## Core thesis
 
 An Event is a composition, not a rigid runtime type.

@@ -33,7 +33,7 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
     }
     private async Task<bool> CanEdit(GroupEvent e,Guid actor,CancellationToken ct) =>
         await authorization.IsApprovedMemberAsync(e.GroupId,actor,ct) &&
-        (await EventCompositionPersistence.CanManageEventAsync(db,authorization,e,actor,ct) ||
+        (e.CollaborationVersion == 0 && await EventCompositionPersistence.CanManageEventAsync(db,authorization,e,actor,ct) ||
         await db.EventRoleAssignments.AsNoTracking().AnyAsync(x=>x.EventId==e.Id && x.MemberId==actor &&
             x.Status==EventRoleAssignmentStatus.Accepted && x.EndedUtc==null &&
             (x.RoleRequirementKey=="ram.author" || x.RoleRequirementKey.EndsWith(":ram.author")),ct));
@@ -42,7 +42,7 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
             db.GroupMemberships.Any(m => m.MemberId == actor && m.GroupId == x.Event.GroupId && m.Status == MembershipStatus.Approved),ct);
     public async Task<bool> CanReadAsync(GroupEvent e, Guid actor, CancellationToken ct)
     {
-        if (await CanEdit(e,actor,ct) || await CanAuditAsync(e,actor,ct)) return true;
+        if (await EventWorkAccess.OwnerAsync(db,e,actor,ct) || await CanEdit(e,actor,ct) || await EventWorkAccess.ReviewContextAsync(db,e,actor,ct)) return true;
         return e.RamAssessment is not null && await AcceptedDuty(e.Id,actor,ct) && await db.EventRamRevisions.AsNoTracking()
             .AnyAsync(x => x.Id == e.RamAssessment!.CurrentRevisionId && x.OnsiteMemberId == actor,ct);
     }
@@ -103,14 +103,21 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         var e=await db.GroupEvents.AsNoTracking().Include(x=>x.RamAssessment).FirstOrDefaultAsync(x=>x.Id==eventId,ct);
         if(e is null) return AppResult<RamWorkspaceDto>.NotFound("Event not found.");
         var edit=await CanEdit(e,actor,ct); var audit=await CanAuditAsync(e,actor,ct);
-        if(!edit && !audit && !await CanReadAsync(e,actor,ct)) return AppResult<RamWorkspaceDto>.Forbidden("RAM reading permission is required.");
+        if(!await CanReadAsync(e,actor,ct)) return AppResult<RamWorkspaceDto>.Forbidden("RAM reading permission is required.");
         var church=await EventCompositionPersistence.FindChurchRootIdAsync(db,e.GroupId,ct);
         var policy=await db.EventRamPolicyVersions.AsNoTracking().Where(x=>x.ChurchId==church && x.IsPublished)
             .OrderByDescending(x=>x.Version).FirstOrDefaultAsync(ct);
         var latestPolicy=policy;
         if (e.RamAssessment?.PolicyVersionId is {} referenceId)
             policy = await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==referenceId && x.ChurchId==church,ct);
-        var history=await db.EventRamRevisions.AsNoTracking().Where(x=>x.EventId==eventId && (edit || audit || x.OnsiteMemberId==actor)).OrderByDescending(x=>x.Version).ToListAsync(ct);
+        var owner = await EventWorkAccess.OwnerAsync(db,e,actor,ct);
+        var history=await db.EventRamRevisions.AsNoTracking().Where(x=>x.EventId==eventId && (edit || audit || owner || x.OnsiteMemberId==actor)).OrderByDescending(x=>x.Version).ToListAsync(ct);
+        var reviewOnly = e.CollaborationVersion >= 1 && audit && !edit && !owner;
+        if (reviewOnly)
+        {
+            var submittedIds = await db.EventRamActions.AsNoTracking().Where(x => x.EventId == eventId && (x.Action == "submit" || x.Action == "legacy-submitted" || x.Action == "legacy-approved")).Select(x => x.RevisionId).Distinct().ToArrayAsync(ct);
+            history = history.Where(x => submittedIds.Contains(x.Id)).ToList();
+        }
         var ids=history.Select(x=>x.Id).ToArray();
         var actions=await db.EventRamActions.AsNoTracking().Where(x=>x.EventId==eventId && ids.Contains(x.RevisionId)).OrderBy(x=>x.CreatedUtc).ToListAsync(ct);
         var candidates=edit ? await (from role in db.EventRoleAssignments.AsNoTracking()
@@ -120,15 +127,28 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         var planEntity=await db.EventPlanSnapshots.AsNoTracking().Where(x=>x.EventId==eventId && x.IsActive)
             .OrderByDescending(x=>x.Version).FirstOrDefaultAsync(ct);
         var acceptedPlan=planEntity is null?null:EventCompositionPersistence.ToSnapshotDto(planEntity);
-        var planContext=new RamEventPlanContextDto(e.Id,e.GroupId,new(e.TitleEn,e.TitleZh),e.StartDate,e.EndDate,
-            acceptedPlan);
-        return AppResult<RamWorkspaceDto>.Success(new(e.RamAssessment is null?null:EventRamPolicy.ToDto(e.RamAssessment,e.GroupId),
+        var shownRevision = reviewOnly ? history.FirstOrDefault() : history.FirstOrDefault(x => x.Id == e.RamAssessment?.CurrentRevisionId);
+        var fixedContext = shownRevision?.EventPlanContextJson;
+        var planContext = fixedContext is not null ? JsonSerializer.Deserialize<RamEventPlanContextDto>(fixedContext, RamEvaluator.Json)!
+            : await EventPlanContextCapture.CaptureAsync(db,e,ct);
+        var assessment = e.RamAssessment is null ? null : EventRamPolicy.ToDto(e.RamAssessment,e.GroupId);
+        if (reviewOnly && shownRevision is not null && assessment is not null)
+        {
+            var current = shownRevision.Id == assessment.CurrentRevisionId;
+            assessment = assessment with { RamDataJson = shownRevision.RamDataJson, CurrentRevisionId = shownRevision.Id,
+                PolicyVersionId = shownRevision.PolicyVersionId, AuthorMemberId = shownRevision.AuthorMemberId,
+                Validity = current ? assessment.Validity : "Historical", ETag = current ? assessment.ETag : "historical",
+                ResidualLevel = shownRevision.ResidualLevel, SchemaVersion = shownRevision.SchemaVersion };
+            if (shownRevision.PolicyVersionId is { } shownPolicy) policy = await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == shownPolicy && x.ChurchId == church,ct);
+        }
+        return AppResult<RamWorkspaceDto>.Success(new(assessment,
             policy is null?null:PolicyDto(policy),history.Select(RevisionDto).ToArray(),actions.Select(ActionDto).ToArray(),candidates,edit,audit,actor,IsRequired(e,acceptedPlan?.Plan),latestPolicy is null?null:PolicyDto(latestPolicy),planContext));
     }
 
     public async Task<AppResult<EventRamAssessmentDto>> SaveAsync(Guid eventId,Guid actor,RamSaveRequest request,CancellationToken ct)
     {
         await using var tx=await db.BeginSerializableTransactionAsync(ct);
+        await db.LockEventRegistrationAsync(eventId,ct);
         var e=await db.GroupEvents.Include(x=>x.RamAssessment).FirstOrDefaultAsync(x=>x.Id==eventId,ct);
         if(e is null) return AppResult<EventRamAssessmentDto>.NotFound("Event not found.");
         if(!await CanEdit(e,actor,ct)) return AppResult<EventRamAssessmentDto>.Forbidden("Event author permission is required.");
@@ -170,17 +190,28 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         if(key is null || key.Length is < 8 or > 120) return AppResult<EventRamAssessmentDto>.Validation("An 8–120 character Idempotency-Key is required.");
         if(request.Reason?.Length>4000) return AppResult<EventRamAssessmentDto>.Validation("The reason is too long.");
         await using var tx=await db.BeginSerializableTransactionAsync(ct);
+        await db.LockEventRegistrationAsync(eventId,ct);
         var e=await db.GroupEvents.Include(x=>x.RamAssessment).FirstOrDefaultAsync(x=>x.Id==eventId,ct);
         if(e?.RamAssessment is not { } ram) return AppResult<EventRamAssessmentDto>.NotFound("RAM not found.");
         if(!await CanReadAsync(e,actor,ct)) return AppResult<EventRamAssessmentDto>.Forbidden("RAM reading permission is required.");
         var hash=Hash(new{eventId,actor,action,request});
         var replay=await db.EventRamActions.AsNoTracking().FirstOrDefaultAsync(x=>x.EventId==eventId && x.ActorMemberId==actor && x.IdempotencyKey==key,ct);
-        if(replay is not null) return replay.RequestHash==hash ? AppResult<EventRamAssessmentDto>.Success(EventRamPolicy.ToDto(ram,e.GroupId)) : AppResult<EventRamAssessmentDto>.Conflict("Idempotency key was used for different content.");
+        if (replay is not null)
+        {
+            if (replay.RequestHash != hash) return AppResult<EventRamAssessmentDto>.Conflict("Idempotency key was used for different content.");
+            var visible = await GetAsync(eventId,actor,ct);
+            return visible.IsSuccess && visible.Value!.Assessment is { } assessment ? AppResult<EventRamAssessmentDto>.Success(assessment) : AppResult<EventRamAssessmentDto>.Forbidden("The report is no longer available to this account.");
+        }
         if(ram.SchemaVersion!=2 && action!="request-review") return AppResult<EventRamAssessmentDto>.Conflict(UpgradeMessage);
         if(!Matches(request.ExpectedETag,Token(ram))) return AppResult<EventRamAssessmentDto>.PreconditionFailed("RAM changed; reload the specified version.");
         if(await EventPreparationPolicy.IsFrozenAsync(db,eventId,ct)) return AppResult<EventRamAssessmentDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         var edit=await CanEdit(e,actor,ct); var audit=await CanAuditAsync(e,actor,ct);
         var revision=await db.EventRamRevisions.FirstOrDefaultAsync(x=>x.Id==ram.CurrentRevisionId && x.EventId==eventId,ct);
+        if (action is "confirm" or "submit" or "approve" && revision?.EventPlanContextHash is { } contextHash &&
+            contextHash != Hash(await EventPlanContextCapture.CaptureAsync(db,e,ct)))
+            return AppResult<EventRamAssessmentDto>.Conflict("The Event Plan changed since this RAM version. Request confirmation of a new version before submitting or reviewing. / 活动方案已改变，请重新确认新的 RAM 版本。");
+        if (action is "submit" or "approve" && e.CollaborationVersion >= 1 && revision?.EventPlanContextHash is null)
+            return AppResult<EventRamAssessmentDto>.Conflict("This RAM version is not bound to a complete plan. Request a new confirmation.");
         if(action=="snapshot-draft")
         {
             if(!edit) return AppResult<EventRamAssessmentDto>.Forbidden("Only an Event author can snapshot a draft.");
@@ -210,6 +241,8 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         else
         {
             if(revision is null || revision.Id!=request.RevisionId) return AppResult<EventRamAssessmentDto>.Conflict("This is not the current immutable RAM version.");
+            if (e.CollaborationVersion >= 1 && action is "confirm" or "submit" or "approve" && !await CanEdit(e, revision.AuthorMemberId, ct))
+                return AppResult<EventRamAssessmentDto>.Conflict("The RAM author no longer holds the accepted responsibility. A current author must prepare a new version.");
             if(action is "submit" or "approve" && revision.OnsiteMemberId is {} onsiteActor && revision.AuthorMemberId!=onsiteActor && !await AcceptedDuty(eventId,onsiteActor,ct))
                 return AppResult<EventRamAssessmentDto>.Conflict("The on-site duty is no longer accepted; request a new confirmation.");
             if(action=="confirm")
@@ -355,11 +388,14 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
     }
     private async Task<EventRamRevision> Snapshot(EventRamAssessment ram,Guid? onsite,CancellationToken ct)
     {
+        var e = await db.GroupEvents.FirstAsync(x => x.Id == ram.EventId,ct);
+        var context = await EventPlanContextCapture.CaptureAsync(db,e,ct);
         var maxVersion=Math.Max(await db.EventRamRevisions.Where(x=>x.EventId==ram.EventId).MaxAsync(x=>(int?)x.Version,ct)??0,
             db.EventRamRevisions.Local.Where(x=>x.EventId==ram.EventId).Select(x=>x.Version).DefaultIfEmpty(0).Max());
         var revision=new EventRamRevision{Id=Guid.NewGuid(),EventId=ram.EventId,Version=maxVersion+1,
             SchemaVersion=ram.SchemaVersion,PolicyVersionId=ram.PolicyVersionId,RamDataJson=ram.RamDataJson,ContentHash=Hash(new{ram.RamDataJson,ram.PolicyVersionId}),ResidualLevel=ram.ResidualLevel,
-            AuthorMemberId=ram.AuthorMemberId ?? ram.SubmittedByMemberId ?? Guid.Empty,OnsiteMemberId=onsite,CreatedUtc=DateTime.UtcNow};
+            AuthorMemberId=ram.AuthorMemberId ?? ram.SubmittedByMemberId ?? Guid.Empty,OnsiteMemberId=onsite,CreatedUtc=DateTime.UtcNow,
+            EventPlanVersion=e.ActivePlanVersion,EventPlanContextJson=RamEvaluator.Serialize(context),EventPlanContextHash=Hash(context)};
         db.EventRamRevisions.Add(revision); return revision;
     }
     public static async Task ArchiveLegacyAsync(IAlifeDbContext db,EventRamAssessment ram,Guid actor,CancellationToken ct)
@@ -382,7 +418,10 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         if(e is null) return AppResult<RamPrintDto>.NotFound("Event not found.");
         var r=await db.EventRamRevisions.AsNoTracking().FirstOrDefaultAsync(x=>x.EventId==eventId && x.Id==revisionId,ct);
         if(r is null) return AppResult<RamPrintDto>.NotFound("RAM version not found.");
-        if(!await CanEdit(e,actor,ct) && !await CanAuditAsync(e,actor,ct) && !(r.OnsiteMemberId==actor && await AcceptedDuty(eventId,actor,ct))) return AppResult<RamPrintDto>.Forbidden("RAM reading permission is required for printing this version.");
+        var owner = await EventWorkAccess.OwnerAsync(db,e,actor,ct);
+        if(!owner && !await CanEdit(e,actor,ct) && !await EventWorkAccess.ReviewContextAsync(db,e,actor,ct) && !(r.OnsiteMemberId==actor && await AcceptedDuty(eventId,actor,ct))) return AppResult<RamPrintDto>.Forbidden("RAM reading permission is required for printing this version.");
+        if (e.CollaborationVersion >= 1 && !owner && !await CanEdit(e,actor,ct) && r.OnsiteMemberId != actor &&
+            !await db.EventRamActions.AnyAsync(x => x.RevisionId == r.Id && (x.Action == "submit" || x.Action == "legacy-submitted" || x.Action == "legacy-approved"),ct)) return AppResult<RamPrintDto>.Forbidden("Only submitted reports are available to the reviewer pool.");
         var p=await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==r.PolicyVersionId,ct);
         var actions=await db.EventRamActions.AsNoTracking().Where(x=>x.RevisionId==revisionId).OrderBy(x=>x.CreatedUtc).ToListAsync(ct);
         var current=e.RamAssessment?.CurrentRevisionId==revisionId;

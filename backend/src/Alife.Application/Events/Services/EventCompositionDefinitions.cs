@@ -73,7 +73,7 @@ public static class EventCompositionDefinitions
     public static readonly IReadOnlyList<EventModuleDefinition> Modules =
     [
         Module(
-            "TEAM.WORK", "Team and work", "團隊與任務",
+            "TEAM.WORK", "Tasks and handoffs", "任务与交接",
             [Rule("event.exists", "eq", true, EventModuleDecisionStatus.Required, "accountable-owner-required")],
             [],
             [Role("event.accountableOwner", 1, 1, 1, ["eventCreator"]), Role("event.lead", 0, 1, 1, ["approvedGroupMember"])],
@@ -292,7 +292,7 @@ public static class EventCompositionDefinitions
     [
         Surface("workspace.overview", null, "tab", "overview", null, 10, "EventWorkspaceOverview", "Overview", "總覽"),
         Surface("workspace.governance", null, "tab", "governance", null, 15, "EventPackageGovernanceWorkspace", "Governance", "審批治理"),
-        Surface("team.work", "TEAM.WORK", "tab", "team", null, 20, "EventTeamPanel", "Team", "團隊"),
+        Surface("team.work", "TEAM.WORK", "tab", "team", null, 20, "EventTeamPanel", "Tasks and handoffs", "任務與交接"),
         Surface("people.registration", "PEOPLE.REGISTRATION", "page", null, "registration", 30, "EventRegistrationWorkspace", "Registration", "報名"),
         Surface("service.roster", "SERVICE.ROSTER", "page", null, "roster", 40, "EventRosterWorkspace", "Roster", "排班"),
         Surface("money.finance", "MONEY.FINANCE", "page", null, "finance", 50, "EventFinanceWorkspace", "Finance", "財務"),

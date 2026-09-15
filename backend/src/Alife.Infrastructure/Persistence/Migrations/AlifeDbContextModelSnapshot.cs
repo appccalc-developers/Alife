@@ -2089,6 +2089,169 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("event_idempotency_records", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventModuleReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AdoptedRevisionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("adopted_revision_id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<string>("DraftEn")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("draft_en");
+
+                    b.Property<string>("DraftZh")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("draft_zh");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("ModuleCode")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("module_code");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("int")
+                        .HasColumnName("revision");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid?>("SubmittedRevisionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("submitted_revision_id");
+
+                    b.Property<Guid>("UpdatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by_member_id");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_module_reports");
+
+                    b.HasIndex("EventId", "ModuleCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_module_reports_event_id_module_code");
+
+                    b.ToTable("event_module_reports", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventModuleReportAction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("actor_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasColumnName("operation");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("report_id");
+
+                    b.Property<Guid?>("RevisionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("revision_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_module_report_actions");
+
+                    b.HasIndex("ReportId", "CreatedUtc")
+                        .HasDatabaseName("ix_event_module_report_actions_report_id_created_utc");
+
+                    b.ToTable("event_module_report_actions", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventModuleReportRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("author_member_id");
+
+                    b.Property<int?>("EventPlanVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("event_plan_version");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("report_id");
+
+                    b.Property<DateTime>("SubmittedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("submitted_utc");
+
+                    b.Property<string>("TextEn")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("text_en");
+
+                    b.Property<string>("TextZh")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("text_zh");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_module_report_revisions");
+
+                    b.HasIndex("ReportId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_module_report_revisions_report_id_version");
+
+                    b.ToTable("event_module_report_revisions", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventOccurrence", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3276,6 +3439,19 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("event_id");
 
+                    b.Property<string>("EventPlanContextHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("event_plan_context_hash");
+
+                    b.Property<string>("EventPlanContextJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("event_plan_context_json");
+
+                    b.Property<int?>("EventPlanVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("event_plan_version");
+
                     b.Property<Guid?>("OnsiteMemberId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("onsite_member_id");
@@ -3314,6 +3490,340 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_event_ram_revisions_event_id_version");
 
                     b.ToTable("event_ram_revisions", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationAction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("actor_member_id");
+
+                    b.Property<Guid?>("ApplicationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("application_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("Evidence")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("evidence");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("operation");
+
+                    b.Property<Guid?>("ParticipantId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("participant_id");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("snapshot_json");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_registration_actions");
+
+                    b.HasIndex("EventId", "CreatedUtc")
+                        .HasDatabaseName("ix_event_registration_actions_event_id_created_utc");
+
+                    b.ToTable("event_registration_actions", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AllowSplit")
+                        .HasColumnType("bit")
+                        .HasColumnName("allow_split");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("channel");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("InvitationMode")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasColumnName("invitation_mode");
+
+                    b.Property<DateTime?>("InvitedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("invited_utc");
+
+                    b.Property<bool>("IsInvitation")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_invitation");
+
+                    b.Property<Guid?>("LegacyEnrollmentId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("legacy_enrollment_id");
+
+                    b.Property<string>("ManualOrganiserName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("manual_organiser_name");
+
+                    b.Property<Guid>("OrganiserMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("organiser_member_id");
+
+                    b.Property<int>("PolicyVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("policy_version");
+
+                    b.Property<string>("ProxyAuthorityEvidence")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("proxy_authority_evidence");
+
+                    b.Property<DateTime>("QueuedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("queued_utc");
+
+                    b.Property<DateTime?>("ReservationExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("reservation_expires_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_registration_applications");
+
+                    b.HasIndex("LegacyEnrollmentId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_registration_applications_legacy_enrollment_id")
+                        .HasFilter("[legacy_enrollment_id] IS NOT NULL");
+
+                    b.HasIndex("EventId", "QueuedUtc")
+                        .HasDatabaseName("ix_event_registration_applications_event_id_queued_utc");
+
+                    b.ToTable("event_registration_applications", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationMaterial", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid>("FileAssetId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("file_asset_id");
+
+                    b.Property<Guid>("ParticipantId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("participant_id");
+
+                    b.Property<string>("RequirementId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("requirement_id");
+
+                    b.Property<Guid>("UploadedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("uploaded_by_member_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_registration_materials");
+
+                    b.HasIndex("FileAssetId")
+                        .HasDatabaseName("ix_event_registration_materials_file_asset_id");
+
+                    b.HasIndex("ParticipantId", "FileAssetId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_registration_materials_participant_id_file_asset_id");
+
+                    b.ToTable("event_registration_materials", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationParticipant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AnswersJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("answers_json");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("application_id");
+
+                    b.Property<string>("ConsentEvidence")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("consent_evidence");
+
+                    b.Property<string>("ConsentMethod")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("consent_method");
+
+                    b.Property<Guid?>("ConsentRecordedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("consent_recorded_by_member_id");
+
+                    b.Property<DateTime?>("ConsentedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("consented_utc");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("display_name");
+
+                    b.Property<bool>("EligibilityVerified")
+                        .HasColumnType("bit")
+                        .HasColumnName("eligibility_verified");
+
+                    b.Property<Guid?>("GuardianMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("guardian_member_id");
+
+                    b.Property<string>("GuardianName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("guardian_name");
+
+                    b.Property<bool>("IsChild")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_child");
+
+                    b.Property<bool>("IsLegacy")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_legacy");
+
+                    b.Property<bool>("MaterialsVerified")
+                        .HasColumnType("bit")
+                        .HasColumnName("materials_verified");
+
+                    b.Property<Guid?>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<long>("PaidMinor")
+                        .HasColumnType("bigint")
+                        .HasColumnName("paid_minor");
+
+                    b.Property<string>("ProcedureStatus")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasColumnName("procedure_status");
+
+                    b.Property<bool>("ProxyAccessRevoked")
+                        .HasColumnType("bit")
+                        .HasColumnName("proxy_access_revoked");
+
+                    b.Property<long>("RefundedMinor")
+                        .HasColumnType("bigint")
+                        .HasColumnName("refunded_minor");
+
+                    b.Property<string>("SeatStatus")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasColumnName("seat_status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_registration_participants");
+
+                    b.HasIndex("ApplicationId")
+                        .HasDatabaseName("ix_event_registration_participants_application_id");
+
+                    b.ToTable("event_registration_participants", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationPolicy", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<string>("FeeApprovalStatus")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasColumnName("fee_approval_status");
+
+                    b.Property<Guid?>("FeeApprovedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("fee_approved_by_member_id");
+
+                    b.Property<Guid?>("FeeSubmittedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("fee_submitted_by_member_id");
+
+                    b.Property<string>("RulesJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("rules_json");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("EventId")
+                        .HasName("pk_event_registration_policies");
+
+                    b.ToTable("event_registration_policies", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventReview", b =>
@@ -4119,6 +4629,10 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("event_id");
 
+                    b.Property<Guid?>("EventOccurrenceId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_occurrence_id");
+
                     b.Property<bool>("IsRequired")
                         .HasColumnType("bit")
                         .HasColumnName("is_required");
@@ -4149,6 +4663,14 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(120)")
                         .HasColumnName("source_version");
 
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasDefaultValue("preparation")
+                        .HasColumnName("stage");
+
                     b.Property<int>("Status")
                         .HasColumnType("int")
                         .HasColumnName("status");
@@ -4175,6 +4697,9 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_event_operations_tasks");
+
+                    b.HasIndex("EventOccurrenceId")
+                        .HasDatabaseName("ix_event_operations_tasks_event_occurrence_id");
 
                     b.HasIndex("WorkflowStepId")
                         .HasDatabaseName("ix_event_operations_tasks_workflow_step_id");
@@ -4833,6 +5358,14 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("is_active");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("venue")
+                        .HasColumnName("kind");
+
                     b.Property<Guid>("ManagingGroupId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("managing_group_id");
@@ -4848,6 +5381,14 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)")
                         .HasColumnName("name_zh");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasDefaultValue("Pacific/Auckland")
+                        .HasColumnName("time_zone");
 
                     b.Property<DateTime>("UpdatedUtc")
                         .HasColumnType("datetime2")
@@ -4866,6 +5407,48 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_event_resource_venues_capacity", "[capacity] > 0");
                         });
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventVenueBookingException", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("actor_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateOnly>("LocalDate")
+                        .HasColumnType("date")
+                        .HasColumnName("local_date");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("reason");
+
+                    b.Property<bool>("Released")
+                        .HasColumnType("bit")
+                        .HasColumnName("released");
+
+                    b.Property<Guid>("WeeklyBookingId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("weekly_booking_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_venue_booking_exceptions");
+
+                    b.HasIndex("WeeklyBookingId", "LocalDate", "CreatedUtc")
+                        .HasDatabaseName("ix_event_venue_booking_exceptions_weekly_booking_id_local_date_created_utc");
+
+                    b.ToTable("event_venue_booking_exceptions", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventVenueReservation", b =>
@@ -4954,6 +5537,86 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_event_resource_venue_reservations_release", "([status] = 0 AND [released_utc] IS NULL AND [released_by_member_id] IS NULL) OR ([status] = 1 AND [released_utc] IS NOT NULL AND [released_by_member_id] IS NOT NULL)");
                         });
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventVenueWeeklyBooking", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ChangeReason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("change_reason");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<int>("EndMinute")
+                        .HasColumnType("int")
+                        .HasColumnName("end_minute");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<DateOnly>("FirstDate")
+                        .HasColumnType("date")
+                        .HasColumnName("first_date");
+
+                    b.Property<DateOnly?>("LastDate")
+                        .HasColumnType("date")
+                        .HasColumnName("last_date");
+
+                    b.Property<DateOnly?>("PreviousLastDate")
+                        .HasColumnType("date")
+                        .HasColumnName("previous_last_date");
+
+                    b.Property<Guid?>("ReplacesRuleId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("replaces_rule_id");
+
+                    b.Property<int>("RequiredCapacity")
+                        .HasColumnType("int")
+                        .HasColumnName("required_capacity");
+
+                    b.Property<int>("StartMinute")
+                        .HasColumnType("int")
+                        .HasColumnName("start_minute");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("time_zone");
+
+                    b.Property<Guid>("VenueId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("venue_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_venue_weekly_bookings");
+
+                    b.HasIndex("EventId")
+                        .HasDatabaseName("ix_event_venue_weekly_bookings_event_id");
+
+                    b.HasIndex("VenueId", "FirstDate")
+                        .HasDatabaseName("ix_event_venue_weekly_bookings_venue_id_first_date");
+
+                    b.ToTable("event_venue_weekly_bookings", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventWorkflowRun", b =>
@@ -5775,6 +6438,10 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Property<int?>("ActivePlanVersion")
                         .HasColumnType("int")
                         .HasColumnName("active_plan_version");
+
+                    b.Property<int>("CollaborationVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("collaboration_version");
 
                     b.Property<Guid>("CreatedByMemberId")
                         .HasColumnType("uniqueidentifier")
@@ -7901,6 +8568,42 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Event");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventModuleReport", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_module_reports_group_events_event_id");
+
+                    b.Navigation("Event");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventModuleReportAction", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventModuleReport", "Report")
+                        .WithMany()
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_module_report_actions_event_module_reports_report_id");
+
+                    b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventModuleReportRevision", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventModuleReport", "Report")
+                        .WithMany()
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_module_report_revisions_event_module_reports_report_id");
+
+                    b.Navigation("Report");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventOccurrence", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
@@ -8273,6 +8976,75 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_event_ram_revisions_event_ram_policy_versions_policy_version_id");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationAction", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_registration_actions_group_events_event_id");
+
+                    b.Navigation("Event");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationApplication", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_registration_applications_group_events_event_id");
+
+                    b.Navigation("Event");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationMaterial", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.FileAsset", "FileAsset")
+                        .WithMany()
+                        .HasForeignKey("FileAssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_registration_materials_file_assets_file_asset_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventRegistrationParticipant", "Participant")
+                        .WithMany()
+                        .HasForeignKey("ParticipantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_registration_materials_event_registration_participants_participant_id");
+
+                    b.Navigation("FileAsset");
+
+                    b.Navigation("Participant");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationParticipant", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventRegistrationApplication", "Application")
+                        .WithMany("Participants")
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_registration_participants_event_registration_applications_application_id");
+
+                    b.Navigation("Application");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationPolicy", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_registration_policies_group_events_event_id");
+
+                    b.Navigation("Event");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventReview", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
@@ -8602,6 +9374,12 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_event_operations_tasks_group_events_event_id");
 
+                    b.HasOne("Alife.Domain.Entities.EventOccurrence", null)
+                        .WithMany()
+                        .HasForeignKey("EventOccurrenceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_operations_tasks_event_composition_occurrences_event_occurrence_id");
+
                     b.HasOne("Alife.Domain.Entities.Member", "ReviewerMember")
                         .WithMany()
                         .HasForeignKey("ReviewerMemberId")
@@ -8892,6 +9670,18 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("ManagingGroup");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventVenueBookingException", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventVenueWeeklyBooking", "WeeklyBooking")
+                        .WithMany("Exceptions")
+                        .HasForeignKey("WeeklyBookingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_venue_booking_exceptions_event_venue_weekly_bookings_weekly_booking_id");
+
+                    b.Navigation("WeeklyBooking");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventVenueReservation", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
@@ -8934,6 +9724,27 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("ReleasedByMember");
 
                     b.Navigation("ReservedByMember");
+
+                    b.Navigation("Venue");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventVenueWeeklyBooking", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_venue_weekly_bookings_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventVenue", "Venue")
+                        .WithMany()
+                        .HasForeignKey("VenueId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_venue_weekly_bookings_event_venues_venue_id");
+
+                    b.Navigation("Event");
 
                     b.Navigation("Venue");
                 });
@@ -9623,6 +10434,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("EventPackages");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventRegistrationApplication", b =>
+                {
+                    b.Navigation("Participants");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventSeries", b =>
                 {
                     b.Navigation("Events");
@@ -9678,6 +10494,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Alife.Domain.Entities.EventVenue", b =>
                 {
                     b.Navigation("Reservations");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventVenueWeeklyBooking", b =>
+                {
+                    b.Navigation("Exceptions");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventWorkflowRun", b =>

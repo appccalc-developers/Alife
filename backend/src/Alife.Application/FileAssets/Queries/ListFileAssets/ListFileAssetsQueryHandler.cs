@@ -48,7 +48,7 @@ public sealed class ListFileAssetsQueryHandler(
         var relatedEntityType = request.RelatedEntityType?.Trim().ToLowerInvariant();
         var query = dbContext.FileAssets
             .AsNoTracking()
-            .Where(x => !x.IsDeleted);
+            .Where(x => !x.IsDeleted && x.Purpose != Alife.Domain.Enums.FileAssetPurpose.EventRegistrationMaterial && !x.ObjectKey.StartsWith("private/event-registration/"));
 
         if (request.GroupId.HasValue)
         {

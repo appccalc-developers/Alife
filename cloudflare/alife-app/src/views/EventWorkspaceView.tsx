@@ -194,6 +194,7 @@ const EventWorkspaceView = () => {
   }
 
   if (!surfacePath && searchParams.get('flow') === 'setup') {
+    if (!workspace.canManage) return <Navigate to={`/events/${eventId}/work`} replace />
     return <EventSetupPipeline key={eventId} workspace={workspace} plan={plan} archetypes={archetypes} eventBasePath={eventBasePath} language={language} />
   }
 
@@ -225,7 +226,7 @@ const EventWorkspaceView = () => {
       subtitle={text.subtitle}
       actions={<Link className="text-sm font-bold text-[#176b5a]" to={eventBasePath}>{text.back}</Link>}
     >
-      <Link className="text-sm font-semibold text-[#176b5a]" to={`${workspaceBasePath}?flow=setup&stage=arrangements`}>{language === 'zh' ? '继续活动筹备流程 →' : 'Continue event preparation →'}</Link>
+      <Link className="text-sm font-semibold text-[#176b5a]" to={`/events/${eventId}/work`}>{language === 'zh' ? '我的活动工作与阶段 →' : 'My event work and stages →'}</Link>
 
       <div className="flex gap-2 overflow-x-auto border-b border-[#2f4b42]/10 pb-2" role="tablist" aria-label={text.title}>
         {tabItems.map((item) => (

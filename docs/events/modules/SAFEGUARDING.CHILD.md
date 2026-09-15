@@ -2,6 +2,10 @@
 
 > Documentation class: **Normative module contract**. “Current implementation” is an operational convenience snapshot and defers to [IMPLEMENTATION-STATUS.md](../IMPLEMENTATION-STATUS.md). Exact values live in [event-contract.json](../event-contract.json).
 
+## Collaboration version 1 — preparation and execution
+
+The [workspace contract](../EVENT-WORKSPACES.md) scopes this version's preparation to an accepted responsible lead and a bilingual versioned report. The lead writes in an independent page; the Event owner returns or adopts an immutable submitted revision into the formal plan. Later drafts cannot alter adopted text; frozen-plan changes require reopening. Submission and return project the next person's duty. Existing specialist execution tools and checks remain independent. This report does not certify specialist facts or grant access to private participant data.
+
 ## Purpose
 
 Protect children through explicit relationships, versioned consent, controlled collection authority, eligible duty access, minimum disclosure, attendance state, and escalation.

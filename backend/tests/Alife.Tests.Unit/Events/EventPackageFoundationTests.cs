@@ -196,6 +196,7 @@ public sealed partial class EventPackageFoundationTests
         var outsider = Guid.NewGuid();
         var ordinaryGroupMember = Guid.NewGuid();
         var ordinaryTeamMember = Guid.NewGuid();
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = seeded.Event.GroupId, MemberId = ordinaryTeamMember, Status = MembershipStatus.Approved });
         db.Members.AddRange(
             new Member { Id = ordinaryGroupMember, DisplayName = "Ordinary group member", IsRegistered = true, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow },
             new Member { Id = ordinaryTeamMember, DisplayName = "Ordinary Event Team member", IsRegistered = true, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
@@ -1266,6 +1267,7 @@ public sealed partial class EventPackageFoundationTests
     {
         var now = new DateTime(2026, 9, 2, 0, 0, 0, DateTimeKind.Utc);
         var owner = Guid.NewGuid(); var groupId = Guid.NewGuid();
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = owner, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = now, UpdatedUtc = now });
         var eventSeries = series ? new EventSeries
         {
             Id = Guid.NewGuid(), OwningGroupId = groupId, NameEn = "Series", NameZh = "系列",

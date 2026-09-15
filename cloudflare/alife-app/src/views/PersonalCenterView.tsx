@@ -75,6 +75,9 @@ const PersonalCenterView = () => {
         to: '/profile/settings',
       }]}
     >
+      <Link to="/event-work" className="flex min-h-16 items-center justify-between gap-4 rounded-2xl border border-[#176b5a]/20 bg-[#e3f0eb] p-5 font-semibold text-[#176b5a]">
+        <span>{zh ? '我的活动工作' : 'My event work'}<span className="mt-1 block text-xs font-normal">{zh ? '筹备、报名、执行与善后；持续进入自己的职责空间。' : 'Preparation, registration, delivery and follow-up; ongoing access to your responsibilities.'}</span></span><ArrowRight className="h-5 w-5 shrink-0" />
+      </Link>
       <section aria-labelledby="personal-tasks-heading">
         <div className="mb-4 flex items-end justify-between gap-4 px-1">
           <div>

@@ -2,6 +2,10 @@
 
 > Documentation class: **Normative feature contract**. Read with [EVENT-CONTRACT.md](EVENT-CONTRACT.md), [event-contract.json](event-contract.json), [TEAM.WORK](modules/TEAM.WORK.md), and [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md). Delivery evidence belongs in [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md).
 
+## Collaboration version 1 placement
+
+The owner's preparation rail and summary/detail cards remain. Saved preparation now configures registration rules rather than operating lists, and the five report modules present lead/acceptance plus bilingual report/submission/adoption. Accepted leads use independent work pages; execution tools remain on operational routes. RAM retains its author/onsite/reviewer work paths with full submitted plan context. The stage overview, personal work list and independent venue catalogue are described in [EVENT-WORKSPACES.md](EVENT-WORKSPACES.md). Fees and food are partially supported; festival cannot be enabled. This version-specific placement supersedes the earlier all-tools-inline descriptions below.
+
 ## User flow
 
 The preparation rail is **Template → Arrangements → Confirm creation → Formal approval → Poster → Publish**. Chinese labels are **选择模板 → 活动安排 → 确认创建 → 正式审批 → 海报制作 → 发布活动**. Creation saves one Event and its accepted Plan/arrangements. It continues directly to that saved Event's Arrangements page, where its team and operational tools are embedded. Returning to later stages never creates another Event.

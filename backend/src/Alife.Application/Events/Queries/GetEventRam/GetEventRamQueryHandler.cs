@@ -24,6 +24,13 @@ public sealed class GetEventRamQueryHandler(
         {
             return AppResult<EventRamAssessmentDto>.NotFound("RAM draft not found.");
         }
+        if (groupEvent.CollaborationVersion >= 1)
+        {
+            var workspace = await ramGovernance.GetAsync(request.EventId, request.CurrentMemberId, cancellationToken);
+            return workspace.IsSuccess && workspace.Value!.Assessment is { } assessment
+                ? AppResult<EventRamAssessmentDto>.Success(assessment)
+                : AppResult<EventRamAssessmentDto>.Forbidden("Only the corresponding submitted report is available to its reviewer.");
+        }
 
         if (!await ramGovernance.CanReadAsync(groupEvent, request.CurrentMemberId, cancellationToken))
         {

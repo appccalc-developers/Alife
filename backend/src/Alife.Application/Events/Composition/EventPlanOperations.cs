@@ -479,12 +479,12 @@ public sealed class GetEventWorkspaceQueryHandler(
         var isChurchMember = churchRootId.HasValue && churchRootId.Value != groupEvent.GroupId &&
             await groupAuthorizationService.IsApprovedMemberAsync(
                 churchRootId.Value, request.CurrentMemberId, cancellationToken);
-        var canAuditRam = await AdminPlatformRoleHelpers.HasPermissionAsync(
-            dbContext, request.CurrentMemberId, AdminPermissionCatalog.AuditEvents, cancellationToken);
+        var canAuditRam = await EventWorkAccess.ReviewerAsync(dbContext, groupEvent, request.CurrentMemberId, cancellationToken);
+        var ownRoles = await EventWorkAccess.RolesAsync(dbContext, groupEvent, request.CurrentMemberId, cancellationToken);
         var isRosterParticipant = await dbContext.EventRosterAssignments.AsNoTracking().AnyAsync(x =>
             x.MemberId == request.CurrentMemberId && x.EndedUtc == null &&
             x.ServiceSlot.Occurrence.EventId == groupEvent.Id, cancellationToken);
-        if (!isEventTeam && !isGroupMember && !isChurchMember && !canAuditRam)
+        if (!isEventTeam && !canAuditRam && !(isRosterParticipant && isGroupMember))
         {
             return AppResult<EventWorkspaceDto>.Forbidden(
                 "Approved group membership or an event-team role is required.");
@@ -548,10 +548,15 @@ public sealed class GetEventWorkspaceQueryHandler(
             .ToArray();
         var items = navigation
             .Where(item => CanSeeItem(item, isEventTeam, isGroupMember || isChurchMember, canAuditRam, isRosterParticipant))
+            .Where(item => canManage || item.ModuleCode is null ||
+                item.ModuleCode == "TEAM.WORK" && isEventTeam ||
+                ownRoles.Any(role => role.StartsWith(item.ModuleCode + ":", StringComparison.Ordinal)) ||
+                item.ModuleCode == "SAFETY.RAM" && canAuditRam || item.ModuleCode == "SERVICE.ROSTER" && isRosterParticipant && isGroupMember)
             .Select(item => item with
             {
                 Blockers = isEventTeam || canManage || canAuditRam ? item.Blockers : [],
-                AllowedActions = BuildAllowedActions(item, canManage, isEventTeam, canAuditRam)
+                AllowedActions = BuildAllowedActions(item, canManage, isEventTeam, canAuditRam),
+                Label = item.ModuleCode == "TEAM.WORK" ? new("Tasks and handoffs", "任务与交接") : item.Label
             })
             .ToArray();
         var nextSteps = currentPlan.Readiness.Blockers.Take(3).ToArray();

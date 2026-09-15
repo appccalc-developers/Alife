@@ -129,6 +129,9 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
         ConfigureRamGovernance(modelBuilder);
+        ConfigureEventCollaboration(modelBuilder);
+        ConfigureEventRegistrationWork(modelBuilder);
+        ConfigureVenueCalendar(modelBuilder);
         ConfigureRosterGroups(modelBuilder);
 		const string phoneUniqueFilter = "[phone_e164] IS NOT NULL AND [is_registered] = 1";
 		var approvedMembershipFilter = $"[status] = {(int)MembershipStatus.Approved}";
