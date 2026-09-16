@@ -8,7 +8,9 @@ import { createContext, useContext, useCallback, useEffect, useRef, useState, ty
 import DetailsWorkspace from './creation/DetailsWorkspace'
 import EventFormAssistant from './creation/EventFormAssistant'
 import type { Bilingual } from '../../../../shared/eventDetails'
+import type { FormAssistantContext } from '../../../../shared/eventFormAssistant'
 import { groupService, type MemberSummaryDto } from '../../services/groupService'
+import { eventService } from '../../services/eventService'
 import { RosterCandidateGroup } from './RosterCandidateGroup'
 import EventRosterBatchWorkspace from './EventRosterBatchWorkspace'
 import { workStages, workStageText } from '../../services/eventWorkService'
@@ -79,6 +81,19 @@ export const EventTeamPanel = ({ eventId, groupId, language, item, onBusyChange,
   const [taskStage, setTaskStage] = useState(taskParams.get('taskStage') || 'preparation'), [taskOccurrence, setTaskOccurrence] = useState(taskParams.get('occurrenceId') || ''), [filterStage, setFilterStage] = useState(taskParams.get('taskStage') || 'all'), [taskOccurrences, setTaskOccurrences] = useState<EventOccurrence[]>([])
   useEffect(() => { let live = true; void eventOperationsService.listOccurrences(eventId).then(rows => { if (live) setTaskOccurrences(rows) }).catch(() => {}); return () => { live = false } }, [eventId])
   const [activityPlan, setActivityPlan] = useState<ActivityPlanData | null>(null), [taskActivity, setTaskActivity] = useState('')
+  const [eventContext, setEventContext] = useState<FormAssistantContext>()
+  useEffect(() => {
+    if (!currentMemberId) return
+    let live = true
+    void eventService.getGroupEvents(groupId, currentMemberId).then(records => {
+      if (!live) return
+      const record = records.find(item => item.id === eventId)
+      let details: { title?: Bilingual; description?: Bilingual } = {}
+      try { details = record?.eventDataJson ? JSON.parse(record.eventDataJson) as typeof details : {} } catch { details = {} }
+      setEventContext({ eventTitle: details.title || { en: record?.titleEn || '', zh: record?.titleZh || '' }, eventDescription: details.description || { en: '', zh: '' } })
+    }).catch(() => {})
+    return () => { live = false }
+  }, [eventId, groupId, currentMemberId])
   const [assigneeId, setAssigneeId] = useState('')
   const [requiresApproval, setRequiresApproval] = useState(false)
   const [reviewerId, setReviewerId] = useState('')
@@ -133,7 +148,7 @@ export const EventTeamPanel = ({ eventId, groupId, language, item, onBusyChange,
 
   return (
     <div className="space-y-4">
-      <EventActivityPlanPanel eventId={eventId} groupId={groupId} zh={language === 'zh'} onSaved={onSaved} onPlanChange={setActivityPlan}/>
+      <EventActivityPlanPanel eventId={eventId} groupId={groupId} zh={language === 'zh'} eventContext={eventContext} onSaved={onSaved} onPlanChange={setActivityPlan} onBusy={setAiBusy}/>
       {data ? <EventTeamModules eventId={eventId} zh={language === 'zh'} moduleSelections={moduleSelections} state={{ data, candidates, error, loading: state === 'loading', reload: load }} onBusy={setBusy} onSaved={async () => { await load(); await onSaved?.() }} /> : null}
       <AppSectionCard summary={surfaceStatusSummary(state, language) ?? (language === 'zh' ? `${data?.members.length || 0} 名协作成员` : `${data?.members.length || 0} collaborators`)} title={language === 'zh' ? '协作成员' : 'Collaborators'} subtitle={language === 'zh' ? '邀请成员协助筹备，成员需在 App 内接受或拒绝。' : 'Invite members to help prepare. Each member accepts or declines in the app.'} action={<AppBadge variant={item.readiness === 'ready' ? 'success' : 'warning'}>{item.readiness}</AppBadge>}>
         <SurfaceState state={state} language={language} error={error} onRetry={() => void load()} />

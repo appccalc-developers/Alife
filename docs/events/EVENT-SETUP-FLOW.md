@@ -16,6 +16,8 @@ Arrangements embeds existing invitations, accepted roles, tasks, enrollment, ros
 
 The Details assistant follows [its presentation contract](AI-DETAILS-ASSISTANT.md#details-workspace-presentation), including current form/chat/voice placement, time-zone binding and explicit draft review.
 
+The TEAM.WORK **Activities and conditions / 活动项目与条件** work area uses the same bounded assistant workspace after an Event exists. It supplies the current bilingual title and description as context so the assistant can propose activity names, operating conditions, participant count and conservative outdoor/off-site, overnight and known high-risk flags. These are upstream RAM source candidates, so the owner reviews every adopted field and explicitly saves the activity plan; the assistant never scores, signs, approves or publishes RAM.
+
 ## Shared preparation and Workspace RAM
 
 In both creation and saved preparation, the Details assistant treats a time-only correction as an edit on the current Event date and zone. Missing dates require clarification; invalid or mismatched time/zone replies preserve the draft and prompt. For a Perth Event, 08:00–16:00 saves as 00:00Z–08:00Z and reopens as 08:00–16:00 regardless of device zone.

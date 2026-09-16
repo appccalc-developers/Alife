@@ -1,22 +1,38 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { assistantApplicableFields, assistantFieldComplete, formAssistantFields, mergeFormAssistantResult, readFormAssistantInput, validateFormAssistantResult, type FormAssistantInput } from '../../shared/eventFormAssistant.ts'
-import { applyRegistrationAssistantForm, registrationAssistantForm } from '../src/utils/eventFormAssistant.ts'
+import { activityPlanAssistantForm, applyActivityPlanAssistantForm, applyRegistrationAssistantForm, registrationAssistantForm } from '../src/utils/eventFormAssistant.ts'
 
 const bi = (en: string, zh = en) => ({ en, zh })
 const task = (): FormAssistantInput => ({ eventId: '11111111-1111-1111-1111-111111111111', scope: 'tasks', revision: 3, language: 'zh', timeZone: 'Australia/Perth', message: '准备场地', history: [], form: { title: bi(''), dueLocal: '', stage: 'preparation', requiresApproval: false, isRestricted: false } })
 const registration = (): FormAssistantInput => ({ ...task(), scope: 'registration', form: Object.fromEntries(Object.entries(formAssistantFields.registration).map(([key, d]) => [key, d.kind === 'bilingual' ? bi('') : d.kind === 'boolean' ? false : d.kind === 'integer' ? key === 'capacity' ? 30 : 0 : d.kind === 'materials' ? [] : d.kind === 'currency' ? 'NZD' : d.kind === 'enum' ? d.values![0] : key === 'opensLocal' ? '2026-10-01T09:00' : '2026-10-02T09:00'])) })
+const activityPlan = (): FormAssistantInput => ({ ...task(), scope: 'activityPlan', context: { eventTitle: bi('Community meal', '社区聚餐'), eventDescription: bi('Gather indoors for a shared meal.', '在室内一起聚餐。') }, form: { activities: [{ id: 'meal-1', type: 'meal', name: bi('', ''), conditions: bi('', ''), occurrenceId: null }], participantCount: null, isOuting: false, isOvernight: false, isHighRisk: false } })
 const reply = (form: Record<string, unknown>, field: string, quote: string) => ({ form, evidence: [{ field, quote }], assistantReply: bi('Review the draft', '请核对草稿') })
 
 test('input allowlists exclude people, assignments, other module fields and private records', () => {
   assert.deepEqual(readFormAssistantInput(task()), task())
   assert.deepEqual(readFormAssistantInput(registration()), registration())
+  assert.deepEqual(readFormAssistantInput(activityPlan()), activityPlan())
   for (const field of ['members', 'assignedMemberId', 'reviewerMemberId', 'capacity', '__proto__']) assert.throws(() => readFormAssistantInput({ ...task(), form: { ...task().form, [field]: 'private' } }))
   for (const field of ['participants', 'uploads', 'approvals', 'eligibleGroupId']) assert.throws(() => readFormAssistantInput({ ...registration(), form: { ...registration().form, [field]: 'private' } }))
   assert.throws(() => readFormAssistantInput({ ...task(), scope: 'unknown' }))
   assert.throws(() => readFormAssistantInput({ ...task(), message: 'a'.repeat(8001) }))
   assert.throws(() => readFormAssistantInput({ ...task(), form: { ...task().form, title: bi('a'.repeat(301)) } }))
   assert.throws(() => readFormAssistantInput({ ...task(), history: Array(9).fill({ role: 'user', text: 'history' }) }))
+})
+test('activity plan assistance can use event title and description as evidence without making RAM decisions', () => {
+  const input = activityPlan()
+  const proposed = [{ id: 'meal-1', type: 'meal', name: bi('Shared meal', '共享聚餐'), conditions: bi('Indoor hall with accessible tables.', '室内礼堂，桌椅之间保持通道。'), occurrenceId: null }]
+  const result = mergeFormAssistantResult({ form: { activities: proposed, isOuting: false }, evidence: [{ field: 'activities', quote: 'Community meal' }, { field: 'isOuting', quote: 'Gather indoors' }], assistantReply: bi('Please review the activity and conditions.', '请核对活动项目与条件。') }, input)
+  assert.deepEqual(result.adoptedFields, ['activities', 'isOuting'])
+  const next = applyActivityPlanAssistantForm({ activities: [{ ...proposed[0] }], participantCount: null, isOuting: false, isOvernight: false, isHighRisk: false, weatherConfirmation: bi('') }, result.form, result.adoptedFields)
+  assert.equal(next.activities[0].id, 'meal-1'); assert.equal(next.isOuting, false); assert.deepEqual(activityPlanAssistantForm(next).activities, next.activities)
+  const added = mergeFormAssistantResult({ form: { activities: [...proposed, { id: '', type: 'outdoor', name: bi('Walk', '散步'), conditions: bi('Stay with the group.', '全程跟随小组。'), occurrenceId: null }] }, evidence: [{ field: 'activities', quote: 'Community meal' }], assistantReply: bi('I found one activity.', '我整理了一个活动项目。') }, input)
+  assert.equal(applyActivityPlanAssistantForm({ ...next, activities: proposed }, added.form, added.adoptedFields).activities.length, 2)
+  const removal = mergeFormAssistantResult({ form: { activities: [] }, evidence: [{ field: 'activities', quote: 'Community meal' }], assistantReply: bi('Please review.', '请核对。') }, input)
+  assert.deepEqual(removal.adoptedFields, [])
+  input.message = 'Remove the existing activity.'
+  assert.deepEqual(mergeFormAssistantResult({ form: { activities: [] }, evidence: [{ field: 'activities', quote: 'Community meal' }], assistantReply: bi('Removed as requested.', '已按要求移除。') }, input).adoptedFields, ['activities'])
 })
 test('only evidence-backed fields update; existing manual fields and independent snapshots survive', () => {
   const input = task(); input.form.dueLocal = '2026-10-02T12:00'

@@ -7,21 +7,24 @@ import { EventPlanningSession } from './dist/app_ccalc/index.js'
 
 const ORIGIN = 'https://ccalc.live'
 
-const formFixture = (scope = 'tasks') => ({ eventId: '11111111-1111-1111-1111-111111111111', scope, revision: 7, language: 'zh', timeZone: 'Australia/Perth', message: '准备场地', history: [], form: scope === 'tasks'
+const formFixture = (scope = 'tasks') => ({ eventId: '11111111-1111-1111-1111-111111111111', scope, revision: 7, language: 'zh', timeZone: 'Australia/Perth', message: '准备场地', history: [], ...(scope === 'activityPlan' ? { context: { eventTitle: { en: 'Community meal', zh: '社区聚餐' }, eventDescription: { en: 'Gather indoors for a shared meal.', zh: '在室内一起聚餐。' } } } : {}), form: scope === 'tasks'
   ? { title: { en: '', zh: '' }, dueLocal: '', stage: 'preparation', requiresApproval: false, isRestricted: false }
-  : { purpose: { en: '', zh: '' }, audience: 'group', eligibility: { en: '', zh: '' }, capacity: 30, opensLocal: '2026-10-01T09:00', deadlineLocal: '2026-10-02T09:00', allowWaitlist: true, terms: { en: '', zh: '' }, privacyNotice: { en: '', zh: '' }, cancellationTerms: { en: '', zh: '' }, channel: 'app', manualReview: false, materials: [], feeMinor: 0, currency: 'NZD', moneyFlowScope: 'unspecified', paymentInstructions: { en: '', zh: '' }, refundTerms: { en: '', zh: '' } } })
+  : scope === 'registration'
+    ? { purpose: { en: '', zh: '' }, audience: 'group', eligibility: { en: '', zh: '' }, capacity: 30, opensLocal: '2026-10-01T09:00', deadlineLocal: '2026-10-02T09:00', allowWaitlist: true, terms: { en: '', zh: '' }, privacyNotice: { en: '', zh: '' }, cancellationTerms: { en: '', zh: '' }, channel: 'app', manualReview: false, materials: [], feeMinor: 0, currency: 'NZD', moneyFlowScope: 'unspecified', paymentInstructions: { en: '', zh: '' }, refundTerms: { en: '', zh: '' } }
+    : { activities: [{ id: 'meal-1', type: 'meal', name: { en: '', zh: '' }, conditions: { en: '', zh: '' }, occurrenceId: null }], participantCount: null, isOuting: false, isOvernight: false, isHighRisk: false } })
 const sendForm = (input, cookie = 'alife_auth=form-owner') => dispatch(`${ORIGIN}/api/events/form-assistance`, { method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(input), env: { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture' } })
 const formReply = (field = 'title', finishReason = 'STOP') => Response.json({ candidates: [{ finishReason, content: { parts: [{ text: JSON.stringify({ form: { [field]: { en: 'Prepare venue', zh: '准备场地' } }, evidence: [{ field, quote: '准备场地' }], assistantReply: { en: 'Review your draft.', zh: '请核对草稿。' } }) }] } }] })
+const activityReply = () => Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ form: { activities: [{ id: 'meal-1', type: 'meal', name: { en: 'Shared meal', zh: '共享聚餐' }, conditions: { en: 'Indoor hall', zh: '室内礼堂' }, occurrenceId: null }], isOuting: false }, evidence: [{ field: 'activities', quote: 'Community meal' }, { field: 'isOuting', quote: 'Gather indoors' }], assistantReply: { en: 'Review the activity conditions.', zh: '请核对活动条件。' } }) }] } }] })
 
 test('form assistant authorizes each scope, uses private responses and excludes backend records', async () => {
-  for (const scope of ['tasks', 'registration']) {
+  for (const scope of ['tasks', 'registration', 'activityPlan']) {
     const offset = fetchCalls.length
-    originResponses.push(Response.json({ canManage: true, canConfigure: true, members: [{ displayName: 'PRIVATE MEMBER' }], applications: ['PRIVATE PARTICIPANT'], approvals: ['PRIVATE APPROVAL'] }))
+    originResponses.push(Response.json({ canManage: true, canConfigure: true, canEdit: true, members: [{ displayName: 'PRIVATE MEMBER' }], applications: ['PRIVATE PARTICIPANT'], approvals: ['PRIVATE APPROVAL'] }))
     if (scope === 'tasks') originResponses.push(Response.json({ canEdit: true }))
-    originResponses.push(formReply(scope === 'tasks' ? 'title' : 'purpose'))
+    originResponses.push(scope === 'activityPlan' ? activityReply() : formReply(scope === 'tasks' ? 'title' : 'purpose'))
     const response = await sendForm(formFixture(scope))
     assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'private, no-store'); assert.match(response.headers.get('vary'), /Cookie/); assert.match(response.headers.get('vary'), /Authorization/)
-    const result = await response.json(); assert.equal(result.revision, 7); assert.equal(result.form[scope === 'tasks' ? 'title' : 'purpose'].zh, '准备场地')
+    const result = await response.json(); assert.equal(result.revision, 7); assert.ok(result.form[scope === 'tasks' ? 'title' : scope === 'registration' ? 'purpose' : 'activities'])
     const provider = fetchInits[offset + (scope === 'tasks' ? 2 : 1)]
     const context = JSON.parse(JSON.parse(provider.body).contents[0].parts[0].text)
     assert.equal(context.eventId, undefined); assert.equal(context.revision, undefined)
@@ -39,6 +42,8 @@ test('form assistant denies unauthenticated, non-editor, other-viewer and frozen
   assert.equal((await sendForm(formFixture())).status, 403)
   originResponses.push(Response.json({ canManage: true, canConfigure: false }))
   assert.equal((await sendForm(formFixture('registration'))).status, 403)
+  originResponses.push(Response.json({ canEdit: false }))
+  assert.equal((await sendForm(formFixture('activityPlan'))).status, 403)
   assert.ok(fetchCalls.every(url => !String(url).includes('generativelanguage')))
 })
 test('form assistant rejects private/unknown input and oversize bodies before provider work', async () => {

@@ -27,7 +27,7 @@ async function pane(workspace, name) {
   await workspace.page().waitForFunction(el => el.dataset.wide === String(innerWidth >= 1024 && el.getBoundingClientRect().width >= 880), await workspace.elementHandle());
   if (await workspace.getAttribute('data-wide') === 'true') {
     if (name === 'assistant' && await workspace.getAttribute('data-assistant-open') !== 'true') await workspace.getByRole('button', { name: /Show assistant|展开助手/ }).click();
-  } else await workspace.getByRole('tab', { name: name === 'assistant' ? /AI assistant|AI 助手/ : /Task form|任务表单|Registration rules form|报名规则表单/ }).click();
+  } else await workspace.getByRole('tab', { name: name === 'assistant' ? /AI assistant|AI 助手/ : /Task form|任务表单|Registration rules form|报名规则表单|Activity conditions form|活动条件表单/ }).click();
 }
 async function layout(page, workspace, scope) {
   await pane(workspace, 'assistant');
@@ -67,6 +67,7 @@ async function layout(page, workspace, scope) {
     const req = route.request(), p = new URL(req.url()).pathname; let data = [], status = 200;
     if (p === '/api/me') data = { id: ownerId, displayName: 'QA Owner', isGuest: false, isRegistered: true, memberships: [], permissions: [] };
     else if (p.endsWith('/memberships')) data = [{ memberId: ownerId, displayName: 'QA Owner', status: 'approved' }];
+    else if (p.endsWith('/events')) data = [{ id: eventId, groupId, titleEn: 'Community meal', titleZh: '社区聚餐', eventDataJson: JSON.stringify({ title: bi('Community meal', '社区聚餐'), description: bi('Gather indoors for a shared meal.', '在室内一起聚餐。') }) }];
     else if (p.endsWith('/activity-plan')) data = { data: { activities: [{ id: activityId, name: bi('Shared meal', '聚餐'), conditions: bi(''), type: 'generic' }], participantCount: null, isOuting: false, isOvernight: false, isHighRisk: false, weatherConfirmation: bi('') }, eTag: 'activity-v1', canEdit: true, reports: [], legacyCandidate: null };
     else if (p.endsWith('/team')) data = { members: [{ id: 'team-qa', memberId: ownerId, displayName: 'Private member', status: 'accepted' }], roles: [], tasks: [], roleRequirements: [], readinessBlockers: [], enabledModules: [], canManage: true };
     else if (p.endsWith('/registration-work')) data = { eventId, groupId, eventStartUtc: '2026-10-03T01:00:00Z', policy: { rules, eTag: 'rules-v1', version: 1 }, canConfigure: !readonly, applications: [{ privateRecord: 'DO NOT SEND' }] };
@@ -78,7 +79,7 @@ async function layout(page, workspace, scope) {
       if (input.message === 'failure') { status = 503; data = { message: 'Fixture unavailable' }; }
       else {
         if (input.message === 'slow') await new Promise(resolve => { release = resolve; });
-        const patch = input.scope === 'tasks' ? { title: bi('Prepare venue', '准备场地'), dueLocal: '2026-10-02T16:00', requiresApproval: true } : { purpose: bi('Coordinate a shared meal', '协调聚餐'), capacity: 48, materials: [...input.form.materials, { id: '', label: bi('Dietary note', '饮食备注'), kind: 'text', required: true, maxCount: 1, maxBytes: 10485760 }] };
+        const patch = input.scope === 'tasks' ? { title: bi('Prepare venue', '准备场地'), dueLocal: '2026-10-02T16:00', requiresApproval: true } : input.scope === 'registration' ? { purpose: bi('Coordinate a shared meal', '协调聚餐'), capacity: 48, materials: [...input.form.materials, { id: '', label: bi('Dietary note', '饮食备注'), kind: 'text', required: true, maxCount: 1, maxBytes: 10485760 }] } : { activities: [{ id: activityId, type: 'meal', name: bi('Shared meal', '共享聚餐'), conditions: bi('Indoor hall', '室内礼堂'), occurrenceId: null }], isOuting: false, isOvernight: false, isHighRisk: false };
         data = { revision: input.revision, form: { ...input.form, ...patch }, adoptedFields: Object.keys(patch), assistantReply: bi('Draft updated. Please review.', '草稿已更新，请核对。') };
       }
     } else if (['POST','PUT','DELETE'].includes(req.method())) { writes.push({ p, body: req.postDataJSON() }); if (p.endsWith('/rules')) { rules = req.postDataJSON(); data = { rules, eTag: 'rules-v2', version: 2 }; } else data = { id: 'task' }; }
@@ -86,6 +87,7 @@ async function layout(page, workspace, scope) {
    });
    await page.goto(`${base}/__qa/forms`);
    await page.waitForFunction(() => typeof window.__setFormTab === 'function').catch(error => { console.error(errors); throw error; });
+   const activityPanel = page.locator('[data-fixture="tasks"] details[data-tool-panel]').filter({ hasText: /Activities and conditions|活动项目与条件/ }); await activityPanel.waitFor(); await activityPanel.locator('summary').click(); const activityWorkspace = activityPanel.locator('.event-details-workspace'); await pane(activityWorkspace, 'assistant'); const activityPrompt = activityWorkspace.locator('textarea[maxlength="8000"]'); await activityPrompt.fill('Use the event title and description to draft the activity.'); await activityWorkspace.getByRole('button', { name: /Send and organise details|发送并整理资料/ }).click(); await activityWorkspace.getByRole('log').getByText(/Draft updated|草稿已更新/).waitFor(); await pane(activityWorkspace, 'form'); assert.equal(await activityWorkspace.locator('[data-planned-activity]').count(), 1); assert.equal(await activityWorkspace.getByLabel(/Activity conditions|活动条件/).first().inputValue(), 'Indoor hall');
    for (const scope of ['tasks', 'registration']) {
     await page.evaluate(scope => window.__setFormTab(scope), scope);
     const workspace = page.locator(`[data-fixture="${scope}"] .event-details-workspace`); await workspace.waitFor().catch(async error => { console.error({ errors, url: page.url(), content: (await page.content()).slice(0, 1600) }); throw error });

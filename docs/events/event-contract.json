@@ -104,6 +104,13 @@
         "moneyFlowScope",
         "paymentInstructions",
         "refundTerms"
+      ],
+      "activityPlan": [
+        "activities",
+        "participantCount",
+        "isOuting",
+        "isOvernight",
+        "isHighRisk"
       ]
     },
     "request": [
@@ -113,6 +120,7 @@
       "language",
       "timeZone",
       "form",
+      "context",
       "message",
       "history"
     ],
@@ -126,11 +134,11 @@
     "taskTitleMaxCharactersPerLanguage": 300,
     "historyMaxMessages": 8,
     "requestMaxBytes": 240000,
-    "adoption": "current-message evidence or the same existing bilingual field; material-label translation fills missing text only and preserves requirement IDs, order, types and limits; nonempty bilingual reply and current draft revision required",
+    "adoption": "current-message evidence or the same existing bilingual field; activity-plan fields may also cite the supplied current Event title/description; material-label translation fills missing text only and preserves requirement IDs, order, types and limits; activity IDs and occurrence links are preserved and removals require an explicit request; nonempty bilingual reply and current draft revision required",
     "provider": "existing Gemini configuration; shared policy 1.0.0",
-    "authority": "backend canManage for tasks; preparation canEdit for preparation tasks; registration-work canConfigure for rules",
+    "authority": "backend canManage for tasks; preparation canEdit for preparation tasks; registration-work canConfigure for rules; activity-plan canEdit for activity plans",
     "cache": "private, no-store; Vary Cookie, Authorization",
-    "persistence": "component-memory drafts and conversations; explicit existing Add task / Save registration plan only",
+    "persistence": "component-memory drafts and conversations; explicit existing Add task / Save activities and conditions / Save registration plan only",
     "manualFields": [
       "description",
       "activityId",
@@ -139,9 +147,9 @@
       "eventOccurrenceId",
       "eligibleGroupId"
     ],
-    "privacy": "exclude backend records, member/participant lists, uploads and approval records from provider context",
+    "privacy": "exclude backend records, member/participant lists, uploads and approval records from provider context; activity-plan context is limited to the current bilingual Event title and description",
     "dates": "existing device-local form time basis; explicit IANA zone; validate local times and registration pair before atomic adoption; existing UTC save contract",
-    "presentation": "shared responsive details workspace, conversation/voice, send-left/voice-right action row, completion and pending-field focus; all registration bilingual fields use current-language-first disclosure"
+    "presentation": "shared responsive details workspace, conversation/voice, send-left/voice-right action row, completion and pending-field focus; activity-plan and registration assistants use approximately one and a half viewport heights with internal conversation scrolling; all registration bilingual fields use current-language-first disclosure"
   },
   "enums": {
     "governanceMode": [
@@ -5324,9 +5332,9 @@
     {
       "method": "POST",
       "path": "/api/events/form-assistance",
-      "request": "eventId, tasks/registration scope, revision, language, IANA timeZone, allowlisted form, message and bounded history",
+      "request": "eventId, tasks/registration/activityPlan scope, revision, language, IANA timeZone, allowlisted form, optional title/description context, message and bounded history",
       "response": "validated form, adoptedFields, bilingual assistantReply and matching revision; never save",
-      "auth": "Worker verifies current backend task manager/preparation edit or registration rule edit authority",
+      "auth": "Worker verifies current backend task manager/preparation edit, registration rule edit, or activity-plan edit authority",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false
     },
