@@ -9,7 +9,7 @@ const label = (en, zh) => ({ en, zh });
 const template = { code: 'shared-meal', archetypeCode: 'simple-social', version: 2, name: label('Fellowship meal', '团契聚餐'), description: label('Share a meal', '一起用餐'), iconKey: 'meal', defaults: { visibility: 'groupVisible', registrationMode: 'none', capacityUnit: 'People' }, preselectedModules: ['SERVICE.ROSTER'], presetServiceSlots: [{ roleCode: 'programme.team', label: label('Welcome team', '接待同工'), requiredCount: 2, eligibilityCode: 'approvedGroupMember' }] };
 const catalogue = [{ code: 'simple-social', version: 1, name: label('Simple social', '轻松相聚'), isSeries: false, occurrenceCount: 1, hasSessions: false, hasZones: false, requiredModules: [], recommendedModules: [], conditionalModules: [], workflowTemplateRecommendations: [], activityTypes: [template] }];
 const modules = [ ['SAFEGUARDING.CHILD', 'Child safeguarding', '儿童保护'], ['SAFETY.RAM', 'RAM and safety', 'RAM 与安全'], ['TEAM.WORK', 'Team and tasks', '团队与任务'], ['SERVICE.ROSTER', 'Roles and shifts', '岗位与轮班'], ['PROGRAM.PRODUCTION', 'Programme and production', '节目与制作'], ['PLACE.RESOURCE', 'Venue and resources', '场地与资源'], ['PEOPLE.REGISTRATION','Registration','邀请报名'], ['FESTIVAL.OPERATIONS','Operations','现场运营'], ['MOVE.STAY','Travel and stay','交通住宿'], ['FOOD.HOSPITALITY','Food','餐饮'], ['MONEY.FINANCE','Finance','费用'], ['COMMS.FOLLOWUP','Follow-up','跟进'] ];
-const venue = { id: 'venue-1', managingGroupId: 'qa-group', name: label('Main hall', '主礼堂'), address: label('10 Main Road', '主路10号'), capacity: 50, isActive: true, eTag: '"venue-v1"' };
+const venue = { id: 'venue-1', managingGroupId: 'church-group', name: label('Main hall', '主礼堂'), address: label('10 Main Road', '主路10号'), capacity: 50, isActive: true, eTag: '"venue-v1"' };
 const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
 
 (async () => {
@@ -37,7 +37,7 @@ const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
           assert.equal(creates.length, 0);
           data = { sourceVersion: 'new', suggestions: { controlMeasures: t('Keep the walkway clear', '保持通道畅通') }, questions: [] };
         }
-        else if (pathname.endsWith('/venues')) { venueLoads++; data = { managingGroupId: 'qa-group', canManage: true, venues: [venue] }; }
+        else if (pathname.endsWith('/venues/reservable')) { venueLoads++; data = { managingGroupId: 'qa-group', canManage: true, venues: [venue] }; }
         else if (pathname.endsWith('/compose')) {
           composeLoads++; const input = request.postDataJSON();
           data = { schemaVersion: '1.1.0', proposalHash: JSON.stringify(input.humanSelections), baselineETag: '"plan-new"', facts: { items: [], sourceHash: 'facts' }, roleRequirements: [], workflowContributions: [], navigation: [], warnings: [], readiness: { status: 'notReady', blockers: [], warnings: [] },
@@ -181,6 +181,7 @@ const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
       const venues = await enable('PLACE.RESOURCE'); await work(venues, 'Venue plan','场地安排');
       await venues.getByRole('button', { name: t('Add venue booking','添加场地安排'), exact: true }).click();
       await venues.getByLabel(t('Choose venue','选择场地')).selectOption('venue-1');
+      assert.match(await venues.getByLabel(t('Choose venue','选择场地')).locator('option:checked').textContent(), new RegExp(t('Church shared','教会共享')));
       await venues.getByLabel(t('Expected attendance','所需人数')).fill('51'); await venues.getByRole('alert').waitFor();
       await venues.getByLabel(t('Expected attendance','所需人数')).fill('30');
       await venues.scrollIntoViewIfNeeded(); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

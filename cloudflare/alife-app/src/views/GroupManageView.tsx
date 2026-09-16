@@ -34,6 +34,7 @@ import CreateSubgroupModal from '../components/group/CreateSubgroupModal'
 import type { LocalizedText } from '../types'
 import GroupApplicationsPanel from '../components/group/GroupApplicationsPanel'
 import { resolveManageSection, type ManageSection } from '../utils/groupManagementSections'
+import { VenueCalendarWorkspace } from './EventVenueCalendarView'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
@@ -69,6 +70,8 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       applicationsHint: '二维码申请、组长身份核验与手机激活',
       contacts: '联系人',
       contactsHint: '联系人资料、公开范围和留言入口',
+      venues: '场地与房间管理',
+      venuesHint: '维护场地目录、容量与长期占用日历',
       events: '活动',
       eventsHint: '创建活动、维护报名和后续回顾',
       pages: '页面',
@@ -113,6 +116,8 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       applicationsHint: 'QR applications, leader identity checks, and mobile activation',
       contacts: 'Contacts',
       contactsHint: 'Profiles, visibility, and inquiry entry points',
+      venues: 'Venues & rooms',
+      venuesHint: 'Venue directory, capacity, and standing reservation calendar',
       events: 'Events',
       eventsHint: 'Create events, manage enrollment, and capture memories',
       pages: 'Pages',
@@ -912,6 +917,7 @@ const GroupManageView = ({
   const copy = managementCopy(language, group?.isChurch)
   const allGroupManagementSections: Array<{ key: ManageSection; label: string; hint: string }> = [
     { key: 'group', label: language === 'zh' ? '资料与设置' : 'Profile & settings', hint: language === 'zh' ? '名称、介绍、带领团队与访问规则' : 'Name, description, leadership, and access' },
+    { key: 'venues', label: copy.venues, hint: copy.venuesHint },
     { key: 'members', label: copy.members, hint: copy.membersHint },
     { key: 'applications', label: copy.applications, hint: copy.applicationsHint },
     { key: 'contacts', label: copy.contacts, hint: copy.contactsHint },
@@ -921,7 +927,7 @@ const GroupManageView = ({
   ]
   const groupManagementSections = visibleSections?.length
     ? allGroupManagementSections.filter((section) => visibleSections.includes(section.key))
-    : allGroupManagementSections
+    : allGroupManagementSections.filter((section) => section.key !== 'venues')
   const labelledGroupManagementSections = groupManagementSections.map((section) => ({
     ...section,
     label: sectionLabels?.[section.key] || section.label,
@@ -1060,7 +1066,7 @@ const GroupManageView = ({
 
   const managementWorkspace = (
       <div className={integrated ? 'space-y-4' : 'space-y-5'}>
-        {groupId && activeSection === 'group' ? <Link className="inline-flex min-h-11 items-center rounded-xl border border-[#176b5a]/20 bg-white px-4 font-semibold text-[#176b5a]" to={`/groups/${groupId}/venues`}>{language === 'zh' ? '场地与房间管理' : 'Venue and room management'}</Link> : null}
+        {groupId && activeSection === 'group' && !group?.isChurch ? <Link className="inline-flex min-h-11 items-center rounded-xl border border-[#176b5a]/20 bg-white px-4 font-semibold text-[#176b5a]" to={`/groups/${groupId}/venues`}>{language === 'zh' ? '场地与房间管理' : 'Venue and room management'}</Link> : null}
         {!integrated && showGroupManagementNavigation ? (
           <nav
             aria-label={language === 'zh' ? `${group?.isChurch ? '教会' : '小组'}管理视图` : `${group?.isChurch ? 'Church' : 'Group'} management views`}
@@ -1167,6 +1173,10 @@ const GroupManageView = ({
                     navigate('/groups', { replace: true })
                   }}
                 />
+              ) : null}
+
+              {activeSection === 'venues' && group.isChurch ? (
+                <VenueCalendarWorkspace groupId={groupId} embedded />
               ) : null}
 
               {activeSection === 'subgroups' || (activeSection === 'ministries' && group.isChurch) ? (

@@ -76,7 +76,7 @@ export function CreationVenueEditor({ draft, setDraft, zh, groupId }: Props) {
   const [error, setError] = useState(''), [attempt, setAttempt] = useState(0)
   useEffect(() => {
     let alive = true; setState('loading'); setError('')
-    eventVenueService.listCatalogue(groupId).then(data => {
+    eventVenueService.listReservableCatalogue(groupId).then(data => {
       if (!alive) return
       setCatalogue(data.venues.filter(x => x.isActive)); setState('ready')
       setDraft(current => !current.arrangements?.venues?.some(x => x.venueId) ? current : ({ ...current, arrangements: { ...current.arrangements, venues: current.arrangements.venues.map(row => {
@@ -95,7 +95,7 @@ export function CreationVenueEditor({ draft, setDraft, zh, groupId }: Props) {
         <div className="grid gap-3 md:grid-cols-2"><Field label={zh ? '选择场地' : 'Choose venue'}><select className={creationInput} value={venue.venueId} onChange={e => {
           const item = catalogue.find(x => x.id === e.target.value)
           update(item ? { ...venue, venueId: item.id, venueETag: item.eTag, name: item.name, address: item.address, capacity: String(item.capacity) } : { ...venue, venueId: '', venueETag: '', name: blankText(), address: blankText(), capacity: '' })
-        }}><option value="">{zh ? '填写新场地' : 'Enter a new venue'}</option>{venue.venueId && !catalogue.some(x => x.id === venue.venueId) ? <option value={venue.venueId}>{zh ? '原场地待重新核对' : 'Previous venue needs review'}</option> : null}{catalogue.map(item => <option key={item.id} value={item.id}>{localText(item.name, zh)} · {item.capacity} {zh ? '人' : 'people'}</option>)}</select></Field>
+        }}><option value="">{zh ? '填写新场地' : 'Enter a new venue'}</option>{venue.venueId && !catalogue.some(x => x.id === venue.venueId) ? <option value={venue.venueId}>{zh ? '原场地待重新核对' : 'Previous venue needs review'}</option> : null}{catalogue.map(item => <option key={item.id} value={item.id}>{localText(item.name, zh)} · {item.capacity} {zh ? '人' : 'people'}{item.managingGroupId !== groupId ? zh ? ' · 教会共享' : ' · Church shared' : ''}</option>)}</select></Field>
           {!venue.venueId ? <><BilingualField label={zh ? '场地名称' : 'Venue name'} value={venue.name} onChange={name => update({ ...venue, name })} /><BilingualField label={zh ? '场地地址' : 'Venue address'} value={venue.address} onChange={address => update({ ...venue, address })} /></> : <p className="self-center text-sm text-[#66766f]">{localText(venue.address, zh)}</p>}
           <Field label={zh ? '场地容量' : 'Venue capacity'}><input className={creationInput} type="number" min={1} max={1000000} step={1} disabled={Boolean(venue.venueId)} value={venue.capacity} onChange={e => update({ ...venue, capacity: e.target.value })} /></Field>
           <Field label={zh ? '所需人数' : 'Expected attendance'}><input className={creationInput} type="number" min={1} max={1000000} step={1} value={venue.requiredCapacity} onChange={e => update({ ...venue, requiredCapacity: e.target.value })} /></Field>

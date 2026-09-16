@@ -19,6 +19,10 @@ public sealed class EventVenuesController(
     public Task<IActionResult> ListCatalogue(Guid groupId, CancellationToken ct)
         => Run(member => venues.ListCatalogueAsync(groupId, member, ct));
 
+    [HttpGet("groups/{groupId:guid}/venues/reservable")]
+    public Task<IActionResult> ListReservableCatalogue(Guid groupId, CancellationToken ct)
+        => Run(member => venues.ListReservableCatalogueAsync(groupId, member, ct));
+
     [HttpPost("groups/{groupId:guid}/venues")]
     public Task<IActionResult> CreateVenue(Guid groupId, SaveEventVenueRequest request, CancellationToken ct)
         => Run(member => venues.CreateVenueAsync(groupId, member, request,
@@ -47,7 +51,7 @@ public sealed class EventVenuesController(
         Func<Guid, Task<Alife.Application.Common.Models.AppResult<T>>> action,
         Func<T, string>? eTag = null)
     {
-        this.ApplyNoStoreHeaders();
+        this.ApplyPrivateNoStoreHeaders();
         var memberId = currentMemberAccessor.GetCurrentMemberId();
         if (!memberId.HasValue) return Unauthorized();
         var result = await action(memberId.Value);

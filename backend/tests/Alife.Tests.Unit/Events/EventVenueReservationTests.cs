@@ -47,6 +47,60 @@ public sealed class EventVenueReservationTests
     }
 
     [Fact]
+    public async Task ChildGroup_CanListAndReserveItsRootChurchVenue_ButNotAnUnrelatedVenue()
+    {
+        await using var db = CreateDb();
+        var seeded = Seed(db);
+        var church = new Group { Id = Guid.NewGuid(), NameJson = "{}", IsChurch = true, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
+        var unrelatedGroup = new Group { Id = Guid.NewGuid(), NameJson = "{}", IsChurch = true, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
+        var unrelatedVenue = new EventVenue { Id = Guid.NewGuid(), ManagingGroupId = unrelatedGroup.Id, NameEn = "Other church hall", NameZh = "其他教会礼堂",
+            Capacity = 30, IsActive = true, CreatedByMemberId = seeded.Owner, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
+        seeded.Group.ParentGroupId = church.Id;
+        seeded.Venue.ManagingGroupId = church.Id;
+        db.Groups.AddRange(church, unrelatedGroup);
+        db.EventVenues.Add(unrelatedVenue);
+        await db.SaveChangesAsync();
+        var service = new EventVenueService(db, Authorization(seeded.Owner));
+
+        var catalogue = await service.ListReservableCatalogueAsync(seeded.Group.Id, seeded.Owner, default);
+        Assert.True(catalogue.IsSuccess, catalogue.Message);
+        Assert.Equal(seeded.Group.Id, catalogue.Value!.ManagingGroupId);
+        Assert.Contains(catalogue.Value.Venues, x => x.Id == seeded.Venue.Id && x.ManagingGroupId == church.Id);
+        Assert.DoesNotContain(catalogue.Value.Venues, x => x.Id == unrelatedVenue.Id);
+
+        var workspace = await service.GetWorkspaceAsync(seeded.Event.Id, seeded.Owner, default);
+        var churchVenue = Assert.Single(workspace.Value!.Venues, x => x.Id == seeded.Venue.Id);
+        var reserved = await service.ReserveAsync(seeded.Event.Id, seeded.Owner,
+            new(seeded.Venue.Id, seeded.Occurrence.Id, StartUtc, StartUtc.AddHours(1), 10),
+            churchVenue.ETag, "church-venue", default);
+        Assert.True(reserved.IsSuccess, reserved.Message);
+
+        var weeklyService = new EventVenueCalendarService(db, Authorization(seeded.Owner), Substitute.For<IEventPackageInvalidationService>());
+        var currentChurchVenue = Assert.Single(reserved.Value!.Venues, x => x.Id == seeded.Venue.Id);
+        var firstDate = new DateOnly(2026, 10, 4);
+        var weekly = await weeklyService.SaveWeeklyAsync(seeded.Group.Id, seeded.Venue.Id, seeded.Owner,
+            new(seeded.Event.Id, firstDate, firstDate.AddDays(14), 540, 600, 10),
+            currentChurchVenue.ETag, "church-weekly", default);
+        Assert.True(weekly.IsSuccess, weekly.Message);
+        var calendar = await weeklyService.CalendarAsync(seeded.Group.Id, seeded.Venue.Id, seeded.Owner, firstDate, firstDate, default);
+        Assert.True(calendar.IsSuccess, calendar.Message);
+        Assert.Contains(calendar.Value!.Entries, x => x.EventId == seeded.Event.Id && x.Weekly);
+
+        var weeklyRule = await db.EventVenueWeeklyBookings.SingleAsync(x => x.Id == weekly.Value);
+        var unrelatedException = await weeklyService.ExceptionAsync(unrelatedGroup.Id, seeded.Venue.Id, weekly.Value, seeded.Owner,
+            new(firstDate, true, "Wrong route"), EventVenueCalendarService.ETag(weeklyRule), "unrelated-exception", default);
+        Assert.Equal(AppResultStatus.Forbidden, unrelatedException.Status);
+        var churchException = await weeklyService.ExceptionAsync(church.Id, seeded.Venue.Id, weekly.Value, seeded.Owner,
+            new(firstDate, true, "Church administrator release"), EventVenueCalendarService.ETag(weeklyRule), "church-exception", default);
+        Assert.True(churchException.IsSuccess, churchException.Message);
+
+        var unrelated = await service.ReserveAsync(seeded.Event.Id, seeded.Owner,
+            new(unrelatedVenue.Id, seeded.Occurrence.Id, StartUtc, StartUtc.AddHours(1), 10),
+            $"\"venue-{unrelatedVenue.ConcurrencyToken:N}\"", "unrelated-venue", default);
+        Assert.Equal(AppResultStatus.NotFound, unrelated.Status);
+    }
+
+    [Fact]
     public async Task Reserve_RejectsOverlap_AllowsTouchingBoundary_AndIsIdempotent()
     {
         await using var db = CreateDb();
@@ -211,8 +265,10 @@ public sealed class EventVenueReservationTests
         var response = await controller.GetWorkspace(eventId, default);
 
         Assert.IsType<OkObjectResult>(response);
-        Assert.Equal("no-store", controller.Response.Headers.CacheControl.ToString());
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl.ToString());
         Assert.Equal("no-cache", controller.Response.Headers.Pragma.ToString());
+        Assert.Contains("Cookie", controller.Response.Headers.Vary.ToString());
+        Assert.Contains("Authorization", controller.Response.Headers.Vary.ToString());
     }
 
     private static AlifeDbContext CreateDb() => new(new DbContextOptionsBuilder<AlifeDbContext>()

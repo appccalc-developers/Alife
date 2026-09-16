@@ -4669,6 +4669,15 @@
       "mutation": false
     },
     {
+      "method": "GET",
+      "path": "/api/groups/{groupId}/venues/reservable",
+      "request": null,
+      "response": "EventVenueCatalogueDto containing the owning group's and root church's venues",
+      "auth": "approved owning-group member or resource.catalogue.manage",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
       "method": "POST",
       "path": "/api/groups/{groupId}/venues",
       "request": "SaveEventVenueRequest",
@@ -5829,7 +5838,7 @@
     "seriesScope": "initial rolling-window occurrences only; not a recurring operational template",
     "venueValidation": [
       "exactly one existing venue or new venue",
-      "active owning-group venue",
+      "active venue from the owning group or its root church",
       "current venue ETag for existing venues",
       "positive attendance within capacity",
       "no confirmed half-open booking overlap"
