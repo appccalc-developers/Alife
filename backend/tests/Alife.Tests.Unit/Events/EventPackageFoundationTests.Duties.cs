@@ -130,9 +130,17 @@ public sealed partial class EventPackageFoundationTests
     }
 
     [Fact]
-    public async Task DutyProjection_ConfirmedRosterMemberDepartureReturnsTheVacancyToOwner()
+    public async Task DutyProjection_PublishedRosterVacancyGoesToCoordinatorAndMissingCoordinatorGoesToOwner()
     {
         await using var db = CreateDb(); var f = await DutyFixture(db, "TEAM.WORK", "SERVICE.ROSTER");
+        f.Seed.Event.CollaborationVersion = 1; f.Seed.Event.PublicationStatus = EventPublicationStatus.Published;
+        var coordinator = Guid.NewGuid(); db.Members.Add(new() { Id = coordinator });
+        db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = f.Seed.Event.GroupId, MemberId = coordinator, Status = MembershipStatus.Approved });
+        var ownerRosterRole = db.EventRoleAssignments.Single(x => x.EventId == f.Seed.Event.Id && x.RoleRequirementKey == "SERVICE.ROSTER:roster.coordinator");
+        ownerRosterRole.EndedUtc = DateTime.UtcNow;
+        var coordinatorRole = new EventRoleAssignment { Id = Guid.NewGuid(), EventId = f.Seed.Event.Id, MemberId = coordinator,
+            RoleRequirementKey = "SERVICE.ROSTER:roster.coordinator", Status = EventRoleAssignmentStatus.Accepted };
+        db.EventRoleAssignments.Add(coordinatorRole);
         var worker = Guid.NewGuid(); db.Members.Add(new() { Id = worker });
         var membership = new GroupMembership { Id = Guid.NewGuid(), GroupId = f.Seed.Event.GroupId, MemberId = worker, Status = MembershipStatus.Approved };
         db.GroupMemberships.Add(membership);
@@ -140,12 +148,17 @@ public sealed partial class EventPackageFoundationTests
         db.EventServiceSlots.Add(slot);
         db.EventRosterAssignments.Add(new() { Id = Guid.NewGuid(), ServiceSlotId = slot.Id, MemberId = worker, Status = EventRosterAssignmentStatus.Confirmed });
         await db.SaveChangesAsync(); var projection = new EventDutyProjectionService(db, f.Service);
-        Assert.DoesNotContain(await projection.ListAsync(f.Seed.Owner, default), x => x.Task.ActionType == "event.roster.coordinate");
+        Assert.DoesNotContain(await projection.ListAsync(coordinator, default), x => x.Task.ActionType == "event.roster.coordinate");
         membership.Status = MembershipStatus.Removed; await db.SaveChangesAsync();
-        var vacancy = Assert.Single(await projection.ListAsync(f.Seed.Owner, default), x => x.Task.SourceType == "eventNextStep");
+        var vacancy = Assert.Single(await projection.ListAsync(coordinator, default), x => x.Task.SourceType == "rosterCoordination");
         Assert.Equal("event.roster.coordinate", vacancy.Task.ActionType);
         Assert.Equal(slot.OccurrenceId, vacancy.Task.OccurrenceId);
+        Assert.Equal($"/events/{f.Seed.Event.Id}/workspace/roster?occurrenceId={slot.OccurrenceId}", vacancy.TargetUrl);
+        Assert.DoesNotContain(await projection.ListAsync(f.Seed.Owner, default), x => x.Task.ActionType == "event.roster.coordinate");
         f.Seed.Occurrences[0].RosterConcurrencyToken = Guid.NewGuid(); await db.SaveChangesAsync();
-        Assert.False((await projection.GetAsync(f.Seed.Event.Id, "eventNextStep", f.Seed.Event.Id, f.Seed.Owner, vacancy.Task.TaskKey, default)).IsSuccess);
+        Assert.False((await projection.GetAsync(f.Seed.Event.Id, "rosterCoordination", slot.OccurrenceId, coordinator, vacancy.Task.TaskKey, default)).IsSuccess);
+        coordinatorRole.EndedUtc = DateTime.UtcNow; await db.SaveChangesAsync();
+        Assert.DoesNotContain(await projection.ListAsync(coordinator, default), x => x.Task.ActionType == "event.roster.coordinate");
+        Assert.Contains(await projection.ListAsync(f.Seed.Owner, default), x => x.Task.ActionType == "event.roles.coordinate");
     }
 }

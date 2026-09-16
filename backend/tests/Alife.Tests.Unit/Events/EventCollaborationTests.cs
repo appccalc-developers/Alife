@@ -182,6 +182,25 @@ public sealed class EventCollaborationTests
     }
 
     [Fact]
+    public async Task PublishedRosterWork_SeparatesOwnerPreparationFromCoordinatorScheduling()
+    {
+        await using var f = new Fixture(rosterEnabled: true);
+        f.Role(f.Ordinary, "SERVICE.ROSTER:roster.coordinator"); await f.Save();
+        var work = new EventWorkService(f.Db, new EventDutyProjectionService(f.Db, f.Approval));
+        var owner = (await work.GetAsync(f.Event.Id, f.Owner, 1, default)).Value!;
+        Assert.Contains(owner.Links, x => x.Key == "preparation" && x.Stage == "preparation");
+        Assert.Contains(owner.Links, x => x.Key == "published-event" && x.Stage == "registration");
+        Assert.DoesNotContain(owner.Links, x => x.Key.StartsWith("roster:"));
+        var coordinator = (await work.GetAsync(f.Event.Id, f.Ordinary, 1, default)).Value!;
+        Assert.DoesNotContain(coordinator.Links, x => x.Key == "preparation");
+        Assert.Contains(coordinator.Links, x => x.Key == "roster:published" && x.Stage == "registration" && x.CanEdit);
+        Assert.Contains(coordinator.Links, x => x.Key == "published-event" && x.Url.Contains($"/groups/{f.Event.GroupId}/events/{f.Event.Id}"));
+        f.Event.PublicationStatus = EventPublicationStatus.Draft; await f.Save();
+        var beforePublication = (await work.GetAsync(f.Event.Id, f.Ordinary, 1, default)).Value!;
+        Assert.DoesNotContain(beforePublication.Links, x => x.Key.StartsWith("roster:") || x.Key == "published-event");
+    }
+
+    [Fact]
     public async Task StandingVenueCalendar_HidesPrivateTitles_ReleasesOneDate_RefusesConflictingRestore()
     {
         await using var f = new Fixture(); f.Event.PublicationStatus = EventPublicationStatus.Draft;
@@ -238,7 +257,7 @@ public sealed class EventCollaborationTests
         public IEventPackageService Approval { get; }=Substitute.For<IEventPackageService>();
         public IGroupAuthorizationService Authorization { get; }=Substitute.For<IGroupAuthorizationService>();
         public EventRegistrationWorkService Registration { get; }
-        public Fixture()
+        public Fixture(bool rosterEnabled = false)
         {
             var group=new Group { Id=Guid.NewGuid(),NameJson="{\"en\":\"Church\",\"zh\":\"教会\"}",IsChurch=true,CreatedUtc=DateTime.UtcNow,UpdatedUtc=DateTime.UtcNow };
             Db.Groups.Add(group);
@@ -249,7 +268,9 @@ public sealed class EventCollaborationTests
             }
             Event=new() { Id=Guid.NewGuid(),GroupId=group.Id,CreatedByMemberId=Owner,AccountableOwnerMemberId=Owner,TitleEn="Event",TitleZh="活动",StartDate=DateTime.UtcNow.AddDays(30),EndDate=DateTime.UtcNow.AddDays(31),EventDataJson="{\"visibility\":\"public\"}",PublicationStatus=EventPublicationStatus.Published,RegistrationStatus=EventRegistrationStatus.Open,ActivePlanVersion=1,CollaborationVersion=1,CreatedUtc=DateTime.UtcNow,UpdatedUtc=DateTime.UtcNow };
             Db.GroupEvents.Add(Event);
-            var plan=new EventCompositionEngine().Compose(new(EventCompositionDefinitions.LegacySchemaVersion,null,new([]),[new("PEOPLE.REGISTRATION",true),new("PROGRAM.PRODUCTION",true),new("MONEY.FINANCE",true),new("PLACE.RESOURCE",true)]),new EventCompositionContext("\"initial\"",HasAccountableOwner:true)).Value!;
+            var choices = new List<ModuleSelectionInput> { new("PEOPLE.REGISTRATION",true), new("PROGRAM.PRODUCTION",true), new("MONEY.FINANCE",true), new("PLACE.RESOURCE",true) };
+            if (rosterEnabled) choices.Add(new("SERVICE.ROSTER", true));
+            var plan=new EventCompositionEngine().Compose(new(EventCompositionDefinitions.LegacySchemaVersion,null,new([]),choices),new EventCompositionContext("\"initial\"",HasAccountableOwner:true)).Value!;
             Db.EventPlanSnapshots.Add(new() { Id=Guid.NewGuid(),EventId=Event.Id,Version=1,SourceFactSetId=Guid.NewGuid(),SchemaVersion=plan.SchemaVersion,ProposalHash=plan.ProposalHash,ETag=EventCompositionPersistence.CreatePlanETag(1,plan.ProposalHash),SnapshotJson=EventCompositionPersistence.SerializePlan(plan,[]),IsActive=true,AcceptedByMemberId=Owner,AcceptedUtc=DateTime.UtcNow,CreatedUtc=DateTime.UtcNow });
             Role(Author,"PROGRAM.PRODUCTION:programme.lead");
             Authorization.IsApprovedMemberAsync(Arg.Any<Guid>(),Arg.Any<Guid>(),Arg.Any<CancellationToken>()).Returns(true);

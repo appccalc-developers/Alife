@@ -38,10 +38,12 @@ public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionServ
             (x.OrganiserMemberId == actor || x.Participants.Any(p => p.MemberId == actor || p.IsChild && p.GuardianMemberId == actor)), ct);
         if (!reader && !roster && !enrollment && myDuties.Count == 0) return AppResult<EventWorkPage>.Forbidden("No current Event responsibility. / 当前没有此活动的工作权限。");
         var summary = new EventWorkSummary(id, e.GroupId, new(e.TitleEn, e.TitleZh), await StageAsync(e,ct), owner, roles);
+        var published = e.PublicationStatus is EventPublicationStatus.Published or EventPublicationStatus.LegacyImplicit;
         var links = new List<EventWorkLink>();
         void Add(string key, string stage, string en, string zh, string url, bool edit) => links.Add(new(key, stage, new(en, zh), url, edit));
         var root = $"/events/{id}";
         if (owner) Add("preparation", "preparation", "Prepare event plan", "筹备活动方案", root + "/workspace?flow=setup&stage=arrangements", true);
+        if (published && reader) Add("published-event", "registration", "Published event", "已公布的活动", $"/groups/{e.GroupId}/events/{id}", false);
         if (reader) Add("plan", "preparation", "Read full event plan", "查看完整活动方案", root + "/work?stage=preparation&plan=1", false);
         if (owner || roles.Length > 0 || myDuties.Any(x => x.Surface == "task"))
             foreach (var stage in new[] { "preparation", "registration", "execution", "followup" })
@@ -64,9 +66,12 @@ public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionServ
             Add("fees:followup","followup","Registration refunds and reconciliation","报名退款与核对",root+"/registration-work",true);
         }
         if (owner) Add("venues","preparation","Venue and room calendar","场地与房间日历",$"/groups/{e.GroupId}/venues?event={id}",true);
-        if (owner || EventWorkAccess.HasRole(roles, "SERVICE.ROSTER", "roster.coordinator") || roster) {
-            Add("roster:prepare", "preparation", "Prepare service roster", "筹备同工排班", root + "/workspace/roster", owner || EventWorkAccess.HasRole(roles, "SERVICE.ROSTER", "roster.coordinator"));
-            Add("roster", "execution", "Coordinate service roster", "同工排班", root + "/workspace/roster", owner || EventWorkAccess.HasRole(roles, "SERVICE.ROSTER", "roster.coordinator"));
+        var coordinatesRoster = EventWorkAccess.HasRole(roles, "SERVICE.ROSTER", "roster.coordinator") || e.CollaborationVersion == 0 && owner;
+        if (published && await EventWorkAccess.EnabledAsync(db,id,"SERVICE.ROSTER",ct) && coordinatesRoster) {
+            Add("roster:published", "registration", "Schedule volunteers across dates", "多场次手工排班", root + "/workspace/roster", true);
+            Add("roster", "execution", "Schedule volunteers across dates", "多场次手工排班", root + "/workspace/roster", true);
+        } else if (published && roster) {
+            Add("my-roster", "registration", "My service assignment", "我的服事安排", root + "/workspace/roster", false);
         }
         foreach (var item in new[] { ("SAFEGUARDING.CHILD", "safeguarding.lead", "safeguarding", "Child safeguarding", "儿童保护执行"), ("MOVE.STAY", "travel.coordinator", "travel", "Transport and stay", "交通与住宿执行"), ("PROGRAM.PRODUCTION", "programme.lead", "?tab=programme", "Programme delivery", "节目执行") })
             if (owner || EventWorkAccess.HasRole(roles, item.Item1, item.Item2)) Add(item.Item3, "execution", item.Item4, item.Item5, root + "/workspace" + (item.Item3.StartsWith('?') ? item.Item3 : "/" + item.Item3), true);

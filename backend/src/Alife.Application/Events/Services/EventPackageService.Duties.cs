@@ -122,10 +122,26 @@ public sealed partial class EventPackageService
             var missingSlot = slots.FirstOrDefault(x => eventOccurrences.Any(o => o.Id == x.OccurrenceId) && x.EndUtc >= now &&
                 x.Assignments.Count(a => a.Status is EventRosterAssignmentStatus.Confirmed or EventRosterAssignmentStatus.Invited && a.EndedUtc == null && EligibleForSlot(x, a.MemberId)) < x.RequiredCount &&
                 (frozen is null || frozen.RosterRulesVersion >= EventRosterPolicy.CurrentVersion && !EventRosterPolicy.IsCritical(x.RoleCode, x.EligibilityCode, rosterGroups.FirstOrDefault(g => g.EventId == e.Id && g.RoleCode == x.RoleCode)?.ModuleCode)));
-            if (!eventEnded && missingSlot is not null && (owner || mine.Any(x => x.EndsWith(":roster.coordinator"))))
+            var published = e.PublicationStatus is EventPublicationStatus.Published or EventPublicationStatus.LegacyImplicit;
+            var coordinatesRoster = mine.Contains("SERVICE.ROSTER:roster.coordinator");
+            if (e.CollaborationVersion == 0 && !eventEnded && missingSlot is not null && owner)
+                OwnerStep("event.roster.coordinate", "Fill required service positions", "补齐必要服事岗位",
+                    $"/events/{e.Id}/workspace/roster?occurrenceId={missingSlot.OccurrenceId}", missingSlot.OccurrenceId);
+            else if (e.CollaborationVersion == 0 && !eventEnded && missingSlot is not null && coordinatesRoster)
+                Add("rosterCoordination", missingSlot.OccurrenceId, occurrences.Single(x => x.Id == missingSlot.OccurrenceId).RosterConcurrencyToken.ToString("N"),
+                    "event.roster.coordinate", "Fill required service positions", "补齐必要服事岗位", "roster", e.UpdatedUtc,
+                    occurrence: missingSlot.OccurrenceId, target: $"/events/{e.Id}/workspace/roster?occurrenceId={missingSlot.OccurrenceId}");
+            else if (published && !eventEnded && missingSlot is not null && coordinatesRoster)
             {
-                if (owner) OwnerStep("event.roster.coordinate", "Fill required service positions", "补齐必要服事岗位", Workspace(), missingSlot.OccurrenceId);
-                else Add("rosterCoordination", missingSlot.OccurrenceId, occurrences.Single(x => x.Id == missingSlot.OccurrenceId).RosterConcurrencyToken.ToString("N"), "event.roster.coordinate", "Fill required service positions", "补齐必要服事岗位", "roster", e.UpdatedUtc, occurrence: missingSlot.OccurrenceId);
+                Add("rosterCoordination", missingSlot.OccurrenceId, occurrences.Single(x => x.Id == missingSlot.OccurrenceId).RosterConcurrencyToken.ToString("N"),
+                    "event.roster.coordinate", "Schedule volunteers across dates", "多场次手工排班", "roster", e.UpdatedUtc,
+                    occurrence: missingSlot.OccurrenceId, target: $"/events/{e.Id}/workspace/roster?occurrenceId={missingSlot.OccurrenceId}");
+            }
+            else if (published && !eventEnded && missingSlot is not null && owner &&
+                     !roles.Any(x => x.EventId == e.Id && x.RoleRequirementKey == "SERVICE.ROSTER:roster.coordinator" && activeMembers.Contains((e.GroupId, x.MemberId))))
+            {
+                if (frozen is not null) OwnerStep("event.preparation.reopen", "Reopen preparation to assign a roster coordinator", "重开筹备以指派同工排班协调人", Workspace("approval"));
+                else OwnerStep("event.roles.coordinate", "Assign a roster coordinator", "指派同工排班协调人", Workspace());
             }
             EventPlanProposalDto? plan = null;
             try { var saved = plans.Where(x => x.EventId == e.Id).OrderByDescending(x => x.Version).FirstOrDefault(); if (saved is not null) plan = EventCompositionPersistence.ToSnapshotDto(saved).Plan; } catch (JsonException) { }

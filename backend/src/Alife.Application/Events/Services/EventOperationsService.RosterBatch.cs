@@ -15,10 +15,11 @@ public sealed partial class EventOperationsService
         var e = await db.GroupEvents.AsNoTracking().Include(x => x.EventSeries).FirstOrDefaultAsync(x => x.Id == eventId, ct);
         if (e is null) return AppResult<EventRosterPageDto>.NotFound("Event not found.");
         if (!await authorization.IsApprovedMemberAsync(e.GroupId, memberId, ct)) return AppResult<EventRosterPageDto>.Forbidden("Current group membership is required.");
-        var manage = await CanCoordinate(e, memberId, "roster.coordinator", ct);
+        var coordinate = await CanCoordinate(e, memberId, "roster.coordinator", ct);
+        var manage = await CanCoordinateRosterBatch(e, memberId, ct);
         if (!await IsModuleEnabled(eventId, "SERVICE.ROSTER", ct)) return AppResult<EventRosterPageDto>.Conflict("Roster is not enabled.");
         var groups = await db.EventRosterGroups.AsNoTracking().Where(x => x.EventId == eventId).ToListAsync(ct);
-        if (!manage && !groups.Any(x => GroupMembers(x).Contains(memberId)) &&
+        if (!coordinate && !groups.Any(x => GroupMembers(x).Contains(memberId)) &&
             !await db.EventRosterAssignments.AnyAsync(x => x.ServiceSlot.Occurrence.EventId == eventId && x.MemberId == memberId && x.EndedUtc == null, ct))
             return AppResult<EventRosterPageDto>.Forbidden("Roster access is limited to coordinators, candidates and assignees.");
         var query = db.EventOccurrences.AsNoTracking().Where(x => x.EventId == eventId && x.EndUtc >= DateTime.UtcNow && x.Status != EventOccurrenceStatus.Cancelled);
@@ -34,14 +35,14 @@ public sealed partial class EventOperationsService
         foreach (var id in ids)
         {
             var occurrence = await RosterQuery(eventId, id).AsNoTracking().FirstAsync(ct);
-            occurrences.Add(new(id, occurrence.StartUtc, occurrence.EndUtc, await RosterDtoAsync(occurrence, memberId, manage, ct)));
+            occurrences.Add(new(id, occurrence.StartUtc, occurrence.EndUtc, await RosterDtoAsync(occurrence, memberId, coordinate, ct)));
         }
-        var personIds = manage ? groups.SelectMany(GroupMembers).Concat(occurrences.SelectMany(x => x.Roster.Slots).SelectMany(x => x.Assignments).Select(x => x.MemberId)).Distinct().ToArray() : new[] { memberId };
+        var personIds = coordinate ? groups.SelectMany(GroupMembers).Concat(occurrences.SelectMany(x => x.Roster.Slots).SelectMany(x => x.Assignments).Select(x => x.MemberId)).Distinct().ToArray() : new[] { memberId };
         var people = await db.Members.AsNoTracking().Where(x => personIds.Contains(x.Id)).Select(x => new EventRosterPersonDto(x.Id, x.DisplayName ?? "Member")).ToListAsync(ct);
         var defaults = await db.EventRosterDefaults.AsNoTracking().Where(x => x.EventId == eventId).OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);
         return AppResult<EventRosterPageDto>.Success(new(page, 4, total, e.EventSeries?.TimeZone ?? "UTC", occurrences,
-            manage ? groups.Select(GroupDto).ToArray() : [], people, manage, defaults?.Version, DefaultsETag(defaults),
-            manage && !await EventPreparationPolicy.IsFrozenAsync(db, eventId, ct), e.EventSeriesId.HasValue));
+            coordinate ? groups.Select(GroupDto).ToArray() : [], people, manage, defaults?.Version, DefaultsETag(defaults),
+            coordinate && !await EventPreparationPolicy.IsFrozenAsync(db, eventId, ct), e.EventSeriesId.HasValue));
     }
 
     public async Task<AppResult<IReadOnlyList<EventRosterDto>>> ApplyRosterBatchAsync(Guid eventId, Guid memberId,
@@ -53,7 +54,7 @@ public sealed partial class EventOperationsService
         await db.LockEventRegistrationAsync(eventId, ct);
         var e = await db.GroupEvents.FirstOrDefaultAsync(x => x.Id == eventId, ct);
         if (e is null) return AppResult<IReadOnlyList<EventRosterDto>>.NotFound("Event not found.");
-        if (!await CanCoordinate(e, memberId, "roster.coordinator", ct)) return AppResult<IReadOnlyList<EventRosterDto>>.Forbidden("Current roster coordinator permission is required.");
+        if (!await CanCoordinateRosterBatch(e, memberId, ct)) return AppResult<IReadOnlyList<EventRosterDto>>.Forbidden("A published Event and accepted roster-coordinator responsibility are required.");
         var hash = EventPackageCanonicalizer.HashCanonical(new { memberId, request });
         var replay = await db.EventIdempotencyRecords.AsNoTracking().FirstOrDefaultAsync(x => x.ScopeId == eventId && x.Operation == "event.roster.batch" && x.Key == key, ct);
         if (replay is not null && replay.RequestHash != hash) return AppResult<IReadOnlyList<EventRosterDto>>.Conflict("The idempotency key belongs to a different batch.");

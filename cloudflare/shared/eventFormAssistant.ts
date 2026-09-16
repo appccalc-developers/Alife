@@ -1,8 +1,9 @@
 import { isTimeZone, localTimeToUtc, type Bilingual } from './eventDetails.ts'
 
-export type FormAssistantScope = 'tasks' | 'registration'
-type Field = { label: Bilingual; kind: 'bilingual' | 'integer' | 'boolean' | 'enum' | 'localTime' | 'currency' | 'materials'; values?: string[]; min?: number; max?: number }
+export type FormAssistantScope = 'tasks' | 'registration' | 'activityPlan'
+type Field = { label: Bilingual; kind: 'bilingual' | 'integer' | 'boolean' | 'enum' | 'localTime' | 'currency' | 'materials' | 'activities'; values?: string[]; min?: number; max?: number }
 const field = (en: string, zh: string, kind: Field['kind'], extra: Partial<Field> = {}): Field => ({ label: { en, zh }, kind, ...extra })
+const activityTypes = ['generic', 'hiking', 'water', 'sport', 'transport', 'camp', 'meal', 'outdoor', 'other']
 export const formAssistantFields: Record<FormAssistantScope, Record<string, Field>> = {
   tasks: {
     title: field('Task title', '任务标题', 'bilingual', { max: 300 }), dueLocal: field('Due time', '期限', 'localTime'),
@@ -24,30 +25,41 @@ export const formAssistantFields: Record<FormAssistantScope, Record<string, Fiel
     moneyFlowScope: field('Money flows', '金流范围', 'enum', { values: ['unspecified', 'registrationFeesOnly', 'otherMoney'] }),
     paymentInstructions: field('Payment instructions', '收付款说明', 'bilingual'), refundTerms: field('Refund terms', '退款条款', 'bilingual'),
   },
+  activityPlan: {
+    activities: field('Activities and conditions', '活动项目与条件', 'activities'),
+    participantCount: field('Expected participants', '预计人数', 'integer', { min: 1, max: 1000000 }),
+    isOuting: field('Outdoor or off-site', '室外或场外', 'boolean'),
+    isOvernight: field('Overnight', '过夜', 'boolean'),
+    isHighRisk: field('Known high-risk activity', '已知高风险活动', 'boolean'),
+  },
 }
 export type AssistantForm = Record<string, unknown>
-export type FormAssistantInput = { eventId: string; scope: FormAssistantScope; revision: number; language: 'en' | 'zh'; timeZone: string; form: AssistantForm; message: string; history: { role: 'user' | 'assistant'; text: string }[] }
+export type FormAssistantContext = { eventTitle?: Bilingual; eventDescription?: Bilingual }
+export type FormAssistantInput = { eventId: string; scope: FormAssistantScope; revision: number; language: 'en' | 'zh'; timeZone: string; form: AssistantForm; message: string; history: { role: 'user' | 'assistant'; text: string }[]; context?: FormAssistantContext }
 export type FormAssistantResult = { revision: number; form: AssistantForm; adoptedFields: string[]; assistantReply: Bilingual }
 export const assistantObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 const only = (v: Record<string, unknown>, keys: string[]) => Object.keys(v).every(k => keys.includes(k))
 const bilingual = (v: unknown, max = 10000): v is Bilingual => assistantObject(v) && only(v, ['en', 'zh']) && typeof v.en === 'string' && typeof v.zh === 'string' && v.en.length <= max && v.zh.length <= max
+const validActivities = (value: unknown, _draft: boolean) => Array.isArray(value) && value.length <= 50 && value.every(activity => assistantObject(activity) && only(activity, ['id', 'type', 'name', 'conditions', 'occurrenceId']) && typeof activity.id === 'string' && activity.id.length <= 80 && typeof activity.type === 'string' && activityTypes.includes(activity.type) && bilingual(activity.name, 300) && bilingual(activity.conditions, 4000) && (activity.occurrenceId === null || typeof activity.occurrenceId === 'string')) && new Set(value.map(activity => activity.id).filter(Boolean)).size === value.filter(activity => activity.id).length
 export function validAssistantField(definition: Field, value: unknown, timeZone: string, draft = false): boolean {
   switch (definition.kind) {
     case 'bilingual': return bilingual(value, definition.max ?? 10000)
     case 'boolean': return typeof value === 'boolean'
     case 'enum': return typeof value === 'string' && !!definition.values?.includes(value)
-    case 'integer': return Number.isSafeInteger(value) && (draft || Number(value) >= (definition.min ?? 0) && Number(value) <= (definition.max ?? 1000000))
+    case 'integer': return value === null || Number.isSafeInteger(value) && (draft || Number(value) >= (definition.min ?? 0) && Number(value) <= (definition.max ?? 1000000))
     case 'currency': return typeof value === 'string' && (draft ? value.length <= 3 : /^[A-Z]{3}$/.test(value))
     case 'localTime':
       if (value === '') return true
       if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return false
       try { localTimeToUtc(value, timeZone); return true } catch { return false }
     case 'materials': return Array.isArray(value) && value.length <= 20 && value.every(m => assistantObject(m) && only(m, ['id', 'label', 'kind', 'required', 'maxCount', 'maxBytes']) && typeof m.id === 'string' && m.id.length <= 80 && bilingual(m.label) && ['text', 'image', 'file'].includes(String(m.kind)) && typeof m.required === 'boolean' && Number.isInteger(m.maxCount) && Number(m.maxCount) >= 1 && Number(m.maxCount) <= 10 && Number.isInteger(m.maxBytes) && Number(m.maxBytes) >= 1 && Number(m.maxBytes) <= 20971520)
+    case 'activities': return validActivities(value, draft)
   }
 }
 export function readFormAssistantInput(value: unknown): FormAssistantInput {
-  if (!assistantObject(value) || !only(value, ['eventId', 'scope', 'revision', 'language', 'timeZone', 'form', 'message', 'history']) || !['tasks', 'registration'].includes(String(value.scope)) || typeof value.eventId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.eventId) || !Number.isSafeInteger(value.revision) || Number(value.revision) < 0 || !['en', 'zh'].includes(String(value.language)) || !isTimeZone(value.timeZone) || typeof value.message !== 'string' || !value.message.trim() || value.message.length > 8000 || !assistantObject(value.form) || !Array.isArray(value.history) || value.history.length > 8) throw new Error('Invalid form assistance request.')
+  if (!assistantObject(value) || !only(value, ['eventId', 'scope', 'revision', 'language', 'timeZone', 'form', 'message', 'history', 'context']) || !['tasks', 'registration', 'activityPlan'].includes(String(value.scope)) || typeof value.eventId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.eventId) || !Number.isSafeInteger(value.revision) || Number(value.revision) < 0 || !['en', 'zh'].includes(String(value.language)) || !isTimeZone(value.timeZone) || typeof value.message !== 'string' || !value.message.trim() || value.message.length > 8000 || !assistantObject(value.form) || !Array.isArray(value.history) || value.history.length > 8) throw new Error('Invalid form assistance request.')
   const input = value as FormAssistantInput, definitions = formAssistantFields[input.scope]
+  if (input.context !== undefined && (!assistantObject(input.context) || !only(input.context, ['eventTitle', 'eventDescription']) || input.context.eventTitle !== undefined && !bilingual(input.context.eventTitle, 4000) || input.context.eventDescription !== undefined && !bilingual(input.context.eventDescription, 4000))) throw new Error('Invalid form context.')
   if (Object.keys(input.form).length !== Object.keys(definitions).length || Object.entries(input.form).some(([key, v]) => !Object.hasOwn(definitions, key) || !validAssistantField(definitions[key], v, input.timeZone, true))) throw new Error('Invalid form fields.')
   if (input.history.some(t => !assistantObject(t) || !only(t, ['role', 'text']) || !['user', 'assistant'].includes(String(t.role)) || typeof t.text !== 'string' || t.text.length > 8000)) throw new Error('Invalid conversation.')
   return input
@@ -84,8 +96,14 @@ export function mergeFormAssistantResult(value: unknown, input: FormAssistantInp
         return ['id', 'kind', 'required', 'maxCount', 'maxBytes'].every(key => next[key] === m[key])
           && ['en', 'zh'].every(locale => !m.label[locale].trim() || next.label[locale] === m.label[locale])
       })
-    const supported = input.message.includes(quote) || materialTranslation || definitions[item.field].kind === 'bilingual' && bilingual(old) && [old.en, old.zh].some(text => text.includes(quote))
+    const contextText = input.scope === 'activityPlan' ? [input.context?.eventTitle?.en, input.context?.eventTitle?.zh, input.context?.eventDescription?.en, input.context?.eventDescription?.zh].filter(Boolean) as string[] : []
+    const supported = input.message.includes(quote) || materialTranslation || definitions[item.field].kind === 'bilingual' && bilingual(old) && [old.en, old.zh].some(text => text.includes(quote)) || input.scope === 'activityPlan' && (item.field === 'activities' || ['participantCount', 'isOuting', 'isOvernight', 'isHighRisk'].includes(item.field)) && contextText.some(text => text.includes(quote))
     if (supported && Object.hasOwn(value.form, item.field)) { form[item.field] = value.form[item.field]; adoptedFields.push(item.field) }
+  }
+  if (input.scope === 'activityPlan' && adoptedFields.includes('activities')) {
+    const oldIds = new Set((input.form.activities as { id: string }[]).map(activity => activity.id))
+    const next = form.activities as { id: string }[]
+    if (next.some(activity => activity.id && !oldIds.has(activity.id)) || next.length < oldIds.size && !/\b(remove|delete|撤除|删除|移除)\b/i.test(input.message)) adoptedFields.splice(adoptedFields.indexOf('activities'), 1)
   }
   return validateFormAssistantResult({ revision: input.revision, form, adoptedFields, assistantReply: value.assistantReply }, input)
 }
@@ -97,12 +115,13 @@ export function assistantFieldComplete(scope: FormAssistantScope, key: string, f
   if (!validAssistantField(definition, value, timeZone)) return false
   if (definition.kind === 'bilingual') return bilingual(value) && !!value.en.trim() && !!value.zh.trim()
   if (definition.kind === 'materials') return (value as { label: Bilingual }[]).every(m => m.label.en.trim() && m.label.zh.trim())
-  return value !== '' && !(key === 'moneyFlowScope' && value === 'unspecified')
+  if (definition.kind === 'activities') return (value as { name: Bilingual; conditions: Bilingual }[]).length > 0 && (value as { name: Bilingual; conditions: Bilingual }[]).every(activity => activity.name.en.trim() && activity.name.zh.trim() && activity.conditions.en.trim() && activity.conditions.zh.trim())
+  return value !== '' && value !== null && !(key === 'moneyFlowScope' && value === 'unspecified')
 }
 export function formAssistantSchema(scope: FormAssistantScope) {
   const text = { type: 'string' }, bilingual = { type: 'object', required: ['en', 'zh'], properties: { en: text, zh: text } }
   const properties = Object.fromEntries(Object.entries(formAssistantFields[scope]).map(([key, d]) => [key,
-    d.kind === 'bilingual' ? bilingual : d.kind === 'enum' ? { type: 'string', enum: d.values } : d.kind === 'materials' ? { type: 'array', items: { type: 'object', required: ['id', 'label', 'kind', 'required', 'maxCount', 'maxBytes'], properties: { id: { type: 'string', description: 'Retain existing requirement IDs; empty string for new requirements.' }, label: bilingual, kind: { type: 'string', enum: ['text', 'image', 'file'] }, required: { type: 'boolean' }, maxCount: { type: 'integer' }, maxBytes: { type: 'integer' } } } } : { type: ['boolean', 'integer'].includes(d.kind) ? d.kind : 'string', description: `${d.label.en}${d.kind === 'localTime' ? ': YYYY-MM-DDTHH:mm in the supplied time zone; empty if unknown.' : ''}` },
+    d.kind === 'bilingual' ? bilingual : d.kind === 'enum' ? { type: 'string', enum: d.values } : d.kind === 'materials' ? { type: 'array', items: { type: 'object', required: ['id', 'label', 'kind', 'required', 'maxCount', 'maxBytes'], properties: { id: { type: 'string', description: 'Retain existing requirement IDs; empty string for new requirements.' }, label: bilingual, kind: { type: 'string', enum: ['text', 'image', 'file'] }, required: { type: 'boolean' }, maxCount: { type: 'integer' }, maxBytes: { type: 'integer' } } } } : d.kind === 'activities' ? { type: 'array', maxItems: 50, items: { type: 'object', required: ['id', 'type', 'name', 'conditions', 'occurrenceId'], properties: { id: { type: 'string', description: 'Retain existing activity IDs; use an empty string only for a newly proposed activity.' }, type: { type: 'string', enum: activityTypes }, name: bilingual, conditions: bilingual, occurrenceId: { type: ['string', 'null'] } } } } : { type: ['boolean', 'integer'].includes(d.kind) ? d.kind : 'string', description: `${d.label.en}${d.kind === 'localTime' ? ': YYYY-MM-DDTHH:mm in the supplied time zone; empty if unknown.' : ''}` },
   ]))
   return { type: 'object', required: ['form', 'evidence', 'assistantReply'], properties: { form: { type: 'object', properties }, evidence: { type: 'array', items: { type: 'object', required: ['field', 'quote'], properties: { field: { type: 'string', enum: Object.keys(properties) }, quote: { type: 'string', description: 'Exact supporting quote from the current message, or the same existing bilingual field for faithful translation.' } } } }, assistantReply: bilingual } }
 }

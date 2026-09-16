@@ -13,10 +13,11 @@ const DetailsContext = createContext({
 })
 export const useDetailsWorkspace = () => useContext(DetailsContext)
 
-export default function DetailsWorkspace({ zh, active, form, assistant, readOnly = false, focusRequest, labels }: {
+export default function DetailsWorkspace({ zh, active, form, assistant, readOnly = false, focusRequest, labels, limitAssistantHeight = false }: {
   zh: boolean; active: boolean; form: ReactNode; assistant: (active: boolean) => ReactNode
   readOnly?: boolean; focusRequest?: DetailsFocusRequest
   labels?: { workspace: string; form: string; assistant: string }
+  limitAssistantHeight?: boolean
 }) {
   const root = useRef<HTMLDivElement>(null), formRegion = useRef<HTMLDivElement>(null)
   const id = useId()
@@ -79,7 +80,7 @@ export default function DetailsWorkspace({ zh, active, form, assistant, readOnly
         <div ref={formRegion} id={`${id}-form`} role={wide ? 'region' : 'tabpanel'} aria-label={wide ? (labels?.form ?? (zh ? '资料表单' : 'Details form')) : undefined} aria-labelledby={wide ? undefined : `${id}-form-tab`} tabIndex={-1} hidden={!wide && view !== 'form'} className="event-details-form">
           {!wide && readOnly ? <p className="event-details-readonly">{zh ? '只读 · 可浏览全部资料' : 'Read-only · browse all details'}</p> : null}{form}
         </div>
-        <div id={`${id}-assistant`} role={wide ? 'complementary' : 'tabpanel'} aria-label={wide ? (labels?.assistant ?? (zh ? 'AI 资料助手' : 'AI details assistant')) : undefined} aria-labelledby={wide ? undefined : `${id}-assistant-tab`} hidden={wide ? !assistantOpen : view !== 'assistant'} className="event-details-assistant">
+        <div id={`${id}-assistant`} role={wide ? 'complementary' : 'tabpanel'} aria-label={wide ? (labels?.assistant ?? (zh ? 'AI 资料助手' : 'AI details assistant')) : undefined} aria-labelledby={wide ? undefined : `${id}-assistant-tab`} hidden={wide ? !assistantOpen : view !== 'assistant'} className={`event-details-assistant${limitAssistantHeight ? ' event-details-assistant--viewport' : ''}`}>
           {assistant(assistantVisible)}
         </div>
       </div>

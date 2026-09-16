@@ -10,6 +10,37 @@ namespace Alife.Tests.Unit.Events;
 public sealed partial class EventOperationsCoreTests
 {
     [Fact]
+    public async Task RosterBatch_VersionOneRequiresPublishedEventAndAcceptedCoordinator()
+    {
+        await using var db = CreateDb(); var owner = Guid.NewGuid(); var coordinator = Guid.NewGuid(); var candidate = Guid.NewGuid();
+        var e = SeedEvent(db, Guid.NewGuid(), owner); e.CollaborationVersion = 1; e.PublicationStatus = EventPublicationStatus.Draft;
+        var occurrence = SeedOccurrence(db, e);
+        db.Members.AddRange(Member(owner, "Owner"), Member(coordinator, "Coordinator"), Member(candidate, "Candidate"));
+        foreach (var id in new[] { coordinator, candidate })
+            db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = e.GroupId, MemberId = id, Status = MembershipStatus.Approved });
+        db.EventRoleAssignments.Add(new() { Id = Guid.NewGuid(), EventId = e.Id, MemberId = coordinator,
+            RoleRequirementKey = "SERVICE.ROSTER:roster.coordinator", Status = EventRoleAssignmentStatus.Accepted });
+        SeedPlan(db, e, Fact("people.volunteersRequired", true)); await db.SaveChangesAsync();
+        var service = new EventOperationsService(db, Authorization(owner));
+        var group = (await service.SaveRosterGroupAsync(e.Id, owner, new("welcome", "SERVICE.ROSTER", [candidate]), "\"new\"", default)).Value!;
+        var roster = (await service.GetRosterAsync(e.Id, occurrence.Id, owner, default)).Value!;
+        roster = (await service.CreateSlotAsync(e.Id, occurrence.Id, owner,
+            new(null, null, null, "welcome", occurrence.StartUtc, occurrence.EndUtc, 1, "approvedGroupMember"), roster.ETag, default)).Value!;
+        var request = new EventRosterBatchRequest([new(occurrence.Id, roster.Slots.Single().Id, roster.ETag, group.ETag, candidate)]);
+        Assert.False((await service.GetRosterPageAsync(e.Id, coordinator, 1, default)).Value!.CanManage);
+        Assert.Equal(AppResultStatus.Forbidden, (await service.ApplyRosterBatchAsync(e.Id, coordinator, request, "before-publication", default)).Status);
+        e.PublicationStatus = EventPublicationStatus.Published; await db.SaveChangesAsync();
+        Assert.False((await service.GetRosterPageAsync(e.Id, owner, 1, default)).Value!.CanManage);
+        Assert.True((await service.GetRosterPageAsync(e.Id, coordinator, 1, default)).Value!.CanManage);
+        Assert.Equal(AppResultStatus.Forbidden, (await service.ApplyRosterBatchAsync(e.Id, owner, request, "owner-only", default)).Status);
+        Assert.True((await service.ApplyRosterBatchAsync(e.Id, coordinator, request, "accepted-coordinator", default)).IsSuccess);
+        Assert.Single(db.EventRosterAssignments);
+        db.EventRoleAssignments.Single(x => x.MemberId == coordinator).EndedUtc = DateTime.UtcNow; await db.SaveChangesAsync();
+        Assert.Equal(AppResultStatus.Forbidden, (await service.GetRosterPageAsync(e.Id, coordinator, 1, default)).Status);
+        Assert.Equal(AppResultStatus.Forbidden, (await service.ApplyRosterBatchAsync(e.Id, coordinator, request, "revoked-coordinator", default)).Status);
+    }
+
+    [Fact]
     public async Task RosterBatch_ConflictRollsBackAll_AndReplayDoesNotNotifyAgain()
     {
         await using var db = CreateDb(); var owner = Guid.NewGuid(); var a = Guid.NewGuid();

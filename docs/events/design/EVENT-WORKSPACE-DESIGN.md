@@ -35,11 +35,11 @@ Use the existing stage identifiers and bilingual UI labels:
 | Identifier | English | 中文 |
 | --- | --- | --- |
 | `preparation` | Preparation | 筹备 |
-| `registration` | Registration | 公开报名 |
-| `execution` | Delivery | 场次执行 |
-| `followup` | Follow-up | 善后 |
+| `registration` | Published | 公布 |
+| `execution` | Delivery | 执行 |
+| `followup` | Follow-up | 收尾 |
 
-The stage rail presents those four stages. A separate future Review/Reflection stage is not part of the current model. Existing document reviews and approval decisions remain their own actions, not a new Event lifecycle stage.
+The stage rail presents those four stages. `registration` remains the compatible identifier for the period after publication; displaying Published does not imply registration has opened. A separate future Review/Reflection stage is not part of the current model. Existing document reviews and approval decisions remain their own actions, not a new Event lifecycle stage.
 
 **Preparation uses nonlinear planning.** People, venue, programme, registration rules, reports and other authorized planning areas can be revisited in the order the work requires. Remove the requirement to preserve an owner's six-step wizard. Existing stage URLs and numeric step identifiers are compatibility details, not prescribed navigation order.
 

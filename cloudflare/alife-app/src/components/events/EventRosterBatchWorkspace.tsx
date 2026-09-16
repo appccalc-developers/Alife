@@ -24,7 +24,7 @@ function BatchWorkspace({ eventId, language, moduleCode, onSaved, onBusyChange, 
   const zh = language === 'zh'
   const [page, setPage] = useState(1), [data, setData] = useState<EventRosterPage | null>(null)
   const [draft, setDraft] = useState<Record<string, DraftChange>>({}), [role, setRole] = useState(''), [response, setResponse] = useState('all')
-  const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState(''), [denied, setDenied] = useState(false), [message, setMessage] = useState('')
   const revision = useRef(0), key = useRef(crypto.randomUUID())
   const initialDate = useRef(new URLSearchParams(window.location.search).get('occurrenceId'))
   const { requestConfirmation, confirmationModal } = useConfirmation()
@@ -34,8 +34,8 @@ function BatchWorkspace({ eventId, language, moduleCode, onSaved, onBusyChange, 
   const load = useCallback(async () => {
     const current = ++revision.current
     setLoading(true)
-    try { const value = await api.rosterPage(eventId, page, initialDate.current); if (revision.current === current) { initialDate.current = null; setPage(value.page); setData(value); setError('') } }
-    catch (reason) { if (revision.current === current) setError(normalizeApiError(reason).message) }
+    try { const value = await api.rosterPage(eventId, page, initialDate.current); if (revision.current === current) { initialDate.current = null; setPage(value.page); setData(value); setDenied(false); setError('') } }
+    catch (reason) { if (revision.current === current) { const failure = normalizeApiError(reason); setDenied(failure.status === 403); setError(failure.message) } }
     finally { if (revision.current === current) setLoading(false) }
   }, [eventId, page])
   useEffect(() => { void load(); return () => { revision.current++ } }, [load, refreshVersion])
@@ -101,6 +101,10 @@ function BatchWorkspace({ eventId, language, moduleCode, onSaved, onBusyChange, 
       {data?.canManage && !slot.canAssign ? <p className="text-xs text-[#66766f]">{zh ? '此岗位沿用审批冻结或关键岗位复查规则。修改前需重开筹备。' : 'This position remains subject to approval freezing or specialist review. Reopen preparation before changing it.'}</p> : null}
     </div>
   }
+  if (!data && loading) return <p role="status" className="text-sm">{zh ? '正在校验排班职责…' : 'Checking roster responsibility…'}</p>
+  if (denied) return null
+  if (!data && error) return <div role="alert" className="space-y-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-800"><p>{error}</p><AppActionButton onClick={() => void load()}>{zh ? '重试' : 'Retry'}</AppActionButton></div>
+  if (!data?.canManage) return null
   return <EventToolSection title={zh ? '多场次手工排班' : 'Schedule across dates'} summary={changes.length ? (zh ? `${changes.length} 项待发出` : `${changes.length} changes to send`) : (zh ? '未来四个场次' : 'Next four dates')}>
     <div className="space-y-4">
       <p className="text-sm text-[#66766f]">{zh ? '从各岗位候选组选择人选，检查待发送安排后统一发出。待确认和已确认都占用岗位人数。' : 'Select from each position’s candidate group, review your changes, then send together. Pending and confirmed invitations both reserve a position.'}</p>

@@ -212,7 +212,7 @@ const EventWorkspaceView = () => {
         backLink={searchParams.has('returnTo') ? { to: dutyReturnPath(searchParams.get('returnTo')), label: language === 'zh' ? '返回当前事务' : 'Back to current tasks' } : undefined}
         title={localize(selectedPageItem.label, language)}
         subtitle={text.independentPage}
-        actions={<Link className="text-sm font-bold text-[#176b5a]" to={returnToRamSetup ? `${workspaceBasePath}?flow=setup&stage=arrangements&module=safety.ram` : workspaceBasePath}>{returnToRamSetup ? (language === 'zh' ? '返回活动筹备' : 'Back to event preparation') : text.backWorkspace}</Link>}
+        actions={<div className="flex flex-wrap gap-4 text-sm font-bold text-[#176b5a]"><Link to={returnToRamSetup ? `${workspaceBasePath}?flow=setup&stage=arrangements&module=safety.ram` : workspaceBasePath}>{returnToRamSetup ? (language === 'zh' ? '返回活动筹备' : 'Back to event preparation') : text.backWorkspace}</Link>{surfacePath === 'roster' ? <><Link to={eventBasePath}>{language === 'zh' ? '查看活动' : 'View event'}</Link><Link to={`/events/${eventId}/work`}>{language === 'zh' ? '查看活动阶段' : 'View event stages'}</Link></> : null}</div>}
       >
         <EventSurfaceRenderer item={selectedPageItem} language={language} eventBasePath={eventBasePath} eventId={eventId} groupId={groupId} canManage={workspace.canManage} />
       </AppPageShell>

@@ -595,6 +595,15 @@ public sealed partial class EventOperationsService(
             x.EventId == groupEvent.Id && x.MemberId == memberId && x.Status == EventRoleAssignmentStatus.Accepted &&
             x.EndedUtc == null && x.RoleRequirementKey.EndsWith($":{roleCode}"), ct));
 
+    private async Task<bool> CanCoordinateRosterBatch(GroupEvent groupEvent, Guid memberId, CancellationToken ct)
+        => groupEvent.CollaborationVersion == 0
+            ? await CanCoordinate(groupEvent, memberId, "roster.coordinator", ct)
+            : (groupEvent.PublicationStatus is EventPublicationStatus.Published or EventPublicationStatus.LegacyImplicit) &&
+              await authorization.IsApprovedMemberAsync(groupEvent.GroupId, memberId, ct) &&
+              await db.EventRoleAssignments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == memberId &&
+                  x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null &&
+                  x.RoleRequirementKey == "SERVICE.ROSTER:roster.coordinator", ct);
+
     private async Task<bool> IsEligibleForSlot(GroupEvent groupEvent, EventServiceSlot slot, Guid memberId, CancellationToken ct)
     {
         var approved = await authorization.IsApprovedMemberAsync(groupEvent.GroupId, memberId, ct);
