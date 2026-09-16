@@ -13,6 +13,7 @@ export const systemManagementAdminPermissions = [
 export const churchManagementSections = [
   'dashboard',
   'group',
+  'venues',
   'members',
   'contacts',
   'subgroups',

@@ -22,7 +22,10 @@ public sealed class EventVenueCalendarService(IAlifeDbContext db, IGroupAuthoriz
 {
     public static string ETag(EventVenueWeeklyBooking r) => $"\"weekly-{r.ConcurrencyToken:N}\"";
     private async Task<bool> Manage(EventVenue v, GroupEvent e, Guid actor, CancellationToken ct)
-        => v.ManagingGroupId == e.GroupId && (await authorization.IsLeaderOrCoLeaderAsync(v.ManagingGroupId, actor, ct) || await EventWorkAccess.OwnerAsync(db, e, actor, ct));
+        => await EventVenueScope.CanReserveAsync(db, e.GroupId, v.ManagingGroupId, ct) &&
+           (await authorization.IsLeaderOrCoLeaderAsync(v.ManagingGroupId, actor, ct) ||
+            await authorization.IsLeaderOrCoLeaderAsync(e.GroupId, actor, ct) ||
+            await EventWorkAccess.OwnerAsync(db, e, actor, ct));
     private async Task<bool> ViewEvent(GroupEvent e, Guid actor, CancellationToken ct)
     {
         if (await EventWorkAccess.PlanReaderAsync(db, e, actor, ct)) return true;
@@ -37,7 +40,8 @@ public sealed class EventVenueCalendarService(IAlifeDbContext db, IGroupAuthoriz
         if (until < from || until.DayNumber - from.DayNumber > 366 || from.Year < 2 || until.Year > 9997)
             return AppResult<VenueCalendarDto>.Validation("Choose a calendar range of at most 366 days.");
         if (!await EventWorkAccess.MemberAsync(db, group, actor, ct)) return AppResult<VenueCalendarDto>.Forbidden("Current group membership is required.");
-        var venue = await db.EventVenues.AsNoTracking().FirstOrDefaultAsync(x => x.Id == venueId && x.ManagingGroupId == group, ct);
+        var managingGroupIds = await EventVenueScope.ReservableManagingGroupIdsAsync(db, group, ct);
+        var venue = await db.EventVenues.AsNoTracking().FirstOrDefaultAsync(x => x.Id == venueId && managingGroupIds.Contains(x.ManagingGroupId), ct);
         if (venue is null) return AppResult<VenueCalendarDto>.NotFound("Venue not found.");
         var zone = TimeZoneInfo.FindSystemTimeZoneById(venue.TimeZone);
         // UTC envelope intentionally includes both possible offsets on transition dates.
@@ -86,8 +90,9 @@ public sealed class EventVenueCalendarService(IAlifeDbContext db, IGroupAuthoriz
             return AppResult<Guid>.Validation("A valid weekly interval, capacity and Idempotency-Key are required.");
         await using var tx = await db.BeginSerializableTransactionAsync(ct);
         await db.LockEventRegistrationAsync(request.EventId, ct); await db.LockEventVenueAsync(venueId, ct);
-        var venue = await db.EventVenues.FirstOrDefaultAsync(x => x.Id == venueId && x.ManagingGroupId == group, ct);
-        var e = await db.GroupEvents.FirstOrDefaultAsync(x => x.Id == request.EventId, ct);
+        var managingGroupIds = await EventVenueScope.ReservableManagingGroupIdsAsync(db, group, ct);
+        var venue = await db.EventVenues.FirstOrDefaultAsync(x => x.Id == venueId && managingGroupIds.Contains(x.ManagingGroupId), ct);
+        var e = await db.GroupEvents.FirstOrDefaultAsync(x => x.Id == request.EventId && x.GroupId == group, ct);
         if (venue is null || e is null) return AppResult<Guid>.NotFound("Venue or event not found.");
         if (!await Manage(venue, e, actor, ct)) return AppResult<Guid>.Forbidden("The event owner or venue administrator must manage standing reservations.");
         if (!await EventWorkAccess.EnabledAsync(db, e.Id, "PLACE.RESOURCE", ct)) return AppResult<Guid>.Conflict("Enable venue requirements in the event plan first.");
@@ -133,7 +138,9 @@ public sealed class EventVenueCalendarService(IAlifeDbContext db, IGroupAuthoriz
         if (!eventId.HasValue) return AppResult<Guid>.NotFound("Standing reservation not found.");
         await using var tx = await db.BeginSerializableTransactionAsync(ct); await db.LockEventRegistrationAsync(eventId.Value, ct); await db.LockEventVenueAsync(venueId, ct);
         var r = await db.EventVenueWeeklyBookings.Include(x => x.Exceptions).Include(x => x.Event).Include(x => x.Venue).FirstAsync(x => x.Id == ruleId, ct);
-        if (r.Venue.ManagingGroupId != group || !await Manage(r.Venue, r.Event, actor, ct)) return AppResult<Guid>.Forbidden("The event owner or venue administrator is required.");
+        var routeMatchesEventOrVenue = r.Event.GroupId == group || r.Venue.ManagingGroupId == group;
+        if (!routeMatchesEventOrVenue || !await EventVenueScope.CanReserveAsync(db, r.Event.GroupId, r.Venue.ManagingGroupId, ct) ||
+            !await Manage(r.Venue, r.Event, actor, ct)) return AppResult<Guid>.Forbidden("The event owner or venue administrator is required.");
         var hash = EventCompositionEngine.Hash(new { actor, request, ruleId });
         var replay = await db.EventIdempotencyRecords.AsNoTracking().FirstOrDefaultAsync(x => x.Operation == "venue.exception" && x.ScopeId == venueId && x.Key == key, ct);
         if (replay is not null) return replay.RequestHash == hash ? AppResult<Guid>.Success(replay.ResultEntityId) : AppResult<Guid>.Conflict("Idempotency-Key already used.");

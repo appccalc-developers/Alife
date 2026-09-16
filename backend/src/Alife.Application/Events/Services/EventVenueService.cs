@@ -31,6 +31,19 @@ public sealed class EventVenueService(
         return AppResult<EventVenueCatalogueDto>.Success(new(groupId, venues.Select(ToVenueDto).ToArray(), canManage));
     }
 
+    public async Task<AppResult<EventVenueCatalogueDto>> ListReservableCatalogueAsync(Guid groupId, Guid memberId, CancellationToken ct)
+    {
+        if (!await db.Groups.AsNoTracking().AnyAsync(x => x.Id == groupId, ct))
+            return AppResult<EventVenueCatalogueDto>.NotFound("Group not found.");
+        var canManage = await CanManageCatalogue(groupId, memberId, ct);
+        if (!canManage && !await authorization.IsApprovedMemberAsync(groupId, memberId, ct))
+            return AppResult<EventVenueCatalogueDto>.Forbidden("Approved owning-group membership is required.");
+        var managingGroupIds = await EventVenueScope.ReservableManagingGroupIdsAsync(db, groupId, ct);
+        var venues = await db.EventVenues.AsNoTracking().Where(x => managingGroupIds.Contains(x.ManagingGroupId))
+            .OrderByDescending(x => x.IsActive).ThenBy(x => x.NameEn).ToListAsync(ct);
+        return AppResult<EventVenueCatalogueDto>.Success(new(groupId, venues.Select(ToVenueDto).ToArray(), canManage));
+    }
+
     public async Task<AppResult<EventVenueDto>> CreateVenueAsync(Guid groupId, Guid memberId, SaveEventVenueRequest request, string? idempotencyKey, CancellationToken ct)
     {
         if (!await db.Groups.AsNoTracking().AnyAsync(x => x.Id == groupId, ct))
@@ -150,8 +163,9 @@ public sealed class EventVenueService(
             return AppResult<EventVenueWorkspaceDto>.Validation("An event reservation must overlap its event interval.");
         }
 
-        var venue = await db.EventVenues.FirstOrDefaultAsync(x => x.Id == request.VenueId && x.ManagingGroupId == groupEvent.GroupId, ct);
-        if (venue is null) return AppResult<EventVenueWorkspaceDto>.NotFound("Venue not found in the event's owning group catalogue.");
+        var managingGroupIds = await EventVenueScope.ReservableManagingGroupIdsAsync(db, groupEvent.GroupId, ct);
+        var venue = await db.EventVenues.FirstOrDefaultAsync(x => x.Id == request.VenueId && managingGroupIds.Contains(x.ManagingGroupId), ct);
+        if (venue is null) return AppResult<EventVenueWorkspaceDto>.NotFound("Venue not found in the event's group or church catalogue.");
         if (!venue.IsActive) return AppResult<EventVenueWorkspaceDto>.Conflict($"Venue {venue.NameEn} is inactive.");
         if (!Matches(ifMatch, VenueETag(venue)))
             return AppResult<EventVenueWorkspaceDto>.PreconditionFailed("The venue catalogue changed; reload before reserving.");
@@ -244,7 +258,8 @@ public sealed class EventVenueService(
 
     private async Task<EventVenueWorkspaceDto> BuildWorkspace(GroupEvent groupEvent, Guid memberId, CancellationToken ct)
     {
-        var venues = await db.EventVenues.AsNoTracking().Where(x => x.ManagingGroupId == groupEvent.GroupId)
+        var managingGroupIds = await EventVenueScope.ReservableManagingGroupIdsAsync(db, groupEvent.GroupId, ct);
+        var venues = await db.EventVenues.AsNoTracking().Where(x => managingGroupIds.Contains(x.ManagingGroupId))
             .OrderByDescending(x => x.IsActive).ThenBy(x => x.NameEn).ToListAsync(ct);
         var reservations = await db.EventVenueReservations.AsNoTracking().Where(x => x.EventId == groupEvent.Id)
             .Include(x => x.Venue).OrderBy(x => x.StartUtc).ThenBy(x => x.CreatedUtc).ToListAsync(ct);

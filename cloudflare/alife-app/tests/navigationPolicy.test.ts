@@ -24,7 +24,7 @@ import {
 } from '../src/services/workspaceResumeService.ts'
 import { matchesRequiredSearch } from '../src/app/navigation/searchMatch.ts'
 import { belongsToForumRouteScope } from '../src/utils/forumRouteScope.ts'
-import { resolveManageSection } from '../src/utils/groupManagementSections.ts'
+import { churchManagementTabs, resolveManageSection } from '../src/utils/groupManagementSections.ts'
 
 const readSource = (relativePath: string) =>
   readFile(path.resolve(import.meta.dirname, relativePath), 'utf8')
@@ -57,6 +57,7 @@ test('system management access recognizes every system dashboard permission', ()
 
 test('church management routes exclude group-owned page and album sections', () => {
   assert.equal(normalizeChurchManagementSection('group'), 'group')
+  assert.equal(normalizeChurchManagementSection('venues'), 'venues')
   assert.equal(normalizeChurchManagementSection('subgroups'), 'subgroups')
   assert.equal(normalizeChurchManagementSection('albums'), 'dashboard')
   assert.equal(normalizeChurchManagementSection('pages'), 'dashboard')
@@ -147,6 +148,7 @@ test('church management tab changes preserve the mounted management view', () =>
     getRouteTransitionKey({ pathname: '/church/manage', search, isManagedPublicPage: false })
 
   assert.equal(transitionKey('?section=group'), '/church/manage')
+  assert.equal(transitionKey('?section=venues'), '/church/manage')
   assert.equal(transitionKey('?section=members'), '/church/manage')
   assert.equal(transitionKey('?section=contacts'), '/church/manage')
   assert.equal(transitionKey('?section=subgroups'), '/church/manage')
@@ -199,7 +201,10 @@ test('website content moves out of sidebars and group management has no pending 
 })
 
 test('standalone group management sections remain distinct from the default group section', () => {
+  assert.deepEqual(churchManagementTabs.slice(0, 2), ['group', 'venues'])
   assert.equal(resolveManageSection('group'), 'group')
+  assert.equal(resolveManageSection('venues', churchManagementTabs, true), 'venues')
+  assert.equal(resolveManageSection('venues'), 'group')
   assert.equal(resolveManageSection('announcements'), 'announcements')
   assert.equal(resolveManageSection('events'), 'events')
   assert.equal(resolveManageSection('albums'), 'group')

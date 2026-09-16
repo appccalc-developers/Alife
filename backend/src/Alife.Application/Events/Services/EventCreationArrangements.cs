@@ -77,6 +77,7 @@ public static class EventCreationArrangements
         var newVenues = new List<EventVenue>();
         var reservedVenues = new Dictionary<Guid, EventVenue>();
         var reservations = new List<EventVenueReservation>();
+        var reservableManagingGroupIds = await EventVenueScope.ReservableManagingGroupIdsAsync(db, groupEvent.GroupId, ct);
         foreach (var id in bookings.Where(x => x?.VenueId != null).Select(x => x.VenueId!.Value).Distinct().Order())
             await db.LockEventVenueAsync(id, ct);
         foreach (var booking in bookings)
@@ -87,8 +88,8 @@ public static class EventCreationArrangements
             EventVenue venue;
             if (booking.VenueId.HasValue)
             {
-                venue = await db.EventVenues.FirstOrDefaultAsync(x => x.Id == booking.VenueId && x.ManagingGroupId == groupEvent.GroupId, ct) ?? null!;
-                if (venue is null || !venue.IsActive) return Invalid("The selected venue is unavailable in this group.");
+                venue = await db.EventVenues.FirstOrDefaultAsync(x => x.Id == booking.VenueId && reservableManagingGroupIds.Contains(x.ManagingGroupId), ct) ?? null!;
+                if (venue is null || !venue.IsActive) return Invalid("The selected venue is unavailable in this group or its church.");
                 if (booking.VenueETag != $"\"venue-{venue.ConcurrencyToken:N}\"")
                     return AppResult<PreparedEventArrangements>.PreconditionFailed("The selected venue changed. Refresh venues in Arrangements and review again.");
             }

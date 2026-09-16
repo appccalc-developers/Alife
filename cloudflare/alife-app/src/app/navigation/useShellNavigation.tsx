@@ -198,7 +198,7 @@ export const useShellNavigation = ({
         ...(canOpenChurchManagement ? [{
           key: 'church:management',
           label: isChinese ? '教会管理' : 'Church Management',
-          description: isChinese ? '教会资料、成员、联系人、团契与事工' : 'Church profile, members, contacts, fellowships, and ministries',
+          description: isChinese ? '教会资料、场地、成员、联系人、团契与事工' : 'Church profile, venues, members, contacts, fellowships, and ministries',
           to: '/church/manage?section=group',
           matchPathOnly: true,
           icon: <Settings2 className="h-5 w-5" />,

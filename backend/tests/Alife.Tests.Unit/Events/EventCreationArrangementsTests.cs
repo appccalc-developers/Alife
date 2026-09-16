@@ -195,6 +195,28 @@ public partial class EventCreationArrangementsTests
     }
 
     [Fact]
+    public async Task ExistingVenue_AllowsTheOwningGroupsRootChurchCatalogue()
+    {
+        await using var db = Database();
+        var churchId = Guid.NewGuid();
+        db.Groups.AddRange(
+            new Group { Id = churchId, NameJson = "{}", IsChurch = true, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow },
+            new Group { Id = groupId, ParentGroupId = churchId, NameJson = "{}", CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
+        var venue = new EventVenue { Id = Guid.NewGuid(), ManagingGroupId = churchId,
+            NameEn = "Church hall", NameZh = "教会礼堂", Capacity = 50, IsActive = true,
+            CreatedByMemberId = actorId, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
+        db.EventVenues.Add(venue);
+        await db.SaveChangesAsync();
+        var booking = new EventCreationVenueRequest(venue.Id, $"\"venue-{venue.ConcurrencyToken:N}\"", null, 30, 0, 120);
+
+        var result = await Handler(db).Handle(Command(Details() with { VenueBookings = [booking] }), default);
+
+        Assert.True(result.IsSuccess, result.Message);
+        Assert.Equal(venue.Id, (await db.EventVenueReservations.SingleAsync()).VenueId);
+        Assert.Equal(churchId, (await db.EventVenues.SingleAsync()).ManagingGroupId);
+    }
+
+    [Fact]
     public async Task RecurringDetails_AreRelativeToEachMaterializedOccurrence()
     {
         await using var db = Database(); var firstLocal = DateTime.SpecifyKind(DateTime.Today.AddDays(1).AddHours(19), DateTimeKind.Unspecified);

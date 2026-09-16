@@ -4,7 +4,7 @@
 
 ## Collaboration version 1
 
-Version 1 supplies an independent **venue and room catalogue/calendar** under group management. Catalogue administration is separate from Event ownership and plan editing. Single and indefinite local weekly reservations share server conflict checks and venue locks; they do not depend on the twelve-week occurrence horizon. Exceptions release/restore one date with reason and actor history; restoration cannot overwrite new bookings. Future-rule changes retain past bookings. DST ambiguity is explicit, never silently free. Calendar titles obey Event visibility; other viewers see Occupied. Equipment inventory remains deferred and standing bookings never extend approval coverage. See [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+Version 1 supplies an independent **venue and room catalogue/calendar** under the managing entity's administration. The root church catalogue appears in Church Management; non-church catalogues remain under their group management. An Event may reserve active venues owned by its group or by that group's root church. Catalogue administration is separate from Event ownership and plan editing: church-shared venues remain editable only by root-church catalogue administrators. Single and indefinite local weekly reservations share server conflict checks and venue locks across all using groups; they do not depend on the twelve-week occurrence horizon. Exceptions release/restore one date with reason and actor history; restoration cannot overwrite new bookings. Future-rule changes retain past bookings. DST ambiguity is explicit, never silently free. Calendar titles obey Event visibility; other viewers see Occupied. Equipment inventory remains deferred and standing bookings never extend approval coverage. See [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
 
 ## Purpose
 
@@ -46,7 +46,7 @@ Contributes venue/reservation identity and version, occurrence coverage, capacit
 
 ### User experience
 
-Coordinators select active group venues, see capacity and actual UTC conflicts, reserve or release without deleting history, and recover from stale ETags. Touching half-open boundaries do not conflict.
+Coordinators select active venues from the owning group and its root church, see capacity and actual UTC conflicts, reserve or release without deleting history, and recover from stale ETags. Touching half-open boundaries do not conflict.
 
 During [event creation](../CREATION-ARRANGEMENTS.md), the Arrangements page supports inline Yes/No activation and collapsible editing of existing or new group venues, capacity and booking times. Required activation stays locked. Final confirmation validates venue authority, capacity, half-open conflicts and concurrency, then saves venues/reservations atomically with the Event.
 
@@ -64,7 +64,11 @@ venue slice. Reusable venue catalogue/capacity, Event and occurrence reservation
 
 ## Independent venues and rooms
 
-`/groups/:groupId/venues` is an independent catalogue and calendar, reachable from group management and relevant Event work. Catalogue authority is current group leader/co-leader; owning an Event does not grant it. Owners may reserve authorized group venues; calendar administration does not grant private plan editing. Names, addresses, capacity, kind (`venue`, `room`), time zone and enabled status belong to the catalogue. Equipment inventory is deferred.
+The root church catalogue and calendar is a peer tab immediately after Profile & settings at `/church/manage?section=venues`. Non-church managing groups retain `/groups/:groupId/venues`, and relevant Event work may continue to reach that independent route. Catalogue authority is current group leader/co-leader; owning an Event does not grant it. Event owners and authorized resource coordinators may reserve active venues from the Event's owning group and its root church. They cannot edit root-church venue details unless they separately hold root-church catalogue authority. Parent groups that are not the root church and unrelated churches do not enter the reservable scope. Names, addresses, capacity, kind (`venue`, `room`), time zone and enabled status belong to the managing catalogue. Equipment inventory is deferred.
+
+Acceptance: an authorized root-church manager opening the Venues & rooms tab remains inside Church Management at `/church/manage?section=venues`; the venue directory, capacity controls, recurring calendar, exceptions and history use the root church group identifier without switching to a church-group management page. The tab is on the same single tab row as the other Church Management views and follows Profile & settings.
+
+Acceptance: an authorized child-group Event editor sees active root-church venues marked as church-shared during creation and saved preparation, can reserve them with the same capacity, ETag, recurring-calendar and conflict checks as group-owned venues, and cannot edit their catalogue records. Another church's venues remain unavailable.
 
 Calendars disclose Event names only to authorized viewers; others see Occupied. A weekly booking stores local first date, optional last date, start/end minutes, capacity and time zone. Blank last date is indefinite. Overnight intervals are supported within 24 hours. Calendar expansion uses the requested range (maximum 366 days), independently of the rolling twelve-week Event occurrence horizon. A Sunday morning remains occupied when queried a year later.
 

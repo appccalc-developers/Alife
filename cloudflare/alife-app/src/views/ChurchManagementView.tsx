@@ -1,8 +1,7 @@
 import { useAuthStore } from '../stores/auth'
+import { churchManagementTabs } from '../utils/groupManagementSections'
 import AdminView from './AdminView'
 import GroupManageView from './GroupManageView'
-
-const churchManagementSections = ['group', 'members', 'contacts', 'subgroups', 'ministries'] as const
 
 const ChurchManagementView = ({ churchGroupId }: { churchGroupId: string }) => {
   const auth = useAuthStore()
@@ -14,9 +13,10 @@ const ChurchManagementView = ({ churchGroupId }: { churchGroupId: string }) => {
       explicitGroupId={churchGroupId}
       workspaceBasePath="/church/manage"
       sectionParamName="section"
-      visibleSections={churchManagementSections}
+      visibleSections={churchManagementTabs}
       sectionLabels={{
         group: isChinese ? '资料与设置' : 'Profile & settings',
+        venues: isChinese ? '场地与房间管理' : 'Venues & rooms',
         members: isChinese ? '成员管理' : 'Member management',
         contacts: isChinese ? '联系人' : 'Contacts',
         subgroups: isChinese ? '团契' : 'Fellowships',
@@ -32,8 +32,8 @@ const ChurchManagementView = ({ churchGroupId }: { churchGroupId: string }) => {
         </>
       )}
       workspaceDescription={isChinese
-        ? '在同一页面维护教会资料、成员、联系人、团契与事工。'
-        : 'Manage church profile, members, contacts, fellowships, and ministries in one place.'}
+        ? '在同一页面维护教会资料、场地与房间、成员、联系人、团契与事工。'
+        : 'Manage church profile, venues and rooms, members, contacts, fellowships, and ministries in one place.'}
       subgroupDetailBasePath={auth.isAdmin ? '/admin/groups' : undefined}
     />
   )
