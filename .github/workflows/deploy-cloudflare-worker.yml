@@ -6,6 +6,7 @@ on:
     branches:
       - main
     paths:
+      - "README.html"
       - ".github/workflows/deploy-cloudflare-worker.yml"
       - "cloudflare/alife-app/**"
       - "cloudflare/speed-layer/**"

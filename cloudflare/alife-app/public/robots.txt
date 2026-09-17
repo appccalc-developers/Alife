@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /project/
+
+Sitemap: https://ccalc.live/sitemap.xml

@@ -5,6 +5,9 @@
   "description": "Bilingual React PWA for the Alife community platform.",
   "type": "module",
   "scripts": {
+    "generate:project-overview": "node scripts/generate-project-overview.mjs",
+    "predev": "npm run generate:project-overview",
+    "prebuild": "npm run generate:project-overview",
     "dev": "vite --host",
     "generate:public-home-bootstrap": "node scripts/generate-public-home-bootstrap.mjs",
     "test:group-hierarchy": "node --test --experimental-strip-types tests/groupHierarchy.test.ts",

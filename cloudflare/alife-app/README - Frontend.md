@@ -38,6 +38,17 @@ npm run preview
 
 `npm run preview` builds the app and starts `wrangler dev`, exercising the Cloudflare Worker entry point in `speed-layer/src/index.ts`.
 
+### Public project overview
+
+The root `README.html` is the only maintained source for `https://ccalc.live/project/`.
+`predev` and `prebuild` copy it to the ignored `public/project/index.html`, which Vite includes in the static assets. After editing it during an active dev session, run `npm run generate:project-overview` and refresh. Generation failures stop the dev/build command.
+
+In development, a small Vite middleware maps `/project/` to that public file and redirects `/project` to `/project/`, matching Workers directory-index routing instead of falling back to the React homepage.
+
+The page contains English HTML for anonymous readers and crawlers, with a Chinese toggle that remembers the reader's choice. It links to public GitHub documentation. `public/robots.txt` advertises `public/sitemap.xml`, which lists only the homepage and project overview; these files do not grant access to protected content. The overview uses the existing static HTTP cache policy and PWA runtime cache but is excluded from the install-time precache.
+
+The existing Worker deployment workflow also watches the root `README.html`. The public URL becomes available after a deployment containing these assets; no separate hosting service is needed.
+
 ## Environment
 
 For local Vite development, prefer the same-origin proxy and leave `VITE_API_BASE_URL` empty.
