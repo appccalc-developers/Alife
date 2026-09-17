@@ -2,6 +2,63 @@
 
 > Human overview and navigation. Business authority belongs to the core contract, delegated topics/modules and machine contract. Delivery status and historical evidence are separate.
 
+<!-- overview:en:start -->
+
+## English
+
+### What an Event is
+
+ALIFE helps communities prepare, publish, deliver and follow up on Events. An Event combines confirmed facts, required capabilities and accountable people. Templates provide a starting point; they do not establish facts or permissions.
+
+This page is a product overview. The [core contract and delegated topics](EVENT-CONTRACT.md) define business rules; [current implementation status](IMPLEMENTATION-STATUS.md) describes delivered scope, not complete targets or deployed availability.
+
+### Event structure
+
+- **Event Plan**: a human-accepted immutable snapshot; later changes produce another version.
+- **EventSeries**: recurrence, time zone and shared settings, maintaining a rolling twelve-week occurrence window.
+- **EventOccurrence**: one delivery with its own people, arrangements and execution confirmation; finishing one date does not close the series.
+- Use a Child Event only for independent registration, safety, fees or lifecycle, with one parent level at most. Programme sessions and zones do not create another Event lifecycle.
+
+### Stages and responsibilities
+
+- **Preparation**: the creator is accountable; planning areas can be revisited, module leads submit reports and invited people personally accept responsibilities.
+- **Publication and registration**: authorized people explicitly publish/open registration; leads use independent work entries for registration, scheduling and other duties. Scheduling continues after publication.
+- **Execution**: validate staffing eligibility, safety and approval coverage for the specific occurrence; an authorized person explicitly confirms execution.
+- **Follow-up**: finish remaining handoffs, feedback and responsibilities. Stage navigation itself never saves, approves or grants authority.
+
+### Human decisions and privacy
+
+- Plan acceptance, specialist decisions such as RAM, overall Package approval, publication and execution are separate human actions. AI assists only within its authorized scope; generated content is never auto-published.
+- The server checks current membership, roles, purpose and version. Participant, child, safety and financial information receives minimum necessary disclosure; protected data never enters shared caches.
+- Explicit version and compatibility rules apply. The existing four stages remain; Plan B and a separate Review/Reflection stage are not included.
+
+### Capability modules
+
+- [TEAM.WORK](modules/TEAM.WORK.md) — Tasks and handoffs
+- [PEOPLE.REGISTRATION](modules/PEOPLE.REGISTRATION.md) — Registration and participants
+- [SERVICE.ROSTER](modules/SERVICE.ROSTER.md) — Volunteer scheduling
+- [MONEY.FINANCE](modules/MONEY.FINANCE.md) — Finance and registration fees
+- [SAFETY.RAM](modules/SAFETY.RAM.md) — Risk assessment and review
+- [SAFEGUARDING.CHILD](modules/SAFEGUARDING.CHILD.md) — Child safeguarding
+- [PROGRAM.PRODUCTION](modules/PROGRAM.PRODUCTION.md) — Programme and run sheet
+- [PLACE.RESOURCE](modules/PLACE.RESOURCE.md) — Venues and resources
+- [MOVE.STAY](modules/MOVE.STAY.md) — Transport and accommodation
+- [FOOD.HOSPITALITY](modules/FOOD.HOSPITALITY.md) — Food and hospitality
+- [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md) — Communication and follow-up
+- [FESTIVAL.OPERATIONS](modules/FESTIVAL.OPERATIONS.md) — Live festival operations
+
+Module names describe product responsibilities, not completion of every feature. Current finance supports manual registration fees, food supports lead reports, and festival operations is unavailable; see implementation status.
+
+### Read by topic
+
+- [Composition and templates](EVENT-COMPOSITION.md) · [Approval and lifecycle gates](EVENT-PACKAGE-APPROVAL.md)
+- [Stages and workspaces](EVENT-WORKSPACES.md) · [Preparation](EVENT-SETUP-FLOW.md) · [Creation arrangements](CREATION-ARRANGEMENTS.md)
+- [Personal duties and handoffs](EVENT-DUTIES.md) · [AI form assistance](AI-DETAILS-ASSISTANT.md)
+- [Exact machine contract](event-contract.json) · [Design guidance](design/EVENT-WORKSPACE-DESIGN.md) · [Development reading rules](AGENTS.md)
+- [Historical verification](IMPLEMENTATION-HISTORY.md) and the [generated long handbook](generated/alife-event-composition-model.zh-TW-en.html) are for relevant historical investigation; old results are not current verification.
+
+<!-- overview:en:end -->
+
 <!-- overview:zh-CN:start -->
 
 ## 简体中文
@@ -115,60 +172,3 @@ ALIFE 協助群體籌備、公布、執行和收尾活動。活動由已確認�
 - [歷史驗證記錄](IMPLEMENTATION-HISTORY.md)與[生成的長篇手冊](generated/alife-event-composition-model.zh-TW-en.html)僅供按需追溯；歷史結果不是目前驗證。
 
 <!-- overview:zh-TW:end -->
-
-<!-- overview:en:start -->
-
-## English
-
-### What an Event is
-
-ALIFE helps communities prepare, publish, deliver and follow up on Events. An Event combines confirmed facts, required capabilities and accountable people. Templates provide a starting point; they do not establish facts or permissions.
-
-This page is a product overview. The [core contract and delegated topics](EVENT-CONTRACT.md) define business rules; [current implementation status](IMPLEMENTATION-STATUS.md) describes delivered scope, not complete targets or deployed availability.
-
-### Event structure
-
-- **Event Plan**: a human-accepted immutable snapshot; later changes produce another version.
-- **EventSeries**: recurrence, time zone and shared settings, maintaining a rolling twelve-week occurrence window.
-- **EventOccurrence**: one delivery with its own people, arrangements and execution confirmation; finishing one date does not close the series.
-- Use a Child Event only for independent registration, safety, fees or lifecycle, with one parent level at most. Programme sessions and zones do not create another Event lifecycle.
-
-### Stages and responsibilities
-
-- **Preparation**: the creator is accountable; planning areas can be revisited, module leads submit reports and invited people personally accept responsibilities.
-- **Publication and registration**: authorized people explicitly publish/open registration; leads use independent work entries for registration, scheduling and other duties. Scheduling continues after publication.
-- **Execution**: validate staffing eligibility, safety and approval coverage for the specific occurrence; an authorized person explicitly confirms execution.
-- **Follow-up**: finish remaining handoffs, feedback and responsibilities. Stage navigation itself never saves, approves or grants authority.
-
-### Human decisions and privacy
-
-- Plan acceptance, specialist decisions such as RAM, overall Package approval, publication and execution are separate human actions. AI assists only within its authorized scope; generated content is never auto-published.
-- The server checks current membership, roles, purpose and version. Participant, child, safety and financial information receives minimum necessary disclosure; protected data never enters shared caches.
-- Explicit version and compatibility rules apply. The existing four stages remain; Plan B and a separate Review/Reflection stage are not included.
-
-### Capability modules
-
-- [TEAM.WORK](modules/TEAM.WORK.md) — Tasks and handoffs
-- [PEOPLE.REGISTRATION](modules/PEOPLE.REGISTRATION.md) — Registration and participants
-- [SERVICE.ROSTER](modules/SERVICE.ROSTER.md) — Volunteer scheduling
-- [MONEY.FINANCE](modules/MONEY.FINANCE.md) — Finance and registration fees
-- [SAFETY.RAM](modules/SAFETY.RAM.md) — Risk assessment and review
-- [SAFEGUARDING.CHILD](modules/SAFEGUARDING.CHILD.md) — Child safeguarding
-- [PROGRAM.PRODUCTION](modules/PROGRAM.PRODUCTION.md) — Programme and run sheet
-- [PLACE.RESOURCE](modules/PLACE.RESOURCE.md) — Venues and resources
-- [MOVE.STAY](modules/MOVE.STAY.md) — Transport and accommodation
-- [FOOD.HOSPITALITY](modules/FOOD.HOSPITALITY.md) — Food and hospitality
-- [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md) — Communication and follow-up
-- [FESTIVAL.OPERATIONS](modules/FESTIVAL.OPERATIONS.md) — Live festival operations
-
-Module names describe product responsibilities, not completion of every feature. Current finance supports manual registration fees, food supports lead reports, and festival operations is unavailable; see implementation status.
-
-### Read by topic
-
-- [Composition and templates](EVENT-COMPOSITION.md) · [Approval and lifecycle gates](EVENT-PACKAGE-APPROVAL.md)
-- [Stages and workspaces](EVENT-WORKSPACES.md) · [Preparation](EVENT-SETUP-FLOW.md) · [Creation arrangements](CREATION-ARRANGEMENTS.md)
-- [Personal duties and handoffs](EVENT-DUTIES.md) · [AI form assistance](AI-DETAILS-ASSISTANT.md)
-- [Exact machine contract](event-contract.json) · [Design guidance](design/EVENT-WORKSPACE-DESIGN.md) · [Development reading rules](AGENTS.md)
-- [Historical verification](IMPLEMENTATION-HISTORY.md) and the [generated long handbook](generated/alife-event-composition-model.zh-TW-en.html) are for relevant historical investigation; old results are not current verification.
-
-<!-- overview:en:end -->
