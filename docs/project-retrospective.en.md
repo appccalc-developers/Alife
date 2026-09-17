@@ -1,213 +1,182 @@
-# Alife Project Retrospective: From an Idea to a Useful Alpha Product
+# ALIFE Engineering Retrospective — April–September 2026
+
+> Repository evidence begins on 14 April 2026. There are no March commits on `main`; any March activity should be presented separately as pre-repository context supplied by Stephen, not as Git-verified history.
 
 ## Executive summary
 
-Alife began with a concrete problem: for overseas Chinese churches, groups, members, web pages, sermons, events, enrollment, and bilingual content are often fragmented across unrelated tools, chat histories, and the personal knowledge of a few volunteers. My goal was not to build another information website. It was to create a community platform in which visitors, members, group leaders, content volunteers, reviewers, and platform administrators could complete real tasks.
+Between 14 April and 16 September 2026, ALIFE evolved from an initial .NET API, SQL model and React demo into a broad alpha-stage community platform. The repository records working paths for group and member management, bilingual structured pages, publication review, sermons, events, enrollment, post-event review, announcements, albums, contacts, forums, identity applications, Passkeys, recovery, and a multi-layer Cloudflare delivery architecture.
 
-Between 15 April and 23 July 2026, the project recorded 272 GitHub issues. Of those, 270 are closed and two remain open. The count is not the achievement by itself. The stronger evidence of zero-to-one product ability is that the work documented by those issues gradually formed complete workflows:
+The most important engineering story is not the number of features. It is the sequence of corrections:
 
-- Visitors can browse public pages, sermons, events, discussions, and historical articles.
-- Members can join groups, enroll in events, participate in discussions, read a bilingual Bible, and preserve reading progress across devices.
-- Leaders can manage members, subgroups, announcements, albums, contacts, pages, and events.
-- Non-technical content volunteers can build and maintain a bilingual public website through a WYSIWYG page builder.
-- Reviewers can govern publication, public navigation, and homepage placement.
-- AI can assist with event planning, enrollment, review, translation, and risk assessment while leaving approval and responsibility with people.
-- The backend, Cloudflare edge, and PWA cache layers balance performance, cost, privacy, authorization, and freshness.
+- A short-lived phone/SMS registration path was removed in favour of LINE, then identity expanded again into Passkeys, invitation, activation and recovery when the product needed more than a single social-login route.
+- A simple Page/Section CMS became bilingual and WYSIWYG, then gained group-owned publication governance, and finally separated working, submitted and published copies so edits no longer had to disturb live content.
+- A Cloudflare proxy became an independent speed layer whose cache policy distinguishes public, group-shared and viewer-specific data.
+- Event Management moved from CRUD, enrollment and post-event review into accepted Plans, recurrence, roles, specialist capability modules, immutable Package evidence and explicit lifecycle gates.
+- A generic Event workflow implementation was built, evaluated and then retired in favour of dedicated domain flows rather than being preserved merely because it already existed.
 
-At the time of this retrospective, Alife is no longer a concept prototype. It is an alpha product with real business boundaries, role-based access, content governance, operational tooling, and a traceable history of iteration.
+This is credible evidence of product and architecture iteration. It is not evidence by itself of market adoption, production SLOs, completion of every Event module, or live provider behaviour. The current source is best described as a substantial, test-covered alpha implementation whose deployment and real-user outcomes still require separate evidence.
 
-## Evidence base
+## Evidence base and boundaries
 
-- Repository: [`appccalc-developers/Alife`](https://github.com/appccalc-developers/Alife)
-- Scope: all 272 open and closed issues
-- Date range: 15 April to 23 July 2026
-- Monthly distribution: 22 issues in April, 68 in May, 98 in June, and 84 in July
-- Snapshot at 23 July 2026: 270 closed, two open, or 99.3% closed
+This account uses reachable `main` history, commit messages and diffs, migrations, source, tests, package manifests, routes, architecture documents, Event implementation status, and removed code visible in Git.
 
-Issue volume represents traceable work, not 271 independent features or a direct measure of engineering speed. GitHub issues and pull requests share one numbering sequence, so issue numbers extend from #1 to #575. The corpus also contains an explicit test issue ([#416](https://github.com/appccalc-developers/Alife/issues/416)). This retrospective treats issue bodies, acceptance criteria, state, and chronology as evidence of product evolution rather than using the raw count as a marketing claim.
+The period contains 562 reachable commits on `main` by committer date: 86 in April, 160 in May, 119 in June, 96 in July, 52 in August and 49 through 16 September. Commit subjects expose 398 distinct merged-PR identifiers. Exact issue totals and current open/closed state were not reverified because GitHub credentials were unavailable; issue and PR numbers share one sequence, so commit references are not a safe substitute for a server-side issue report.
 
-## The product’s zero-to-one growth
+Current repository scale is useful only as context: 79 EF migration source files, five production backend projects plus one test project, two npm packages, 45 API controllers, 351 HTTP endpoint attributes, and 95 React route declarations. The repository has no Git tags. `VERSION` and `CHANGELOG.md` began to record release labels on 31 August, but those labels should not be presented as independently verified GitHub releases.
 
-### Stage 1: Build a trustworthy foundation
+## The architecture evolved in three phases
 
-The first work did not maximize feature count. It addressed the foundations a community product needed before people could trust it: identity, access, mobile behavior, and deployment.
+### 1. Foundation and feasibility — 14 April to 15 May
 
-The project removed a sermon-read delay caused by synchronous YouTube updates ([#1](https://github.com/appccalc-developers/Alife/issues/1)), stopped issuing unnecessary guest identifiers ([#3](https://github.com/appccalc-developers/Alife/issues/3)), added PWA support with older iPhone considerations ([#5](https://github.com/appccalc-developers/Alife/issues/5)), and established LINE OAuth with JWTs in HttpOnly cookies ([#9](https://github.com/appccalc-developers/Alife/issues/9), [#21](https://github.com/appccalc-developers/Alife/issues/21)).
+The first phase established whether the product could combine community identity, structured content, sermons, mobile delivery and AI-assisted Event creation without collapsing those concerns into one application.
 
-I also separated the backend from SPA concerns ([#11](https://github.com/appccalc-developers/Alife/issues/11)), moved it to Azure Functions ([#13](https://github.com/appccalc-developers/Alife/issues/13)), and added container support ([#19](https://github.com/appccalc-developers/Alife/issues/19)).
+The initial repository already contained relational `Page` and typed `Section` aggregates, group/member models and sermon persistence (`d6cac408`, 14 April). YouTube playlist synchronisation was corrected so sermon reads did not wait for a provider refresh (`e7833c74`, `5c4901d4`, 15 April). A React frontend and PWA baseline followed (`bf368830`, `bbc2fe9a`).
 
-This stage shows that I approached zero-to-one work by making identity, API boundaries, mobile access, and the deployment path dependable before pursuing breadth.
+Identity changed quickly. LINE OAuth with JWT claims and onboarding landed on 16 April (`8b0df29b`). A temporary Twilio/phone-verification path was removed on 22 April when LINE became the sole registration path (`d0e5ad29`). The API stopped hosting SPA concerns (`40be5cec`), moved to Azure Functions isolated worker (`739b259a`), and gained container/local architecture support (`b78237a1`).
 
-### Stage 2: Turn screens into a usable group product
+In early May, the frontend adopted TanStack React Query and React DB (`898ab5cf`), the backend added ETag and soft-delete support (`824df204`), and Cloudflare proxy/image Workers entered the repository (`14752e3c`, `18c830b4`). The first semantic Event creator and Gemini integration landed on 11 May (`f43f4f2f`), followed by Durable Object session state and the persisted `GroupEvent` root (`5708c850`, `c77a60d0`).
 
-The next stage focused on how members and leaders would use Alife each day. The frontend evolved into a mobile-first app shell with bottom navigation, side navigation, drawers, and contextual actions ([#25](https://github.com/appccalc-developers/Alife/issues/25), [#30](https://github.com/appccalc-developers/Alife/issues/30)).
+This phase was exploratory, but it produced real architectural commitments: separate browser/API/edge/storage responsibilities, HttpOnly-cookie sessions, structured content rather than HTML-only pages, and temporary AI conversation state separated from accepted business records.
 
-Group detail changed from a static profile into a page-centered content entry point, while leader tools moved into a separate management context ([#29](https://github.com/appccalc-developers/Alife/issues/29), [#38](https://github.com/appccalc-developers/Alife/issues/38), [#47](https://github.com/appccalc-developers/Alife/issues/47)).
+### 2. Integrated alpha productisation — 17 May to 26 August
 
-The product decision was simple but important: members primarily want to read and participate; leaders need to manage people and content. Separating those modes better matched real roles than placing every action on one screen.
+By 17 May the work had moved beyond feasibility. A dedicated Event controller and tested CRUD handlers existed (`21048c41`); leader editing followed (`c350f817`), then end-to-end enrollment (`198964af`) and AI-assisted post-event review (`847eac1f`). The May lifecycle was create, enroll and record reviews—not the later governance model, and not a fifth “Review” stage.
 
-### Stage 3: Make performance and media an architecture, not a patch
+The CMS also became a product workflow. Shared page rendering and WYSIWYG editing landed in `5fd762f8`; bilingual Page storage in migration `20260525084708_PageAggregateMultilingual.cs`; bilingual section switching in `6730afba`. Page Builder V2 simplified the model around reusable display patterns and legacy normalisation in early June (`f6fb2ae1`, `113fa7a5`, `3608b67c`). TinyMCE support arrived on 30 June (`05bfc74b`).
 
-As content and list views grew, performance could no longer be handled independently by each screen. I consolidated service-worker behavior and conditional requests ([#53](https://github.com/appccalc-developers/Alife/issues/53), [#56](https://github.com/appccalc-developers/Alife/issues/56), [#58](https://github.com/appccalc-developers/Alife/issues/58)), then added a Cloudflare proxy, Cache API behavior, passive invalidation, and a separate image Worker ([#61](https://github.com/appccalc-developers/Alife/issues/61), [#62](https://github.com/appccalc-developers/Alife/issues/62)).
+The Cloudflare architecture became an independent package on 4 June (`952ce976`). Shared group caching first moved from Workers KV to the Cache API (`5b069fa5`), while authorization-before-cache was enforced for group reads (`bd39410d`). Later production-style failures led to query-key fixes, global invalidation and a more deliberate public cache: Cache API as L1 and KV as cross-PoP L2 for reviewed public pages (`a0052fef`, `4ce018cc`). This was not “cache everything.” Identity, member profiles, enrollment lists and protected Event records remained private and viewer-specific.
 
-The edge layer later moved into vertical slices and middleware ([#207](https://github.com/appccalc-developers/Alife/issues/207)), then became an independent package and CI/CD unit ([#209](https://github.com/appccalc-developers/Alife/issues/209), [#212](https://github.com/appccalc-developers/Alife/issues/212)).
+Public publishing required a larger correction. Platform roles and administration foundations arrived in June (`ed500364`, `363313c6`). A global Page model was introduced (`02fb88fd`) but retired on 7 July (`6469525f`). The replacement kept content owned by its group and stored publication review separately. Public menus, homepage placement and safe reviewed pages from protected groups followed (`337b4b50`, `586336c1`, `21ff926d`).
 
-The design was never “cache everything publicly.” Alife progressively distinguished public, group-shared, member-specific, and browser-local data, and required authorization before shared group-cache reads ([#133](https://github.com/appccalc-developers/Alife/issues/133), [#143](https://github.com/appccalc-developers/Alife/issues/143), [#147](https://github.com/appccalc-developers/Alife/issues/147), [#225](https://github.com/appccalc-developers/Alife/issues/225)).
+July also expanded the platform around the same ownership, bilingual, visibility and cache rules: FileAssets and visitor contact (`78510410`, `48f7be35`), forum (`b8cbb556`), sermon discussions (`573451b7`), Bible reading progress (`ad3c28ad`), announcements (`decefd9b`), albums (`7509a6ed`), contacts (`e076e61b`) and historical content import (`706efa74`, `df9f51f8`).
 
-This demonstrates that I can optimize latency and cost while still reasoning about privacy leakage, stale authorization, and invalidation.
+Events gained lifecycle action rules and the first RAM gate on 22 July (`c369f1e9`, `09f95fe1`). In August a generic workflow/template/artifact system was implemented (`a3981bba`) while the rest of the application consolidated navigation, privacy-safe forums, public homepage caching and administrative workspaces.
 
-### Stage 4: Build a complete event lifecycle and place AI inside it
+This phase demonstrates productisation more clearly than the original June boundary suggests. It began in the second half of May and combined UI workflows, persistence, authorization, caching, tests, deployment boundaries and operational fixes.
 
-Events began as a domain entity and CRUD API ([#81](https://github.com/appccalc-developers/Alife/issues/81), [#85](https://github.com/appccalc-developers/Alife/issues/85)), then expanded into leader editing, member enrollment, payment files, post-event review, and multiple review entries ([#83](https://github.com/appccalc-developers/Alife/issues/83), [#84](https://github.com/appccalc-developers/Alife/issues/84), [#172](https://github.com/appccalc-developers/Alife/issues/172), [#174](https://github.com/appccalc-developers/Alife/issues/174), [#242](https://github.com/appccalc-developers/Alife/issues/242)).
+### 3. Governance-heavy identity and Event domain engineering — 27 August to 16 September
 
-AI was not built as an isolated chat box. Shared AI session infrastructure used Cloudflare Durable Objects for temporary conversation state, while reviewed business records were persisted through backend APIs only after the user committed them ([#109](https://github.com/appccalc-developers/Alife/issues/109), [#111](https://github.com/appccalc-developers/Alife/issues/111)).
+The clearest domain-engineering inflection point is 27 August. Commit `efcda7ef` introduced Event composition and supporting schema for archetypes, activity templates, accepted Plans, series/occurrences, role assignments, venues and conflicts, safeguarding, transport and operational work. It preserved `GroupEvent` as a compatibility root rather than forcing a big-bang rewrite.
 
-The workflow later added bilingual Risk Assessment and Management drafts, risk scoring, leader confirmation, and auditor approval ([#565](https://github.com/appccalc-developers/Alife/issues/565), [#567](https://github.com/appccalc-developers/Alife/issues/567)). The AI is explicitly prohibited from inventing responsible people, phone numbers, first-aid qualifications, driver licences, registrations, WOF status, or vehicle condition. Events cannot accept enrollment until the RAM is approved.
+On 31 August, the CMS gained a comparable governance boundary. Commit `57d2ce1b` added persisted submitted and published snapshots, working-copy/public-copy endpoints, optimistic concurrency, and cache invalidation. A group can continue editing or resubmit a Page while visitors keep reading the last approved copy. This is publication-copy isolation, not a full arbitrary revision-history system.
 
-This shows how I turn AI into a useful component of a governed workflow: it reduces cognitive load, while people retain truth, accountability, and final authority.
+Identity was redesigned in the same week. Commit `e84f34f5` added Passkey credentials and ceremonies, invitations, internal alpha login, management APIs and auditable onboarding state. Subsequent work added safe diagnostics and manual activation (`bb3ad544`, `eb1a4b9e`), browser continuation and Passkey recovery (`f34d3496`), email/provider-backed activation and account recovery (`945db2db`), and public church applications with phone-oriented Passkey entry (`46d952bf`). LINE remained as a configurable legacy entry rather than the whole identity model.
 
-### Stage 5: Let non-technical volunteers maintain bilingual content
+Event Package Approval landed on 3 September (`1ec35845`). Its purpose was to avoid treating “Plan accepted,” “RAM approved,” “publish,” “registration open,” and “ready to execute” as one mutable Boolean. The current source builds immutable Package evidence from versioned sources, records scoped decisions and conditions, supports delegation and occurrence exceptions, and evaluates publication, registration and execution through server-side gates.
 
-Pages evolved from structured sections into a real WYSIWYG builder: shared rendering and editing ([#117](https://github.com/appccalc-developers/Alife/issues/117)), bilingual data contracts ([#127](https://github.com/appccalc-developers/Alife/issues/127), [#135](https://github.com/appccalc-developers/Alife/issues/135)), a simplified section model with legacy normalization ([#194](https://github.com/appccalc-developers/Alife/issues/194), [#199](https://github.com/appccalc-developers/Alife/issues/199)), and manual or data-bound Spotlight sections ([#201](https://github.com/appccalc-developers/Alife/issues/201)).
+The rest of September moved specialist work into reachable flows: conversational details assistance (`79a1dcc9`), nonlinear preparation and reopening (`de9aa093`), versioned RAM and arrangements (`5dcb1fcd`), creator ownership and scoped staffing (`55098f7b`), module confirmation (`63c4942e`), duties and task approval (`d49b29cb`), manual rosters and waitlists (`f34b01c6`), collaboration workspaces (`a8d3095f`) and activity planning/delegation/RAM synchronisation (`9380b057`).
 
-Later iterations focused less on adding section types and more on reducing authoring friction:
+The strongest architectural correction in this phase was removal, not addition. On 13 September, the generic Event workflow APIs, services and UI were retired (`c4110cb4`). Historical tables remained for compatibility, but current work moved to dedicated RAM, duty, registration, report, venue, safeguarding, transport, roster and Package services. That decision is more defensible than carrying a generic abstraction after specialist authority and privacy rules had outgrown it.
 
-- A section-type-first add flow with sensible source defaults ([#399](https://github.com/appccalc-developers/Alife/issues/399)).
-- TinyMCE plus R2-backed image and video selection ([#401](https://github.com/appccalc-developers/Alife/issues/401), [#486](https://github.com/appccalc-developers/Alife/issues/486)).
-- Saving remains available when AI translation fails, so an assistant cannot block the core task ([#403](https://github.com/appccalc-developers/Alife/issues/403)).
-- Invalid bilingual structures and text placed in the wrong language field are detected ([#480](https://github.com/appccalc-developers/Alife/issues/480)).
-- Unsaved-change protection, autosave, and more direct section editing reduce data-loss risk and extra clicks ([#478](https://github.com/appccalc-developers/Alife/issues/478), [#527](https://github.com/appccalc-developers/Alife/issues/527)).
+## Five engineering decisions that matter
 
-This stage is strong product evidence because the target user is a non-technical group leader. Success means that person can understand the editor, use it confidently, and avoid losing content or corrupting bilingual data.
+### 1. Cache by audience, not only by URL
 
-### Stage 6: Grow from an internal group tool into a governed public website
+ALIFE's caches evolved through service workers, IndexedDB/ETags, TanStack, backend HybridCache, Cloudflare Cache API and KV. Bugs exposed query-key collisions, authorization-order mistakes and cross-PoP invalidation gaps. The resulting architecture classifies responses:
 
-Once group pages could become public, Alife needed more than a `Public` flag. It needed governance. The project added platform roles, permissions, administration APIs, and an admin console ([#363](https://github.com/appccalc-developers/Alife/issues/363), [#371](https://github.com/appccalc-developers/Alife/issues/371), [#375](https://github.com/appccalc-developers/Alife/issues/375), [#419](https://github.com/appccalc-developers/Alife/issues/419)).
+- reviewed public projections may use shared L1/L2 edge storage;
+- group-shared data is reused only after current authorization is established;
+- profiles, identity, enrollment and protected Event operations are private/no-store;
+- the service worker does not replay API responses independently of those rules.
 
-Publication then went through several deliberate refinements. It started with global pages and a review queue ([#369](https://github.com/appccalc-developers/Alife/issues/369), [#405](https://github.com/appccalc-developers/Alife/issues/405)), changed so pages remained owned by their groups with separate approval and return records ([#443](https://github.com/appccalc-developers/Alife/issues/443), [#454](https://github.com/appccalc-developers/Alife/issues/454)), and ultimately retired the global-page ownership model ([#457](https://github.com/appccalc-developers/Alife/issues/457)).
+The important result is not the number of cache layers. It is that performance, privacy, revocation and invalidation became one design problem.
 
-Approved pages now feed configurable bilingual primary menus, child menus, and homepage placements ([#508](https://github.com/appccalc-developers/Alife/issues/508), [#512](https://github.com/appccalc-developers/Alife/issues/512), [#516](https://github.com/appccalc-developers/Alife/issues/516)). A reviewed public page may come from a protected group, but only its public projection becomes anonymous-safe; member content remains protected ([#518](https://github.com/appccalc-developers/Alife/issues/518)).
+### 2. Separate content ownership from public governance
 
-This history demonstrates an important zero-to-one skill: I can acknowledge that an early model is wrong, migrate toward clearer ownership and review boundaries, and preserve compatibility instead of forcing users to carry an architectural mistake.
+The repository records an intermediate global Page approach and its removal. The final direction keeps a Page owned by its group while reviewers manage publication, menus and public placement. The August snapshot work then separated live content from work in progress.
 
-### Stage 7: Complete the content and collaboration needs of a community product
+This sequence is a useful interview story because it shows willingness to replace a plausible but weak model, preserve existing data, and clarify author, owner, reviewer and visitor responsibilities.
 
-Once the platform foundation stabilized, Alife expanded into a more complete set of church-life workflows:
+### 3. Treat recovery as part of authentication
 
-- Membership requests, invitations, role management, and notifications ([#255](https://github.com/appccalc-developers/Alife/issues/255), [#257](https://github.com/appccalc-developers/Alife/issues/257), [#261](https://github.com/appccalc-developers/Alife/issues/261), [#267](https://github.com/appccalc-developers/Alife/issues/267)).
-- A site-wide forum, sermon discussions, and anonymous browsing ([#447](https://github.com/appccalc-developers/Alife/issues/447), [#467](https://github.com/appccalc-developers/Alife/issues/467)).
-- Bilingual YouVersion Bible reading with cross-device progress ([#488](https://github.com/appccalc-developers/Alife/issues/488)).
-- Announcements with audience, status, priority, and expiry rules ([#492](https://github.com/appccalc-developers/Alife/issues/492)).
-- Nested albums and authorization-aware media ([#498](https://github.com/appccalc-developers/Alife/issues/498)).
-- Group and event contacts with inquiry notifications ([#504](https://github.com/appccalc-developers/Alife/issues/504)).
-- A historical content archive with repeatable import and a public index ([#531](https://github.com/appccalc-developers/Alife/issues/531), [#533](https://github.com/appccalc-developers/Alife/issues/533)).
-- Migration of legacy About Us content into the current website builder ([#541](https://github.com/appccalc-developers/Alife/issues/541)).
+LINE login proved a social identity path, but it did not solve first activation, invitation, lost credentials, browser continuation or elevated-account recovery. The Passkey design stores public credential material and one-time hashed invitation secrets, rechecks issuer authority, distinguishes identity verification from phone verification, and keeps recovery responses private/no-store.
 
-These are not disconnected menu items. They reuse the same ownership, bilingual, visibility, review, media, and caching rules. That is evidence that Alife grew from a feature collection into an extensible product platform.
+The repository supports QR/browser-bound continuation and recovery. It does not prove that every browser or Passkey provider will offer the same cross-device experience; that requires a real device matrix.
 
-### Stage 8: Move into alpha reliability and operability
+### 4. Replace Event CRUD with versioned domain evidence without breaking compatibility
 
-Many late issues are not new features. They are the kinds of failures and refinements that only appear in a real, integrated system:
+ALIFE retained its original `GroupEvent` root and legacy payloads while adding accepted Plans, materialised occurrences, modules, roles and Packages alongside them. Existing Events are not assigned invented approval, and version-0 enrollment semantics are not silently reinterpreted as the version-1 participant model.
 
-- Production HTML and asset freshness, profile authorization, and phone normalization ([#496](https://github.com/appccalc-developers/Alife/issues/496)).
-- Privacy boundaries for imported source URLs ([#539](https://github.com/appccalc-developers/Alife/issues/539)).
-- Production migration and dependency-injection failures in DbMigrator ([#385](https://github.com/appccalc-developers/Alife/issues/385), [#545](https://github.com/appccalc-developers/Alife/issues/545)).
-- PWA safe areas around mobile notches and home indicators ([#547](https://github.com/appccalc-developers/Alife/issues/547)).
-- Sermon pagination cache-key collisions and global invalidation across Cloudflare points of presence ([#549](https://github.com/appccalc-developers/Alife/issues/549)).
-- L1 Cache API, L2 KV, and prewarming for public pages ([#553](https://github.com/appccalc-developers/Alife/issues/553)).
-- Permission-gated cache diagnostics and an honest unavailable state for sermon transcripts ([#573](https://github.com/appccalc-developers/Alife/issues/573)).
+That additive strategy reduced migration risk and made the domain transition reviewable. It also leaves explicit follow-up work: shared-database rehearsals, rollout policy, live account testing, and eventual decisions about legacy cutover.
 
-The project also added Terraform, architecture documentation, one-command local startup, and component-aligned CI/CD ([#309](https://github.com/appccalc-developers/Alife/issues/309), [#311](https://github.com/appccalc-developers/Alife/issues/311), [#351](https://github.com/appccalc-developers/Alife/issues/351)).
+### 5. Keep AI below the authority boundary
 
-This stage shows that I do not stop at launching features. I take responsibility for making a product diagnosable, deployable, maintainable, transferable, and safe to evolve.
+AI assists with Event details, enrollment, post-event review, bilingual content, posters, task forms and RAM drafts. The supported pattern is consistent: temporary session, evidence-limited prompt, editable candidate output, explicit human adoption, and backend authorization for durable records.
 
-## Three case studies that best demonstrate product ability
+AI cannot confirm a safety fact, assign a role, approve a Package, publish content or make an Event ready. Page saving also remains available when AI translation fails (`979a4b1f`). This is a better measure of AI product maturity than the number of AI entry points.
 
-### 1. Page builder: from “editable” to “safe for volunteers to publish”
+## Current capability boundary
 
-This capability spans the data model, API, WYSIWYG editor, bilingual validation, media library, autosave, publication review, menu configuration, public caching, and legacy-content migration. The outcome is not a large list of section types. It is an understandable and governable path from “leader writes content” to “reviewer approves it” to “visitor sees it.”
+As of 16 September, repository evidence supports the following description:
 
-It demonstrates that I can:
+**Implemented in current source**
 
-- Design from a user task instead of exposing database tables.
-- Simplify a model while keeping existing pages readable.
-- Support authors, reviewers, and visitors as distinct roles.
-- Treat bilingual content, media, authorization, and caching as product concerns.
+- LINE legacy login, JWT/HttpOnly-cookie sessions, Passkeys, invitation/activation, public applications, browser continuation and recovery;
+- bilingual Page/Section editing, review, menus, public snapshots and cached delivery;
+- Event CRUD, enrollment, post-event review, recurrence, accepted Plans, teams/roles, Package Approval, lifecycle gates, duties, rosters, versioned RAM, venues/conflicts, safeguarding core, transport core and collaboration/report workspaces;
+- public and member community features including sermons, Bible progress, announcements, albums, contacts and forums.
 
-### 2. Multi-layer caching: performance, cost, and privacy in one design
+**Partially implemented**
 
-Alife’s caching evolved through service workers, ETags, IndexedDB, backend HybridCache, Cloudflare Cache API, authorization mirrors, and global KV. The project also encountered query-key collisions, 304 CORS problems, authorization-order mistakes, and cross-PoP invalidation gaps.
+- `PLACE.RESOURCE`: venue catalogue, reservations, conflicts and recurring calendars exist; equipment and full handover/return workflows do not;
+- `MOVE.STAY`: transport core exists; parking and accommodation do not;
+- `COMMS.FOLLOWUP`: content, posters, publication and reviews exist; delivery tracking and purpose-controlled follow-up do not;
+- `MONEY.FINANCE` and `FOOD.HOSPITALITY`: bounded manual/report slices exist, not full operational modules.
 
-I did not avoid the complexity by disabling caching. I classified data instead:
+**Documented or unavailable**
 
-- Public content may be shared across users and edge locations.
-- Group content may be shared only after current authorization is established.
-- Member profiles must be isolated per user.
-- Browser API caching must not replay private data after an identity change.
+- `FESTIVAL.OPERATIONS` remains structural target material;
+- Plan B/contingency is explicitly not planned in the current Event contract;
+- a fifth Review/Reflection lifecycle stage is not part of the product;
+- provider payments, full content revision history and complete Event-module coverage should not be claimed.
 
-This demonstrates root-cause analysis and the ability to turn production fixes into architectural rules and regression coverage.
+## Engineering activity and verification
 
-### 3. AI event workflows: useful assistance with human accountability
+The codebase is roughly balanced between C# and TypeScript/TSX production source after excluding generated migration designers: about 57,800 C# lines and 56,200 TypeScript/TSX lines. This is repository scale, not a quality measure.
 
-The event assistant evolved from description generation into planning, enrollment, review, poster and reference-document reading, bilingual notices, and RAM risk assessment. The system preserves temporary sessions, editable drafts, missing-information markers, leader confirmation, and auditor approval.
+Fresh checks run against the 16 September source produced:
 
-The key product decision is that AI neither publishes automatically nor invents safety facts. An unapproved RAM prevents enrollment. This turns AI from a demo feature into an assistant that can enter a real workflow without crossing the boundary of human responsibility.
+- 845 backend tests passed, five opt-in SQL tests skipped, zero failed;
+- 19 focused identity frontend tests passed;
+- 85 Event composition/frontend tests passed;
+- 119 speed-layer Worker tests passed;
+- the production TypeScript/Vite/PWA build succeeded.
 
-## What the issue history demonstrates
+These checks support current source claims. They do not establish live LINE, Gemini, YouTube or email behaviour, shared/production migration state, browser/device acceptance, or deployment availability.
 
-| Capability | Observable evidence |
-|---|---|
-| Product definition from an ambiguous problem | Fragmented group, content, event, and communication needs became role-specific workflows for visitors, members, leaders, reviewers, and administrators |
-| End-to-end delivery | Issues regularly span entities, migrations, APIs, authorization, frontend UX, edge caching, tests, and deployment |
-| Iteration over attachment to the first design | LINE replaced SMS, group ownership replaced global pages, section types were consolidated, and caches were re-layered by workload |
-| User-experience judgment | Mobile-first navigation, safe areas, WYSIWYG editing, media selection, autosave, leave protection, honest empty states, and bilingual copy |
-| Security and privacy awareness | HttpOnly cookies, server-side role checks, authorization before shared caching, public DTO projections, and hidden private source URLs |
-| AI product judgment | Editable drafts, human confirmation, non-invention rules, approval gates, and graceful degradation when AI translation fails |
-| Operability and maintainability | Terraform, independent CI/CD, local startup automation, architecture docs, cache diagnostics, migration tooling, and regression tests |
+Git also records substantial AI-assisted engineering. Thirty-three commits are authored by Copilot identities, at least 21 commit messages include agent-session URLs, the repository contains explicit agent instructions and planning prompts, and one August commit records OpenAI Codex as co-author. Those markers undercount sessions whose squash metadata omitted AI attribution. They establish AI participation, not the division of product judgment, implementation authorship and review responsibility; Stephen should describe that division explicitly in an interview.
 
-## What went well
+## What this work demonstrates
 
-1. **The work stayed anchored to real roles.** Features consistently identify who creates, reviews, sees, and owns the result.
-2. **Weak abstractions were revised.** Page ownership, cache storage, language preference, and section modeling all changed when real constraints exposed problems.
-3. **Non-functional requirements were treated as product behavior.** Authorization, freshness, PWA safe areas, migration, and diagnostics directly affect user trust.
-4. **AI stayed subordinate to the workflow.** It reduced input and translation effort without replacing business authorization or human accountability.
-5. **The evolution remained traceable.** Issues, acceptance criteria, validation commands, tests, and architecture documents make decisions explainable and reviewable.
+The strongest evidence for a senior engineering discussion is:
 
-## What I would do earlier if I started again
+1. **Architecture was revised when domain constraints changed.** Global Pages and the generic Event workflow were removed rather than defended.
+2. **Security and caching were designed together.** Authorization order, shared keys, revocation, public projections and invalidation are visible in code and tests.
+3. **Compatibility was treated as a product constraint.** Page JSON normalisation, `GroupEvent` continuity, versioned Event semantics and additive migrations avoid silent rewrites.
+4. **AI was integrated into accountable workflows.** Draft assistance degrades safely and does not replace human approval.
+5. **The work spans product and operations.** The history includes mobile/PWA behaviour, identity, domain models, SQL migrations, Cloudflare Workers, Azure Functions, CI/CD, Terraform, diagnostics and recovery paths.
 
-1. **Define product metrics sooner.** The issue history proves delivery scope, but it does not yet prove active use, task-completion rates, publishing lead time, or retention.
-2. **Introduce end-to-end tests sooner.** Backend, Worker, and build checks are substantial, but login, joining, publication, and enrollment still need stable browser-level regression coverage.
-3. **Model publication governance earlier.** The move away from global pages was the right correction, but an earlier definition of author, owner, review state, and public projection would have reduced intermediate rework.
-4. **Establish observability earlier.** Cache diagnostics arrived late. Structured logs, traces, and business events should be part of the alpha foundation.
-5. **Create stability windows.** High issue density accelerated product breadth but also increased regression risk. The next phase should favor real-user feedback, smaller release batches, and deliberate stabilization.
+The claims that still need Stephen's own evidence are equally important: why particular pivots were made, what stakeholder feedback drove them, how collaboration was divided, which environments were deployed, and what real users completed successfully.
 
-## Current boundary and next step
+## What should happen next
 
-Two issues remain open:
+The next phase should prioritise evidence over breadth:
 
-- [#420 Visitor contact requests](https://github.com/appccalc-developers/Alife/issues/420): allow public-site visitors to submit contact requests with managed status tracking.
-- [#421 File asset management](https://github.com/appccalc-developers/Alife/issues/421): formalize file assets, storage providers, signed URLs, access control, and backfill operations.
-
-The highest-value next phase is not another set of menu items. It is to:
-
-1. Run structured alpha trials with one or two real church groups.
-2. Measure the time and failure points for building a page, publishing an announcement, and creating an event.
-3. Add end-to-end tests and business-event telemetry for those critical journeys.
-4. Close the visitor-contact and file-asset platform gaps.
-5. Use real adoption and task data to define the beta scope.
+1. Reconcile `VERSION`, changelog entries and release/tag practice.
+2. Run the skipped SQL migration/concurrency suites against an approved disposable database, then rehearse the current additive migration chain.
+3. Execute a real browser/device identity matrix covering Passkey creation, hybrid sign-in, cancellation, continuation and recovery.
+4. Test live provider paths with controlled accounts and explicit cost/privacy limits.
+5. Run structured alpha trials for page publication, membership activation and Event preparation; capture task completion, failures and support needs.
+6. Stabilise the implemented Event core before expanding partial modules or revisiting deliberately excluded Plan B.
 
 ## One-minute interview version
 
-> I started Alife from a real problem in overseas Chinese churches: group operations, bilingual content, events, and communication were fragmented across unrelated tools. In roughly one hundred days, I took it from a basic API and PWA to a usable alpha community platform covering LINE authentication, group and member management, bilingual page building and publication review, sermons, event enrollment and review, forums, announcements, albums, contacts, historical-content migration, and AI-assisted event planning and RAM risk assessment.
+> ALIFE began in Git on 14 April 2026 as a .NET/SQL API with a React demo, structured pages and sermon integration. By mid-September it had become a substantial alpha implementation spanning bilingual content publishing, group/member workflows, Passkey identity and recovery, Event enrollment and review, Cloudflare edge delivery, and a capability-oriented Event model with recurrence, roles, RAM and version-bound Package Approval.
 >
-> The strongest evidence is not the 272 issues. It is that I delivered complete workflows across React, .NET, SQL, Azure Functions, Cloudflare Workers, R2, Durable Objects, and several cache layers. I also changed course when early models were wrong: I retired global page ownership, re-layered caching by data sensitivity, and kept AI behind human confirmation and authorization. The product now has the governance, security, operations, and maintainability expected of an alpha. The next step is to validate the beta with real user metrics.
+> The strongest engineering examples are the changes of direction. Public content moved from global ownership to group-owned review and then to isolated published snapshots. Caching moved from ad-hoc layers to audience-classified Cache API/KV/HybridCache behaviour with authorization before shared reads. Event Management moved from CRUD and a generic workflow prototype to dedicated capability services and immutable approval evidence, while preserving legacy records. AI was useful for drafting and bilingual assistance but stayed behind explicit human adoption and server authorization.
+>
+> The repository and fresh tests support those implementation claims. I would not claim production maturity or market success without deployment records, live provider/device testing and real-user metrics. The next engineering step is to gather that evidence and stabilise the alpha around its critical journeys.
 
-## Evidence-use note
+## Audit companion
 
-This document is suitable for a portfolio or interview narrative, with the following boundaries:
-
-- It is fair to say, “I built and iterated a complete alpha product with end-to-end workflows.”
-- It is fair to say, “270 closed issues demonstrate scope and traceability.”
-- Issue close times should not be presented as actual engineering duration without reviewing pull requests and deployment records.
-- Market success should not be claimed until there is active-user, task-completion, and retention evidence.
-- If parts of the work involved collaborators or AI assistance, the interview account should accurately distinguish product decisions, architecture responsibility, implementation scope, and review ownership.
+The detailed evidence table, disputed claims, missing context, metrics method, module-by-module status and interview case studies are in [`project-retrospective-verification.md`](project-retrospective-verification.md).

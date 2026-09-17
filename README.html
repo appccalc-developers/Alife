@@ -3,27 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="Alife 是为海外华人基督教社区打造的双语教会与群组平台。">
-  <meta name="theme-color" content="#0d4f43">
-  <title>Alife — 让教会生活，落在同一个地方</title>
+  <meta name="description" content="ALIFE 当前产品能力、运行架构、安全边界与本地开发说明。">
+  <meta name="theme-color" content="#081923">
+  <title>ALIFE — 当前架构与能力</title>
   <style>
     :root {
       color-scheme: light;
-      --ink: #18332d;
-      --ink-soft: #526860;
-      --green: #176b5a;
-      --green-deep: #0d4f43;
-      --green-night: #082f29;
-      --green-soft: #dceee7;
-      --coral: #e37b63;
-      --coral-soft: #f8ddd5;
-      --sand: #f3efe6;
-      --paper: #fffdf8;
+      --night: #081923;
+      --navy: #0f2c3b;
+      --blue: #1b4d68;
+      --teal: #1a7f78;
+      --teal-dark: #11615c;
+      --seafoam: #b9e0da;
+      --mist: #eaf1f2;
+      --paper: #f7faf9;
       --white: #ffffff;
-      --line: rgba(24, 51, 45, 0.14);
-      --line-light: rgba(255, 255, 255, 0.18);
-      --shadow: 0 24px 70px rgba(22, 54, 46, 0.12);
-      --display: "Aptos Display", "Segoe UI Variable Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --ink: #13252f;
+      --muted: #5a6c73;
+      --amber: #e79b56;
+      --red: #d4685a;
+      --line: rgba(19, 37, 47, 0.16);
+      --line-dark: rgba(185, 224, 218, 0.2);
+      --shadow: 0 22px 60px rgba(8, 25, 35, 0.13);
+      --display: "Bahnschrift SemiCondensed", "Aptos Display", "Segoe UI", "Microsoft YaHei", sans-serif;
       --body: "Aptos", "Segoe UI Variable Text", "PingFang SC", "Microsoft YaHei", sans-serif;
       --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
       --page: min(1180px, calc(100vw - 40px));
@@ -38,18 +40,15 @@
     html {
       min-width: 320px;
       scroll-behavior: smooth;
-      scroll-padding-top: 96px;
-      background: var(--sand);
+      scroll-padding-top: 86px;
+      background: var(--night);
     }
 
     body {
       margin: 0;
       min-width: 320px;
       color: var(--ink);
-      background:
-        radial-gradient(circle at 92% 6%, rgba(23, 107, 90, 0.11), transparent 31rem),
-        radial-gradient(circle at 4% 14%, rgba(227, 123, 99, 0.10), transparent 27rem),
-        var(--sand);
+      background: var(--paper);
       font-family: var(--body);
       font-size: 16px;
       line-height: 1.65;
@@ -57,15 +56,9 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    img {
-      display: block;
-      max-width: 100%;
-    }
-
     a {
       color: inherit;
-      text-decoration-thickness: 1px;
-      text-underline-offset: 0.22em;
+      text-underline-offset: 0.2em;
     }
 
     button,
@@ -78,25 +71,24 @@
     }
 
     :focus-visible {
-      outline: 3px solid rgba(227, 123, 99, 0.7);
+      outline: 3px solid var(--amber);
       outline-offset: 4px;
     }
 
     ::selection {
       color: var(--white);
-      background: var(--green);
+      background: var(--teal);
     }
 
     .skip-link {
       position: fixed;
       z-index: 100;
-      top: 12px;
-      left: 12px;
-      padding: 10px 16px;
-      color: var(--white);
-      background: var(--green-night);
-      border-radius: 8px;
-      transform: translateY(-160%);
+      top: 10px;
+      left: 10px;
+      padding: 10px 14px;
+      color: var(--night);
+      background: var(--amber);
+      transform: translateY(-150%);
       transition: transform 160ms ease;
     }
 
@@ -104,34 +96,19 @@
       transform: translateY(0);
     }
 
-    .progress {
-      position: fixed;
-      z-index: 90;
-      inset: 0 0 auto;
-      height: 3px;
-      pointer-events: none;
-    }
-
-    .progress__bar {
-      display: block;
-      width: 0;
-      height: 100%;
-      background: var(--coral);
-      transform-origin: left;
-    }
-
     .site-header {
       position: sticky;
       z-index: 80;
       top: 0;
-      border-bottom: 1px solid rgba(24, 51, 45, 0.09);
-      background: rgba(243, 239, 230, 0.88);
+      color: var(--white);
+      background: rgba(8, 25, 35, 0.91);
+      border-bottom: 1px solid var(--line-dark);
       backdrop-filter: blur(18px);
     }
 
     .site-header__inner {
       width: var(--page);
-      min-height: 72px;
+      min-height: 70px;
       margin-inline: auto;
       display: flex;
       align-items: center;
@@ -139,58 +116,54 @@
     }
 
     .brand {
-      display: inline-flex;
+      display: flex;
       align-items: center;
-      gap: 11px;
+      gap: 12px;
       min-width: max-content;
-      color: var(--ink);
       text-decoration: none;
     }
 
     .brand__mark {
       position: relative;
+      width: 38px;
+      height: 38px;
       display: grid;
-      width: 36px;
-      height: 36px;
       place-items: center;
-      overflow: hidden;
-      color: var(--white);
-      background: var(--green-deep);
-      border-radius: 50%;
+      color: var(--night);
+      background: var(--seafoam);
       font-family: var(--display);
-      font-size: 15px;
+      font-size: 18px;
       font-weight: 800;
+      clip-path: polygon(0 0, 28px 0, 100% 10px, 100% 100%, 0 100%);
     }
 
     .brand__mark::after {
       content: "";
       position: absolute;
-      width: 13px;
-      height: 13px;
-      right: -2px;
-      bottom: -2px;
-      background: var(--coral);
-      border: 3px solid var(--sand);
-      border-radius: 50%;
+      right: 5px;
+      bottom: 5px;
+      width: 6px;
+      height: 6px;
+      background: var(--amber);
+    }
+
+    .brand__name,
+    .brand__meta {
+      display: block;
     }
 
     .brand__name {
-      display: block;
       font-family: var(--display);
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      line-height: 1;
+      font-size: 19px;
+      font-weight: 760;
+      letter-spacing: 0.08em;
     }
 
     .brand__meta {
-      display: block;
-      margin-top: 4px;
-      color: var(--ink-soft);
+      color: rgba(255, 255, 255, 0.55);
       font-family: var(--mono);
       font-size: 9px;
-      letter-spacing: 0.12em;
-      line-height: 1;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
     }
 
@@ -198,86 +171,58 @@
       margin-left: auto;
       display: flex;
       align-items: center;
-      gap: 24px;
+      gap: 22px;
     }
 
     .site-nav a {
-      position: relative;
-      color: #3d554d;
-      font-size: 14px;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 13px;
       font-weight: 650;
       text-decoration: none;
     }
 
-    .site-nav a::after {
-      content: "";
-      position: absolute;
-      inset: auto 0 -7px;
-      height: 2px;
-      background: var(--coral);
-      transform: scaleX(0);
-      transform-origin: right;
-      transition: transform 180ms ease;
-    }
-
-    .site-nav a:hover::after,
-    .site-nav a:focus-visible::after {
-      transform: scaleX(1);
-      transform-origin: left;
+    .site-nav a:hover {
+      color: var(--white);
     }
 
     .language-toggle {
-      min-width: 92px;
+      min-width: 88px;
       padding: 8px 11px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      color: var(--green-deep);
-      background: rgba(255, 255, 255, 0.62);
-      border: 1px solid var(--line);
-      border-radius: 999px;
+      color: var(--white);
+      background: transparent;
+      border: 1px solid var(--line-dark);
       cursor: pointer;
-      font-size: 12px;
-      font-weight: 750;
-      letter-spacing: 0.04em;
-      transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+      font-family: var(--mono);
+      font-size: 11px;
     }
 
     .language-toggle:hover {
-      background: var(--white);
-      border-color: rgba(23, 107, 90, 0.35);
-      transform: translateY(-1px);
-    }
-
-    .language-toggle__dot {
-      width: 6px;
-      height: 6px;
-      background: var(--coral);
-      border-radius: 50%;
+      background: rgba(185, 224, 218, 0.08);
+      border-color: rgba(185, 224, 218, 0.45);
     }
 
     .hero {
       position: relative;
       overflow: hidden;
-      min-height: 730px;
-      display: grid;
-      align-items: center;
-      border-bottom: 1px solid var(--line);
+      color: var(--white);
+      background:
+        linear-gradient(90deg, rgba(185, 224, 218, 0.035) 1px, transparent 1px),
+        linear-gradient(rgba(185, 224, 218, 0.035) 1px, transparent 1px),
+        var(--night);
+      background-size: 42px 42px;
     }
 
-    .hero::before {
+    .hero::after {
       content: "";
       position: absolute;
-      width: 660px;
-      height: 660px;
-      top: 38px;
-      right: max(-260px, calc((100vw - 1180px) / 2 - 220px));
-      border: 1px solid rgba(23, 107, 90, 0.11);
+      inset: auto -12vw -32vw auto;
+      width: 62vw;
+      height: 62vw;
+      border: 1px solid rgba(185, 224, 218, 0.12);
       border-radius: 50%;
       box-shadow:
-        0 0 0 110px rgba(23, 107, 90, 0.025),
-        0 0 0 240px rgba(23, 107, 90, 0.018);
+        0 0 0 80px rgba(26, 127, 120, 0.035),
+        0 0 0 160px rgba(26, 127, 120, 0.025);
       pointer-events: none;
     }
 
@@ -285,70 +230,67 @@
       position: relative;
       z-index: 1;
       width: var(--page);
+      min-height: 720px;
       margin-inline: auto;
-      padding: 88px 0 76px;
+      padding: 104px 0 82px;
       display: grid;
-      grid-template-columns: minmax(0, 1.14fr) minmax(420px, 0.86fr);
+      grid-template-columns: minmax(0, 1.02fr) minmax(390px, 0.98fr);
+      gap: clamp(58px, 8vw, 112px);
       align-items: center;
-      gap: clamp(34px, 5vw, 72px);
     }
 
     .eyebrow {
-      margin: 0 0 22px;
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      color: var(--green);
+      margin: 0 0 18px;
+      color: var(--teal-dark);
       font-family: var(--mono);
       font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.15em;
+      font-weight: 750;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
     }
 
-    .eyebrow::before {
-      content: "";
-      width: 28px;
-      height: 2px;
-      background: var(--coral);
+    .hero .eyebrow,
+    .event-section .eyebrow,
+    .start-section .eyebrow {
+      color: var(--seafoam);
     }
 
-    .hero h1,
-    .section-heading,
-    .dark-heading,
-    .start-heading {
-      margin: 0;
+    h1,
+    h2,
+    h3,
+    p {
+      text-wrap: pretty;
+    }
+
+    h1,
+    h2,
+    h3 {
       font-family: var(--display);
-      font-weight: 780;
+      line-height: 1.04;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(55px, 7.4vw, 94px);
+      font-weight: 680;
       letter-spacing: -0.055em;
-      line-height: 0.98;
-      text-wrap: balance;
     }
 
-    .hero h1 {
-      max-width: 720px;
-      font-size: clamp(52px, 5.3vw, 80px);
-    }
-
-    .hero h1 span {
-      display: inline-block;
-      color: var(--green);
-    }
-
-    html[lang="zh-CN"] .hero h1 span {
-      white-space: nowrap;
+    h1 span {
+      color: var(--seafoam);
     }
 
     .hero__lead {
-      max-width: 620px;
-      margin: 30px 0 0;
-      color: var(--ink-soft);
+      max-width: 660px;
+      margin: 28px 0 0;
+      color: rgba(255, 255, 255, 0.7);
       font-size: clamp(17px, 1.6vw, 21px);
       line-height: 1.65;
     }
 
     .hero__actions {
-      margin-top: 38px;
+      margin-top: 36px;
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
@@ -356,16 +298,16 @@
 
     .button {
       min-height: 48px;
-      padding: 11px 19px;
+      padding: 0 18px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 20px;
       border: 1px solid transparent;
-      border-radius: 11px;
-      font-weight: 750;
+      font-size: 13px;
+      font-weight: 760;
       text-decoration: none;
-      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
     }
 
     .button:hover {
@@ -373,197 +315,149 @@
     }
 
     .button--primary {
+      color: var(--night);
+      background: var(--seafoam);
+    }
+
+    .button--secondary {
       color: var(--white);
-      background: var(--green-deep);
-      box-shadow: 0 10px 26px rgba(13, 79, 67, 0.22);
+      border-color: var(--line-dark);
     }
 
-    .button--primary:hover {
-      background: var(--green-night);
-      box-shadow: 0 14px 32px rgba(13, 79, 67, 0.28);
+    .button--secondary:hover {
+      background: rgba(185, 224, 218, 0.08);
+      border-color: rgba(185, 224, 218, 0.5);
     }
 
-    .button--ghost {
-      color: var(--ink);
-      background: rgba(255, 255, 255, 0.42);
-      border-color: var(--line);
-    }
-
-    .button--ghost:hover {
-      background: var(--white);
-    }
-
-    .arrow {
-      font-size: 1.12em;
-      line-height: 1;
-    }
-
-    .hero__facts {
+    .hero__status {
       margin: 34px 0 0;
-      padding: 22px 0 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px 20px;
-      border-top: 1px solid var(--line);
+      padding: 18px 0 0;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      border-top: 1px solid var(--line-dark);
       list-style: none;
     }
 
-    .hero__facts li {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: #486158;
-      font-size: 13px;
-      font-weight: 650;
-    }
-
-    .hero__facts li::before {
-      content: "";
-      width: 7px;
-      height: 7px;
-      background: var(--green);
-      border: 2px solid var(--green-soft);
-      border-radius: 50%;
-      box-sizing: content-box;
-    }
-
-    .community-orbit {
-      position: relative;
-      min-height: 500px;
-      isolation: isolate;
-    }
-
-    .community-orbit__ring,
-    .community-orbit__ring::before,
-    .community-orbit__ring::after {
-      position: absolute;
-      border-radius: 50%;
-    }
-
-    .community-orbit__ring {
-      width: 410px;
-      height: 410px;
-      inset: 45px 50% auto auto;
-      transform: translateX(50%);
-      border: 1px dashed rgba(23, 107, 90, 0.38);
-      animation: orbit-spin 38s linear infinite;
-    }
-
-    .community-orbit__ring::before {
-      content: "";
-      inset: 58px;
-      border: 1px solid rgba(23, 107, 90, 0.16);
-    }
-
-    .community-orbit__ring::after {
-      content: "";
-      inset: 122px;
-      background: rgba(255, 255, 255, 0.46);
-      border: 1px solid rgba(23, 107, 90, 0.1);
-    }
-
-    .community-orbit__core {
-      position: absolute;
-      z-index: 2;
-      width: 190px;
-      height: 190px;
-      top: 155px;
-      left: 50%;
-      padding: 26px;
-      display: grid;
-      place-content: center;
-      color: var(--white);
-      background:
-        radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.16), transparent 26%),
-        var(--green-deep);
-      border-radius: 50%;
-      box-shadow: 0 24px 62px rgba(13, 79, 67, 0.28);
-      text-align: center;
-      transform: translateX(-50%);
-    }
-
-    .community-orbit__core strong {
+    .hero__status strong,
+    .hero__status span {
       display: block;
-      font-family: var(--display);
-      font-size: 26px;
-      letter-spacing: -0.045em;
-      line-height: 1.05;
     }
 
-    .community-orbit__core span {
-      display: block;
-      margin-top: 9px;
-      color: rgba(255, 255, 255, 0.72);
+    .hero__status strong {
+      color: var(--amber);
       font-family: var(--mono);
-      font-size: 9px;
-      letter-spacing: 0.15em;
+      font-size: 10px;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
     }
 
-    .orbit-node {
-      position: absolute;
-      z-index: 3;
-      min-width: 132px;
-      padding: 13px 16px;
-      color: var(--ink);
-      background: rgba(255, 253, 248, 0.94);
-      border: 1px solid rgba(24, 51, 45, 0.13);
-      border-radius: 14px;
-      box-shadow: 0 14px 34px rgba(22, 54, 46, 0.11);
+    .hero__status span {
+      margin-top: 5px;
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 12px;
     }
 
-    .orbit-node::before {
+    .boundary-map {
+      position: relative;
+      padding: 24px;
+      background: rgba(15, 44, 59, 0.72);
+      border: 1px solid var(--line-dark);
+      box-shadow: 22px 22px 0 rgba(26, 127, 120, 0.1);
+      clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
+    }
+
+    .boundary-map__head {
+      padding-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      border-bottom: 1px solid var(--line-dark);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .boundary-map__head span:last-child {
+      color: var(--amber);
+    }
+
+    .boundary-rail {
+      position: relative;
+      margin: 22px 0 0;
+      padding-left: 28px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .boundary-rail::before {
       content: "";
       position: absolute;
-      width: 8px;
-      height: 8px;
       top: 18px;
-      left: -5px;
-      background: var(--coral);
-      border: 2px solid var(--sand);
-      border-radius: 50%;
+      bottom: 18px;
+      left: 7px;
+      width: 2px;
+      background: linear-gradient(var(--seafoam), var(--teal), var(--amber));
     }
 
-    .orbit-node strong,
-    .orbit-node span {
-      display: block;
+    .boundary-node {
+      position: relative;
+      padding: 15px 16px;
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 16px;
+      background: rgba(8, 25, 35, 0.48);
+      border: 1px solid rgba(185, 224, 218, 0.12);
     }
 
-    .orbit-node strong {
-      font-family: var(--display);
-      font-size: 15px;
-      line-height: 1.2;
+    .boundary-node::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: -27px;
+      width: 12px;
+      height: 12px;
+      background: var(--night);
+      border: 2px solid var(--seafoam);
+      transform: translateY(-50%) rotate(45deg);
     }
 
-    .orbit-node span {
-      margin-top: 4px;
-      color: var(--ink-soft);
+    .boundary-node:nth-child(3)::before,
+    .boundary-node:nth-child(4)::before {
+      border-color: var(--amber);
+    }
+
+    .boundary-node__label {
+      color: var(--seafoam);
       font-family: var(--mono);
       font-size: 9px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
-    .orbit-node--one { top: 5px; left: 50%; transform: translateX(-50%); }
-    .orbit-node--two { top: 112px; right: 0; }
-    .orbit-node--three { right: 12px; bottom: 65px; }
-    .orbit-node--four { bottom: 0; left: 45px; }
-    .orbit-node--five { top: 122px; left: 0; }
+    .boundary-node strong {
+      font-family: var(--display);
+      font-size: 17px;
+      font-weight: 680;
+    }
 
-    .orbit-note {
-      position: absolute;
-      right: 50%;
-      bottom: 37px;
-      width: 210px;
-      color: var(--ink-soft);
-      font-size: 12px;
-      line-height: 1.5;
-      text-align: center;
-      transform: translateX(50%);
+    .boundary-node small {
+      grid-column: 2;
+      color: rgba(255, 255, 255, 0.54);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .boundary-map figcaption {
+      margin-top: 18px;
+      color: rgba(255, 255, 255, 0.52);
+      font-size: 11px;
     }
 
     .section {
-      padding: clamp(86px, 10vw, 140px) 0;
+      padding: clamp(88px, 10vw, 144px) 0;
     }
 
     .section__inner {
@@ -571,418 +465,496 @@
       margin-inline: auto;
     }
 
-    .section-intro {
-      max-width: 820px;
-    }
-
-    .section-heading,
-    .dark-heading,
-    .start-heading {
+    .section-heading {
+      max-width: 880px;
+      margin: 0;
       font-size: clamp(42px, 5vw, 68px);
+      font-weight: 650;
+      letter-spacing: -0.045em;
     }
 
     .section-copy {
-      max-width: 720px;
+      max-width: 760px;
       margin: 24px 0 0;
-      color: var(--ink-soft);
+      color: var(--muted);
       font-size: clamp(16px, 1.5vw, 19px);
     }
 
-    .journey {
-      background: rgba(255, 253, 248, 0.62);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .journey-track {
-      position: relative;
-      margin: 68px 0 0;
-      padding: 0;
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 0;
-      list-style: none;
-    }
-
-    .journey-track::before {
-      content: "";
-      position: absolute;
-      top: 31px;
-      right: 8%;
-      left: 8%;
-      height: 1px;
-      background: var(--line);
-    }
-
-    .journey-step {
-      position: relative;
-      padding-right: clamp(18px, 3vw, 40px);
-    }
-
-    .journey-step:last-child {
-      padding-right: 0;
-    }
-
-    .journey-step__number {
-      position: relative;
-      z-index: 1;
-      width: 62px;
-      height: 62px;
-      display: grid;
-      place-items: center;
-      color: var(--green-deep);
-      background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: 50%;
-      box-shadow: 0 8px 26px rgba(22, 54, 46, 0.08);
-      font-family: var(--mono);
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .journey-step:nth-child(3) .journey-step__number,
-    .journey-step:nth-child(5) .journey-step__number {
-      color: var(--white);
-      background: var(--green-deep);
-      border-color: var(--green-deep);
-    }
-
-    .journey-step h3 {
-      margin: 24px 0 0;
-      font-family: var(--display);
-      font-size: 22px;
-      letter-spacing: -0.03em;
-      line-height: 1.15;
-    }
-
-    .journey-step p {
-      margin: 11px 0 0;
-      color: var(--ink-soft);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .showcase {
-      color: var(--white);
-      background:
-        radial-gradient(circle at 84% 20%, rgba(227, 123, 99, 0.18), transparent 32rem),
-        radial-gradient(circle at 8% 86%, rgba(74, 171, 146, 0.16), transparent 27rem),
-        var(--green-night);
-    }
-
-    .showcase .eyebrow {
-      color: #8ed9c4;
-    }
-
-    .dark-heading {
-      max-width: 850px;
-    }
-
-    .showcase__copy {
-      max-width: 700px;
-      margin: 24px 0 0;
-      color: rgba(255, 255, 255, 0.68);
-      font-size: 18px;
-    }
-
-    .product-viewer {
-      margin-top: 56px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 238px;
-      gap: 22px;
-      align-items: start;
-    }
-
-    .product-stage {
-      margin: 0;
-      overflow: hidden;
-      background: #eef3f0;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 20px;
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
-    }
-
-    .product-stage__chrome {
-      min-height: 44px;
-      padding: 0 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: #596d66;
-      background: rgba(255, 255, 255, 0.96);
-      border-bottom: 1px solid rgba(24, 51, 45, 0.1);
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
-
-    .window-dots {
-      display: flex;
-      gap: 6px;
-    }
-
-    .window-dots i {
-      width: 7px;
-      height: 7px;
-      display: block;
-      background: #b8c6c0;
-      border-radius: 50%;
-    }
-
-    .window-dots i:first-child { background: var(--coral); }
-
-    .product-stage__image-wrap {
-      position: relative;
-      aspect-ratio: 1905 / 938;
-      overflow: hidden;
-      background: #e7edea;
-    }
-
-    .product-stage__image {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: opacity 160ms ease, transform 500ms ease;
-    }
-
-    .product-stage:hover .product-stage__image {
-      transform: scale(1.012);
-    }
-
-    .product-stage__image.is-changing {
-      opacity: 0.25;
-    }
-
-    .product-stage figcaption {
-      min-height: 76px;
-      padding: 17px 20px;
-      color: #526860;
-      background: var(--white);
-      font-size: 13px;
-    }
-
-    .product-tabs {
-      display: grid;
-      gap: 9px;
-    }
-
-    .product-tab {
-      width: 100%;
-      padding: 12px;
-      display: grid;
-      grid-template-columns: 72px minmax(0, 1fr);
-      align-items: center;
-      gap: 12px;
-      color: rgba(255, 255, 255, 0.7);
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 12px;
-      cursor: pointer;
-      text-align: left;
-      transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
-    }
-
-    .product-tab:hover,
-    .product-tab[aria-selected="true"] {
-      color: var(--white);
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(142, 217, 196, 0.45);
-    }
-
-    .product-tab[aria-selected="true"] {
-      box-shadow: inset 3px 0 0 #8ed9c4;
-    }
-
-    .product-tab img {
-      width: 72px;
-      height: 49px;
-      aspect-ratio: 1.46;
-      object-fit: cover;
-      border-radius: 7px;
-      opacity: 0.76;
-    }
-
-    .product-tab[aria-selected="true"] img {
-      opacity: 1;
-    }
-
-    .product-tab span {
-      font-size: 12px;
-      font-weight: 700;
-      line-height: 1.35;
-    }
-
-    .capability-ledger {
-      margin: 62px 0 0;
-      border-top: 1px solid var(--line-light);
-    }
-
-    .capability-row {
-      padding: 24px 0;
-      display: grid;
-      grid-template-columns: 0.65fr 1.45fr 1.9fr;
-      gap: 30px;
-      border-bottom: 1px solid var(--line-light);
-    }
-
-    .capability-row__index {
-      color: var(--coral);
-      font-family: var(--mono);
-      font-size: 11px;
-      letter-spacing: 0.12em;
-    }
-
-    .capability-row h3 {
-      margin: 0;
-      font-family: var(--display);
-      font-size: 24px;
-      letter-spacing: -0.035em;
-      line-height: 1.15;
-    }
-
-    .capability-row p {
-      margin: 0;
-      color: rgba(255, 255, 255, 0.66);
-      font-size: 14px;
-    }
-
-    .architecture {
-      background: var(--paper);
+    .architecture-section {
+      background: var(--mist);
       border-bottom: 1px solid var(--line);
     }
 
     .architecture-layout {
+      margin-top: 58px;
       display: grid;
-      grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
-      gap: clamp(54px, 8vw, 104px);
-      align-items: start;
-    }
-
-    .architecture-copy {
-      position: sticky;
-      top: 118px;
-    }
-
-    .architecture-copy .section-heading {
-      font-size: clamp(40px, 4.5vw, 62px);
-    }
-
-    .architecture-note {
-      margin-top: 28px;
-      padding: 18px 0 0 20px;
-      color: var(--ink-soft);
-      border-top: 1px solid var(--line);
-      border-left: 3px solid var(--coral);
-      font-size: 14px;
-    }
-
-    .system-map {
-      margin: 0;
-      padding: clamp(25px, 4vw, 44px);
-      background:
-        linear-gradient(rgba(23, 107, 90, 0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(23, 107, 90, 0.045) 1px, transparent 1px),
-        #f4f8f6;
-      background-size: 28px 28px;
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      box-shadow: var(--shadow);
-    }
-
-    .system-map__lane {
-      display: grid;
-      grid-template-columns: 82px minmax(0, 1fr);
-      gap: 18px;
+      grid-template-columns: minmax(0, 1.16fr) minmax(300px, 0.84fr);
+      gap: 22px;
       align-items: stretch;
     }
 
-    .system-map__lane + .system-map__lane {
-      margin-top: 18px;
+    .architecture-console {
+      padding: 24px;
+      color: var(--white);
+      background: var(--navy);
+      border: 1px solid rgba(15, 44, 59, 0.35);
+      box-shadow: var(--shadow);
     }
 
-    .system-map__label {
-      padding-top: 16px;
-      color: #73877f;
+    .architecture-console__head {
+      padding-bottom: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line-dark);
+      color: rgba(255, 255, 255, 0.55);
       font-family: var(--mono);
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
+      font-size: 10px;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
     }
 
-    .system-map__nodes {
-      position: relative;
+    .architecture-console__head i {
+      width: 8px;
+      height: 8px;
+      display: inline-block;
+      margin-left: 6px;
+      background: var(--teal);
+      border-radius: 50%;
+      box-shadow: 14px 0 0 var(--amber), 28px 0 0 var(--red);
+    }
+
+    .architecture-grid {
+      margin-top: 22px;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
 
-    .system-map__nodes--single {
-      grid-template-columns: 1fr;
-    }
-
-    .system-map__nodes--double {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    .system-node {
-      position: relative;
-      min-height: 92px;
+    .architecture-node {
+      min-height: 152px;
       padding: 17px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      color: var(--ink);
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(24, 51, 45, 0.13);
-      border-radius: 13px;
-    }
-
-    .system-node--edge {
       color: var(--white);
-      background: var(--green-deep);
-      border-color: var(--green-deep);
+      background: rgba(8, 25, 35, 0.5);
+      border: 1px solid var(--line-dark);
+      cursor: pointer;
+      text-align: left;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
     }
 
-    .system-node--accent {
-      background: var(--coral-soft);
-      border-color: rgba(227, 123, 99, 0.28);
+    .architecture-node:hover,
+    .architecture-node[aria-expanded="true"] {
+      background: rgba(26, 127, 120, 0.22);
+      border-color: rgba(185, 224, 218, 0.55);
+      transform: translateY(-2px);
     }
 
-    .system-node__role {
-      color: inherit;
+    .architecture-node__code,
+    .architecture-node__title,
+    .architecture-node__tech {
+      display: block;
+    }
+
+    .architecture-node__code {
+      color: var(--amber);
       font-family: var(--mono);
       font-size: 9px;
       letter-spacing: 0.1em;
-      opacity: 0.68;
+    }
+
+    .architecture-node__title {
+      margin-top: 16px;
+      font-family: var(--display);
+      font-size: 22px;
+      font-weight: 690;
+      line-height: 1.1;
+    }
+
+    .architecture-node__tech {
+      margin-top: 12px;
+      color: rgba(255, 255, 255, 0.52);
+      font-family: var(--mono);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .architecture-detail {
+      padding: 34px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: var(--white);
+      border: 1px solid var(--line);
+      box-shadow: 12px 12px 0 rgba(27, 77, 104, 0.08);
+    }
+
+    .architecture-detail__label {
+      color: var(--teal-dark);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.11em;
       text-transform: uppercase;
     }
 
-    .system-node strong {
-      display: block;
-      margin-top: 12px;
-      font-family: var(--display);
-      font-size: 16px;
-      letter-spacing: -0.02em;
-      line-height: 1.2;
+    .architecture-detail h3 {
+      margin: 26px 0 0;
+      font-size: clamp(30px, 3vw, 42px);
+      font-weight: 650;
+      letter-spacing: -0.035em;
     }
 
-    .system-map__connector {
-      height: 24px;
-      margin-left: 122px;
-      border-left: 1px dashed rgba(23, 107, 90, 0.45);
+    .architecture-detail p {
+      margin: 18px 0 0;
+      color: var(--muted);
     }
 
-    .system-map figcaption {
-      margin-top: 28px;
-      padding-top: 20px;
-      color: var(--ink-soft);
+    .architecture-detail__rule {
+      margin-top: 34px;
+      padding-top: 18px;
+      color: var(--ink);
       border-top: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .capabilities-section {
+      background: var(--paper);
+    }
+
+    .capability-ledger {
+      margin-top: 62px;
+      border-top: 1px solid var(--line);
+    }
+
+    .capability-row {
+      padding: 30px 0;
+      display: grid;
+      grid-template-columns: 0.65fr 1.1fr 2.1fr;
+      gap: 30px;
+      align-items: start;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .capability-row__code {
+      color: var(--teal-dark);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.1em;
+    }
+
+    .capability-row h3 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+    }
+
+    .capability-row p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .publishing-flow {
+      margin-top: 62px;
+      padding: 32px;
+      color: var(--white);
+      background: var(--navy);
+      border-left: 5px solid var(--amber);
+    }
+
+    .publishing-flow__head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .publishing-flow__head h3 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 650;
+    }
+
+    .publishing-flow__head span {
+      color: var(--seafoam);
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .copy-track {
+      margin: 28px 0 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--line-dark);
+      list-style: none;
+    }
+
+    .copy-track li {
+      position: relative;
+      min-height: 154px;
+      padding: 20px;
+      background: var(--night);
+    }
+
+    .copy-track li:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      right: -12px;
+      width: 23px;
+      height: 23px;
+      display: grid;
+      place-items: center;
+      color: var(--night);
+      background: var(--amber);
+      transform: translateY(-50%);
+      font-family: var(--mono);
       font-size: 12px;
     }
 
-    .stack-list {
-      margin: 34px 0 0;
+    .copy-track code,
+    .copy-track strong,
+    .copy-track span {
+      display: block;
+    }
+
+    .copy-track code {
+      color: var(--amber);
+      font-size: 10px;
+    }
+
+    .copy-track strong {
+      margin-top: 14px;
+      font-family: var(--display);
+      font-size: 20px;
+    }
+
+    .copy-track span {
+      margin-top: 9px;
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 12px;
+    }
+
+    .event-section {
+      color: var(--white);
+      background:
+        radial-gradient(circle at 86% 12%, rgba(26, 127, 120, 0.24), transparent 32rem),
+        var(--night);
+    }
+
+    .event-section .section-copy {
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    .event-equation {
+      margin-top: 54px;
+      padding: 28px;
+      display: grid;
+      grid-template-columns: 1.15fr repeat(4, minmax(120px, 1fr));
+      gap: 1px;
+      background: var(--line-dark);
+      border: 1px solid var(--line-dark);
+    }
+
+    .event-equation > div {
+      min-height: 116px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: var(--navy);
+    }
+
+    .event-equation > div:first-child {
+      background: var(--teal-dark);
+    }
+
+    .event-equation code {
+      color: var(--amber);
+      font-size: 9px;
+    }
+
+    .event-equation strong {
+      font-family: var(--display);
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .event-status-grid {
+      margin-top: 44px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .event-status {
+      padding: 24px;
+      border: 1px solid var(--line-dark);
+      background: rgba(15, 44, 59, 0.72);
+    }
+
+    .event-status__label {
+      display: inline-flex;
+      padding: 5px 8px;
+      color: var(--night);
+      background: var(--seafoam);
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .event-status--partial .event-status__label {
+      background: var(--amber);
+    }
+
+    .event-status--unavailable .event-status__label {
+      color: var(--white);
+      background: var(--red);
+    }
+
+    .event-status h3 {
+      margin: 20px 0 0;
+      font-family: var(--mono);
+      font-size: 14px;
+      letter-spacing: -0.02em;
+    }
+
+    .event-status p {
+      margin: 13px 0 0;
+      color: rgba(255, 255, 255, 0.58);
+      font-size: 13px;
+    }
+
+    .event-boundary {
+      margin-top: 36px;
+      padding: 20px 22px;
+      color: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(231, 155, 86, 0.45);
+      font-size: 14px;
+    }
+
+    .event-boundary strong {
+      color: var(--amber);
+    }
+
+    .security-section {
+      background: var(--mist);
+    }
+
+    .security-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.68fr) minmax(0, 1.32fr);
+      gap: clamp(52px, 8vw, 108px);
+      align-items: start;
+    }
+
+    .security-copy {
+      position: sticky;
+      top: 112px;
+    }
+
+    .cache-matrix {
+      margin: 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .cache-row {
+      padding: 25px 0;
+      display: grid;
+      grid-template-columns: 112px minmax(140px, 0.7fr) minmax(0, 1.3fr);
+      gap: 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .cache-row dt,
+    .cache-row dd {
+      margin: 0;
+    }
+
+    .cache-row__class {
+      color: var(--teal-dark);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .cache-row dt {
+      font-family: var(--display);
+      font-size: 20px;
+      font-weight: 680;
+      line-height: 1.2;
+    }
+
+    .cache-row dd {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .principles-strip {
+      margin-top: 54px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--line);
+    }
+
+    .principles-strip article {
+      min-height: 160px;
+      padding: 20px;
+      border-right: 1px solid var(--line);
+    }
+
+    .principles-strip article:last-child {
+      border-right: 0;
+    }
+
+    .principles-strip code {
+      color: var(--teal-dark);
+      font-size: 9px;
+    }
+
+    .principles-strip h3 {
+      margin: 18px 0 0;
+      font-size: 18px;
+      font-weight: 680;
+    }
+
+    .principles-strip p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .start-section {
+      color: var(--white);
+      background: var(--navy);
+    }
+
+    .start-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+      gap: clamp(52px, 8vw, 108px);
+      align-items: start;
+    }
+
+    .start-section .section-copy {
+      color: rgba(255, 255, 255, 0.62);
+    }
+
+    .requirements {
+      margin: 30px 0 0;
       padding: 0;
       display: flex;
       flex-wrap: wrap;
@@ -990,290 +962,176 @@
       list-style: none;
     }
 
-    .stack-list li {
+    .requirements li {
       padding: 7px 10px;
-      color: #3d5c52;
-      background: var(--green-soft);
-      border: 1px solid rgba(23, 107, 90, 0.12);
-      border-radius: 7px;
+      color: var(--seafoam);
+      border: 1px solid var(--line-dark);
       font-family: var(--mono);
       font-size: 10px;
-    }
-
-    .principles {
-      background: var(--sand);
-    }
-
-    .principles-layout {
-      display: grid;
-      grid-template-columns: minmax(230px, 0.7fr) minmax(0, 1.3fr);
-      gap: clamp(50px, 8vw, 112px);
-      align-items: start;
-    }
-
-    .principles-list {
-      margin: 0;
-      border-top: 1px solid var(--line);
-    }
-
-    .principle {
-      padding: 28px 0;
-      display: grid;
-      grid-template-columns: 46px minmax(0, 0.85fr) minmax(0, 1.45fr);
-      gap: 22px;
-      align-items: start;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .principle dt,
-    .principle dd {
-      margin: 0;
-    }
-
-    .principle::before {
-      content: attr(data-index);
-      width: 34px;
-      height: 34px;
-      display: grid;
-      place-items: center;
-      color: var(--green-deep);
-      background: var(--green-soft);
-      border-radius: 50%;
-      font-family: var(--mono);
-      font-size: 11px;
-      font-weight: 800;
-    }
-
-    .principle dt {
-      font-family: var(--display);
-      font-size: 20px;
-      font-weight: 760;
-      letter-spacing: -0.03em;
-      line-height: 1.25;
-    }
-
-    .principle dd {
-      color: var(--ink-soft);
-      font-size: 14px;
-    }
-
-    .start {
-      color: var(--white);
-      background: var(--green-deep);
-    }
-
-    .start-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 0.92fr) minmax(440px, 1.08fr);
-      gap: clamp(50px, 8vw, 100px);
-      align-items: start;
-    }
-
-    .start .eyebrow {
-      color: #9bdeca;
-    }
-
-    .start-copy {
-      margin: 24px 0 0;
-      color: rgba(255, 255, 255, 0.68);
-      font-size: 18px;
-    }
-
-    .requirements {
-      margin: 30px 0 0;
-      padding: 0;
-      display: grid;
-      gap: 10px;
-      list-style: none;
-    }
-
-    .requirements li {
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      color: rgba(255, 255, 255, 0.78);
-      font-size: 14px;
-    }
-
-    .requirements li::before {
-      content: "✓";
-      color: #9bdeca;
-      font-weight: 800;
     }
 
     .terminal-stack {
       display: grid;
-      gap: 16px;
+      gap: 14px;
     }
 
     .terminal {
-      overflow: hidden;
-      background: var(--green-night);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 15px;
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
+      background: var(--night);
+      border: 1px solid var(--line-dark);
+      box-shadow: 14px 14px 0 rgba(8, 25, 35, 0.25);
     }
 
     .terminal__head {
-      min-height: 42px;
-      padding: 0 12px 0 16px;
+      min-height: 44px;
+      padding: 0 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 18px;
-      background: rgba(255, 255, 255, 0.055);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      gap: 20px;
+      border-bottom: 1px solid var(--line-dark);
     }
 
     .terminal__title {
-      color: rgba(255, 255, 255, 0.55);
+      color: rgba(255, 255, 255, 0.5);
       font-family: var(--mono);
       font-size: 9px;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
     }
 
     .copy-button {
-      padding: 6px 9px;
-      color: rgba(255, 255, 255, 0.72);
+      padding: 4px 8px;
+      color: var(--seafoam);
       background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 7px;
+      border: 1px solid var(--line-dark);
       cursor: pointer;
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    .copy-button:hover {
-      color: var(--white);
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .terminal pre {
-      margin: 0;
-      padding: 20px;
-      overflow-x: auto;
-      color: #d7eee7;
-      font-family: var(--mono);
-      font-size: 13px;
-      line-height: 1.7;
-    }
-
-    .terminal code::before {
-      content: "> ";
-      color: var(--coral);
-    }
-
-    .local-urls {
-      margin: 20px 0 0;
-      padding: 0;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      list-style: none;
-    }
-
-    .local-urls li {
-      padding: 11px 12px;
-      color: rgba(255, 255, 255, 0.64);
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 9px;
-      font-size: 11px;
-    }
-
-    .local-urls strong,
-    .local-urls code {
-      display: block;
-    }
-
-    .local-urls strong {
-      color: var(--white);
-      font-size: 12px;
-    }
-
-    .local-urls code {
-      margin-top: 4px;
       font-family: var(--mono);
       font-size: 9px;
     }
 
-    .repository {
-      background: var(--paper);
-    }
-
-    .repository-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 0.88fr) minmax(380px, 1.12fr);
-      gap: clamp(46px, 7vw, 88px);
-      align-items: start;
-    }
-
-    .repo-tree {
+    .terminal pre {
       margin: 0;
-      padding: clamp(24px, 4vw, 38px);
+      padding: 22px;
       overflow-x: auto;
-      color: #d8eee7;
-      background: var(--green-night);
-      border-radius: 17px;
-      box-shadow: var(--shadow);
+    }
+
+    .terminal code {
+      color: #d6e9e6;
       font-family: var(--mono);
-      font-size: 12px;
-      line-height: 1.9;
+      font-size: clamp(11px, 1.3vw, 14px);
+      white-space: pre;
     }
 
-    .repo-tree .muted {
-      color: #74968b;
-    }
-
-    .docs-grid {
-      margin-top: 36px;
+    .local-services {
+      margin: 4px 0 0;
+      padding: 0;
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: var(--line-dark);
+      list-style: none;
     }
 
-    .doc-link {
-      min-height: 92px;
-      padding: 16px;
+    .local-services li {
+      padding: 12px;
       display: flex;
-      flex-direction: column;
       justify-content: space-between;
-      color: var(--ink);
-      background: var(--white);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      text-decoration: none;
-      transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+      gap: 12px;
+      color: rgba(255, 255, 255, 0.56);
+      background: var(--night);
+      font-size: 11px;
     }
 
-    .doc-link:hover {
-      border-color: rgba(23, 107, 90, 0.35);
-      box-shadow: 0 12px 30px rgba(22, 54, 46, 0.09);
-      transform: translateY(-2px);
-    }
-
-    .doc-link span:first-child {
-      font-family: var(--display);
-      font-size: 15px;
-      font-weight: 760;
-    }
-
-    .doc-link span:last-child {
-      color: var(--green);
+    .local-services code {
+      color: var(--amber);
       font-family: var(--mono);
       font-size: 10px;
     }
 
+    .docs-section {
+      background: var(--paper);
+    }
+
+    .docs-grid {
+      margin-top: 54px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .doc-link {
+      min-height: 160px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: var(--white);
+      border: 1px solid var(--line);
+      text-decoration: none;
+      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+    }
+
+    .doc-link:hover {
+      border-color: rgba(26, 127, 120, 0.55);
+      box-shadow: 9px 9px 0 rgba(26, 127, 120, 0.08);
+      transform: translateY(-2px);
+    }
+
+    .doc-link code {
+      color: var(--teal-dark);
+      font-family: var(--mono);
+      font-size: 9px;
+    }
+
+    .doc-link strong {
+      margin-top: 24px;
+      display: block;
+      font-family: var(--display);
+      font-size: 22px;
+      line-height: 1.15;
+    }
+
+    .doc-link span {
+      margin-top: 13px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .maturity-note {
+      margin-top: 54px;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 30px;
+      background: var(--mist);
+      border-left: 5px solid var(--amber);
+    }
+
+    .maturity-note strong {
+      color: var(--teal-dark);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .maturity-note p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
     .site-footer {
-      color: rgba(255, 255, 255, 0.72);
-      background: var(--green-night);
+      padding: 44px 0;
+      color: var(--white);
+      background: var(--night);
+      border-top: 1px solid var(--line-dark);
     }
 
     .site-footer__inner {
       width: var(--page);
       margin-inline: auto;
-      padding: 42px 0;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 30px;
@@ -1282,17 +1140,16 @@
 
     .site-footer__title {
       margin: 0;
-      color: var(--white);
       font-family: var(--display);
-      font-size: 23px;
-      font-weight: 760;
-      letter-spacing: -0.035em;
+      font-size: 21px;
+      font-weight: 650;
     }
 
     .site-footer__copy {
-      max-width: 630px;
+      max-width: 700px;
       margin: 8px 0 0;
-      font-size: 13px;
+      color: rgba(255, 255, 255, 0.52);
+      font-size: 12px;
     }
 
     .site-footer__links {
@@ -1303,26 +1160,21 @@
     }
 
     .site-footer__links a {
-      color: var(--white);
-      font-size: 13px;
-      font-weight: 700;
+      color: var(--seafoam);
+      font-family: var(--mono);
+      font-size: 10px;
+      text-decoration: none;
     }
 
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
+    [data-reveal] {
+      opacity: 1;
+      transform: none;
     }
 
     html.js [data-reveal] {
       opacity: 0;
-      transform: translateY(22px);
-      transition: opacity 620ms ease, transform 620ms cubic-bezier(.22, .8, .24, 1);
+      transform: translateY(18px);
+      transition: opacity 520ms ease, transform 520ms cubic-bezier(.22, .8, .24, 1);
     }
 
     html.js [data-reveal].is-visible {
@@ -1330,112 +1182,67 @@
       transform: translateY(0);
     }
 
-    @keyframes orbit-spin {
-      to { transform: translateX(50%) rotate(360deg); }
-    }
-
-    @media (max-width: 980px) {
+    @media (max-width: 1020px) {
       .site-nav a {
         display: none;
       }
 
       .hero__inner,
       .architecture-layout,
-      .principles-layout,
-      .start-layout,
-      .repository-layout {
+      .security-layout,
+      .start-layout {
         grid-template-columns: 1fr;
       }
 
       .hero__inner {
-        padding-top: 72px;
+        min-height: 0;
       }
 
-      .hero__copy {
-        max-width: 760px;
+      .boundary-map {
+        width: min(680px, 100%);
       }
 
-      .community-orbit {
-        width: min(540px, 100%);
-        margin-inline: auto;
-      }
-
-      .journey-track {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 34px 0;
-      }
-
-      .journey-track::before {
-        display: none;
-      }
-
-      .product-viewer {
-        grid-template-columns: 1fr;
-      }
-
-      .product-tabs {
-        grid-template-columns: repeat(3, 1fr);
-      }
-
-      .product-tab {
-        grid-template-columns: 54px minmax(0, 1fr);
-      }
-
-      .product-tab img {
-        width: 54px;
-        height: 37px;
-      }
-
-      .architecture-copy {
+      .security-copy {
         position: static;
       }
 
-      .principle {
-        grid-template-columns: 46px minmax(160px, 0.8fr) minmax(0, 1.2fr);
+      .event-equation {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .event-equation > div:first-child {
+        grid-column: 1 / -1;
+      }
+
+      .docs-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
-    @media (max-width: 680px) {
+    @media (max-width: 720px) {
       :root {
         --page: min(100% - 28px, 1180px);
       }
 
       html {
-        scroll-padding-top: 76px;
+        scroll-padding-top: 72px;
       }
 
       .site-header__inner {
-        min-height: 64px;
-        gap: 14px;
+        min-height: 62px;
       }
 
       .brand__meta {
         display: none;
       }
 
-      .language-toggle {
-        min-width: 80px;
-      }
-
-      .hero {
-        min-height: auto;
-      }
-
       .hero__inner {
-        padding: 62px 0 54px;
-        gap: 46px;
+        padding: 74px 0 66px;
+        gap: 52px;
       }
 
-      .hero h1 {
-        font-size: clamp(46px, 14.6vw, 70px);
-      }
-
-      .hero h1 span {
-        white-space: normal;
-      }
-
-      .hero__lead {
-        font-size: 17px;
+      h1 {
+        font-size: clamp(48px, 15vw, 70px);
       }
 
       .hero__actions {
@@ -1446,171 +1253,95 @@
         width: 100%;
       }
 
-      .hero__facts {
-        display: grid;
-        gap: 10px;
+      .hero__status {
+        grid-template-columns: 1fr;
       }
 
-      .community-orbit {
-        min-height: auto;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+      .boundary-map {
+        padding: 18px;
+        box-shadow: 10px 10px 0 rgba(26, 127, 120, 0.1);
       }
 
-      .community-orbit__ring,
-      .orbit-note {
-        display: none;
-      }
-
-      .community-orbit__core,
-      .orbit-node,
-      .orbit-node--one,
-      .orbit-node--two,
-      .orbit-node--three,
-      .orbit-node--four,
-      .orbit-node--five {
-        position: static;
-        width: auto;
-        height: auto;
-        min-width: 0;
-        transform: none;
-      }
-
-      .community-orbit__core {
-        grid-column: 1 / -1;
-        min-height: 146px;
-        border-radius: 18px;
-      }
-
-      .orbit-node {
-        min-height: 86px;
-      }
-
-      .orbit-node::before {
-        top: 14px;
-        right: 14px;
-        left: auto;
-        border-color: var(--paper);
-      }
-
-      .orbit-node:last-of-type {
-        grid-column: 1 / -1;
+      .boundary-node {
+        grid-template-columns: 78px 1fr;
       }
 
       .section {
-        padding: 80px 0;
+        padding: 78px 0;
       }
 
-      .section-heading,
-      .dark-heading,
-      .start-heading {
-        font-size: clamp(38px, 11vw, 52px);
+      .section-heading {
+        font-size: clamp(39px, 12vw, 54px);
       }
 
-      .journey-track {
+      .architecture-grid,
+      .event-status-grid,
+      .docs-grid,
+      .principles-strip,
+      .local-services {
         grid-template-columns: 1fr;
-        gap: 0;
       }
 
-      .journey-step {
-        min-height: 118px;
-        padding: 0 0 26px 82px;
-      }
-
-      .journey-step::before {
-        content: "";
-        position: absolute;
-        top: 58px;
-        bottom: 0;
-        left: 30px;
-        border-left: 1px solid var(--line);
-      }
-
-      .journey-step:last-child::before {
-        display: none;
-      }
-
-      .journey-step__number {
-        position: absolute;
-        top: 0;
-        left: 0;
-      }
-
-      .journey-step h3 {
-        margin-top: 0;
-      }
-
-      .product-tabs {
-        display: flex;
-        overflow-x: auto;
-        scroll-snap-type: x mandatory;
-        scrollbar-width: thin;
-        padding-bottom: 8px;
-      }
-
-      .product-tab {
-        min-width: 168px;
-        scroll-snap-align: start;
-      }
-
-      .product-stage figcaption {
-        min-height: 96px;
+      .architecture-detail {
+        padding: 26px;
       }
 
       .capability-row {
-        grid-template-columns: 44px 1fr;
-        gap: 15px;
+        grid-template-columns: 90px 1fr;
+        gap: 16px;
       }
 
       .capability-row p {
         grid-column: 2;
       }
 
-      .system-map {
-        padding: 18px;
+      .publishing-flow {
+        padding: 22px;
       }
 
-      .system-map__lane {
-        grid-template-columns: 1fr;
-        gap: 7px;
+      .publishing-flow__head {
+        align-items: flex-start;
+        flex-direction: column;
       }
 
-      .system-map__label {
-        padding: 0;
-      }
-
-      .system-map__nodes,
-      .system-map__nodes--double {
+      .copy-track,
+      .event-equation {
         grid-template-columns: 1fr;
       }
 
-      .system-map__connector {
-        margin-left: 24px;
+      .copy-track li:not(:last-child)::after {
+        content: "↓";
+        top: auto;
+        right: 18px;
+        bottom: -12px;
+        transform: none;
       }
 
-      .principle {
-        grid-template-columns: 42px 1fr;
+      .event-equation > div:first-child {
+        grid-column: auto;
+      }
+
+      .cache-row {
+        grid-template-columns: 86px 1fr;
         gap: 14px;
       }
 
-      .principle dd {
+      .cache-row dd {
         grid-column: 2;
       }
 
-      .start-layout,
-      .repository-layout {
-        gap: 44px;
+      .principles-strip article {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
       }
 
-      .local-urls,
-      .docs-grid {
-        grid-template-columns: 1fr;
+      .principles-strip article:last-child {
+        border-bottom: 0;
       }
 
+      .maturity-note,
       .site-footer__inner {
         grid-template-columns: 1fr;
-        align-items: start;
       }
 
       .site-footer__links {
@@ -1626,52 +1357,36 @@
       *,
       *::before,
       *::after {
-        animation-duration: 0.001ms !important;
+        animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
-        scroll-behavior: auto !important;
-        transition-duration: 0.001ms !important;
-      }
-
-      html.js [data-reveal] {
-        opacity: 1;
-        transform: none;
+        transition-duration: 0.01ms !important;
       }
     }
   </style>
   <script>
     document.documentElement.classList.add('js')
-    window.__alifeReadmeReady = false
-    window.addEventListener('DOMContentLoaded', () => {
-      window.setTimeout(() => {
-        if (window.__alifeReadmeReady) return
-        document.querySelectorAll('[data-reveal]').forEach((node) => node.classList.add('is-visible'))
-      }, 1800)
-    }, { once: true })
   </script>
 </head>
 <body>
   <a class="skip-link" href="#main" data-zh="跳到主要内容" data-en="Skip to main content">跳到主要内容</a>
-  <div class="progress" aria-hidden="true"><span class="progress__bar" id="progress-bar"></span></div>
 
   <header class="site-header">
     <div class="site-header__inner">
-      <a class="brand" href="#top" aria-label="Alife 首页" data-aria-zh="Alife 首页" data-aria-en="Alife home">
+      <a class="brand" href="#top" aria-label="ALIFE 首页" data-aria-zh="ALIFE 首页" data-aria-en="ALIFE home">
         <span class="brand__mark" aria-hidden="true">A</span>
         <span>
-          <span class="brand__name">Alife</span>
-          <span class="brand__meta">Community platform</span>
+          <span class="brand__name">ALIFE</span>
+          <span class="brand__meta">architecture / capability / authority</span>
         </span>
       </a>
       <nav class="site-nav" aria-label="页面导航" data-aria-zh="页面导航" data-aria-en="Page navigation">
-        <a href="#journey" data-zh="参与旅程" data-en="Journey">参与旅程</a>
-        <a href="#product" data-zh="产品界面" data-en="Product">产品界面</a>
-        <a href="#architecture" data-zh="系统架构" data-en="Architecture">系统架构</a>
-        <a href="#start" data-zh="本地运行" data-en="Get started">本地运行</a>
+        <a href="#architecture" data-zh="架构" data-en="Architecture">架构</a>
+        <a href="#capabilities" data-zh="能力" data-en="Capabilities">能力</a>
+        <a href="#events" data-zh="活动" data-en="Events">活动</a>
+        <a href="#security" data-zh="安全" data-en="Security">安全</a>
+        <a href="#start" data-zh="本地开发" data-en="Local dev">本地开发</a>
         <button class="language-toggle" id="language-toggle" type="button" aria-label="Switch to English">
-          <span class="language-toggle__dot" aria-hidden="true"></span>
-          <span id="language-current">中文</span>
-          <span aria-hidden="true">/</span>
-          <span id="language-next">EN</span>
+          <span id="language-current">中文</span> / <span id="language-next">EN</span>
         </button>
       </nav>
     </div>
@@ -1680,327 +1395,255 @@
   <main id="main">
     <section class="hero" id="top">
       <div class="hero__inner">
-        <div class="hero__copy" data-reveal>
-          <p class="eyebrow" data-zh="ALIFE · 双语教会社区平台" data-en="ALIFE · BILINGUAL CHURCH COMMUNITY PLATFORM">ALIFE · 双语教会社区平台</p>
-          <h1 data-i18n-html data-zh="让教会生活，<br><span>落在同一个地方。</span>" data-en="Bring church life<br><span>into one shared place.</span>">让教会生活，<br><span>落在同一个地方。</span></h1>
-          <p class="hero__lead" data-zh="Alife 把访客发现、成员参与、小组带领、双语内容与安全发布连成一条清晰旅程，让分散的事工协作回到同一个可用、可维护的线上家园。" data-en="Alife connects visitor discovery, member participation, group leadership, bilingual content and safe publishing into one clear journey—a practical, maintainable digital home for shared ministry.">Alife 把访客发现、成员参与、小组带领、双语内容与安全发布连成一条清晰旅程，让分散的事工协作回到同一个可用、可维护的线上家园。</p>
-          <div class="hero__actions">
-            <a class="button button--primary" href="#product"><span data-zh="查看真实产品" data-en="See the real product">查看真实产品</span><span class="arrow" aria-hidden="true">↘</span></a>
-            <a class="button button--ghost" href="#start"><span data-zh="在本地运行" data-en="Run it locally">在本地运行</span><span class="arrow" aria-hidden="true">→</span></a>
-          </div>
-          <ul class="hero__facts" aria-label="产品特征" data-aria-zh="产品特征" data-aria-en="Product characteristics">
-            <li data-zh="中英双语内容" data-en="English + Chinese content">中英双语内容</li>
-            <li data-zh="移动优先 PWA" data-en="Mobile-first PWA">移动优先 PWA</li>
-            <li data-zh="AI 草稿由人确认" data-en="Human-reviewed AI drafts">AI 草稿由人确认</li>
-          </ul>
-        </div>
-
-        <div class="community-orbit" aria-label="从访客到审核者的社区参与旅程" data-aria-zh="从访客到审核者的社区参与旅程" data-aria-en="Community journey from guest to reviewer" data-reveal>
-          <div class="community-orbit__ring" aria-hidden="true"></div>
-          <div class="community-orbit__core">
-            <strong data-i18n-html data-zh="共同<br>生活" data-en="Shared<br>life">共同<br>生活</strong>
-            <span>one digital home</span>
-          </div>
-          <div class="orbit-node orbit-node--one">
-            <strong data-zh="访客" data-en="Guest">访客</strong>
-            <span data-zh="发现与到访" data-en="Discover & visit">发现与到访</span>
-          </div>
-          <div class="orbit-node orbit-node--two">
-            <strong data-zh="成员" data-en="Member">成员</strong>
-            <span data-zh="加入与参与" data-en="Join & participate">加入与参与</span>
-          </div>
-          <div class="orbit-node orbit-node--three">
-            <strong data-zh="组长" data-en="Leader">组长</strong>
-            <span data-zh="带领与关怀" data-en="Lead & care">带领与关怀</span>
-          </div>
-          <div class="orbit-node orbit-node--four">
-            <strong data-zh="内容同工" data-en="Creator">内容同工</strong>
-            <span data-zh="建立双语内容" data-en="Create bilingually">建立双语内容</span>
-          </div>
-          <div class="orbit-node orbit-node--five">
-            <strong data-zh="审核者" data-en="Reviewer">审核者</strong>
-            <span data-zh="安全发布" data-en="Publish safely">安全发布</span>
-          </div>
-          <p class="orbit-note" data-zh="每个角色看见所需的内容，也承担清楚的责任。" data-en="Each role sees what it needs and owns a clear responsibility.">每个角色看见所需的内容，也承担清楚的责任。</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section journey" id="journey">
-      <div class="section__inner">
-        <div class="section-intro" data-reveal>
-          <p class="eyebrow" data-zh="为什么是 Alife" data-en="WHY ALIFE">为什么是 Alife</p>
-          <h2 class="section-heading" data-zh="不是更多工具，而是一条连续的参与旅程。" data-en="Not more tools. One continuous journey of participation.">不是更多工具，而是一条连续的参与旅程。</h2>
-          <p class="section-copy" data-zh="海外华人教会的网页、群组、活动和沟通常常散落在不同系统。Alife 以真实角色的下一步为组织方式，让人不用先理解系统，就知道自己现在可以做什么。" data-en="Church websites, groups, events and communication often live in separate systems. Alife organises the experience around each person’s next real action, so people can move forward without first learning the system.">海外华人教会的网页、群组、活动和沟通常常散落在不同系统。Alife 以真实角色的下一步为组织方式，让人不用先理解系统，就知道自己现在可以做什么。</p>
-        </div>
-
-        <ol class="journey-track" data-reveal>
-          <li class="journey-step">
-            <span class="journey-step__number">01</span>
-            <h3 data-zh="发现教会" data-en="Discover">发现教会</h3>
-            <p data-zh="公开首页、到访信息、讲道与历史文章，让第一次接触有清楚入口。" data-en="A public home, visit information, sermons and articles create a clear first doorway.">公开首页、到访信息、讲道与历史文章，让第一次接触有清楚入口。</p>
-          </li>
-          <li class="journey-step">
-            <span class="journey-step__number">02</span>
-            <h3 data-zh="进入群体" data-en="Join">进入群体</h3>
-            <p data-zh="通过 LINE 或成员账号登录，发现群组并完成申请、邀请与审批。" data-en="Sign in with LINE or a member account, discover groups, and complete request or invitation flows.">通过 LINE 或成员账号登录，发现群组并完成申请、邀请与审批。</p>
-          </li>
-          <li class="journey-step">
-            <span class="journey-step__number">03</span>
-            <h3 data-zh="持续参与" data-en="Participate">持续参与</h3>
-            <p data-zh="活动报名、通知、论坛、相册、讲道和圣经阅读汇聚在移动端。" data-en="Events, notifications, forums, albums, sermons and Bible reading meet in one mobile experience.">活动报名、通知、论坛、相册、讲道和圣经阅读汇聚在移动端。</p>
-          </li>
-          <li class="journey-step">
-            <span class="journey-step__number">04</span>
-            <h3 data-zh="带领与关怀" data-en="Lead">带领与关怀</h3>
-            <p data-zh="组长管理成员、角色、子群组、公告、联系人、页面与活动。" data-en="Leaders manage people, roles, subgroups, notices, contacts, pages and events.">组长管理成员、角色、子群组、公告、联系人、页面与活动。</p>
-          </li>
-          <li class="journey-step">
-            <span class="journey-step__number">05</span>
-            <h3 data-zh="审核与发布" data-en="Publish">审核与发布</h3>
-            <p data-zh="双语页面先建立、预览和审核，再安全进入公开网站。" data-en="Bilingual pages are built, previewed and reviewed before they safely reach the public site.">双语页面先建立、预览和审核，再安全进入公开网站。</p>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <section class="section showcase" id="product">
-      <div class="section__inner">
         <div data-reveal>
-          <p class="eyebrow" data-zh="当前 Alpha 产品" data-en="THE ALPHA PRODUCT TODAY">当前 Alpha 产品</p>
-          <h2 class="dark-heading" data-zh="产品证据，不是概念图。" data-en="Product evidence, not concept art.">产品证据，不是概念图。</h2>
-          <p class="showcase__copy" data-zh="公开网站和登录后的工作空间共享同一套内容与治理模型。以下界面均来自当前仓库中的实际实现。" data-en="The public site and signed-in workspace share one content and governance model. Every screen below comes from the implementation in this repository.">公开网站和登录后的工作空间共享同一套内容与治理模型。以下界面均来自当前仓库中的实际实现。</p>
-        </div>
-
-        <div class="product-viewer" data-reveal>
-          <figure class="product-stage" id="product-panel">
-            <div class="product-stage__chrome">
-              <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-              <span>alife / product view</span>
-            </div>
-            <div class="product-stage__image-wrap">
-              <img class="product-stage__image" id="product-image" src="docs/assets/portfolio/alife-public-home.png" width="1905" height="938" alt="Alife 公开网站首页">
-            </div>
-            <figcaption id="product-caption" data-zh="公开体验与登录后的群组工作空间共用同一产品和内容体系。" data-en="The public experience and signed-in group workspace share one product and content system.">公开体验与登录后的群组工作空间共用同一产品和内容体系。</figcaption>
-          </figure>
-
-          <div class="product-tabs" role="tablist" aria-label="选择产品截图" data-aria-zh="选择产品截图" data-aria-en="Choose a product screenshot">
-            <button class="product-tab" type="button" role="tab" aria-selected="true" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-public-home.png" data-alt-zh="Alife 公开网站首页" data-alt-en="Alife public website home" data-caption-zh="公开体验与登录后的群组工作空间共用同一产品和内容体系。" data-caption-en="The public experience and signed-in group workspace share one product and content system.">
-              <img src="docs/assets/portfolio/alife-public-home.png" width="1905" height="938" alt="" loading="lazy">
-              <span data-zh="公开首页" data-en="Public home">公开首页</span>
-            </button>
-            <button class="product-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-platform-workspace.png" data-alt-zh="Alife 平台运营工作空间" data-alt-en="Alife platform operations workspace" data-caption-zh="统一呈现用户、通知、待办与审计活动，让平台责任有清晰落点。" data-caption-en="Users, notifications, tasks and audit activity come together in a clear operational workspace.">
-              <img src="docs/assets/portfolio/alife-platform-workspace.png" width="1905" height="938" alt="" loading="lazy">
-              <span data-zh="运营工作区" data-en="Operations">运营工作区</span>
-            </button>
-            <button class="product-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-website-builder.png" data-alt-zh="Alife 公开网站构建与审核界面" data-alt-en="Alife public website builder and review workspace" data-caption-zh="内容同工管理双语菜单、页面顺序、审核状态与首页投放。" data-caption-en="Content teams manage bilingual menus, page order, review status and home-page placement.">
-              <img src="docs/assets/portfolio/alife-website-builder.png" width="1905" height="938" alt="" loading="lazy">
-              <span data-zh="网站构建" data-en="Site builder">网站构建</span>
-            </button>
-            <button class="product-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-page-editor.png" data-alt-zh="Alife WYSIWYG 双语页面编辑器" data-alt-en="Alife bilingual WYSIWYG page editor" data-caption-zh="在真实页面画面上编辑区块、媒体与双语内容，并在发布前预览。" data-caption-en="Edit sections, media and bilingual content on the real page canvas, then preview before publishing.">
-              <img src="docs/assets/portfolio/alife-page-editor.png" width="1905" height="938" alt="" loading="lazy">
-              <span data-zh="页面编辑器" data-en="Page editor">页面编辑器</span>
-            </button>
-            <button class="product-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-ai-event-assistant.png" data-alt-zh="Alife AI 活动助手" data-alt-en="Alife AI event assistant" data-caption-zh="AI 复用活动事实形成可编辑草稿，但提交与发布仍由人决定。" data-caption-en="AI reuses event facts to form editable drafts, while people retain control of commit and publication.">
-              <img src="docs/assets/portfolio/alife-ai-event-assistant.png" width="1905" height="938" alt="" loading="lazy">
-              <span data-zh="AI 活动助手" data-en="AI event assistant">AI 活动助手</span>
-            </button>
-            <button class="product-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-ram-workflow.png" data-alt-zh="Alife 双语 RAM 风险评估工作流" data-alt-en="Alife bilingual RAM risk assessment workflow" data-caption-zh="双语风险草稿、状态与提交就绪度都可见；安全事实必须由负责人确认。" data-caption-en="Bilingual risk drafts, status and readiness remain visible; accountable people must confirm safety facts.">
-              <img src="docs/assets/portfolio/alife-ram-workflow.png" width="1905" height="938" alt="" loading="lazy">
-              <span data-zh="RAM 风险评估" data-en="RAM review">RAM 风险评估</span>
-            </button>
+          <p class="eyebrow" data-zh="当前架构 · 2026 年 9 月源代码" data-en="CURRENT ARCHITECTURE · SEPTEMBER 2026 SOURCE">当前架构 · 2026 年 9 月源代码</p>
+          <h1 data-i18n-html data-zh="一个平台，<br><span>清楚的责任边界。</span>" data-en="One platform.<br><span>Clear authority boundaries.</span>">一个平台，<br><span>清楚的责任边界。</span></h1>
+          <p class="hero__lead" data-zh="ALIFE 把公开教会内容、成员身份、小组生活、双语发布和活动协作连接起来；每个不可逆动作仍由正确的人、在服务器规则下明确决定。" data-en="ALIFE connects public church content, member identity, group life, bilingual publishing and Event collaboration—while every irreversible action remains an explicit human decision enforced by server rules.">ALIFE 把公开教会内容、成员身份、小组生活、双语发布和活动协作连接起来；每个不可逆动作仍由正确的人、在服务器规则下明确决定。</p>
+          <div class="hero__actions">
+            <a class="button button--primary" href="#architecture"><span data-zh="查看运行架构" data-en="Explore the runtime">查看运行架构</span><span aria-hidden="true">↘</span></a>
+            <a class="button button--secondary" href="README.md"><span data-zh="打开工程 README" data-en="Open engineering README">打开工程 README</span><span aria-hidden="true">→</span></a>
           </div>
-        </div>
-
-        <div class="capability-ledger" data-reveal>
-          <article class="capability-row">
-            <span class="capability-row__index">CONNECT</span>
-            <h3 data-zh="连接人和群体" data-en="Connect people and groups">连接人和群体</h3>
-            <p data-zh="LINE 登录、群组发现、成员申请与邀请、角色管理、通知与联系人流程。" data-en="LINE sign-in, group discovery, requests and invitations, role management, notifications and contact workflows.">LINE 登录、群组发现、成员申请与邀请、角色管理、通知与联系人流程。</p>
-          </article>
-          <article class="capability-row">
-            <span class="capability-row__index">CREATE</span>
-            <h3 data-zh="建立共同内容" data-en="Create shared content">建立共同内容</h3>
-            <p data-zh="双语页面构建器、讲道、文章、相册、论坛、活动、报名与复盘。" data-en="A bilingual page builder, sermons, articles, albums, forums, events, enrolment and review.">双语页面构建器、讲道、文章、相册、论坛、活动、报名与复盘。</p>
-          </article>
-          <article class="capability-row">
-            <span class="capability-row__index">STEWARD</span>
-            <h3 data-zh="治理内容与风险" data-en="Steward content and risk">治理内容与风险</h3>
-            <p data-zh="页面审核、权限与审计、活动工作流、RAM 风险评估，以及坚持人工确认的 AI 辅助。" data-en="Page review, permissions and audit, event workflows, RAM risk assessment, and AI assistance with human confirmation.">页面审核、权限与审计、活动工作流、RAM 风险评估，以及坚持人工确认的 AI 辅助。</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section architecture" id="architecture">
-      <div class="section__inner architecture-layout">
-        <div class="architecture-copy" data-reveal>
-          <p class="eyebrow" data-zh="系统架构" data-en="SYSTEM ARCHITECTURE">系统架构</p>
-          <h2 class="section-heading" data-zh="快在边缘，规则留在后端。" data-en="Fast at the edge. Authority at the backend.">快在边缘，规则留在后端。</h2>
-          <p class="section-copy" data-zh="Alife 以边界换取稳定：前端负责体验，Cloudflare 负责加速和短期会话，.NET API 负责授权与业务规则，SQL 保存持久事实。" data-en="Alife uses clear boundaries for stability: the frontend owns experience, Cloudflare owns acceleration and temporary sessions, the .NET API owns authorisation and business rules, and SQL preserves durable facts.">Alife 以边界换取稳定：前端负责体验，Cloudflare 负责加速和短期会话，.NET API 负责授权与业务规则，SQL 保存持久事实。</p>
-          <p class="architecture-note" data-zh="共享缓存只保存同一授权范围内完全相同的内容；成员私有数据不会进入公开共享缓存。" data-en="Shared caches only hold identical representations for the same authorised audience; member-private data never enters a public shared cache.">共享缓存只保存同一授权范围内完全相同的内容；成员私有数据不会进入公开共享缓存。</p>
-          <ul class="stack-list" aria-label="技术栈" data-aria-zh="技术栈" data-aria-en="Technology stack">
-            <li>React 19</li><li>TypeScript</li><li>Vite PWA</li><li>TanStack</li><li>.NET 10</li><li>Azure Functions</li><li>EF Core</li><li>SQL Server</li><li>Cloudflare Workers</li><li>Durable Objects</li><li>R2</li>
+          <ul class="hero__status" aria-label="当前状态" data-aria-zh="当前状态" data-aria-en="Current status">
+            <li><strong>STATUS</strong><span data-zh="Alpha 源代码实现" data-en="Alpha source implementation">Alpha 源代码实现</span></li>
+            <li><strong>IDENTITY</strong><span data-zh="Passkey 优先，LINE 兼容" data-en="Passkey first, LINE compatible">Passkey 优先，LINE 兼容</span></li>
+            <li><strong>AUTHORITY</strong><span data-zh="AI 提议，人来决定" data-en="AI proposes, people decide">AI 提议，人来决定</span></li>
           </ul>
         </div>
 
-        <figure class="system-map" data-reveal>
-          <div class="system-map__lane">
-            <span class="system-map__label" data-zh="体验层" data-en="EXPERIENCE">体验层</span>
-            <div class="system-map__nodes system-map__nodes--single">
-              <div class="system-node">
-                <span class="system-node__role">Browser / PWA</span>
-                <strong data-zh="React 双语界面与本地缓存" data-en="React bilingual UI and local cache">React 双语界面与本地缓存</strong>
-              </div>
+        <figure class="boundary-map" data-reveal>
+          <div class="boundary-map__head"><span>request / decision path</span><span>4 runtime boundaries</span></div>
+          <div class="boundary-rail">
+            <div class="boundary-node">
+              <span class="boundary-node__label">experience</span>
+              <strong>React PWA</strong>
+              <small data-zh="双语体验、路由、WebAuthn、局部状态" data-en="Bilingual UX, routing, WebAuthn and local state">双语体验、路由、WebAuthn、局部状态</small>
+            </div>
+            <div class="boundary-node">
+              <span class="boundary-node__label">edge</span>
+              <strong>Cloudflare</strong>
+              <small data-zh="资产、代理、授权感知缓存、临时 AI 会话" data-en="Assets, proxy, authorization-aware cache, temporary AI sessions">资产、代理、授权感知缓存、临时 AI 会话</small>
+            </div>
+            <div class="boundary-node">
+              <span class="boundary-node__label">authority</span>
+              <strong>.NET API</strong>
+              <small data-zh="身份、权限、业务规则、审批门槛" data-en="Identity, authorization, business rules and approval gates">身份、权限、业务规则、审批门槛</small>
+            </div>
+            <div class="boundary-node">
+              <span class="boundary-node__label">evidence</span>
+              <strong>SQL + R2</strong>
+              <small data-zh="持久事实、版本化证据、公开与受保护媒体" data-en="Durable facts, versioned evidence, public and protected media">持久事实、版本化证据、公开与受保护媒体</small>
             </div>
           </div>
-          <div class="system-map__connector" aria-hidden="true"></div>
-          <div class="system-map__lane">
-            <span class="system-map__label" data-zh="边缘层" data-en="EDGE">边缘层</span>
-            <div class="system-map__nodes system-map__nodes--single">
-              <div class="system-node system-node--edge">
-                <span class="system-node__role">Cloudflare speed layer</span>
-                <strong data-zh="静态资源、API 代理、ETag 与授权缓存" data-en="Assets, API proxy, ETags and authorised cache">静态资源、API 代理、ETag 与授权缓存</strong>
-              </div>
-            </div>
-          </div>
-          <div class="system-map__connector" aria-hidden="true"></div>
-          <div class="system-map__lane">
-            <span class="system-map__label" data-zh="能力层" data-en="CAPABILITIES">能力层</span>
-            <div class="system-map__nodes">
-              <div class="system-node">
-                <span class="system-node__role">.NET API</span>
-                <strong data-zh="业务规则与授权" data-en="Rules and authorisation">业务规则与授权</strong>
-              </div>
-              <div class="system-node system-node--accent">
-                <span class="system-node__role">Durable Objects</span>
-                <strong data-zh="临时 AI 会话" data-en="Temporary AI sessions">临时 AI 会话</strong>
-              </div>
-              <div class="system-node">
-                <span class="system-node__role">Images Worker</span>
-                <strong data-zh="媒体访问与处理" data-en="Media access and handling">媒体访问与处理</strong>
-              </div>
-            </div>
-          </div>
-          <div class="system-map__connector" aria-hidden="true"></div>
-          <div class="system-map__lane">
-            <span class="system-map__label" data-zh="数据层" data-en="DATA">数据层</span>
-            <div class="system-map__nodes system-map__nodes--double">
-              <div class="system-node">
-                <span class="system-node__role">SQL + EF Core</span>
-                <strong data-zh="持久业务事实" data-en="Durable business facts">持久业务事实</strong>
-              </div>
-              <div class="system-node">
-                <span class="system-node__role">Cloudflare R2</span>
-                <strong data-zh="公开与受保护媒体" data-en="Public and protected media">公开与受保护媒体</strong>
-              </div>
-            </div>
-          </div>
-          <figcaption data-zh="身份与授权由后端负责；边缘层只在安全边界内加速；AI 会话与最终业务记录明确分离。" data-en="Identity and authorisation stay in the backend; the edge accelerates only within safe boundaries; AI sessions remain separate from final business records.">身份与授权由后端负责；边缘层只在安全边界内加速；AI 会话与最终业务记录明确分离。</figcaption>
+          <figcaption data-zh="性能可以跨层优化；授权、审批和持久业务事实不能被前端或 AI 取代。" data-en="Performance can span layers; authorization, approval and durable business facts cannot be delegated to the frontend or AI.">性能可以跨层优化；授权、审批和持久业务事实不能被前端或 AI 取代。</figcaption>
         </figure>
       </div>
     </section>
 
-    <section class="section principles">
-      <div class="section__inner principles-layout">
+    <section class="section architecture-section" id="architecture">
+      <div class="section__inner">
         <div data-reveal>
-          <p class="eyebrow" data-zh="不可退让的边界" data-en="NON-NEGOTIABLES">不可退让的边界</p>
-          <h2 class="section-heading" data-zh="服务增长，也守住信任。" data-en="Built to grow service without spending trust.">服务增长，也守住信任。</h2>
-          <p class="section-copy" data-zh="教会社区的软件既处理公开内容，也处理成员身份、联系信息与小组关系。产品价值必须和责任边界一起交付。" data-en="Church community software handles both public content and member identities, contact details and group relationships. Product value must arrive with responsible boundaries.">教会社区的软件既处理公开内容，也处理成员身份、联系信息与小组关系。产品价值必须和责任边界一起交付。</p>
+          <p class="eyebrow" data-zh="运行架构" data-en="RUNTIME ARCHITECTURE">运行架构</p>
+          <h2 class="section-heading" data-zh="每一层做自己该做的事。" data-en="Each layer owns one kind of truth.">每一层做自己该做的事。</h2>
+          <p class="section-copy" data-zh="点击任一边界，查看它当前负责什么，以及刻意不负责什么。这样的分层不是组织图，而是隐私、缓存、兼容性和可恢复性的基础。" data-en="Select a boundary to see what it owns—and what it deliberately does not. These separations are the basis for privacy, caching, compatibility and recovery.">点击任一边界，查看它当前负责什么，以及刻意不负责什么。这样的分层不是组织图，而是隐私、缓存、兼容性和可恢复性的基础。</p>
         </div>
 
-        <dl class="principles-list" data-reveal>
-          <div class="principle" data-index="01">
-            <dt data-zh="授权实时可靠" data-en="Current authorisation">授权实时可靠</dt>
-            <dd data-zh="JWT 只保存最小身份；群组角色与可见性依据当前后端数据检查，权限变化不等待令牌过期。" data-en="JWTs carry minimal identity; group roles and visibility are checked against current backend data, so permission changes do not wait for token expiry.">JWT 只保存最小身份；群组角色与可见性依据当前后端数据检查，权限变化不等待令牌过期。</dd>
+        <div class="architecture-layout" data-reveal>
+          <div class="architecture-console">
+            <div class="architecture-console__head"><span>alife / runtime map</span><i aria-hidden="true"></i></div>
+            <div class="architecture-grid">
+              <button class="architecture-node" type="button" aria-expanded="true" data-title-zh="React 双语 PWA" data-title-en="React bilingual PWA" data-detail-zh="React 19、TypeScript、Vite 与 React Router 负责公共、成员、组长和管理工作区。TanStack Query／React DB 与 IndexedDB 协调客户端数据；浏览器执行 WebAuthn 仪式，但最终授权仍在服务器。" data-detail-en="React 19, TypeScript, Vite and React Router deliver public, member, leader and administration workspaces. TanStack Query/React DB and IndexedDB coordinate client data; the browser performs WebAuthn ceremonies, but final authorization remains server-side." data-rule-zh="不信任前端角色检查；不把 API 响应交给 PWA runtime cache。" data-rule-en="Never trust frontend role checks; never replay API responses from the PWA runtime cache.">
+                <span class="architecture-node__code">01 / EXPERIENCE</span>
+                <span class="architecture-node__title" data-zh="浏览器与 PWA" data-en="Browser and PWA">浏览器与 PWA</span>
+                <span class="architecture-node__tech">React 19 · TypeScript · Vite · TanStack</span>
+              </button>
+              <button class="architecture-node" type="button" aria-expanded="false" data-title-zh="Cloudflare 边缘层" data-title-en="Cloudflare edge layer" data-detail-zh="Speed-layer Worker 提供前端资产、API 与图片路由、ETag、公共和授权感知缓存、被动失效，以及 Durable Object AI 会话。独立 images-api Worker 通过 R2 提供公开与受保护媒体。" data-detail-en="The speed-layer Worker serves frontend assets, API and image routing, ETags, public and authorization-aware caching, passive invalidation and Durable Object AI sessions. A separate images-api Worker serves public and protected media through R2." data-rule-zh="只有相同受众会得到完全相同表示时，才允许共享缓存。" data-rule-en="Shared caching is allowed only when the same audience receives an identical representation.">
+                <span class="architecture-node__code">02 / EDGE</span>
+                <span class="architecture-node__title" data-zh="边缘与媒体" data-en="Edge and media">边缘与媒体</span>
+                <span class="architecture-node__tech">Workers · Cache API · KV · Durable Objects · R2</span>
+              </button>
+              <button class="architecture-node" type="button" aria-expanded="false" data-title-zh="服务器业务边界" data-title-en="Server authority boundary" data-detail-zh=".NET 10 Azure Functions 托管 ASP.NET Core controllers。Application 层执行用例与生命周期门槛，Infrastructure 层负责 EF Core、HybridCache、安全与外部集成。所有敏感操作重新核对当前成员、角色、所有权、用途和版本。" data-detail-en=".NET 10 Azure Functions hosts ASP.NET Core controllers. The Application layer executes use cases and lifecycle gates; Infrastructure owns EF Core, HybridCache, security and provider integrations. Sensitive operations recheck current member, role, ownership, purpose and version." data-rule-zh="JWT 保持最小；角色和权限以当前服务器数据为准。" data-rule-en="JWTs stay minimal; roles and permissions come from current server data.">
+                <span class="architecture-node__code">03 / AUTHORITY</span>
+                <span class="architecture-node__title" data-zh="API 与领域规则" data-en="API and domain rules">API 与领域规则</span>
+                <span class="architecture-node__tech">.NET 10 · Azure Functions · MediatR · HybridCache</span>
+              </button>
+              <button class="architecture-node" type="button" aria-expanded="false" data-title-zh="持久事实与证据" data-title-en="Durable facts and evidence" data-detail-zh="SQL Server／Azure SQL 保存成员、小组、发布副本、Event Plan、Occurrence、Package、专项记录和审计。迁移采用添加式策略；旧 GroupEvent 和 version-0 语义继续可读，新的 version-1 能力并行加入。" data-detail-en="SQL Server/Azure SQL stores members, groups, publication copies, Event Plans, Occurrences, Packages, specialist records and audit evidence. Migrations are additive: legacy GroupEvent and version-0 semantics remain readable while version-1 capabilities are introduced alongside them." data-rule-zh="迁移不编造历史事实；新模型不能静默改变旧记录语义。" data-rule-en="Migrations never invent historical facts; new models must not silently reinterpret legacy records.">
+                <span class="architecture-node__code">04 / EVIDENCE</span>
+                <span class="architecture-node__title" data-zh="SQL 与版本化记录" data-en="SQL and versioned records">SQL 与版本化记录</span>
+                <span class="architecture-node__tech">EF Core 10 · SQL Server · additive migrations</span>
+              </button>
+            </div>
           </div>
-          <div class="principle" data-index="02">
-            <dt data-zh="缓存服从隐私" data-en="Cache serves privacy">缓存服从隐私</dt>
-            <dd data-zh="公开、群组共享、成员专属与浏览器本地缓存各自有明确键、失效与可见性规则。" data-en="Public, group-shared, member-specific and local browser caches each have explicit keys, invalidation and visibility rules.">公开、群组共享、成员专属与浏览器本地缓存各自有明确键、失效与可见性规则。</dd>
-          </div>
-          <div class="principle" data-index="03">
-            <dt data-zh="双语是数据结构" data-en="Bilingual by structure">双语是数据结构</dt>
-            <dd data-zh="内容以 { en, zh } 形态保存；语言切换只改变呈现，不重取数据，也不破坏另一种语言。" data-en="Content is stored as { en, zh }; switching language changes presentation without refetching or erasing the other language.">内容以 { en, zh } 形态保存；语言切换只改变呈现，不重取数据，也不破坏另一种语言。</dd>
-          </div>
-          <div class="principle" data-index="04">
-            <dt data-zh="AI 提议，人来决定" data-en="AI proposes, people decide">AI 提议，人来决定</dt>
-            <dd data-zh="AI 可以形成策划、翻译与风险草稿，但不能编造安全事实，也不能绕过人工确认直接发布。" data-en="AI can draft plans, translations and risk material, but it cannot invent safety facts or bypass human confirmation to publish.">AI 可以形成策划、翻译与风险草稿，但不能编造安全事实，也不能绕过人工确认直接发布。</dd>
-          </div>
-        </dl>
+
+          <aside class="architecture-detail" aria-live="polite">
+            <div>
+              <span class="architecture-detail__label" data-zh="所选边界" data-en="SELECTED BOUNDARY">所选边界</span>
+              <h3 id="architecture-detail-title">React 双语 PWA</h3>
+              <p id="architecture-detail-copy">React 19、TypeScript、Vite 与 React Router 负责公共、成员、组长和管理工作区。TanStack Query／React DB 与 IndexedDB 协调客户端数据；浏览器执行 WebAuthn 仪式，但最终授权仍在服务器。</p>
+            </div>
+            <div class="architecture-detail__rule" id="architecture-detail-rule">不信任前端角色检查；不把 API 响应交给 PWA runtime cache。</div>
+          </aside>
+        </div>
       </div>
     </section>
 
-    <section class="section start" id="start">
+    <section class="section capabilities-section" id="capabilities">
+      <div class="section__inner">
+        <div data-reveal>
+          <p class="eyebrow" data-zh="当前功能集" data-en="CURRENT CAPABILITY SET">当前功能集</p>
+          <h2 class="section-heading" data-zh="从发现教会，到承担真实责任。" data-en="From finding a church to owning real work.">从发现教会，到承担真实责任。</h2>
+          <p class="section-copy" data-zh="ALIFE 不是把功能堆在同一页，而是按公开访问、成员参与、内容治理和事工责任组织体验。" data-en="ALIFE does not pile features onto one screen. It organizes the experience around public access, member participation, content governance and ministry responsibility.">ALIFE 不是把功能堆在同一页，而是按公开访问、成员参与、内容治理和事工责任组织体验。</p>
+        </div>
+
+        <div class="capability-ledger" data-reveal>
+          <article class="capability-row">
+            <span class="capability-row__code">IDENTITY</span>
+            <h3 data-zh="身份与进入" data-en="Identity and entry">身份与进入</h3>
+            <p data-zh="Passkey 优先登录，HttpOnly JWT 会话，激活、邀请、公开申请、小组 QR、浏览器延续与恢复；LINE 是兼容入口，内部 Alpha 登录只用于受控测试。" data-en="Passkey-first sign-in, HttpOnly JWT sessions, activation, invitations, public applications, group QR entry, browser continuation and recovery; LINE is a compatibility path and internal Alpha access is controlled testing only.">Passkey 优先登录，HttpOnly JWT 会话，激活、邀请、公开申请、小组 QR、浏览器延续与恢复；LINE 是兼容入口，内部 Alpha 登录只用于受控测试。</p>
+          </article>
+          <article class="capability-row">
+            <span class="capability-row__code">COMMUNITY</span>
+            <h3 data-zh="教会与群组生活" data-en="Church and group life">教会与群组生活</h3>
+            <p data-zh="分层群组、成员与角色、公告、相册、论坛、联系人、通知、访客请求、讲道、主日周报、读经进度与个人事务。" data-en="Hierarchical groups, membership and roles, announcements, albums, forums, contacts, notifications, visitor requests, sermons, Sunday bulletins, Bible progress and personal work.">分层群组、成员与角色、公告、相册、论坛、联系人、通知、访客请求、讲道、主日周报、读经进度与个人事务。</p>
+          </article>
+          <article class="capability-row">
+            <span class="capability-row__code">PUBLISHING</span>
+            <h3 data-zh="双语内容治理" data-en="Bilingual content governance">双语内容治理</h3>
+            <p data-zh="群组拥有结构化 Page／Section 内容；working、submitted 和 published 三份副本各自演进。审核者可以修改、批准或退回提交副本，不破坏工作页或现有公开页。" data-en="Groups own structured Page/Section content; working, submitted and published copies evolve independently. Reviewers can revise, approve or return a submission without mutating the working page or existing public snapshot.">群组拥有结构化 Page／Section 内容；working、submitted 和 published 三份副本各自演进。审核者可以修改、批准或退回提交副本，不破坏工作页或现有公开页。</p>
+          </article>
+          <article class="capability-row">
+            <span class="capability-row__code">ASSISTANCE</span>
+            <h3 data-zh="有边界的 AI 辅助" data-en="Bounded AI assistance">有边界的 AI 辅助</h3>
+            <p data-zh="AI 可以协助活动详情、任务与报名表、RAM 候选内容、报名／复盘会话、双语翻译和海报草稿；不能确认事实、授予权限、批准 Package 或自动发布。" data-en="AI can assist with Event details, task and registration forms, RAM candidates, enrolment/review sessions, bilingual translation and poster drafts; it cannot confirm facts, grant authority, approve Packages or auto-publish.">AI 可以协助活动详情、任务与报名表、RAM 候选内容、报名／复盘会话、双语翻译和海报草稿；不能确认事实、授予权限、批准 Package 或自动发布。</p>
+          </article>
+        </div>
+
+        <div class="publishing-flow" data-reveal>
+          <div class="publishing-flow__head">
+            <h3 data-zh="公开发布不是保存按钮" data-en="Publishing is not a save button">公开发布不是保存按钮</h3>
+            <span>three-copy publication model</span>
+          </div>
+          <ol class="copy-track">
+            <li><code>WORKING</code><strong data-zh="群组工作副本" data-en="Group working copy">群组工作副本</strong><span data-zh="内容同工继续编辑；不会直接改变访客看到的内容。" data-en="Content teams keep editing; visitor content does not change directly.">内容同工继续编辑；不会直接改变访客看到的内容。</span></li>
+            <li><code>SUBMITTED</code><strong data-zh="隔离的审核副本" data-en="Isolated review copy">隔离的审核副本</strong><span data-zh="审核者修订、批准或退回；并发写入使用乐观锁。" data-en="Reviewers revise, approve or return it; optimistic concurrency protects writes.">审核者修订、批准或退回；并发写入使用乐观锁。</span></li>
+            <li><code>PUBLISHED</code><strong data-zh="已批准公开快照" data-en="Approved public snapshot">已批准公开快照</strong><span data-zh="安全公开并可共享缓存；新提交被退回时仍保持在线。" data-en="Safe for public delivery and shared cache; remains live when a newer submission is returned.">安全公开并可共享缓存；新提交被退回时仍保持在线。</span></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="section event-section" id="events">
+      <div class="section__inner">
+        <div data-reveal>
+          <p class="eyebrow" data-zh="活动领域" data-en="EVENT DOMAIN">活动领域</p>
+          <h2 class="section-heading" data-zh="活动是一组事实、能力与责任，不是一张 CRUD 表。" data-en="An Event is facts, capabilities and accountability—not a CRUD row.">活动是一组事实、能力与责任，不是一张 CRUD 表。</h2>
+          <p class="section-copy" data-zh="人工接受产生不可变 Event Plan；Series 管理重复规律，Occurrence 管理一次实际执行，Package 把审批绑定到精确版本。原有 GroupEvent 与 version-0 语义继续兼容。" data-en="Human acceptance creates an immutable Event Plan; Series owns recurrence, Occurrence owns one delivery, and a Package binds approval to exact source versions. Existing GroupEvent and version-0 semantics remain compatible.">人工接受产生不可变 Event Plan；Series 管理重复规律，Occurrence 管理一次实际执行，Package 把审批绑定到精确版本。原有 GroupEvent 与 version-0 语义继续兼容。</p>
+        </div>
+
+        <div class="event-equation" data-reveal aria-label="Event Plan composition">
+          <div><code>EVENT PLAN</code><strong data-zh="人工接受的版本化事实" data-en="Human-accepted versioned truth">人工接受的版本化事实</strong></div>
+          <div><code>+</code><strong data-zh="结构单元" data-en="Structural units">结构单元</strong></div>
+          <div><code>+</code><strong data-zh="能力模块" data-en="Capability modules">能力模块</strong></div>
+          <div><code>+</code><strong data-zh="治理规则" data-en="Governance rules">治理规则</strong></div>
+          <div><code>+</code><strong data-zh="人的决定" data-en="Human decisions">人的决定</strong></div>
+        </div>
+
+        <div class="event-status-grid" data-reveal>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>TEAM.WORK</h3><p data-zh="负责人、角色、活动、任务、依赖、个人接受、更新与独立任务审核。" data-en="Owners, roles, activities, tasks, dependencies, personal acceptance, updates and independent task review.">负责人、角色、活动、任务、依赖、个人接受、更新与独立任务审核。</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>PEOPLE.REGISTRATION</h3><p data-zh="旧版报名与 version-1 实际参与人、家庭／代理／监护、邀请、预留、容量与 FIFO。" data-en="Legacy enrolment plus version-1 actual people, households/proxies/guardians, invitations, reservations, capacity and FIFO.">旧版报名与 version-1 实际参与人、家庭／代理／监护、邀请、预留、容量与 FIFO。</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>SERVICE.ROSTER</h3><p data-zh="候选群组、场次时段、原子批次、个人回应、更换、默认要求与滚动延长。" data-en="Candidate groups, occurrence slots, atomic batches, personal responses, replacements, defaults and rolling extension.">候选群组、场次时段、原子批次、个人回应、更换、默认要求与滚动延长。</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>SAFETY.RAM</h3><p data-zh="版本化政策、评估、确认、独立审核、来源同步、负责人最终审核、历史与打印。" data-en="Versioned policy, assessment, confirmation, independent review, source synchronization, owner review, history and printing.">版本化政策、评估、确认、独立审核、来源同步、负责人最终审核、历史与打印。</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>SAFEGUARDING.CHILD</h3><p data-zh="儿童、监护、同意、接送人、同工资格、场次签到签退与最少披露。" data-en="Children, guardians, consent, collectors, worker eligibility, occurrence check-in/out and minimum disclosure.">儿童、监护、同意、接送人、同工资格、场次签到签退与最少披露。</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>PROGRAM.PRODUCTION</h3><p data-zh="场次节目、项目排序、流程表打印与 version-1 策划报告。" data-en="Occurrence sessions and items, ordering, run-sheet printing and version-1 planning report.">场次节目、项目排序、流程表打印与 version-1 策划报告。</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>PLACE.RESOURCE</h3><p data-zh="场地目录、容量、预订冲突与独立的重复房间日历。" data-en="Venue catalogue, capacity, reservations/conflicts and independent recurring-room calendars.">场地目录、容量、预订冲突与独立的重复房间日历。</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="核心当前" data-en="Current core">核心当前</span><h3>MOVE.STAY</h3><p data-zh="驾驶员／车辆证据、行程／站点、受限名单、容量、就绪度与策划报告；停车与住宿尚未实现。" data-en="Driver/vehicle evidence, journeys/stops, restricted manifests, capacity, readiness and planning report; parking and accommodation remain absent.">驾驶员／车辆证据、行程／站点、受限名单、容量、就绪度与策划报告；停车与住宿尚未实现。</p></article>
+          <article class="event-status event-status--partial"><span class="event-status__label" data-zh="部分" data-en="Partial">部分</span><h3>COMMS · MONEY · FOOD</h3><p data-zh="沟通、财务和餐饮各有可用的限定范围，但不是完整运营模块。" data-en="Communications, finance and hospitality each have bounded usable slices, not complete operational modules.">沟通、财务和餐饮各有可用的限定范围，但不是完整运营模块。</p></article>
+          <article class="event-status event-status--unavailable"><span class="event-status__label" data-zh="不可用" data-en="Unavailable">不可用</span><h3>FESTIVAL.OPERATIONS</h3><p data-zh="只有结构定义，version 1 不能启用。" data-en="Structural definitions only; it cannot be enabled in version 1.">只有结构定义，version 1 不能启用。</p></article>
+        </div>
+
+        <div class="event-boundary" data-reveal><strong data-zh="当前边界：" data-en="CURRENT BOUNDARY:">当前边界：</strong> <span data-zh="Plan B 与第五个 Review／Reflection 阶段尚未引入；通用 Event workflow／template／artifact API 已从活动产品中退役，历史表保留作非破坏性兼容。" data-en="Plan B and a fifth Review/Reflection stage are not introduced. The generic Event workflow/template/artifact APIs are retired from the active product while historical tables remain for non-destructive compatibility.">Plan B 与第五个 Review／Reflection 阶段尚未引入；通用 Event workflow／template／artifact API 已从活动产品中退役，历史表保留作非破坏性兼容。</span></div>
+      </div>
+    </section>
+
+    <section class="section security-section" id="security">
+      <div class="section__inner">
+        <div class="security-layout">
+          <div class="security-copy" data-reveal>
+            <p class="eyebrow" data-zh="安全、隐私与缓存" data-en="SECURITY, PRIVACY AND CACHE">安全、隐私与缓存</p>
+            <h2 class="section-heading" data-zh="缓存服从受众，权限服从当前事实。" data-en="Cache follows audience. Authority follows current facts.">缓存服从受众，权限服从当前事实。</h2>
+            <p class="section-copy" data-zh="ALIFE 不按 URL 一刀切地缓存。每个响应先按公开、群组共享、角色限制或个人专属分类，再决定缓存键、ETag、失效和 no-store。" data-en="ALIFE does not cache by URL alone. Every response is first classified as public, group-shared, role-restricted or user-specific, then given the appropriate key, ETag, invalidation and no-store behavior.">ALIFE 不按 URL 一刀切地缓存。每个响应先按公开、群组共享、角色限制或个人专属分类，再决定缓存键、ETag、失效和 no-store。</p>
+          </div>
+
+          <dl class="cache-matrix" data-reveal>
+            <div class="cache-row"><span class="cache-row__class">PUBLIC</span><dt data-zh="公开投影" data-en="Public projection">公开投影</dt><dd data-zh="已审核页面、讲道、公开活动可以进入共享边缘缓存，但必须使用明确键、标签、TTL 与失效路径。" data-en="Reviewed pages, sermons and public Events may enter shared edge cache with explicit keys, tags, TTLs and invalidation paths.">已审核页面、讲道、公开活动可以进入共享边缘缓存，但必须使用明确键、标签、TTL 与失效路径。</dd></div>
+            <div class="cache-row"><span class="cache-row__class">GROUP</span><dt data-zh="群组共享" data-en="Group-shared">群组共享</dt><dd data-zh="群组页面、子群组、活动和成员列表只在当前授权与可见性检查通过后复用。" data-en="Group pages, subgroups, Events and member lists are reused only after current authorization and visibility checks.">群组页面、子群组、活动和成员列表只在当前授权与可见性检查通过后复用。</dd></div>
+            <div class="cache-row"><span class="cache-row__class">RESTRICTED</span><dt data-zh="角色限制" data-en="Role-restricted">角色限制</dt><dd data-zh="活动团队、RAM、儿童保障、财务和审批证据保持 private／no-store，不跨查看者共享 ETag。" data-en="Event-team, RAM, safeguarding, finance and approval evidence stay private/no-store and never share viewer ETags.">活动团队、RAM、儿童保障、财务和审批证据保持 private／no-store，不跨查看者共享 ETag。</dd></div>
+            <div class="cache-row"><span class="cache-row__class">PERSONAL</span><dt data-zh="个人专属" data-en="User-specific">个人专属</dt><dd data-zh="身份仪式、申请、/api/me、通知和个人事务一律 no-store，也不会被 PWA runtime cache 重放。" data-en="Identity ceremonies, applications, /api/me, notifications and personal work are no-store and never replayed by the PWA runtime cache.">身份仪式、申请、/api/me、通知和个人事务一律 no-store，也不会被 PWA runtime cache 重放。</dd></div>
+          </dl>
+        </div>
+
+        <div class="principles-strip" data-reveal>
+          <article><code>SERVER</code><h3 data-zh="服务器授权" data-en="Server authorization">服务器授权</h3><p data-zh="每次敏感操作核对所有权、成员、角色、用途、版本与平台权限。" data-en="Sensitive operations check ownership, membership, role, purpose, version and platform permission.">每次敏感操作核对所有权、成员、角色、用途、版本与平台权限。</p></article>
+          <article><code>IDENTITY</code><h3 data-zh="最小身份" data-en="Minimal identity">最小身份</h3><p data-zh="JWT 只携带最小会话事实；秘密以 HMAC 保存，诊断不记录凭证材料。" data-en="JWTs carry minimal session facts; secrets are HMAC-protected and diagnostics exclude credential material.">JWT 只携带最小会话事实；秘密以 HMAC 保存，诊断不记录凭证材料。</p></article>
+          <article><code>CONCURRENCY</code><h3 data-zh="版本与冲突" data-en="Versions and conflicts">版本与冲突</h3><p data-zh="ETag／If-Match 防止版本化状态静默丢失更新；未知值失败关闭。" data-en="ETag/If-Match prevents silent lost updates in versioned state; unknown values fail closed.">ETag／If-Match 防止版本化状态静默丢失更新；未知值失败关闭。</p></article>
+          <article><code>AI</code><h3 data-zh="人工负责" data-en="Human accountability">人工负责</h3><p data-zh="AI 提议候选内容；确认、角色、政策、审批和发布始终是人的可审计动作。" data-en="AI proposes candidates; facts, roles, policy, approval and publication remain attributable human actions.">AI 提议候选内容；确认、角色、政策、审批和发布始终是人的可审计动作。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section start-section" id="start">
       <div class="section__inner start-layout">
         <div data-reveal>
-          <p class="eyebrow" data-zh="开始开发" data-en="START DEVELOPING">开始开发</p>
-          <h2 class="start-heading" data-zh="一条命令，启动日常本地栈。" data-en="One command for the everyday local stack.">一条命令，启动日常本地栈。</h2>
-          <p class="start-copy" data-zh="默认脚本启动 Azure Functions API、Cloudflare speed layer 与 Vite 前端。SQL Server 容器已运行时使用 SkipSql；需要刷新架构或种子数据时再应用迁移。" data-en="The default script starts the Azure Functions API, Cloudflare speed layer and Vite frontend. Use SkipSql when the SQL Server container is already running, and apply migrations only when schema or seed data needs refreshing.">默认脚本启动 Azure Functions API、Cloudflare speed layer 与 Vite 前端。SQL Server 容器已运行时使用 SkipSql；需要刷新架构或种子数据时再应用迁移。</p>
+          <p class="eyebrow" data-zh="本地开发" data-en="LOCAL DEVELOPMENT">本地开发</p>
+          <h2 class="section-heading" data-zh="一个启动器，四个运行服务。" data-en="One launcher. Four runtime services.">一个启动器，四个运行服务。</h2>
+          <p class="section-copy" data-zh="标准脚本启动 Azure Functions API、images Worker、Cloudflare speed layer 和 Vite PWA。SQL Server 已运行时使用 SkipSql；只有在需要刷新架构或种子数据时才应用迁移。" data-en="The standard launcher starts the Azure Functions API, images Worker, Cloudflare speed layer and Vite PWA. Use SkipSql when SQL Server is already running, and apply migrations only when schema or seed data needs refreshing.">标准脚本启动 Azure Functions API、images Worker、Cloudflare speed layer 和 Vite PWA。SQL Server 已运行时使用 SkipSql；只有在需要刷新架构或种子数据时才应用迁移。</p>
           <ul class="requirements">
-            <li>.NET SDK 10.0.x</li>
-            <li>Node.js 20+</li>
-            <li data-zh="Docker Desktop（本地 SQL Server）" data-en="Docker Desktop (local SQL Server)">Docker Desktop（本地 SQL Server）</li>
-            <li data-zh="Wrangler CLI 或项目内 npx wrangler" data-en="Wrangler CLI or the repository's npx wrangler">Wrangler CLI 或项目内 npx wrangler</li>
+            <li>.NET SDK 10</li><li>Node.js 20+</li><li>Docker Desktop</li><li>Azure Functions Core Tools v4</li>
           </ul>
         </div>
 
         <div class="terminal-stack" data-reveal>
-          <section class="terminal" aria-label="日常本地开发命令" data-aria-zh="日常本地开发命令" data-aria-en="Everyday local development command">
-            <div class="terminal__head">
-              <span class="terminal__title" data-zh="日常本地开发" data-en="EVERYDAY LOCAL DEVELOPMENT">日常本地开发</span>
-              <button class="copy-button" type="button" data-copy-target="command-dev" data-zh="复制" data-en="Copy">复制</button>
-            </div>
-            <pre><code id="command-dev">.\alife-dev.cmd -SkipSql</code></pre>
+          <section class="terminal" aria-label="Start the normal local stack">
+            <div class="terminal__head"><span class="terminal__title" data-zh="SQL 已运行" data-en="SQL ALREADY RUNNING">SQL 已运行</span><button class="copy-button" type="button" data-copy-target="command-normal" data-zh="复制" data-en="Copy">复制</button></div>
+            <pre><code id="command-normal">.\alife-dev.cmd -SkipSql</code></pre>
           </section>
-          <section class="terminal" aria-label="应用迁移并启动命令" data-aria-zh="应用迁移并启动命令" data-aria-en="Apply migrations and start command">
-            <div class="terminal__head">
-              <span class="terminal__title" data-zh="迁移与种子数据需要刷新时" data-en="WHEN MIGRATIONS OR SEED DATA CHANGE">迁移与种子数据需要刷新时</span>
-              <button class="copy-button" type="button" data-copy-target="command-migrate" data-zh="复制" data-en="Copy">复制</button>
-            </div>
-            <pre><code id="command-migrate">.\alife-dev.cmd -SkipSql -ApplyMigrations</code></pre>
+          <section class="terminal" aria-label="Start and migrate a fresh local stack">
+            <div class="terminal__head"><span class="terminal__title" data-zh="新数据库／迁移" data-en="FRESH DATABASE / MIGRATIONS">新数据库／迁移</span><button class="copy-button" type="button" data-copy-target="command-migrate" data-zh="复制" data-en="Copy">复制</button></div>
+            <pre><code id="command-migrate">.\alife-dev.cmd -ApplyMigrations</code></pre>
           </section>
-          <ul class="local-urls" aria-label="本地服务地址" data-aria-zh="本地服务地址" data-aria-en="Local service addresses">
-            <li><strong>Frontend</strong><code>localhost:5173</code></li>
-            <li><strong>Speed layer</strong><code>localhost:8787</code></li>
-            <li><strong>API</strong><code>127.0.0.1:7071</code></li>
+          <ul class="local-services">
+            <li><span>React / Vite</span><code>:5173</code></li>
+            <li><span>Speed layer</span><code>:8787</code></li>
+            <li><span>Images Worker</span><code>:8788</code></li>
+            <li><span>.NET API</span><code>:7071</code></li>
           </ul>
         </div>
       </div>
     </section>
 
-    <section class="section repository" id="repository">
-      <div class="section__inner repository-layout">
+    <section class="section docs-section" id="docs">
+      <div class="section__inner">
         <div data-reveal>
-          <p class="eyebrow" data-zh="继续阅读" data-en="KEEP EXPLORING">继续阅读</p>
-          <h2 class="section-heading" data-zh="从产品到代码，每层都有清楚入口。" data-en="A clear way into every layer, from product to code.">从产品到代码，每层都有清楚入口。</h2>
-          <p class="section-copy" data-zh="主 README 记录完整环境变量、API 区域与常用命令；专题文档进一步解释产品、前后端、边缘缓存与 PWA 决策。" data-en="The main README covers environment variables, API areas and common commands. Focused documents explain the product, frontend, backend, edge cache and PWA decisions in depth.">主 README 记录完整环境变量、API 区域与常用命令；专题文档进一步解释产品、前后端、边缘缓存与 PWA 决策。</p>
-          <div class="docs-grid">
-            <a class="doc-link" href="README.md"><span data-zh="完整开发说明" data-en="Full development guide">完整开发说明</span><span>README.md →</span></a>
-            <a class="doc-link" href="docs/architecture.md"><span data-zh="总体架构" data-en="System architecture">总体架构</span><span>docs/architecture.md →</span></a>
-            <a class="doc-link" href="docs/alife-ministry-guide.zh-CN.md"><span data-zh="教会事工说明" data-en="Ministry guide (Chinese)">教会事工说明</span><span>docs/alife-ministry-guide.zh-CN.md →</span></a>
-            <a class="doc-link" href="docs/alife-portfolio-case-study.zh-CN.md"><span data-zh="项目案例回顾" data-en="Portfolio case study (Chinese)">项目案例回顾</span><span>docs/alife-portfolio-case-study.zh-CN.md →</span></a>
-            <a class="doc-link" href="docs/frontend_architecture.md"><span data-zh="前端架构" data-en="Frontend architecture">前端架构</span><span>docs/frontend_architecture.md →</span></a>
-            <a class="doc-link" href="docs/speed-layer_architecture.md"><span data-zh="边缘层架构" data-en="Speed-layer architecture">边缘层架构</span><span>docs/speed-layer_architecture.md →</span></a>
-          </div>
+          <p class="eyebrow" data-zh="权威入口" data-en="AUTHORITATIVE ENTRY POINTS">权威入口</p>
+          <h2 class="section-heading" data-zh="从概览进入正确的契约。" data-en="Move from overview to the right contract.">从概览进入正确的契约。</h2>
+          <p class="section-copy" data-zh="本页帮助理解全局。实现工作仍应进入对应的架构、身份、活动契约或状态文档，不要把展示页当作完整业务规范。" data-en="This page explains the whole. Implementation work should continue into the relevant architecture, identity, Event contract or status source rather than treating a showcase as the complete business specification.">本页帮助理解全局。实现工作仍应进入对应的架构、身份、活动契约或状态文档，不要把展示页当作完整业务规范。</p>
         </div>
 
-        <pre class="repo-tree" aria-label="仓库目录结构" data-aria-zh="仓库目录结构" data-aria-en="Repository structure"><code><span class="muted">Alife/</span>
-├─ backend/
-│  ├─ src/
-│  │  ├─ Alife.Domain/
-│  │  ├─ Alife.Application/
-│  │  ├─ Alife.Infrastructure/
-│  │  ├─ Alife.Api/
-│  │  └─ Alife.DbMigrator/
-│  └─ tests/Alife.Tests.Unit/
-├─ cloudflare/
-│  ├─ alife-app/          <span class="muted"># React PWA</span>
-│  ├─ speed-layer/        <span class="muted"># edge + AI sessions</span>
-│  └─ images-api/         <span class="muted"># R2 media worker</span>
-├─ docs/                  <span class="muted"># product + architecture</span>
-├─ infra/terraform/       <span class="muted"># infrastructure</span>
-├─ alife-dev.cmd          <span class="muted"># local stack</span>
-└─ README.md              <span class="muted"># complete reference</span></code></pre>
+        <div class="docs-grid" data-reveal>
+          <a class="doc-link" href="README.md"><code>ENGINEERING</code><strong data-zh="完整工程 README" data-en="Full engineering README">完整工程 README</strong><span data-zh="技术栈、本地开发、配置、验证与能力边界。" data-en="Stack, local development, configuration, verification and capability boundaries.">技术栈、本地开发、配置、验证与能力边界。</span></a>
+          <a class="doc-link" href="docs/architecture.md"><code>ARCHITECTURE</code><strong data-zh="系统架构" data-en="System architecture">系统架构</strong><span data-zh="运行拓扑、数据流、安全、缓存和部署边界。" data-en="Runtime topology, data flow, security, cache and deployment boundaries.">运行拓扑、数据流、安全、缓存和部署边界。</span></a>
+          <a class="doc-link" href="docs/identity-access.md"><code>IDENTITY</code><strong data-zh="身份与恢复" data-en="Identity and recovery">身份与恢复</strong><span data-zh="Passkey、激活、邀请、申请、延续与恢复契约。" data-en="Passkey, activation, invitation, application, continuation and recovery contract.">Passkey、激活、邀请、申请、延续与恢复契约。</span></a>
+          <a class="doc-link" href="docs/events/README.md"><code>EVENT OVERVIEW</code><strong data-zh="活动产品概览" data-en="Event product overview">活动产品概览</strong><span data-zh="三语说明、结构、阶段、责任与专题导航。" data-en="Trilingual overview, structure, stages, responsibility and topic map.">三语说明、结构、阶段、责任与专题导航。</span></a>
+          <a class="doc-link" href="docs/events/EVENT-CONTRACT.md"><code>EVENT CONTRACT</code><strong data-zh="活动核心契约" data-en="Event core contract">活动核心契约</strong><span data-zh="Plan、Package、授权、兼容和人工／AI 权限边界。" data-en="Plan, Package, authorization, compatibility and human/AI authority boundaries.">Plan、Package、授权、兼容和人工／AI 权限边界。</span></a>
+          <a class="doc-link" href="docs/events/IMPLEMENTATION-STATUS.md"><code>DELIVERY STATUS</code><strong data-zh="活动实现状态" data-en="Event implementation status">活动实现状态</strong><span data-zh="已实现、部分实现、不可用范围与剩余缺口。" data-en="Current, partial and unavailable scope with remaining gaps.">已实现、部分实现、不可用范围与剩余缺口。</span></a>
+          <a class="doc-link" href="docs/project-retrospective.en.md"><code>HISTORY</code><strong data-zh="工程回顾" data-en="Engineering retrospective">工程回顾</strong><span data-zh="架构如何从早期方案演进到当前边界。" data-en="How the architecture evolved from early approaches to the current boundaries.">架构如何从早期方案演进到当前边界。</span></a>
+          <a class="doc-link" href="docs/project-retrospective-verification.md"><code>EVIDENCE</code><strong data-zh="证据与验证" data-en="Evidence and verification">证据与验证</strong><span data-zh="提交、迁移、代码、测试、争议主张与证据限制。" data-en="Commits, migrations, code, tests, disputed claims and evidence limits.">提交、迁移、代码、测试、争议主张与证据限制。</span></a>
+          <a class="doc-link" href="docs/speed-layer_architecture.md"><code>EDGE</code><strong data-zh="边缘层架构" data-en="Speed-layer architecture">边缘层架构</strong><span data-zh="Cloudflare 路由、缓存、授权镜像与失效策略。" data-en="Cloudflare routing, cache, authorization mirrors and invalidation strategy.">Cloudflare 路由、缓存、授权镜像与失效策略。</span></a>
+        </div>
+
+        <div class="maturity-note" data-reveal>
+          <strong data-zh="成熟度说明" data-en="MATURITY NOTE">成熟度说明</strong>
+          <p data-zh="ALIFE 是广泛且有测试覆盖的 Alpha 源代码实现。仓库不能单独证明生产 SLO、共享环境迁移状态、所有浏览器／Passkey 组合、真实 provider 行为、用户采用或事工成效。所有这些证据应与“代码已经实现”分开陈述。" data-en="ALIFE is a broad, test-covered alpha source implementation. The repository alone cannot prove production SLOs, shared-environment migration state, every browser/Passkey combination, live provider behavior, adoption or ministry outcomes. Keep that evidence separate from what the code implements.">ALIFE 是广泛且有测试覆盖的 Alpha 源代码实现。仓库不能单独证明生产 SLO、共享环境迁移状态、所有浏览器／Passkey 组合、真实 provider 行为、用户采用或事工成效。所有这些证据应与“代码已经实现”分开陈述。</p>
+        </div>
       </div>
     </section>
   </main>
@@ -2008,11 +1651,11 @@
   <footer class="site-footer">
     <div class="site-footer__inner">
       <div>
-        <p class="site-footer__title" data-zh="Alife 正处于面向真实教会与小组使用的 Alpha 阶段。" data-en="Alife is in alpha for real church and group use.">Alife 正处于面向真实教会与小组使用的 Alpha 阶段。</p>
-        <p class="site-footer__copy" data-zh="稳定、可维护、双语一致、授权可靠，并让 AI 始终停留在人的责任边界之内。" data-en="Stable, maintainable, consistently bilingual, securely authorised—and keeping AI within human responsibility.">稳定、可维护、双语一致、授权可靠，并让 AI 始终停留在人的责任边界之内。</p>
+        <p class="site-footer__title" data-zh="ALIFE：为真实教会与群组场景开发的 Alpha 平台。" data-en="ALIFE: an alpha platform built for real church and group scenarios.">ALIFE：为真实教会与群组场景开发的 Alpha 平台。</p>
+        <p class="site-footer__copy" data-zh="本页依据 2026 年 9 月 17 日 main 源代码重写；描述实现边界，不保证部署状态。" data-en="Rewritten against main source on 17 September 2026; it describes implementation boundaries, not deployment state.">本页依据 2026 年 9 月 17 日 main 源代码重写；描述实现边界，不保证部署状态。</p>
       </div>
       <div class="site-footer__links">
-        <a href="https://ccalc.live" target="_blank" rel="noreferrer" data-zh="打开产品 ↗" data-en="Open product ↗">打开产品 ↗</a>
+        <a href="https://ccalc.live" target="_blank" rel="noreferrer" data-zh="打开 ALIFE ↗" data-en="Open ALIFE ↗">打开 ALIFE ↗</a>
         <a href="https://github.com/appccalc-developers/Alife" target="_blank" rel="noreferrer">GitHub ↗</a>
         <a href="#top" data-zh="回到顶部 ↑" data-en="Back to top ↑">回到顶部 ↑</a>
       </div>
@@ -2025,11 +1668,14 @@
       const languageToggle = document.getElementById('language-toggle')
       const languageCurrent = document.getElementById('language-current')
       const languageNext = document.getElementById('language-next')
-      const productImage = document.getElementById('product-image')
-      const productCaption = document.getElementById('product-caption')
-      const productTabs = [...document.querySelectorAll('.product-tab')]
       const translatedNodes = [...document.querySelectorAll('[data-zh][data-en]')]
       const translatedAriaNodes = [...document.querySelectorAll('[data-aria-zh][data-aria-en]')]
+      const architectureNodes = [...document.querySelectorAll('.architecture-node')]
+      const architectureTitle = document.getElementById('architecture-detail-title')
+      const architectureCopy = document.getElementById('architecture-detail-copy')
+      const architectureRule = document.getElementById('architecture-detail-rule')
+      let selectedArchitectureNode = architectureNodes[0]
+
       const savedLanguage = (() => {
         try {
           return localStorage.getItem('alife-readme-language')
@@ -2038,12 +1684,13 @@
         }
       })()
       let language = savedLanguage === 'en' ? 'en' : 'zh'
-      let activeProductTab = productTabs[0]
 
-      const updateProductCopy = () => {
-        if (!activeProductTab || !productImage || !productCaption) return
-        productImage.alt = activeProductTab.dataset[language === 'zh' ? 'altZh' : 'altEn'] || ''
-        productCaption.textContent = activeProductTab.dataset[language === 'zh' ? 'captionZh' : 'captionEn'] || ''
+      const updateArchitectureDetail = () => {
+        if (!selectedArchitectureNode || !architectureTitle || !architectureCopy || !architectureRule) return
+        const suffix = language === 'zh' ? 'Zh' : 'En'
+        architectureTitle.textContent = selectedArchitectureNode.dataset[`title${suffix}`] || ''
+        architectureCopy.textContent = selectedArchitectureNode.dataset[`detail${suffix}`] || ''
+        architectureRule.textContent = selectedArchitectureNode.dataset[`rule${suffix}`] || ''
       }
 
       const setLanguage = (nextLanguage) => {
@@ -2062,56 +1709,32 @@
         languageCurrent.textContent = language === 'zh' ? '中文' : 'EN'
         languageNext.textContent = language === 'zh' ? 'EN' : '中文'
         languageToggle.setAttribute('aria-label', language === 'zh' ? 'Switch to English' : '切换到中文')
-        document.title = language === 'zh'
-          ? 'Alife — 让教会生活，落在同一个地方'
-          : 'Alife — Bring church life into one shared place'
+        document.title = language === 'zh' ? 'ALIFE — 当前架构与能力' : 'ALIFE — Current architecture and capabilities'
+        updateArchitectureDetail()
         try {
           localStorage.setItem('alife-readme-language', language)
         } catch {
-          // The page still works when a browser blocks storage for local files.
+          // The page remains usable when storage is blocked for local files.
         }
-        updateProductCopy()
       }
 
       languageToggle.addEventListener('click', () => setLanguage(language === 'zh' ? 'en' : 'zh'))
 
-      productTabs.forEach((tab, index) => {
-        tab.addEventListener('click', () => {
-          if (tab === activeProductTab || !productImage) return
-          activeProductTab = tab
-          productTabs.forEach((item) => {
-            const isSelected = item === tab
-            item.setAttribute('aria-selected', String(isSelected))
-            item.tabIndex = isSelected ? 0 : -1
-          })
-          productImage.classList.add('is-changing')
-          window.setTimeout(() => {
-            productImage.src = tab.dataset.src || ''
-            updateProductCopy()
-            productImage.classList.remove('is-changing')
-          }, 140)
-        })
-
-        tab.addEventListener('keydown', (event) => {
-          if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return
-          event.preventDefault()
-          let nextIndex = index
-          if (event.key === 'ArrowRight') nextIndex = (index + 1) % productTabs.length
-          if (event.key === 'ArrowLeft') nextIndex = (index - 1 + productTabs.length) % productTabs.length
-          if (event.key === 'Home') nextIndex = 0
-          if (event.key === 'End') nextIndex = productTabs.length - 1
-          productTabs[nextIndex].focus()
-          productTabs[nextIndex].click()
+      architectureNodes.forEach((node) => {
+        node.addEventListener('click', () => {
+          selectedArchitectureNode = node
+          architectureNodes.forEach((item) => item.setAttribute('aria-expanded', String(item === node)))
+          updateArchitectureDetail()
         })
       })
 
-      const copyText = async (text) => {
+      const copyText = async (value) => {
         if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(text)
+          await navigator.clipboard.writeText(value)
           return
         }
         const input = document.createElement('textarea')
-        input.value = text
+        input.value = value
         input.setAttribute('readonly', '')
         input.style.position = 'fixed'
         input.style.opacity = '0'
@@ -2130,57 +1753,29 @@
             button.textContent = language === 'zh' ? '已复制' : 'Copied'
             window.setTimeout(() => {
               button.textContent = language === 'zh' ? '复制' : 'Copy'
-            }, 1400)
+            }, 1300)
           } catch {
             button.textContent = language === 'zh' ? '复制失败' : 'Copy failed'
           }
         })
       })
 
-      const progressBar = document.getElementById('progress-bar')
-      const updateProgress = () => {
-        if (!progressBar) return
-        const scrollable = document.documentElement.scrollHeight - window.innerHeight
-        const ratio = scrollable > 0 ? Math.min(window.scrollY / scrollable, 1) : 0
-        progressBar.style.width = `${ratio * 100}%`
-      }
-      document.addEventListener('scroll', updateProgress, { passive: true })
-      updateProgress()
-
-      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       const revealNodes = document.querySelectorAll('[data-reveal]')
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (reducedMotion || !('IntersectionObserver' in window)) {
         revealNodes.forEach((node) => node.classList.add('is-visible'))
       } else {
-        const revealVisibleNodes = () => {
-          revealNodes.forEach((node) => {
-            if (node.classList.contains('is-visible')) return
-            const rect = node.getBoundingClientRect()
-            if (rect.top < window.innerHeight * 0.94 && rect.bottom > 0) {
-              node.classList.add('is-visible')
-            }
-          })
-        }
         const observer = new IntersectionObserver((entries) => {
           entries.forEach((entry) => {
             if (!entry.isIntersecting) return
             entry.target.classList.add('is-visible')
             observer.unobserve(entry.target)
           })
-        }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' })
+        }, { threshold: 0.08, rootMargin: '0px 0px -5% 0px' })
         revealNodes.forEach((node) => observer.observe(node))
-        document.addEventListener('scroll', revealVisibleNodes, { passive: true })
-        window.addEventListener('resize', revealVisibleNodes, { passive: true })
-        window.addEventListener('hashchange', () => window.setTimeout(revealVisibleNodes, 120))
-        window.addEventListener('load', () => {
-          revealVisibleNodes()
-          window.setTimeout(revealVisibleNodes, 350)
-        })
-        revealVisibleNodes()
       }
 
       setLanguage(language)
-      window.__alifeReadmeReady = true
     })()
   </script>
 </body>
