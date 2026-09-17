@@ -49,6 +49,21 @@ export default defineConfig(({ command, mode }) => {
             }
             next()
           })
+          // Vite's public middleware serves files, not directory indexes. Match
+          // the Workers Static Assets URL without entering the React SPA.
+          server.middlewares.use((request, response, next) => {
+            const url = new URL(request.url ?? '/', 'http://localhost')
+            if (url.pathname === '/project') {
+              response.statusCode = 308
+              response.setHeader('Location', `/project/${url.search}`)
+              response.end()
+              return
+            }
+            if (url.pathname === '/project/') {
+              request.url = `/project/index.html${url.search}`
+            }
+            next()
+          })
         },
       },
       react(), VitePWA({
@@ -64,7 +79,8 @@ export default defineConfig(({ command, mode }) => {
         // Historical article covers are numerous and load lazily. Keep them out
         // of the install-time precache and let the image runtime cache retain
         // only the covers a visitor actually views.
-        globIgnores: ['article-covers/generated/**'],
+        // The public project overview is not needed to install the PWA.
+        globIgnores: ['article-covers/generated/**', 'project/**'],
         runtimeCaching: [
           {
             // Bulletin PDF navigations must never enter the document/offline cache.

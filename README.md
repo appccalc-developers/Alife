@@ -4,7 +4,7 @@ ALIFE is an alpha-stage bilingual community platform for overseas Chinese Christ
 
 > **Current-source statement:** this README describes the repository at `main` as reviewed on 17 September 2026. It documents implemented source, not production availability, live-provider reliability, migration state, or user adoption.
 
-[Open the bilingual architecture overview](README.html) · [Read the system architecture](docs/architecture.md) · [Read the Event overview](docs/events/README.md) · [Read the engineering retrospective](docs/project-retrospective.en.md)
+[Open the project overview](https://ccalc.live/project/) · [Open the local bilingual HTML](README.html) · [Read the system architecture](docs/architecture.md) · [Read the Event overview](docs/events/README.md) · [Read the engineering retrospective](docs/project-retrospective.en.md)
 
 ## What ALIFE Is Today
 

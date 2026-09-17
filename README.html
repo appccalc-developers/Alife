@@ -1,11 +1,26 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="ALIFE 当前产品能力、运行架构、安全边界与本地开发说明。">
+  <meta name="description" content="ALIFE is a bilingual community platform for overseas Chinese churches and groups. Explore the product, my engineering role, architecture and implemented capabilities.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://ccalc.live/project/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ALIFE">
+  <meta property="og:title" content="ALIFE — Project overview and engineering">
+  <meta property="og:description" content="A bilingual community platform for overseas Chinese churches and groups. Product, engineering role, architecture and implemented capabilities.">
+  <meta property="og:url" content="https://ccalc.live/project/">
+  <meta property="og:locale" content="en_NZ">
+  <meta property="og:image" content="https://ccalc.live/icons/icon-512x512.png">
+  <meta property="og:image:alt" content="ALIFE app icon">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ALIFE — Project overview and engineering">
+  <meta name="twitter:description" content="A bilingual community platform for overseas Chinese churches and groups. Product, engineering role, architecture and implemented capabilities.">
+  <meta name="twitter:image" content="https://ccalc.live/icons/icon-512x512.png">
+  <meta name="twitter:image:alt" content="ALIFE app icon">
   <meta name="theme-color" content="#081923">
-  <title>ALIFE — 当前架构与能力</title>
+  <title>ALIFE — Project overview and engineering</title>
   <style>
     :root {
       color-scheme: light;
@@ -296,6 +311,28 @@
       gap: 12px;
     }
 
+    .hero__role {
+      margin: 24px 0 0;
+      padding-left: 18px;
+      border-left: 2px solid var(--seafoam);
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 15px;
+    }
+
+    .hero__role strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--seafoam);
+    }
+
+    .hero__stack {
+      margin: 18px 0 0;
+      color: var(--seafoam);
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
     .button {
       min-height: 48px;
       padding: 0 18px;
@@ -360,6 +397,7 @@
 
     .boundary-map {
       position: relative;
+      margin: 0;
       padding: 24px;
       background: rgba(15, 44, 59, 0.72);
       border: 1px solid var(--line-dark);
@@ -445,6 +483,7 @@
 
     .boundary-node small {
       grid-column: 2;
+      overflow-wrap: anywhere;
       color: rgba(255, 255, 255, 0.54);
       font-size: 11px;
       line-height: 1.45;
@@ -1196,6 +1235,7 @@
 
       .hero__inner {
         min-height: 0;
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .boundary-map {
@@ -1263,7 +1303,7 @@
       }
 
       .boundary-node {
-        grid-template-columns: 78px 1fr;
+        grid-template-columns: 78px minmax(0, 1fr);
       }
 
       .section {
@@ -1368,45 +1408,48 @@
   </script>
 </head>
 <body>
-  <a class="skip-link" href="#main" data-zh="跳到主要内容" data-en="Skip to main content">跳到主要内容</a>
+  <a class="skip-link" href="#main" data-zh="跳到主要内容" data-en="Skip to main content">Skip to main content</a>
 
   <header class="site-header">
     <div class="site-header__inner">
-      <a class="brand" href="#top" aria-label="ALIFE 首页" data-aria-zh="ALIFE 首页" data-aria-en="ALIFE home">
+      <a class="brand" href="#top" aria-label="ALIFE home" data-aria-zh="ALIFE 首页" data-aria-en="ALIFE home">
         <span class="brand__mark" aria-hidden="true">A</span>
         <span>
           <span class="brand__name">ALIFE</span>
           <span class="brand__meta">architecture / capability / authority</span>
         </span>
       </a>
-      <nav class="site-nav" aria-label="页面导航" data-aria-zh="页面导航" data-aria-en="Page navigation">
-        <a href="#architecture" data-zh="架构" data-en="Architecture">架构</a>
-        <a href="#capabilities" data-zh="能力" data-en="Capabilities">能力</a>
-        <a href="#events" data-zh="活动" data-en="Events">活动</a>
-        <a href="#security" data-zh="安全" data-en="Security">安全</a>
-        <a href="#start" data-zh="本地开发" data-en="Local dev">本地开发</a>
-        <button class="language-toggle" id="language-toggle" type="button" aria-label="Switch to English">
-          <span id="language-current">中文</span> / <span id="language-next">EN</span>
+      <nav class="site-nav" aria-label="Page navigation" data-aria-zh="页面导航" data-aria-en="Page navigation">
+        <a href="#architecture" data-zh="架构" data-en="Architecture">Architecture</a>
+        <a href="#capabilities" data-zh="能力" data-en="Capabilities">Capabilities</a>
+        <a href="#events" data-zh="活动" data-en="Events">Events</a>
+        <a href="#security" data-zh="安全" data-en="Security">Security</a>
+        <a href="#start" data-zh="本地开发" data-en="Local dev">Local dev</a>
+        <button class="language-toggle" id="language-toggle" type="button" aria-label="Switch to Chinese">
+          <span id="language-current">EN</span> / <span id="language-next">中文</span>
         </button>
       </nav>
     </div>
   </header>
 
-  <main id="main">
+  <main id="main" tabindex="-1">
     <section class="hero" id="top">
       <div class="hero__inner">
         <div data-reveal>
-          <p class="eyebrow" data-zh="当前架构 · 2026 年 9 月源代码" data-en="CURRENT ARCHITECTURE · SEPTEMBER 2026 SOURCE">当前架构 · 2026 年 9 月源代码</p>
-          <h1 data-i18n-html data-zh="一个平台，<br><span>清楚的责任边界。</span>" data-en="One platform.<br><span>Clear authority boundaries.</span>">一个平台，<br><span>清楚的责任边界。</span></h1>
-          <p class="hero__lead" data-zh="ALIFE 把公开教会内容、成员身份、小组生活、双语发布和活动协作连接起来；每个不可逆动作仍由正确的人、在服务器规则下明确决定。" data-en="ALIFE connects public church content, member identity, group life, bilingual publishing and Event collaboration—while every irreversible action remains an explicit human decision enforced by server rules.">ALIFE 把公开教会内容、成员身份、小组生活、双语发布和活动协作连接起来；每个不可逆动作仍由正确的人、在服务器规则下明确决定。</p>
+          <p class="eyebrow" data-zh="ALIFE 项目介绍 · Alpha" data-en="ALIFE PROJECT OVERVIEW · ALPHA">ALIFE PROJECT OVERVIEW · ALPHA</p>
+          <h1 data-i18n-html data-zh="连接教会生活，<br><span>让协作有序。</span>" data-en="Church life.<br><span>Connected.</span>">Church life.<br><span>Connected.</span></h1>
+          <p class="hero__lead" data-zh="为海外华人教会与群体开发的双语社区平台，让成员查找教会内容、参与小组，也让带领者协调活动与内容发布。" data-en="A bilingual community platform for overseas Chinese churches and groups. Members discover church content and take part in group life; leaders coordinate events and publishing.">A bilingual community platform for overseas Chinese churches and groups. Members discover church content and take part in group life; leaders coordinate events and publishing.</p>
+          <p class="hero__role"><strong data-zh="我的职责 · 主要设计与开发者" data-en="My role · Primary designer and developer">My role · Primary designer and developer</strong><span data-zh="主要负责产品设计、系统架构与全栈开发，并使用 AI 辅助开发。以下展示已实现的产品能力与工程决策。" data-en="I primarily lead product design, system architecture and full-stack development, using AI-assisted development. Below are the implemented capabilities and engineering decisions.">I primarily lead product design, system architecture and full-stack development, using AI-assisted development. Below are the implemented capabilities and engineering decisions.</span></p>
+          <p class="hero__stack">React 19 · TypeScript · .NET 10 · Azure Functions · Cloudflare Workers · SQL Server · R2</p>
           <div class="hero__actions">
-            <a class="button button--primary" href="#architecture"><span data-zh="查看运行架构" data-en="Explore the runtime">查看运行架构</span><span aria-hidden="true">↘</span></a>
-            <a class="button button--secondary" href="README.md"><span data-zh="打开工程 README" data-en="Open engineering README">打开工程 README</span><span aria-hidden="true">→</span></a>
+            <a class="button button--primary" href="#architecture"><span data-zh="查看运行架构" data-en="Explore the runtime">Explore the runtime</span><span aria-hidden="true">↘</span></a>
+            <a class="button button--secondary" href="https://ccalc.live/"><span data-zh="访问网站" data-en="Visit website">Visit website</span><span aria-hidden="true">→</span></a>
+            <a class="button button--secondary" href="https://github.com/appccalc-developers/Alife">GitHub <span aria-hidden="true">↗</span></a>
           </div>
-          <ul class="hero__status" aria-label="当前状态" data-aria-zh="当前状态" data-aria-en="Current status">
-            <li><strong>STATUS</strong><span data-zh="Alpha 源代码实现" data-en="Alpha source implementation">Alpha 源代码实现</span></li>
-            <li><strong>IDENTITY</strong><span data-zh="Passkey 优先，LINE 兼容" data-en="Passkey first, LINE compatible">Passkey 优先，LINE 兼容</span></li>
-            <li><strong>AUTHORITY</strong><span data-zh="AI 提议，人来决定" data-en="AI proposes, people decide">AI 提议，人来决定</span></li>
+          <ul class="hero__status" aria-label="Current status" data-aria-zh="当前状态" data-aria-en="Current status">
+            <li><strong>STATUS</strong><span data-zh="Alpha 源代码实现" data-en="Alpha source implementation">Alpha source implementation</span></li>
+            <li><strong>IDENTITY</strong><span data-zh="Passkey 优先，LINE 兼容" data-en="Passkey first, LINE compatible">Passkey first, LINE compatible</span></li>
+            <li><strong>AUTHORITY</strong><span data-zh="AI 提议，人来决定" data-en="AI proposes, people decide">AI proposes, people decide</span></li>
           </ul>
         </div>
 
@@ -1416,25 +1459,25 @@
             <div class="boundary-node">
               <span class="boundary-node__label">experience</span>
               <strong>React PWA</strong>
-              <small data-zh="双语体验、路由、WebAuthn、局部状态" data-en="Bilingual UX, routing, WebAuthn and local state">双语体验、路由、WebAuthn、局部状态</small>
+              <small data-zh="双语体验、路由、WebAuthn、局部状态" data-en="Bilingual UX, routing, WebAuthn and local state">Bilingual UX, routing, WebAuthn and local state</small>
             </div>
             <div class="boundary-node">
               <span class="boundary-node__label">edge</span>
               <strong>Cloudflare</strong>
-              <small data-zh="资产、代理、授权感知缓存、临时 AI 会话" data-en="Assets, proxy, authorization-aware cache, temporary AI sessions">资产、代理、授权感知缓存、临时 AI 会话</small>
+              <small data-zh="资产、代理、授权感知缓存、临时 AI 会话" data-en="Assets, proxy, authorization-aware cache, temporary AI sessions">Assets, proxy, authorization-aware cache, temporary AI sessions</small>
             </div>
             <div class="boundary-node">
               <span class="boundary-node__label">authority</span>
               <strong>.NET API</strong>
-              <small data-zh="身份、权限、业务规则、审批门槛" data-en="Identity, authorization, business rules and approval gates">身份、权限、业务规则、审批门槛</small>
+              <small data-zh="身份、权限、业务规则、审批门槛" data-en="Identity, authorization, business rules and approval gates">Identity, authorization, business rules and approval gates</small>
             </div>
             <div class="boundary-node">
               <span class="boundary-node__label">evidence</span>
               <strong>SQL + R2</strong>
-              <small data-zh="持久事实、版本化证据、公开与受保护媒体" data-en="Durable facts, versioned evidence, public and protected media">持久事实、版本化证据、公开与受保护媒体</small>
+              <small data-zh="持久事实、版本化证据、公开与受保护媒体" data-en="Durable facts, versioned evidence, public and protected media">Durable facts, versioned evidence, public and protected media</small>
             </div>
           </div>
-          <figcaption data-zh="性能可以跨层优化；授权、审批和持久业务事实不能被前端或 AI 取代。" data-en="Performance can span layers; authorization, approval and durable business facts cannot be delegated to the frontend or AI.">性能可以跨层优化；授权、审批和持久业务事实不能被前端或 AI 取代。</figcaption>
+          <figcaption data-zh="性能可以跨层优化；授权、审批和持久业务事实不能被前端或 AI 取代。" data-en="Performance can span layers; authorization, approval and durable business facts cannot be delegated to the frontend or AI.">Performance can span layers; authorization, approval and durable business facts cannot be delegated to the frontend or AI.</figcaption>
         </figure>
       </div>
     </section>
@@ -1442,9 +1485,9 @@
     <section class="section architecture-section" id="architecture">
       <div class="section__inner">
         <div data-reveal>
-          <p class="eyebrow" data-zh="运行架构" data-en="RUNTIME ARCHITECTURE">运行架构</p>
-          <h2 class="section-heading" data-zh="每一层做自己该做的事。" data-en="Each layer owns one kind of truth.">每一层做自己该做的事。</h2>
-          <p class="section-copy" data-zh="点击任一边界，查看它当前负责什么，以及刻意不负责什么。这样的分层不是组织图，而是隐私、缓存、兼容性和可恢复性的基础。" data-en="Select a boundary to see what it owns—and what it deliberately does not. These separations are the basis for privacy, caching, compatibility and recovery.">点击任一边界，查看它当前负责什么，以及刻意不负责什么。这样的分层不是组织图，而是隐私、缓存、兼容性和可恢复性的基础。</p>
+          <p class="eyebrow" data-zh="运行架构" data-en="RUNTIME ARCHITECTURE">RUNTIME ARCHITECTURE</p>
+          <h2 class="section-heading" data-zh="每一层做自己该做的事。" data-en="Each layer owns one kind of truth.">Each layer owns one kind of truth.</h2>
+          <p class="section-copy" data-zh="点击任一边界，查看它当前负责什么，以及刻意不负责什么。这样的分层不是组织图，而是隐私、缓存、兼容性和可恢复性的基础。" data-en="Select a boundary to see what it owns—and what it deliberately does not. These separations are the basis for privacy, caching, compatibility and recovery.">Select a boundary to see what it owns—and what it deliberately does not. These separations are the basis for privacy, caching, compatibility and recovery.</p>
         </div>
 
         <div class="architecture-layout" data-reveal>
@@ -1453,22 +1496,22 @@
             <div class="architecture-grid">
               <button class="architecture-node" type="button" aria-expanded="true" data-title-zh="React 双语 PWA" data-title-en="React bilingual PWA" data-detail-zh="React 19、TypeScript、Vite 与 React Router 负责公共、成员、组长和管理工作区。TanStack Query／React DB 与 IndexedDB 协调客户端数据；浏览器执行 WebAuthn 仪式，但最终授权仍在服务器。" data-detail-en="React 19, TypeScript, Vite and React Router deliver public, member, leader and administration workspaces. TanStack Query/React DB and IndexedDB coordinate client data; the browser performs WebAuthn ceremonies, but final authorization remains server-side." data-rule-zh="不信任前端角色检查；不把 API 响应交给 PWA runtime cache。" data-rule-en="Never trust frontend role checks; never replay API responses from the PWA runtime cache.">
                 <span class="architecture-node__code">01 / EXPERIENCE</span>
-                <span class="architecture-node__title" data-zh="浏览器与 PWA" data-en="Browser and PWA">浏览器与 PWA</span>
+                <span class="architecture-node__title" data-zh="浏览器与 PWA" data-en="Browser and PWA">Browser and PWA</span>
                 <span class="architecture-node__tech">React 19 · TypeScript · Vite · TanStack</span>
               </button>
               <button class="architecture-node" type="button" aria-expanded="false" data-title-zh="Cloudflare 边缘层" data-title-en="Cloudflare edge layer" data-detail-zh="Speed-layer Worker 提供前端资产、API 与图片路由、ETag、公共和授权感知缓存、被动失效，以及 Durable Object AI 会话。独立 images-api Worker 通过 R2 提供公开与受保护媒体。" data-detail-en="The speed-layer Worker serves frontend assets, API and image routing, ETags, public and authorization-aware caching, passive invalidation and Durable Object AI sessions. A separate images-api Worker serves public and protected media through R2." data-rule-zh="只有相同受众会得到完全相同表示时，才允许共享缓存。" data-rule-en="Shared caching is allowed only when the same audience receives an identical representation.">
                 <span class="architecture-node__code">02 / EDGE</span>
-                <span class="architecture-node__title" data-zh="边缘与媒体" data-en="Edge and media">边缘与媒体</span>
+                <span class="architecture-node__title" data-zh="边缘与媒体" data-en="Edge and media">Edge and media</span>
                 <span class="architecture-node__tech">Workers · Cache API · KV · Durable Objects · R2</span>
               </button>
               <button class="architecture-node" type="button" aria-expanded="false" data-title-zh="服务器业务边界" data-title-en="Server authority boundary" data-detail-zh=".NET 10 Azure Functions 托管 ASP.NET Core controllers。Application 层执行用例与生命周期门槛，Infrastructure 层负责 EF Core、HybridCache、安全与外部集成。所有敏感操作重新核对当前成员、角色、所有权、用途和版本。" data-detail-en=".NET 10 Azure Functions hosts ASP.NET Core controllers. The Application layer executes use cases and lifecycle gates; Infrastructure owns EF Core, HybridCache, security and provider integrations. Sensitive operations recheck current member, role, ownership, purpose and version." data-rule-zh="JWT 保持最小；角色和权限以当前服务器数据为准。" data-rule-en="JWTs stay minimal; roles and permissions come from current server data.">
                 <span class="architecture-node__code">03 / AUTHORITY</span>
-                <span class="architecture-node__title" data-zh="API 与领域规则" data-en="API and domain rules">API 与领域规则</span>
+                <span class="architecture-node__title" data-zh="API 与领域规则" data-en="API and domain rules">API and domain rules</span>
                 <span class="architecture-node__tech">.NET 10 · Azure Functions · MediatR · HybridCache</span>
               </button>
               <button class="architecture-node" type="button" aria-expanded="false" data-title-zh="持久事实与证据" data-title-en="Durable facts and evidence" data-detail-zh="SQL Server／Azure SQL 保存成员、小组、发布副本、Event Plan、Occurrence、Package、专项记录和审计。迁移采用添加式策略；旧 GroupEvent 和 version-0 语义继续可读，新的 version-1 能力并行加入。" data-detail-en="SQL Server/Azure SQL stores members, groups, publication copies, Event Plans, Occurrences, Packages, specialist records and audit evidence. Migrations are additive: legacy GroupEvent and version-0 semantics remain readable while version-1 capabilities are introduced alongside them." data-rule-zh="迁移不编造历史事实；新模型不能静默改变旧记录语义。" data-rule-en="Migrations never invent historical facts; new models must not silently reinterpret legacy records.">
                 <span class="architecture-node__code">04 / EVIDENCE</span>
-                <span class="architecture-node__title" data-zh="SQL 与版本化记录" data-en="SQL and versioned records">SQL 与版本化记录</span>
+                <span class="architecture-node__title" data-zh="SQL 与版本化记录" data-en="SQL and versioned records">SQL and versioned records</span>
                 <span class="architecture-node__tech">EF Core 10 · SQL Server · additive migrations</span>
               </button>
             </div>
@@ -1476,11 +1519,11 @@
 
           <aside class="architecture-detail" aria-live="polite">
             <div>
-              <span class="architecture-detail__label" data-zh="所选边界" data-en="SELECTED BOUNDARY">所选边界</span>
-              <h3 id="architecture-detail-title">React 双语 PWA</h3>
-              <p id="architecture-detail-copy">React 19、TypeScript、Vite 与 React Router 负责公共、成员、组长和管理工作区。TanStack Query／React DB 与 IndexedDB 协调客户端数据；浏览器执行 WebAuthn 仪式，但最终授权仍在服务器。</p>
+              <span class="architecture-detail__label" data-zh="所选边界" data-en="SELECTED BOUNDARY">SELECTED BOUNDARY</span>
+              <h3 id="architecture-detail-title">React bilingual PWA</h3>
+              <p id="architecture-detail-copy">React 19, TypeScript, Vite and React Router deliver public, member, leader and administration workspaces. TanStack Query/React DB and IndexedDB coordinate client data; the browser performs WebAuthn ceremonies, but final authorization remains server-side.</p>
             </div>
-            <div class="architecture-detail__rule" id="architecture-detail-rule">不信任前端角色检查；不把 API 响应交给 PWA runtime cache。</div>
+            <div class="architecture-detail__rule" id="architecture-detail-rule">Never trust frontend role checks; never replay API responses from the PWA runtime cache.</div>
           </aside>
         </div>
       </div>
@@ -1489,43 +1532,43 @@
     <section class="section capabilities-section" id="capabilities">
       <div class="section__inner">
         <div data-reveal>
-          <p class="eyebrow" data-zh="当前功能集" data-en="CURRENT CAPABILITY SET">当前功能集</p>
-          <h2 class="section-heading" data-zh="从发现教会，到承担真实责任。" data-en="From finding a church to owning real work.">从发现教会，到承担真实责任。</h2>
-          <p class="section-copy" data-zh="ALIFE 不是把功能堆在同一页，而是按公开访问、成员参与、内容治理和事工责任组织体验。" data-en="ALIFE does not pile features onto one screen. It organizes the experience around public access, member participation, content governance and ministry responsibility.">ALIFE 不是把功能堆在同一页，而是按公开访问、成员参与、内容治理和事工责任组织体验。</p>
+          <p class="eyebrow" data-zh="当前功能集" data-en="CURRENT CAPABILITY SET">CURRENT CAPABILITY SET</p>
+          <h2 class="section-heading" data-zh="从发现教会，到承担真实责任。" data-en="From finding a church to owning real work.">From finding a church to owning real work.</h2>
+          <p class="section-copy" data-zh="ALIFE 不是把功能堆在同一页，而是按公开访问、成员参与、内容治理和事工责任组织体验。" data-en="ALIFE does not pile features onto one screen. It organizes the experience around public access, member participation, content governance and ministry responsibility.">ALIFE does not pile features onto one screen. It organizes the experience around public access, member participation, content governance and ministry responsibility.</p>
         </div>
 
         <div class="capability-ledger" data-reveal>
           <article class="capability-row">
             <span class="capability-row__code">IDENTITY</span>
-            <h3 data-zh="身份与进入" data-en="Identity and entry">身份与进入</h3>
-            <p data-zh="Passkey 优先登录，HttpOnly JWT 会话，激活、邀请、公开申请、小组 QR、浏览器延续与恢复；LINE 是兼容入口，内部 Alpha 登录只用于受控测试。" data-en="Passkey-first sign-in, HttpOnly JWT sessions, activation, invitations, public applications, group QR entry, browser continuation and recovery; LINE is a compatibility path and internal Alpha access is controlled testing only.">Passkey 优先登录，HttpOnly JWT 会话，激活、邀请、公开申请、小组 QR、浏览器延续与恢复；LINE 是兼容入口，内部 Alpha 登录只用于受控测试。</p>
+            <h3 data-zh="身份与进入" data-en="Identity and entry">Identity and entry</h3>
+            <p data-zh="Passkey 优先登录，HttpOnly JWT 会话，激活、邀请、公开申请、小组 QR、浏览器延续与恢复；LINE 是兼容入口，内部 Alpha 登录只用于受控测试。" data-en="Passkey-first sign-in, HttpOnly JWT sessions, activation, invitations, public applications, group QR entry, browser continuation and recovery; LINE is a compatibility path and internal Alpha access is controlled testing only.">Passkey-first sign-in, HttpOnly JWT sessions, activation, invitations, public applications, group QR entry, browser continuation and recovery; LINE is a compatibility path and internal Alpha access is controlled testing only.</p>
           </article>
           <article class="capability-row">
             <span class="capability-row__code">COMMUNITY</span>
-            <h3 data-zh="教会与群组生活" data-en="Church and group life">教会与群组生活</h3>
-            <p data-zh="分层群组、成员与角色、公告、相册、论坛、联系人、通知、访客请求、讲道、主日周报、读经进度与个人事务。" data-en="Hierarchical groups, membership and roles, announcements, albums, forums, contacts, notifications, visitor requests, sermons, Sunday bulletins, Bible progress and personal work.">分层群组、成员与角色、公告、相册、论坛、联系人、通知、访客请求、讲道、主日周报、读经进度与个人事务。</p>
+            <h3 data-zh="教会与群组生活" data-en="Church and group life">Church and group life</h3>
+            <p data-zh="分层群组、成员与角色、公告、相册、论坛、联系人、通知、访客请求、讲道、主日周报、读经进度与个人事务。" data-en="Hierarchical groups, membership and roles, announcements, albums, forums, contacts, notifications, visitor requests, sermons, Sunday bulletins, Bible progress and personal work.">Hierarchical groups, membership and roles, announcements, albums, forums, contacts, notifications, visitor requests, sermons, Sunday bulletins, Bible progress and personal work.</p>
           </article>
           <article class="capability-row">
             <span class="capability-row__code">PUBLISHING</span>
-            <h3 data-zh="双语内容治理" data-en="Bilingual content governance">双语内容治理</h3>
-            <p data-zh="群组拥有结构化 Page／Section 内容；working、submitted 和 published 三份副本各自演进。审核者可以修改、批准或退回提交副本，不破坏工作页或现有公开页。" data-en="Groups own structured Page/Section content; working, submitted and published copies evolve independently. Reviewers can revise, approve or return a submission without mutating the working page or existing public snapshot.">群组拥有结构化 Page／Section 内容；working、submitted 和 published 三份副本各自演进。审核者可以修改、批准或退回提交副本，不破坏工作页或现有公开页。</p>
+            <h3 data-zh="双语内容治理" data-en="Bilingual content governance">Bilingual content governance</h3>
+            <p data-zh="群组拥有结构化 Page／Section 内容；working、submitted 和 published 三份副本各自演进。审核者可以修改、批准或退回提交副本，不破坏工作页或现有公开页。" data-en="Groups own structured Page/Section content; working, submitted and published copies evolve independently. Reviewers can revise, approve or return a submission without mutating the working page or existing public snapshot.">Groups own structured Page/Section content; working, submitted and published copies evolve independently. Reviewers can revise, approve or return a submission without mutating the working page or existing public snapshot.</p>
           </article>
           <article class="capability-row">
             <span class="capability-row__code">ASSISTANCE</span>
-            <h3 data-zh="有边界的 AI 辅助" data-en="Bounded AI assistance">有边界的 AI 辅助</h3>
-            <p data-zh="AI 可以协助活动详情、任务与报名表、RAM 候选内容、报名／复盘会话、双语翻译和海报草稿；不能确认事实、授予权限、批准 Package 或自动发布。" data-en="AI can assist with Event details, task and registration forms, RAM candidates, enrolment/review sessions, bilingual translation and poster drafts; it cannot confirm facts, grant authority, approve Packages or auto-publish.">AI 可以协助活动详情、任务与报名表、RAM 候选内容、报名／复盘会话、双语翻译和海报草稿；不能确认事实、授予权限、批准 Package 或自动发布。</p>
+            <h3 data-zh="有边界的 AI 辅助" data-en="Bounded AI assistance">Bounded AI assistance</h3>
+            <p data-zh="AI 可以协助活动详情、任务与报名表、RAM 候选内容、报名／复盘会话、双语翻译和海报草稿；不能确认事实、授予权限、批准 Package 或自动发布。" data-en="AI can assist with Event details, task and registration forms, RAM candidates, enrolment/review sessions, bilingual translation and poster drafts; it cannot confirm facts, grant authority, approve Packages or auto-publish.">AI can assist with Event details, task and registration forms, RAM candidates, enrolment/review sessions, bilingual translation and poster drafts; it cannot confirm facts, grant authority, approve Packages or auto-publish.</p>
           </article>
         </div>
 
         <div class="publishing-flow" data-reveal>
           <div class="publishing-flow__head">
-            <h3 data-zh="公开发布不是保存按钮" data-en="Publishing is not a save button">公开发布不是保存按钮</h3>
+            <h3 data-zh="公开发布不是保存按钮" data-en="Publishing is not a save button">Publishing is not a save button</h3>
             <span>three-copy publication model</span>
           </div>
           <ol class="copy-track">
-            <li><code>WORKING</code><strong data-zh="群组工作副本" data-en="Group working copy">群组工作副本</strong><span data-zh="内容同工继续编辑；不会直接改变访客看到的内容。" data-en="Content teams keep editing; visitor content does not change directly.">内容同工继续编辑；不会直接改变访客看到的内容。</span></li>
-            <li><code>SUBMITTED</code><strong data-zh="隔离的审核副本" data-en="Isolated review copy">隔离的审核副本</strong><span data-zh="审核者修订、批准或退回；并发写入使用乐观锁。" data-en="Reviewers revise, approve or return it; optimistic concurrency protects writes.">审核者修订、批准或退回；并发写入使用乐观锁。</span></li>
-            <li><code>PUBLISHED</code><strong data-zh="已批准公开快照" data-en="Approved public snapshot">已批准公开快照</strong><span data-zh="安全公开并可共享缓存；新提交被退回时仍保持在线。" data-en="Safe for public delivery and shared cache; remains live when a newer submission is returned.">安全公开并可共享缓存；新提交被退回时仍保持在线。</span></li>
+            <li><code>WORKING</code><strong data-zh="群组工作副本" data-en="Group working copy">Group working copy</strong><span data-zh="内容同工继续编辑；不会直接改变访客看到的内容。" data-en="Content teams keep editing; visitor content does not change directly.">Content teams keep editing; visitor content does not change directly.</span></li>
+            <li><code>SUBMITTED</code><strong data-zh="隔离的审核副本" data-en="Isolated review copy">Isolated review copy</strong><span data-zh="审核者修订、批准或退回；并发写入使用乐观锁。" data-en="Reviewers revise, approve or return it; optimistic concurrency protects writes.">Reviewers revise, approve or return it; optimistic concurrency protects writes.</span></li>
+            <li><code>PUBLISHED</code><strong data-zh="已批准公开快照" data-en="Approved public snapshot">Approved public snapshot</strong><span data-zh="安全公开并可共享缓存；新提交被退回时仍保持在线。" data-en="Safe for public delivery and shared cache; remains live when a newer submission is returned.">Safe for public delivery and shared cache; remains live when a newer submission is returned.</span></li>
           </ol>
         </div>
       </div>
@@ -1534,33 +1577,33 @@
     <section class="section event-section" id="events">
       <div class="section__inner">
         <div data-reveal>
-          <p class="eyebrow" data-zh="活动领域" data-en="EVENT DOMAIN">活动领域</p>
-          <h2 class="section-heading" data-zh="活动是一组事实、能力与责任，不是一张 CRUD 表。" data-en="An Event is facts, capabilities and accountability—not a CRUD row.">活动是一组事实、能力与责任，不是一张 CRUD 表。</h2>
-          <p class="section-copy" data-zh="人工接受产生不可变 Event Plan；Series 管理重复规律，Occurrence 管理一次实际执行，Package 把审批绑定到精确版本。原有 GroupEvent 与 version-0 语义继续兼容。" data-en="Human acceptance creates an immutable Event Plan; Series owns recurrence, Occurrence owns one delivery, and a Package binds approval to exact source versions. Existing GroupEvent and version-0 semantics remain compatible.">人工接受产生不可变 Event Plan；Series 管理重复规律，Occurrence 管理一次实际执行，Package 把审批绑定到精确版本。原有 GroupEvent 与 version-0 语义继续兼容。</p>
+          <p class="eyebrow" data-zh="活动领域" data-en="EVENT DOMAIN">EVENT DOMAIN</p>
+          <h2 class="section-heading" data-zh="活动是一组事实、能力与责任，不是一张 CRUD 表。" data-en="An Event is facts, capabilities and accountability—not a CRUD row.">An Event is facts, capabilities and accountability—not a CRUD row.</h2>
+          <p class="section-copy" data-zh="人工接受产生不可变 Event Plan；Series 管理重复规律，Occurrence 管理一次实际执行，Package 把审批绑定到精确版本。原有 GroupEvent 与 version-0 语义继续兼容。" data-en="Human acceptance creates an immutable Event Plan; Series owns recurrence, Occurrence owns one delivery, and a Package binds approval to exact source versions. Existing GroupEvent and version-0 semantics remain compatible.">Human acceptance creates an immutable Event Plan; Series owns recurrence, Occurrence owns one delivery, and a Package binds approval to exact source versions. Existing GroupEvent and version-0 semantics remain compatible.</p>
         </div>
 
         <div class="event-equation" data-reveal aria-label="Event Plan composition">
-          <div><code>EVENT PLAN</code><strong data-zh="人工接受的版本化事实" data-en="Human-accepted versioned truth">人工接受的版本化事实</strong></div>
-          <div><code>+</code><strong data-zh="结构单元" data-en="Structural units">结构单元</strong></div>
-          <div><code>+</code><strong data-zh="能力模块" data-en="Capability modules">能力模块</strong></div>
-          <div><code>+</code><strong data-zh="治理规则" data-en="Governance rules">治理规则</strong></div>
-          <div><code>+</code><strong data-zh="人的决定" data-en="Human decisions">人的决定</strong></div>
+          <div><code>EVENT PLAN</code><strong data-zh="人工接受的版本化事实" data-en="Human-accepted versioned truth">Human-accepted versioned truth</strong></div>
+          <div><code>+</code><strong data-zh="结构单元" data-en="Structural units">Structural units</strong></div>
+          <div><code>+</code><strong data-zh="能力模块" data-en="Capability modules">Capability modules</strong></div>
+          <div><code>+</code><strong data-zh="治理规则" data-en="Governance rules">Governance rules</strong></div>
+          <div><code>+</code><strong data-zh="人的决定" data-en="Human decisions">Human decisions</strong></div>
         </div>
 
         <div class="event-status-grid" data-reveal>
-          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>TEAM.WORK</h3><p data-zh="负责人、角色、活动、任务、依赖、个人接受、更新与独立任务审核。" data-en="Owners, roles, activities, tasks, dependencies, personal acceptance, updates and independent task review.">负责人、角色、活动、任务、依赖、个人接受、更新与独立任务审核。</p></article>
-          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>PEOPLE.REGISTRATION</h3><p data-zh="旧版报名与 version-1 实际参与人、家庭／代理／监护、邀请、预留、容量与 FIFO。" data-en="Legacy enrolment plus version-1 actual people, households/proxies/guardians, invitations, reservations, capacity and FIFO.">旧版报名与 version-1 实际参与人、家庭／代理／监护、邀请、预留、容量与 FIFO。</p></article>
-          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>SERVICE.ROSTER</h3><p data-zh="候选群组、场次时段、原子批次、个人回应、更换、默认要求与滚动延长。" data-en="Candidate groups, occurrence slots, atomic batches, personal responses, replacements, defaults and rolling extension.">候选群组、场次时段、原子批次、个人回应、更换、默认要求与滚动延长。</p></article>
-          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>SAFETY.RAM</h3><p data-zh="版本化政策、评估、确认、独立审核、来源同步、负责人最终审核、历史与打印。" data-en="Versioned policy, assessment, confirmation, independent review, source synchronization, owner review, history and printing.">版本化政策、评估、确认、独立审核、来源同步、负责人最终审核、历史与打印。</p></article>
-          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>SAFEGUARDING.CHILD</h3><p data-zh="儿童、监护、同意、接送人、同工资格、场次签到签退与最少披露。" data-en="Children, guardians, consent, collectors, worker eligibility, occurrence check-in/out and minimum disclosure.">儿童、监护、同意、接送人、同工资格、场次签到签退与最少披露。</p></article>
-          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>PROGRAM.PRODUCTION</h3><p data-zh="场次节目、项目排序、流程表打印与 version-1 策划报告。" data-en="Occurrence sessions and items, ordering, run-sheet printing and version-1 planning report.">场次节目、项目排序、流程表打印与 version-1 策划报告。</p></article>
-          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">当前</span><h3>PLACE.RESOURCE</h3><p data-zh="场地目录、容量、预订冲突与独立的重复房间日历。" data-en="Venue catalogue, capacity, reservations/conflicts and independent recurring-room calendars.">场地目录、容量、预订冲突与独立的重复房间日历。</p></article>
-          <article class="event-status"><span class="event-status__label" data-zh="核心当前" data-en="Current core">核心当前</span><h3>MOVE.STAY</h3><p data-zh="驾驶员／车辆证据、行程／站点、受限名单、容量、就绪度与策划报告；停车与住宿尚未实现。" data-en="Driver/vehicle evidence, journeys/stops, restricted manifests, capacity, readiness and planning report; parking and accommodation remain absent.">驾驶员／车辆证据、行程／站点、受限名单、容量、就绪度与策划报告；停车与住宿尚未实现。</p></article>
-          <article class="event-status event-status--partial"><span class="event-status__label" data-zh="部分" data-en="Partial">部分</span><h3>COMMS · MONEY · FOOD</h3><p data-zh="沟通、财务和餐饮各有可用的限定范围，但不是完整运营模块。" data-en="Communications, finance and hospitality each have bounded usable slices, not complete operational modules.">沟通、财务和餐饮各有可用的限定范围，但不是完整运营模块。</p></article>
-          <article class="event-status event-status--unavailable"><span class="event-status__label" data-zh="不可用" data-en="Unavailable">不可用</span><h3>FESTIVAL.OPERATIONS</h3><p data-zh="只有结构定义，version 1 不能启用。" data-en="Structural definitions only; it cannot be enabled in version 1.">只有结构定义，version 1 不能启用。</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">Current</span><h3>TEAM.WORK</h3><p data-zh="负责人、角色、活动、任务、依赖、个人接受、更新与独立任务审核。" data-en="Owners, roles, activities, tasks, dependencies, personal acceptance, updates and independent task review.">Owners, roles, activities, tasks, dependencies, personal acceptance, updates and independent task review.</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">Current</span><h3>PEOPLE.REGISTRATION</h3><p data-zh="旧版报名与 version-1 实际参与人、家庭／代理／监护、邀请、预留、容量与 FIFO。" data-en="Legacy enrolment plus version-1 actual people, households/proxies/guardians, invitations, reservations, capacity and FIFO.">Legacy enrolment plus version-1 actual people, households/proxies/guardians, invitations, reservations, capacity and FIFO.</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">Current</span><h3>SERVICE.ROSTER</h3><p data-zh="候选群组、场次时段、原子批次、个人回应、更换、默认要求与滚动延长。" data-en="Candidate groups, occurrence slots, atomic batches, personal responses, replacements, defaults and rolling extension.">Candidate groups, occurrence slots, atomic batches, personal responses, replacements, defaults and rolling extension.</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">Current</span><h3>SAFETY.RAM</h3><p data-zh="版本化政策、评估、确认、独立审核、来源同步、负责人最终审核、历史与打印。" data-en="Versioned policy, assessment, confirmation, independent review, source synchronization, owner review, history and printing.">Versioned policy, assessment, confirmation, independent review, source synchronization, owner review, history and printing.</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">Current</span><h3>SAFEGUARDING.CHILD</h3><p data-zh="儿童、监护、同意、接送人、同工资格、场次签到签退与最少披露。" data-en="Children, guardians, consent, collectors, worker eligibility, occurrence check-in/out and minimum disclosure.">Children, guardians, consent, collectors, worker eligibility, occurrence check-in/out and minimum disclosure.</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">Current</span><h3>PROGRAM.PRODUCTION</h3><p data-zh="场次节目、项目排序、流程表打印与 version-1 策划报告。" data-en="Occurrence sessions and items, ordering, run-sheet printing and version-1 planning report.">Occurrence sessions and items, ordering, run-sheet printing and version-1 planning report.</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="当前" data-en="Current">Current</span><h3>PLACE.RESOURCE</h3><p data-zh="场地目录、容量、预订冲突与独立的重复房间日历。" data-en="Venue catalogue, capacity, reservations/conflicts and independent recurring-room calendars.">Venue catalogue, capacity, reservations/conflicts and independent recurring-room calendars.</p></article>
+          <article class="event-status"><span class="event-status__label" data-zh="核心当前" data-en="Current core">Current core</span><h3>MOVE.STAY</h3><p data-zh="驾驶员／车辆证据、行程／站点、受限名单、容量、就绪度与策划报告；停车与住宿尚未实现。" data-en="Driver/vehicle evidence, journeys/stops, restricted manifests, capacity, readiness and planning report; parking and accommodation remain absent.">Driver/vehicle evidence, journeys/stops, restricted manifests, capacity, readiness and planning report; parking and accommodation remain absent.</p></article>
+          <article class="event-status event-status--partial"><span class="event-status__label" data-zh="部分" data-en="Partial">Partial</span><h3>COMMS · MONEY · FOOD</h3><p data-zh="沟通、财务和餐饮各有可用的限定范围，但不是完整运营模块。" data-en="Communications, finance and hospitality each have bounded usable slices, not complete operational modules.">Communications, finance and hospitality each have bounded usable slices, not complete operational modules.</p></article>
+          <article class="event-status event-status--unavailable"><span class="event-status__label" data-zh="不可用" data-en="Unavailable">Unavailable</span><h3>FESTIVAL.OPERATIONS</h3><p data-zh="只有结构定义，version 1 不能启用。" data-en="Structural definitions only; it cannot be enabled in version 1.">Structural definitions only; it cannot be enabled in version 1.</p></article>
         </div>
 
-        <div class="event-boundary" data-reveal><strong data-zh="当前边界：" data-en="CURRENT BOUNDARY:">当前边界：</strong> <span data-zh="Plan B 与第五个 Review／Reflection 阶段尚未引入；通用 Event workflow／template／artifact API 已从活动产品中退役，历史表保留作非破坏性兼容。" data-en="Plan B and a fifth Review/Reflection stage are not introduced. The generic Event workflow/template/artifact APIs are retired from the active product while historical tables remain for non-destructive compatibility.">Plan B 与第五个 Review／Reflection 阶段尚未引入；通用 Event workflow／template／artifact API 已从活动产品中退役，历史表保留作非破坏性兼容。</span></div>
+        <div class="event-boundary" data-reveal><strong data-zh="当前边界：" data-en="CURRENT BOUNDARY:">CURRENT BOUNDARY:</strong> <span data-zh="Plan B 与第五个 Review／Reflection 阶段尚未引入；通用 Event workflow／template／artifact API 已从活动产品中退役，历史表保留作非破坏性兼容。" data-en="Plan B and a fifth Review/Reflection stage are not introduced. The generic Event workflow/template/artifact APIs are retired from the active product while historical tables remain for non-destructive compatibility.">Plan B and a fifth Review/Reflection stage are not introduced. The generic Event workflow/template/artifact APIs are retired from the active product while historical tables remain for non-destructive compatibility.</span></div>
       </div>
     </section>
 
@@ -1568,24 +1611,24 @@
       <div class="section__inner">
         <div class="security-layout">
           <div class="security-copy" data-reveal>
-            <p class="eyebrow" data-zh="安全、隐私与缓存" data-en="SECURITY, PRIVACY AND CACHE">安全、隐私与缓存</p>
-            <h2 class="section-heading" data-zh="缓存服从受众，权限服从当前事实。" data-en="Cache follows audience. Authority follows current facts.">缓存服从受众，权限服从当前事实。</h2>
-            <p class="section-copy" data-zh="ALIFE 不按 URL 一刀切地缓存。每个响应先按公开、群组共享、角色限制或个人专属分类，再决定缓存键、ETag、失效和 no-store。" data-en="ALIFE does not cache by URL alone. Every response is first classified as public, group-shared, role-restricted or user-specific, then given the appropriate key, ETag, invalidation and no-store behavior.">ALIFE 不按 URL 一刀切地缓存。每个响应先按公开、群组共享、角色限制或个人专属分类，再决定缓存键、ETag、失效和 no-store。</p>
+            <p class="eyebrow" data-zh="安全、隐私与缓存" data-en="SECURITY, PRIVACY AND CACHE">SECURITY, PRIVACY AND CACHE</p>
+            <h2 class="section-heading" data-zh="缓存服从受众，权限服从当前事实。" data-en="Cache follows audience. Authority follows current facts.">Cache follows audience. Authority follows current facts.</h2>
+            <p class="section-copy" data-zh="ALIFE 不按 URL 一刀切地缓存。每个响应先按公开、群组共享、角色限制或个人专属分类，再决定缓存键、ETag、失效和 no-store。" data-en="ALIFE does not cache by URL alone. Every response is first classified as public, group-shared, role-restricted or user-specific, then given the appropriate key, ETag, invalidation and no-store behavior.">ALIFE does not cache by URL alone. Every response is first classified as public, group-shared, role-restricted or user-specific, then given the appropriate key, ETag, invalidation and no-store behavior.</p>
           </div>
 
           <dl class="cache-matrix" data-reveal>
-            <div class="cache-row"><span class="cache-row__class">PUBLIC</span><dt data-zh="公开投影" data-en="Public projection">公开投影</dt><dd data-zh="已审核页面、讲道、公开活动可以进入共享边缘缓存，但必须使用明确键、标签、TTL 与失效路径。" data-en="Reviewed pages, sermons and public Events may enter shared edge cache with explicit keys, tags, TTLs and invalidation paths.">已审核页面、讲道、公开活动可以进入共享边缘缓存，但必须使用明确键、标签、TTL 与失效路径。</dd></div>
-            <div class="cache-row"><span class="cache-row__class">GROUP</span><dt data-zh="群组共享" data-en="Group-shared">群组共享</dt><dd data-zh="群组页面、子群组、活动和成员列表只在当前授权与可见性检查通过后复用。" data-en="Group pages, subgroups, Events and member lists are reused only after current authorization and visibility checks.">群组页面、子群组、活动和成员列表只在当前授权与可见性检查通过后复用。</dd></div>
-            <div class="cache-row"><span class="cache-row__class">RESTRICTED</span><dt data-zh="角色限制" data-en="Role-restricted">角色限制</dt><dd data-zh="活动团队、RAM、儿童保障、财务和审批证据保持 private／no-store，不跨查看者共享 ETag。" data-en="Event-team, RAM, safeguarding, finance and approval evidence stay private/no-store and never share viewer ETags.">活动团队、RAM、儿童保障、财务和审批证据保持 private／no-store，不跨查看者共享 ETag。</dd></div>
-            <div class="cache-row"><span class="cache-row__class">PERSONAL</span><dt data-zh="个人专属" data-en="User-specific">个人专属</dt><dd data-zh="身份仪式、申请、/api/me、通知和个人事务一律 no-store，也不会被 PWA runtime cache 重放。" data-en="Identity ceremonies, applications, /api/me, notifications and personal work are no-store and never replayed by the PWA runtime cache.">身份仪式、申请、/api/me、通知和个人事务一律 no-store，也不会被 PWA runtime cache 重放。</dd></div>
+            <div class="cache-row"><span class="cache-row__class">PUBLIC</span><dt data-zh="公开投影" data-en="Public projection">Public projection</dt><dd data-zh="已审核页面、讲道、公开活动可以进入共享边缘缓存，但必须使用明确键、标签、TTL 与失效路径。" data-en="Reviewed pages, sermons and public Events may enter shared edge cache with explicit keys, tags, TTLs and invalidation paths.">Reviewed pages, sermons and public Events may enter shared edge cache with explicit keys, tags, TTLs and invalidation paths.</dd></div>
+            <div class="cache-row"><span class="cache-row__class">GROUP</span><dt data-zh="群组共享" data-en="Group-shared">Group-shared</dt><dd data-zh="群组页面、子群组、活动和成员列表只在当前授权与可见性检查通过后复用。" data-en="Group pages, subgroups, Events and member lists are reused only after current authorization and visibility checks.">Group pages, subgroups, Events and member lists are reused only after current authorization and visibility checks.</dd></div>
+            <div class="cache-row"><span class="cache-row__class">RESTRICTED</span><dt data-zh="角色限制" data-en="Role-restricted">Role-restricted</dt><dd data-zh="活动团队、RAM、儿童保障、财务和审批证据保持 private／no-store，不跨查看者共享 ETag。" data-en="Event-team, RAM, safeguarding, finance and approval evidence stay private/no-store and never share viewer ETags.">Event-team, RAM, safeguarding, finance and approval evidence stay private/no-store and never share viewer ETags.</dd></div>
+            <div class="cache-row"><span class="cache-row__class">PERSONAL</span><dt data-zh="个人专属" data-en="User-specific">User-specific</dt><dd data-zh="身份仪式、申请、/api/me、通知和个人事务一律 no-store，也不会被 PWA runtime cache 重放。" data-en="Identity ceremonies, applications, /api/me, notifications and personal work are no-store and never replayed by the PWA runtime cache.">Identity ceremonies, applications, /api/me, notifications and personal work are no-store and never replayed by the PWA runtime cache.</dd></div>
           </dl>
         </div>
 
         <div class="principles-strip" data-reveal>
-          <article><code>SERVER</code><h3 data-zh="服务器授权" data-en="Server authorization">服务器授权</h3><p data-zh="每次敏感操作核对所有权、成员、角色、用途、版本与平台权限。" data-en="Sensitive operations check ownership, membership, role, purpose, version and platform permission.">每次敏感操作核对所有权、成员、角色、用途、版本与平台权限。</p></article>
-          <article><code>IDENTITY</code><h3 data-zh="最小身份" data-en="Minimal identity">最小身份</h3><p data-zh="JWT 只携带最小会话事实；秘密以 HMAC 保存，诊断不记录凭证材料。" data-en="JWTs carry minimal session facts; secrets are HMAC-protected and diagnostics exclude credential material.">JWT 只携带最小会话事实；秘密以 HMAC 保存，诊断不记录凭证材料。</p></article>
-          <article><code>CONCURRENCY</code><h3 data-zh="版本与冲突" data-en="Versions and conflicts">版本与冲突</h3><p data-zh="ETag／If-Match 防止版本化状态静默丢失更新；未知值失败关闭。" data-en="ETag/If-Match prevents silent lost updates in versioned state; unknown values fail closed.">ETag／If-Match 防止版本化状态静默丢失更新；未知值失败关闭。</p></article>
-          <article><code>AI</code><h3 data-zh="人工负责" data-en="Human accountability">人工负责</h3><p data-zh="AI 提议候选内容；确认、角色、政策、审批和发布始终是人的可审计动作。" data-en="AI proposes candidates; facts, roles, policy, approval and publication remain attributable human actions.">AI 提议候选内容；确认、角色、政策、审批和发布始终是人的可审计动作。</p></article>
+          <article><code>SERVER</code><h3 data-zh="服务器授权" data-en="Server authorization">Server authorization</h3><p data-zh="每次敏感操作核对所有权、成员、角色、用途、版本与平台权限。" data-en="Sensitive operations check ownership, membership, role, purpose, version and platform permission.">Sensitive operations check ownership, membership, role, purpose, version and platform permission.</p></article>
+          <article><code>IDENTITY</code><h3 data-zh="最小身份" data-en="Minimal identity">Minimal identity</h3><p data-zh="JWT 只携带最小会话事实；秘密以 HMAC 保存，诊断不记录凭证材料。" data-en="JWTs carry minimal session facts; secrets are HMAC-protected and diagnostics exclude credential material.">JWTs carry minimal session facts; secrets are HMAC-protected and diagnostics exclude credential material.</p></article>
+          <article><code>CONCURRENCY</code><h3 data-zh="版本与冲突" data-en="Versions and conflicts">Versions and conflicts</h3><p data-zh="ETag／If-Match 防止版本化状态静默丢失更新；未知值失败关闭。" data-en="ETag/If-Match prevents silent lost updates in versioned state; unknown values fail closed.">ETag/If-Match prevents silent lost updates in versioned state; unknown values fail closed.</p></article>
+          <article><code>AI</code><h3 data-zh="人工负责" data-en="Human accountability">Human accountability</h3><p data-zh="AI 提议候选内容；确认、角色、政策、审批和发布始终是人的可审计动作。" data-en="AI proposes candidates; facts, roles, policy, approval and publication remain attributable human actions.">AI proposes candidates; facts, roles, policy, approval and publication remain attributable human actions.</p></article>
         </div>
       </div>
     </section>
@@ -1593,9 +1636,9 @@
     <section class="section start-section" id="start">
       <div class="section__inner start-layout">
         <div data-reveal>
-          <p class="eyebrow" data-zh="本地开发" data-en="LOCAL DEVELOPMENT">本地开发</p>
-          <h2 class="section-heading" data-zh="一个启动器，四个运行服务。" data-en="One launcher. Four runtime services.">一个启动器，四个运行服务。</h2>
-          <p class="section-copy" data-zh="标准脚本启动 Azure Functions API、images Worker、Cloudflare speed layer 和 Vite PWA。SQL Server 已运行时使用 SkipSql；只有在需要刷新架构或种子数据时才应用迁移。" data-en="The standard launcher starts the Azure Functions API, images Worker, Cloudflare speed layer and Vite PWA. Use SkipSql when SQL Server is already running, and apply migrations only when schema or seed data needs refreshing.">标准脚本启动 Azure Functions API、images Worker、Cloudflare speed layer 和 Vite PWA。SQL Server 已运行时使用 SkipSql；只有在需要刷新架构或种子数据时才应用迁移。</p>
+          <p class="eyebrow" data-zh="本地开发" data-en="LOCAL DEVELOPMENT">LOCAL DEVELOPMENT</p>
+          <h2 class="section-heading" data-zh="一个启动器，四个运行服务。" data-en="One launcher. Four runtime services.">One launcher. Four runtime services.</h2>
+          <p class="section-copy" data-zh="标准脚本启动 Azure Functions API、images Worker、Cloudflare speed layer 和 Vite PWA。SQL Server 已运行时使用 SkipSql；只有在需要刷新架构或种子数据时才应用迁移。" data-en="The standard launcher starts the Azure Functions API, images Worker, Cloudflare speed layer and Vite PWA. Use SkipSql when SQL Server is already running, and apply migrations only when schema or seed data needs refreshing.">The standard launcher starts the Azure Functions API, images Worker, Cloudflare speed layer and Vite PWA. Use SkipSql when SQL Server is already running, and apply migrations only when schema or seed data needs refreshing.</p>
           <ul class="requirements">
             <li>.NET SDK 10</li><li>Node.js 20+</li><li>Docker Desktop</li><li>Azure Functions Core Tools v4</li>
           </ul>
@@ -1603,11 +1646,11 @@
 
         <div class="terminal-stack" data-reveal>
           <section class="terminal" aria-label="Start the normal local stack">
-            <div class="terminal__head"><span class="terminal__title" data-zh="SQL 已运行" data-en="SQL ALREADY RUNNING">SQL 已运行</span><button class="copy-button" type="button" data-copy-target="command-normal" data-zh="复制" data-en="Copy">复制</button></div>
+            <div class="terminal__head"><span class="terminal__title" data-zh="SQL 已运行" data-en="SQL ALREADY RUNNING">SQL ALREADY RUNNING</span><button class="copy-button" type="button" data-copy-target="command-normal" data-zh="复制" data-en="Copy">Copy</button></div>
             <pre><code id="command-normal">.\alife-dev.cmd -SkipSql</code></pre>
           </section>
           <section class="terminal" aria-label="Start and migrate a fresh local stack">
-            <div class="terminal__head"><span class="terminal__title" data-zh="新数据库／迁移" data-en="FRESH DATABASE / MIGRATIONS">新数据库／迁移</span><button class="copy-button" type="button" data-copy-target="command-migrate" data-zh="复制" data-en="Copy">复制</button></div>
+            <div class="terminal__head"><span class="terminal__title" data-zh="新数据库／迁移" data-en="FRESH DATABASE / MIGRATIONS">FRESH DATABASE / MIGRATIONS</span><button class="copy-button" type="button" data-copy-target="command-migrate" data-zh="复制" data-en="Copy">Copy</button></div>
             <pre><code id="command-migrate">.\alife-dev.cmd -ApplyMigrations</code></pre>
           </section>
           <ul class="local-services">
@@ -1623,26 +1666,26 @@
     <section class="section docs-section" id="docs">
       <div class="section__inner">
         <div data-reveal>
-          <p class="eyebrow" data-zh="权威入口" data-en="AUTHORITATIVE ENTRY POINTS">权威入口</p>
-          <h2 class="section-heading" data-zh="从概览进入正确的契约。" data-en="Move from overview to the right contract.">从概览进入正确的契约。</h2>
-          <p class="section-copy" data-zh="本页帮助理解全局。实现工作仍应进入对应的架构、身份、活动契约或状态文档，不要把展示页当作完整业务规范。" data-en="This page explains the whole. Implementation work should continue into the relevant architecture, identity, Event contract or status source rather than treating a showcase as the complete business specification.">本页帮助理解全局。实现工作仍应进入对应的架构、身份、活动契约或状态文档，不要把展示页当作完整业务规范。</p>
+          <p class="eyebrow" data-zh="权威入口" data-en="AUTHORITATIVE ENTRY POINTS">AUTHORITATIVE ENTRY POINTS</p>
+          <h2 class="section-heading" data-zh="从概览进入正确的契约。" data-en="Move from overview to the right contract.">Move from overview to the right contract.</h2>
+          <p class="section-copy" data-zh="本页帮助理解全局。实现工作仍应进入对应的架构、身份、活动契约或状态文档，不要把展示页当作完整业务规范。" data-en="This page explains the whole. Implementation work should continue into the relevant architecture, identity, Event contract or status source rather than treating a showcase as the complete business specification.">This page explains the whole. Implementation work should continue into the relevant architecture, identity, Event contract or status source rather than treating a showcase as the complete business specification.</p>
         </div>
 
         <div class="docs-grid" data-reveal>
-          <a class="doc-link" href="README.md"><code>ENGINEERING</code><strong data-zh="完整工程 README" data-en="Full engineering README">完整工程 README</strong><span data-zh="技术栈、本地开发、配置、验证与能力边界。" data-en="Stack, local development, configuration, verification and capability boundaries.">技术栈、本地开发、配置、验证与能力边界。</span></a>
-          <a class="doc-link" href="docs/architecture.md"><code>ARCHITECTURE</code><strong data-zh="系统架构" data-en="System architecture">系统架构</strong><span data-zh="运行拓扑、数据流、安全、缓存和部署边界。" data-en="Runtime topology, data flow, security, cache and deployment boundaries.">运行拓扑、数据流、安全、缓存和部署边界。</span></a>
-          <a class="doc-link" href="docs/identity-access.md"><code>IDENTITY</code><strong data-zh="身份与恢复" data-en="Identity and recovery">身份与恢复</strong><span data-zh="Passkey、激活、邀请、申请、延续与恢复契约。" data-en="Passkey, activation, invitation, application, continuation and recovery contract.">Passkey、激活、邀请、申请、延续与恢复契约。</span></a>
-          <a class="doc-link" href="docs/events/README.md"><code>EVENT OVERVIEW</code><strong data-zh="活动产品概览" data-en="Event product overview">活动产品概览</strong><span data-zh="三语说明、结构、阶段、责任与专题导航。" data-en="Trilingual overview, structure, stages, responsibility and topic map.">三语说明、结构、阶段、责任与专题导航。</span></a>
-          <a class="doc-link" href="docs/events/EVENT-CONTRACT.md"><code>EVENT CONTRACT</code><strong data-zh="活动核心契约" data-en="Event core contract">活动核心契约</strong><span data-zh="Plan、Package、授权、兼容和人工／AI 权限边界。" data-en="Plan, Package, authorization, compatibility and human/AI authority boundaries.">Plan、Package、授权、兼容和人工／AI 权限边界。</span></a>
-          <a class="doc-link" href="docs/events/IMPLEMENTATION-STATUS.md"><code>DELIVERY STATUS</code><strong data-zh="活动实现状态" data-en="Event implementation status">活动实现状态</strong><span data-zh="已实现、部分实现、不可用范围与剩余缺口。" data-en="Current, partial and unavailable scope with remaining gaps.">已实现、部分实现、不可用范围与剩余缺口。</span></a>
-          <a class="doc-link" href="docs/project-retrospective.en.md"><code>HISTORY</code><strong data-zh="工程回顾" data-en="Engineering retrospective">工程回顾</strong><span data-zh="架构如何从早期方案演进到当前边界。" data-en="How the architecture evolved from early approaches to the current boundaries.">架构如何从早期方案演进到当前边界。</span></a>
-          <a class="doc-link" href="docs/project-retrospective-verification.md"><code>EVIDENCE</code><strong data-zh="证据与验证" data-en="Evidence and verification">证据与验证</strong><span data-zh="提交、迁移、代码、测试、争议主张与证据限制。" data-en="Commits, migrations, code, tests, disputed claims and evidence limits.">提交、迁移、代码、测试、争议主张与证据限制。</span></a>
-          <a class="doc-link" href="docs/speed-layer_architecture.md"><code>EDGE</code><strong data-zh="边缘层架构" data-en="Speed-layer architecture">边缘层架构</strong><span data-zh="Cloudflare 路由、缓存、授权镜像与失效策略。" data-en="Cloudflare routing, cache, authorization mirrors and invalidation strategy.">Cloudflare 路由、缓存、授权镜像与失效策略。</span></a>
+          <a class="doc-link" href="https://github.com/appccalc-developers/Alife/blob/main/README.md"><code>ENGINEERING</code><strong data-zh="完整工程 README" data-en="Full engineering README">Full engineering README</strong><span data-zh="技术栈、本地开发、配置、验证与能力边界。" data-en="Stack, local development, configuration, verification and capability boundaries.">Stack, local development, configuration, verification and capability boundaries.</span></a>
+          <a class="doc-link" href="https://github.com/appccalc-developers/Alife/blob/main/docs/architecture.md"><code>ARCHITECTURE</code><strong data-zh="系统架构" data-en="System architecture">System architecture</strong><span data-zh="运行拓扑、数据流、安全、缓存和部署边界。" data-en="Runtime topology, data flow, security, cache and deployment boundaries.">Runtime topology, data flow, security, cache and deployment boundaries.</span></a>
+          <a class="doc-link" href="https://github.com/appccalc-developers/Alife/blob/main/docs/identity-access.md"><code>IDENTITY</code><strong data-zh="身份与恢复" data-en="Identity and recovery">Identity and recovery</strong><span data-zh="Passkey、激活、邀请、申请、延续与恢复契约。" data-en="Passkey, activation, invitation, application, continuation and recovery contract.">Passkey, activation, invitation, application, continuation and recovery contract.</span></a>
+          <a class="doc-link" href="https://github.com/appccalc-developers/Alife/blob/main/docs/events/README.md"><code>EVENT OVERVIEW</code><strong data-zh="活动产品概览" data-en="Event product overview">Event product overview</strong><span data-zh="三语说明、结构、阶段、责任与专题导航。" data-en="Trilingual overview, structure, stages, responsibility and topic map.">Trilingual overview, structure, stages, responsibility and topic map.</span></a>
+          <a class="doc-link" href="https://github.com/appccalc-developers/Alife/blob/main/docs/events/EVENT-CONTRACT.md"><code>EVENT CONTRACT</code><strong data-zh="活动核心契约" data-en="Event core contract">Event core contract</strong><span data-zh="Plan、Package、授权、兼容和人工／AI 权限边界。" data-en="Plan, Package, authorization, compatibility and human/AI authority boundaries.">Plan, Package, authorization, compatibility and human/AI authority boundaries.</span></a>
+          <a class="doc-link" href="https://github.com/appccalc-developers/Alife/blob/main/docs/events/IMPLEMENTATION-STATUS.md"><code>DELIVERY STATUS</code><strong data-zh="活动实现状态" data-en="Event implementation status">Event implementation status</strong><span data-zh="已实现、部分实现、不可用范围与剩余缺口。" data-en="Current, partial and unavailable scope with remaining gaps.">Current, partial and unavailable scope with remaining gaps.</span></a>
+          <a class="doc-link" href="https://github.com/appccalc-developers/Alife/blob/main/docs/project-retrospective.en.md"><code>HISTORY</code><strong data-zh="工程回顾" data-en="Engineering retrospective">Engineering retrospective</strong><span data-zh="架构如何从早期方案演进到当前边界。" data-en="How the architecture evolved from early approaches to the current boundaries.">How the architecture evolved from early approaches to the current boundaries.</span></a>
+          <a class="doc-link" href="https://github.com/appccalc-developers/Alife/blob/main/docs/project-retrospective-verification.md"><code>EVIDENCE</code><strong data-zh="证据与验证" data-en="Evidence and verification">Evidence and verification</strong><span data-zh="提交、迁移、代码、测试、争议主张与证据限制。" data-en="Commits, migrations, code, tests, disputed claims and evidence limits.">Commits, migrations, code, tests, disputed claims and evidence limits.</span></a>
+          <a class="doc-link" href="https://github.com/appccalc-developers/Alife/blob/main/docs/speed-layer_architecture.md"><code>EDGE</code><strong data-zh="边缘层架构" data-en="Speed-layer architecture">Speed-layer architecture</strong><span data-zh="Cloudflare 路由、缓存、授权镜像与失效策略。" data-en="Cloudflare routing, cache, authorization mirrors and invalidation strategy.">Cloudflare routing, cache, authorization mirrors and invalidation strategy.</span></a>
         </div>
 
         <div class="maturity-note" data-reveal>
-          <strong data-zh="成熟度说明" data-en="MATURITY NOTE">成熟度说明</strong>
-          <p data-zh="ALIFE 是广泛且有测试覆盖的 Alpha 源代码实现。仓库不能单独证明生产 SLO、共享环境迁移状态、所有浏览器／Passkey 组合、真实 provider 行为、用户采用或事工成效。所有这些证据应与“代码已经实现”分开陈述。" data-en="ALIFE is a broad, test-covered alpha source implementation. The repository alone cannot prove production SLOs, shared-environment migration state, every browser/Passkey combination, live provider behavior, adoption or ministry outcomes. Keep that evidence separate from what the code implements.">ALIFE 是广泛且有测试覆盖的 Alpha 源代码实现。仓库不能单独证明生产 SLO、共享环境迁移状态、所有浏览器／Passkey 组合、真实 provider 行为、用户采用或事工成效。所有这些证据应与“代码已经实现”分开陈述。</p>
+          <strong data-zh="成熟度说明" data-en="MATURITY NOTE">MATURITY NOTE</strong>
+          <p data-zh="ALIFE 是广泛且有测试覆盖的 Alpha 源代码实现。仓库不能单独证明生产 SLO、共享环境迁移状态、所有浏览器／Passkey 组合、真实 provider 行为、用户采用或事工成效。所有这些证据应与“代码已经实现”分开陈述。" data-en="ALIFE is a broad, test-covered alpha source implementation. The repository alone cannot prove production SLOs, shared-environment migration state, every browser/Passkey combination, live provider behavior, adoption or ministry outcomes. Keep that evidence separate from what the code implements.">ALIFE is a broad, test-covered alpha source implementation. The repository alone cannot prove production SLOs, shared-environment migration state, every browser/Passkey combination, live provider behavior, adoption or ministry outcomes. Keep that evidence separate from what the code implements.</p>
         </div>
       </div>
     </section>
@@ -1651,13 +1694,13 @@
   <footer class="site-footer">
     <div class="site-footer__inner">
       <div>
-        <p class="site-footer__title" data-zh="ALIFE：为真实教会与群组场景开发的 Alpha 平台。" data-en="ALIFE: an alpha platform built for real church and group scenarios.">ALIFE：为真实教会与群组场景开发的 Alpha 平台。</p>
-        <p class="site-footer__copy" data-zh="本页依据 2026 年 9 月 17 日 main 源代码重写；描述实现边界，不保证部署状态。" data-en="Rewritten against main source on 17 September 2026; it describes implementation boundaries, not deployment state.">本页依据 2026 年 9 月 17 日 main 源代码重写；描述实现边界，不保证部署状态。</p>
+        <p class="site-footer__title" data-zh="ALIFE：为真实教会与群组场景开发的 Alpha 平台。" data-en="ALIFE: an alpha platform built for real church and group scenarios.">ALIFE: an alpha platform built for real church and group scenarios.</p>
+        <p class="site-footer__copy" data-zh="本页依据 2026 年 9 月 17 日 main 源代码重写；描述实现边界，不保证部署状态。" data-en="Rewritten against main source on 17 September 2026; it describes implementation boundaries, not deployment state.">Rewritten against main source on 17 September 2026; it describes implementation boundaries, not deployment state.</p>
       </div>
       <div class="site-footer__links">
-        <a href="https://ccalc.live" target="_blank" rel="noreferrer" data-zh="打开 ALIFE ↗" data-en="Open ALIFE ↗">打开 ALIFE ↗</a>
+        <a href="https://ccalc.live" target="_blank" rel="noreferrer" data-zh="打开 ALIFE ↗" data-en="Open ALIFE ↗">Open ALIFE ↗</a>
         <a href="https://github.com/appccalc-developers/Alife" target="_blank" rel="noreferrer">GitHub ↗</a>
-        <a href="#top" data-zh="回到顶部 ↑" data-en="Back to top ↑">回到顶部 ↑</a>
+        <a href="#top" data-zh="回到顶部 ↑" data-en="Back to top ↑">Back to top ↑</a>
       </div>
     </div>
   </footer>
@@ -1683,7 +1726,7 @@
           return null
         }
       })()
-      let language = savedLanguage === 'en' ? 'en' : 'zh'
+      let language = savedLanguage === 'zh' ? 'zh' : 'en'
 
       const updateArchitectureDetail = () => {
         if (!selectedArchitectureNode || !architectureTitle || !architectureCopy || !architectureRule) return
@@ -1708,8 +1751,11 @@
         })
         languageCurrent.textContent = language === 'zh' ? '中文' : 'EN'
         languageNext.textContent = language === 'zh' ? 'EN' : '中文'
-        languageToggle.setAttribute('aria-label', language === 'zh' ? 'Switch to English' : '切换到中文')
-        document.title = language === 'zh' ? 'ALIFE — 当前架构与能力' : 'ALIFE — Current architecture and capabilities'
+        languageToggle.setAttribute('aria-label', language === 'zh' ? 'Switch to English' : 'Switch to Chinese')
+        document.title = language === 'zh' ? 'ALIFE — 项目介绍与工程实践' : 'ALIFE — Project overview and engineering'
+        document.querySelector('meta[name="description"]').content = language === 'zh'
+          ? 'ALIFE 是为海外华人教会与群体开发的双语社区平台。了解产品、我的工程职责、系统架构与已实现的能力。'
+          : 'ALIFE is a bilingual community platform for overseas Chinese churches and groups. Explore the product, my engineering role, architecture and implemented capabilities.'
         updateArchitectureDetail()
         try {
           localStorage.setItem('alife-readme-language', language)
