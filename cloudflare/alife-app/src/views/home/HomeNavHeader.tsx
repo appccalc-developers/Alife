@@ -15,17 +15,10 @@ type Props = {
   navItems?: HomeNavItem[]
 }
 
-const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavItems }: Props) => {
+const HomeNavHeader = ({ copy, language, navItems: providedNavItems }: Props) => {
   const auth = useAuthStore()
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileExpandedKey, setMobileExpandedKey] = useState<string | null>(null)
-  const [scrolled, setScrolled] = useState(false)
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
 
   useEffect(() => {
     if (!menuOpen) {
@@ -56,7 +49,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
             {item.label}
             <ChevronDown className="h-4 w-4 transition group-hover:rotate-180 group-focus-within:rotate-180" />
           </button>
-          <div className="invisible absolute left-1/2 top-full mt-3 min-w-64 -translate-x-1/2 rounded-2xl border border-white/10 bg-[#241a13]/96 p-2.5 opacity-0 shadow-[0_24px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl transition duration-300 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+          <div className="invisible absolute left-1/2 top-full mt-3 min-w-64 -translate-x-1/2 rounded-2xl border border-white/10 bg-home-dark/[0.98] p-2.5 opacity-0 shadow-[0_24px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl transition duration-300 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
             <div className="grid gap-1">
               {item.items.map((child) => (
                 <Link
@@ -107,7 +100,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
           <ChevronDown className={`h-4 w-4 transition ${expanded ? 'rotate-180' : ''}`} />
         </button>
         {expanded ? (
-          <div className="ml-3 mt-1 grid gap-0.5 rounded-xl border border-white/15 bg-black/20 p-1.5">
+          <div className="ml-3 mt-1 grid gap-0.5 rounded-xl border border-white/15 bg-home-dark/[0.98] p-1.5">
             {item.items.map((child) => (
               <Link
                 key={child.to}
@@ -125,7 +118,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
   }
 
   return (
-    <header className={`fixed inset-x-0 top-[env(safe-area-inset-top)] z-50 border-b border-transparent transition-[background-color,border-color,box-shadow] duration-500 ${solid || scrolled ? 'border-white/[0.07] bg-[#211812]/95 shadow-[0_12px_40px_rgba(17,11,7,0.18)] backdrop-blur-xl' : 'bg-gradient-to-b from-black/35 to-transparent'}`}>
+    <header className="fixed inset-x-0 top-[env(safe-area-inset-top)] z-50 border-b border-white/[0.07] bg-home-dark/[0.98] shadow-[0_12px_40px_rgba(17,11,7,0.18)]">
       <div className="mx-auto flex h-[5.5rem] max-w-7xl items-center justify-between px-5 text-white sm:px-8 lg:px-10">
         <Link className="group flex shrink-0 items-center gap-3" to="/">
           <img src={logo} alt="" className="h-10 w-10 rounded-full bg-white/95 object-contain p-1 shadow-[0_8px_24px_rgba(0,0,0,0.16)] transition duration-300 group-hover:scale-105" />
@@ -154,7 +147,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
       </div>
 
       {menuOpen ? (
-        <div className="max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain border-t border-white/10 bg-[#211812]/98 px-5 pb-7 pt-5 shadow-[0_24px_50px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:px-8 lg:hidden">
+        <div className="max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain border-t border-white/10 bg-home-dark/[0.98] px-5 pb-7 pt-5 shadow-[0_24px_50px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:px-8 lg:hidden">
           <nav aria-label="Primary" className="grid gap-1">
             {navItems.map((item) => isDropdownNavItem(item) ? renderMobileDropdown(item) : isRouteNavItem(item) ? (
               <Link
