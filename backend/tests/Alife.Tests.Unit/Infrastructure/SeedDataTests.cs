@@ -1,10 +1,32 @@
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace Alife.Tests.Unit.Infrastructure;
 
 public sealed class SeedDataTests
 {
+    [Fact]
+    public async Task DisabledDemoMembers_AreNotRecreatedAfterCleanup()
+    {
+        await using var db = new AlifeDbContext(new DbContextOptionsBuilder<AlifeDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N")).Options);
+        await SeedData.EnsureSeededAsync(db);
+        var ids = Enumerable.Range(10, 10)
+            .Select(x => Guid.Parse($"eeeeeeee-eeee-eeee-eeee-eeeeeeeeee{x}")).ToArray();
+        Assert.Equal(10, await db.Members.CountAsync(x => ids.Contains(x.Id)));
+        db.GroupMemberships.RemoveRange(db.GroupMemberships.Where(x => ids.Contains(x.MemberId)));
+        db.Members.RemoveRange(db.Members.Where(x => ids.Contains(x.Id)));
+        await db.SaveChangesAsync();
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Seed:IncludeDemoMembers"] = "false"
+        }).Build();
+        await SeedData.EnsureSeededAsync(db, config);
+        Assert.False(await db.Members.AnyAsync(x => ids.Contains(x.Id)));
+        Assert.True(await db.Members.AnyAsync(x => x.DisplayName == "Demo Leader"));
+    }
+
     private static readonly Guid PicnicId = Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff1");
     private static readonly Guid TrainingId = Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff2");
 
