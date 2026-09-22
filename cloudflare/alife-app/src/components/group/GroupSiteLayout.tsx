@@ -11,6 +11,7 @@ import AppPageTitleBar from '../layout/AppPageTitleBar'
 import AppSiteNavigation from '../layout/AppSiteNavigation'
 import AppTitleBarAction from '../layout/AppTitleBarAction'
 import AppStableTabBody from '../layout/AppStableTabBody'
+import AccessTypeBadge from './AccessTypeBadge'
 
 const GroupSiteContext = createContext(false)
 export const useGroupSiteLayout = () => useContext(GroupSiteContext)
@@ -25,6 +26,9 @@ const GroupSiteLayout = ({ groupId, children }: { groupId: string; children: Rea
   const canRead = auth.isAdmin || auth.memberships.some(m => m.groupId === groupId && m.status === 'approved')
   const items = getGroupSiteMenu(auth.language, { canManage, canRead }, groupId)
   const zh = auth.language === 'zh'
+  const isDetailPage = /^\/groups\/[^/]+$/.test(location.pathname) && new URLSearchParams(location.search).has('page')
+    || /^\/groups\/[^/]+\/albums\/[^/]+$/.test(location.pathname)
+    || /^\/groups\/[^/]+\/forum\/posts\/[^/]+$/.test(location.pathname)
   const returnTo = new URLSearchParams(location.search).get('returnTo') ?? '/groups'
   const backPath = /^\/groups(?:\?[^#]*)?$/.test(returnTo) ? returnTo : '/groups'
   const descriptions = {
@@ -38,8 +42,9 @@ const GroupSiteLayout = ({ groupId, children }: { groupId: string; children: Rea
   if (groupQuery.isPending) return <p role="status">{zh ? '正在加载小组…' : 'Loading group…'}</p>
   return <GroupSiteContext.Provider value>
     <div className="mx-auto w-full max-w-6xl space-y-5 desktop:space-y-6">
-      <AppPageTitleBar title={localizeText(groupQuery.data?.name, auth.language) || (zh ? '小组生活' : 'Group Life')}
+      {!isDetailPage ? <AppPageTitleBar title={localizeText(groupQuery.data?.name, auth.language) || (zh ? '小组生活' : 'Group Life')}
         context={zh ? '小组生活' : 'Group Life'} subtitle={descriptions[route?.section ?? 'home'][zh ? 0 : 1]} showSubtitleOnMobile
+        status={groupQuery.data ? <AccessTypeBadge accessType={groupQuery.data.accessType} showProtected /> : undefined}
         backLink={{ label: zh ? '返回小组生活' : 'Back to Group Life', to: backPath }}
         primaryAction={canManage
           ? <AppTitleBarAction label={zh ? '小组管理' : 'Group Management'} icon={<Settings2 className="h-4 w-4" />}
@@ -49,8 +54,8 @@ const GroupSiteLayout = ({ groupId, children }: { groupId: string; children: Rea
         navigation={<AppSiteNavigation items={items.map(item => ({ ...item, to: `${item.to}${item.to.includes('?') ? '&' : '?'}returnTo=${encodeURIComponent(backPath)}` }))} activeSection={route?.section ?? null} label={zh ? '小组生活网站导航' : 'Group Life site navigation'}
           idPrefix="group-site-tab" panelId="group-site-panel" />}
 
-      />
-      <div id="group-site-panel" role="tabpanel" aria-labelledby={`group-site-tab-${route?.section ?? 'home'}`} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]">
+      /> : null}
+      <div id="group-site-panel" role={isDetailPage ? 'region' : 'tabpanel'} aria-labelledby={isDetailPage ? undefined : `group-site-tab-${route?.section ?? 'home'}`} aria-label={isDetailPage ? (zh ? '小组内容详情' : 'Group content detail') : undefined} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]">
         <AppStableTabBody>{children}</AppStableTabBody>
       </div>
     </div>

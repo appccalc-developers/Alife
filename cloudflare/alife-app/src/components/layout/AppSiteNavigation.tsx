@@ -41,7 +41,7 @@ const AppSiteNavigation = ({ items, activeSection, label, idPrefix, panelId, res
   if (!items.length) return null
 
   return (
-    <nav ref={navRef} role="tablist" aria-label={label} className="mt-4 flex gap-1 overflow-x-auto border-t border-[var(--alife-titlebar-divider)] pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    <nav ref={navRef} role="tablist" aria-label={label} className="mt-5 flex gap-1.5 overflow-x-auto border-t border-[var(--alife-titlebar-divider)] pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       onKeyDown={event => {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
         const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLAnchorElement>('[role="tab"]'))
@@ -71,7 +71,7 @@ const AppSiteNavigation = ({ items, activeSection, label, idPrefix, panelId, res
             const openTab = () => { onNavigate?.(); navigate(to, { preventScrollReset: true }) }
             if (confirmUnsavedChangesNavigation(to, openTab)) openTab()
           }}
-          className={`inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-lg border-b-2 px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white ${activeSection === item.key ? 'border-[var(--alife-titlebar-accent)] bg-white/10 text-white' : 'border-transparent text-[#c7d9d2] hover:bg-white/10 hover:text-white'}`}
+          className={`inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-xl border px-3.5 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]/25 ${activeSection === item.key ? 'border-[#176b5a]/15 bg-[#176b5a] text-white shadow-[0_8px_20px_rgba(23,107,90,0.16)]' : 'border-transparent text-[#53665f] hover:border-[#176b5a]/10 hover:bg-[#e3f0eb] hover:text-[#0d4f43]'}`}
         >{item.label}</Link>
       ))}
     </nav>

@@ -199,7 +199,9 @@ const AlbumView = () => {
     <AppPageShell
       title={pageTitle}
       context={albumContext}
-      backLink={churchSite ? { to: '/church/albums', label: isZh ? '返回教会相册' : 'Back to church albums' } : undefined}
+      backLink={churchSite
+        ? { to: '/church/albums', label: isZh ? '返回教会相册' : 'Back to church albums' }
+        : albumId ? { to: albumBasePath, label: isZh ? '返回相册' : 'Back to albums' } : undefined}
       subtitle={detail ? localizeText(detail.album.description, auth.language) : (isZh ? '用相册和子相册整理小组图片。' : 'Organize group images with albums and subalbums.')}
       status={detail ? <AppBadge variant={detail.album.visibility === 'public' ? 'info' : 'neutral'}>{detail.album.visibility === 'public' ? (isZh ? '公开' : 'Public') : (isZh ? '小组可见' : 'Group visible')}</AppBadge> : undefined}
       primaryAction={canManage && !editorMode ? (

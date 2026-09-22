@@ -9,8 +9,6 @@ import AppRoutes from './routing/AppRoutes'
 import { useShellContext } from './context/useShellContext'
 import { useShellNavigation } from './navigation/useShellNavigation'
 import { BottomNavigation, DesktopNavigation } from './navigation/AppNavigation'
-import { useShellActions } from './actions/useShellActions'
-import FloatingActionButtons from './actions/FloatingActionButtons'
 import ShellHeader from './shell/ShellHeader'
 import HomeNavHeader from '../views/home/HomeNavHeader'
 import HomeFooter from '../views/home/HomeFooter'
@@ -56,12 +54,6 @@ const WorkspaceShell = () => {
     currentGroupIsChurch: context.isChurchLifeScreen || context.managementGroup?.isChurch === true,
     workspaceEnabled: !context.isIdentityScreen,
   })
-  const actions = useShellActions({
-    isManagementScreen: context.isManagementScreen,
-    isEventScreen: context.isEventScreen,
-    isSermonDetailScreen: context.isSermonDetailScreen,
-  })
-
   const headerGroupContextId = !context.isIdentityScreen ? context.contextualGroupId : ''
   const workspaceArea = getWorkspaceArea(context.location.pathname)
   const churchSite = getChurchSiteSection(context.location.pathname, context.location.search) !== null
@@ -128,18 +120,13 @@ const WorkspaceShell = () => {
         </main>
       </div>
 
-      {context.isIdentityScreen ? null : (
-        <>
-          <BottomNavigation
-            sections={[
-              ...(navigation.workspaceVisible ? navigation.workspaceSections : []),
-              ...navigation.platformSections,
-            ]}
-            copy={navigation.copy}
-          />
-          <FloatingActionButtons items={actions} />
-        </>
-      )}
+      {context.isIdentityScreen ? null : <BottomNavigation
+        sections={[
+          ...(navigation.workspaceVisible ? navigation.workspaceSections : []),
+          ...navigation.platformSections,
+        ]}
+        copy={navigation.copy}
+      />}
     </div>
   )
 }
@@ -178,6 +165,7 @@ const AppShell = () => {
   const location = useLocation()
   const reduceMotion = useReducedMotion()
   const showPublicShell = usesPublicHomeLayout(location)
+  const identityScreen = location.pathname === '/onboarding' || location.pathname === '/internal/alpha-login' || /^\/(activate|join|application)\/[^/]+$/.test(location.pathname)
 
   return (
     <>
@@ -192,7 +180,7 @@ const AppShell = () => {
           {showPublicShell ? <PublicHomeShell /> : <WorkspaceShell />}
         </motion.div>
       </AnimatePresence>
-      <CacheInspectorHud />
+      {identityScreen ? null : <CacheInspectorHud />}
     </>
   )
 }

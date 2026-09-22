@@ -17,7 +17,7 @@ const AppActionButton = forwardRef<HTMLButtonElement, Props>(({
 }, ref) => {
   const variantClass =
     variant === 'primary'
-      ? 'border border-[#176b5a] bg-[#176b5a] text-white shadow-[0_9px_22px_rgba(23,107,90,0.18)] hover:border-[#0d4f43] hover:bg-[#0d4f43]'
+      ? 'border border-[#176b5a] bg-[#176b5a] text-white shadow-[0_10px_24px_rgba(23,107,90,0.18)] hover:border-[#0d4f43] hover:bg-[#0d4f43]'
       : variant === 'danger'
         ? 'border border-rose-200 bg-white text-rose-700 hover:bg-rose-50'
         : variant === 'ghost'
@@ -30,7 +30,7 @@ const AppActionButton = forwardRef<HTMLButtonElement, Props>(({
     <button
       ref={ref}
       type="button"
-      className={`inline-flex items-center justify-center rounded-xl font-bold transition duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 ${variantClass} ${sizeClass} ${block ? 'w-full' : ''} ${className}`.trim()}
+      className={`inline-flex items-center justify-center rounded-[var(--alife-radius-control)] font-bold transition duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 ${variantClass} ${sizeClass} ${block ? 'w-full' : ''} ${className}`.trim()}
       {...props}
     >
       {children}

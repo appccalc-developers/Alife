@@ -13,16 +13,16 @@
   --alife-brand-deep: #0d4f43;
   --alife-brand-soft: #e3f0eb;
   --alife-coral: #e37b63;
-  --alife-workspace-bg: #f5f2eb;
-  --alife-surface: rgba(255, 255, 255, 0.9);
-  --alife-surface-strong: #ffffff;
-  --alife-line: rgba(47, 75, 66, 0.12);
-  --alife-line-strong: rgba(47, 75, 66, 0.2);
-  --alife-shadow: 0 14px 42px rgba(31, 56, 48, 0.08);
-  --alife-shadow-soft: 0 8px 24px rgba(31, 56, 48, 0.06);
-  --alife-radius-shell: 1.5rem;
-  --alife-radius-card: 1rem;
-  --alife-radius-control: 0.75rem;
+  --alife-workspace-bg: #f3efe6;
+  --alife-surface: rgba(255, 253, 248, 0.96);
+  --alife-surface-strong: #fffdf8;
+  --alife-line: rgba(24, 51, 45, 0.12);
+  --alife-line-strong: rgba(24, 51, 45, 0.22);
+  --alife-shadow: 0 18px 48px rgba(31, 56, 48, 0.08);
+  --alife-shadow-soft: 0 8px 22px rgba(31, 56, 48, 0.055);
+  --alife-radius-shell: 1.75rem;
+  --alife-radius-card: 1.25rem;
+  --alife-radius-control: 0.875rem;
 }
 
 html {
@@ -48,6 +48,33 @@ body {
   line-height: 1.5;
   /* Prevent overscroll bounce on iOS standalone mode */
   overscroll-behavior-y: none;
+}
+
+/* Keep the desktop navigation rail quiet against its deep-green surface. */
+.alife-sidebar-scrollbar {
+  scrollbar-color: rgba(217, 232, 225, 0.3) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.alife-sidebar-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.alife-sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.alife-sidebar-scrollbar::-webkit-scrollbar-thumb {
+  min-height: 3rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(217, 232, 225, 0.3);
+  background-clip: padding-box;
+}
+
+.alife-sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(231, 241, 236, 0.5);
 }
 
 #root {
@@ -90,13 +117,12 @@ select {
 @layer components {
   .alife-workspace {
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.68), transparent 28rem),
-      radial-gradient(circle at 8% 10%, rgba(227, 123, 99, 0.1), transparent 24rem),
-      radial-gradient(circle at 92% 0%, rgba(23, 107, 90, 0.13), transparent 28rem),
-      linear-gradient(180deg, #f8f6f0 0%, var(--alife-workspace-bg) 44%, #eee8dc 100%);
-    --alife-titlebar-background: rgba(255, 255, 255, 0.86);
-    --alife-titlebar-border: rgba(47, 75, 66, 0.12);
-    --alife-titlebar-shadow: 0 10px 30px rgba(31, 56, 48, 0.07);
+      radial-gradient(circle at 86% -6%, rgba(78, 142, 121, 0.16), transparent 30rem),
+      radial-gradient(circle at 12% 18%, rgba(227, 123, 99, 0.08), transparent 24rem),
+      linear-gradient(180deg, #faf7f0 0%, var(--alife-workspace-bg) 58%, #eee8dd 100%);
+    --alife-titlebar-background: rgba(255, 253, 248, 0.96);
+    --alife-titlebar-border: rgba(24, 51, 45, 0.12);
+    --alife-titlebar-shadow: 0 18px 46px rgba(31, 56, 48, 0.075);
     --alife-titlebar-title: #18332d;
     --alife-titlebar-context: #176b5a;
     --alife-titlebar-subtitle: #66766f;
@@ -104,7 +130,7 @@ select {
     --alife-titlebar-back-hover: #0d4f43;
     --alife-titlebar-back-hover-bg: #e3f0eb;
     --alife-titlebar-divider: rgba(47, 75, 66, 0.1);
-    --alife-titlebar-controls: #ffffff;
+    --alife-titlebar-controls: #f3f6f2;
     --alife-titlebar-accent: #e37b63;
     --alife-titlebar-primary-bg: #176b5a;
     --alife-titlebar-primary-hover: #0d4f43;
@@ -119,52 +145,51 @@ select {
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    background-image:
-      linear-gradient(rgba(47, 75, 66, 0.045) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(47, 75, 66, 0.045) 1px, transparent 1px);
-    background-size: 40px 40px;
-    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.62), transparent 72%);
+    background:
+      linear-gradient(90deg, rgba(24, 51, 45, 0.025) 1px, transparent 1px),
+      linear-gradient(rgba(24, 51, 45, 0.025) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.48), transparent 56%);
   }
 
   .alife-workspace[data-workspace-area='member'] {
-    --alife-workspace-bg: #e6eee9;
-    --alife-surface: rgba(255, 253, 248, 0.94);
+    --alife-workspace-bg: #f1eee6;
+    --alife-surface: rgba(255, 253, 248, 0.97);
     --alife-surface-strong: #fffdf8;
-    --alife-line: rgba(24, 67, 57, 0.14);
-    --alife-line-strong: rgba(24, 67, 57, 0.24);
-    --alife-shadow: 0 16px 40px rgba(18, 59, 52, 0.1);
-    --alife-shadow-soft: 0 8px 24px rgba(18, 59, 52, 0.075);
+    --alife-line: rgba(24, 67, 57, 0.13);
+    --alife-line-strong: rgba(24, 67, 57, 0.22);
+    --alife-shadow: 0 18px 48px rgba(18, 59, 52, 0.085);
+    --alife-shadow-soft: 0 8px 22px rgba(18, 59, 52, 0.06);
     --alife-titlebar-background:
-      radial-gradient(circle at 92% -48%, rgba(169, 216, 199, 0.3), transparent 22rem),
-      linear-gradient(128deg, #123b34 0%, #174f44 58%, #1f6756 100%);
-    --alife-titlebar-border: rgba(255, 255, 255, 0.13);
-    --alife-titlebar-shadow: 0 20px 48px rgba(13, 79, 67, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-    --alife-titlebar-title: #fffdf8;
-    --alife-titlebar-context: #a9d8c7;
-    --alife-titlebar-subtitle: #c7d9d2;
-    --alife-titlebar-back: #c7ddd5;
-    --alife-titlebar-back-hover: #ffffff;
-    --alife-titlebar-back-hover-bg: rgba(255, 255, 255, 0.1);
-    --alife-titlebar-divider: rgba(255, 255, 255, 0.15);
-    --alife-titlebar-controls: #fff9ef;
-    --alife-titlebar-accent: #f08b72;
-    --alife-titlebar-primary-bg: #fff9ef;
-    --alife-titlebar-primary-hover: #ffffff;
-    --alife-titlebar-primary-text: #123b34;
-    --alife-titlebar-primary-border: rgba(255, 255, 255, 0.55);
-    --alife-titlebar-primary-shadow: 0 10px 24px rgba(7, 42, 35, 0.2);
+      radial-gradient(circle at 92% -70%, rgba(169, 216, 199, 0.24), transparent 23rem),
+      rgba(255, 253, 248, 0.97);
+    --alife-titlebar-border: rgba(24, 67, 57, 0.13);
+    --alife-titlebar-shadow: 0 18px 48px rgba(18, 59, 52, 0.09);
+    --alife-titlebar-title: #18332d;
+    --alife-titlebar-context: #176b5a;
+    --alife-titlebar-subtitle: #66766f;
+    --alife-titlebar-back: #53665f;
+    --alife-titlebar-back-hover: #0d4f43;
+    --alife-titlebar-back-hover-bg: #e3f0eb;
+    --alife-titlebar-divider: rgba(24, 67, 57, 0.11);
+    --alife-titlebar-controls: #edf4f0;
+    --alife-titlebar-accent: #e37b63;
+    --alife-titlebar-primary-bg: #176b5a;
+    --alife-titlebar-primary-hover: #0d4f43;
+    --alife-titlebar-primary-text: #ffffff;
+    --alife-titlebar-primary-border: #176b5a;
+    --alife-titlebar-primary-shadow: 0 10px 24px rgba(23, 107, 90, 0.2);
     background:
-      radial-gradient(circle at 7% 3%, rgba(255, 253, 248, 0.78), transparent 25rem),
-      radial-gradient(circle at 92% 0%, rgba(85, 153, 130, 0.2), transparent 31rem),
-      radial-gradient(circle at 54% 68%, rgba(227, 123, 99, 0.07), transparent 36rem),
-      linear-gradient(180deg, #edf3ef 0%, var(--alife-workspace-bg) 50%, #dce7e1 100%);
+      radial-gradient(circle at 92% 0%, rgba(78, 142, 121, 0.16), transparent 31rem),
+      radial-gradient(circle at 9% 16%, rgba(227, 123, 99, 0.07), transparent 28rem),
+      linear-gradient(180deg, #f8f6ef 0%, var(--alife-workspace-bg) 56%, #ebe6db 100%);
   }
 
   .alife-workspace[data-workspace-area='member']::before {
     background-image:
-      linear-gradient(rgba(18, 59, 52, 0.052) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(18, 59, 52, 0.052) 1px, transparent 1px);
-    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.54), transparent 76%);
+      linear-gradient(rgba(18, 59, 52, 0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(18, 59, 52, 0.028) 1px, transparent 1px);
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.42), transparent 58%);
   }
 
   .alife-titlebar {
@@ -172,12 +197,12 @@ select {
     border: 1px solid var(--alife-titlebar-border);
     background: var(--alife-titlebar-background);
     box-shadow: var(--alife-titlebar-shadow);
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(18px);
   }
 
   .alife-titlebar-accent {
     background: var(--alife-titlebar-accent);
-    box-shadow: 0 0 18px color-mix(in srgb, var(--alife-titlebar-accent) 38%, transparent);
+    box-shadow: 0 7px 18px color-mix(in srgb, var(--alife-titlebar-accent) 28%, transparent);
   }
 
   .alife-titlebar-back {
@@ -204,6 +229,7 @@ select {
   .alife-titlebar-controls {
     color: var(--alife-ink);
     background: var(--alife-titlebar-controls);
+    border: 1px solid var(--alife-line);
   }
 
   .alife-titlebar-primary {
@@ -221,11 +247,11 @@ select {
     border: 1px solid var(--alife-line);
     background: var(--alife-surface);
     box-shadow: var(--alife-shadow);
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(12px);
   }
 
   .alife-icon-button {
-    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition duration-200;
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--alife-radius-control)] transition duration-200;
     border: 1px solid var(--alife-line);
     color: #40554e;
     background: rgba(255, 255, 255, 0.82);
@@ -240,7 +266,7 @@ select {
   }
 
   .alife-input {
-    @apply min-h-11 w-full rounded-xl px-3.5 py-2.5 text-sm transition duration-200;
+    @apply min-h-11 w-full rounded-[var(--alife-radius-control)] px-3.5 py-2.5 text-sm transition duration-200;
     border: 1px solid rgba(47, 75, 66, 0.17);
     color: var(--alife-ink);
     background: rgba(255, 255, 255, 0.92);
@@ -258,7 +284,7 @@ select {
   }
 
   .alife-primary-button {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--alife-radius-control)] px-5 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50;
     background: var(--alife-brand);
     box-shadow: 0 12px 28px rgba(23, 107, 90, 0.2);
   }
@@ -269,7 +295,7 @@ select {
   }
 
   .alife-secondary-button {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--alife-radius-control)] border px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
     color: var(--alife-brand);
     border-color: rgba(23, 107, 90, 0.22);
     background: rgba(255, 255, 255, 0.82);

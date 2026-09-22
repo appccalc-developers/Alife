@@ -64,6 +64,17 @@ cloudflare/alife-app/
 
 ## Application Shell
 
+The general workspace uses shared warm-paper page surfaces and a deep-green
+navigation rail. Mobile Personal Center navigation goes directly to its page,
+retaining the existing unsaved-change guard. Detail views suppress duplicate
+Church/Group section headers and expose labelled return links through
+`AppPageBackLink`. Title bars must allow overflow menus to extend beyond the
+header; rounding a surface must not clip actionable menus.
+
+Onboarding prioritizes existing-member sign-in without automatically invoking
+Passkey authentication. The local alpha-login shortcut is development-only;
+backend enablement and account restrictions remain authoritative.
+
 `src/main.tsx` wires the top-level providers:
 
 ```text

@@ -81,9 +81,9 @@ const LanguageSelector = ({ language, onChange, variant = 'app' }: Props) => {
         ref={triggerRef}
         type="button"
         className={[
-          'inline-flex w-14 items-center justify-center gap-1.5 border px-2 font-medium transition-[font-weight] hover:font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:w-auto sm:min-w-[6.75rem] sm:px-3',
+          'inline-flex w-14 items-center justify-center gap-1.5 border px-2 font-medium transition hover:font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:w-auto sm:min-w-[6.75rem] sm:px-3',
           isHome
-            ? 'h-9 rounded-lg border-white/15 text-[0.84rem] text-white/60 focus-visible:ring-white/70 focus-visible:ring-offset-home-dark'
+            ? 'h-9 rounded-lg border-white/25 bg-white/10 text-[0.8rem] text-white/82 hover:border-white/45 hover:bg-white/18 hover:text-white focus-visible:ring-white/55 focus-visible:ring-offset-[#35473f]'
             : 'h-10 rounded-xl border-[#2f4b42]/15 text-sm text-[#60716a] focus-visible:ring-[#176b5a]/40 focus-visible:ring-offset-[#fbfaf6]',
         ].join(' ')}
         aria-label={accessibleLabel}
@@ -112,7 +112,7 @@ const LanguageSelector = ({ language, onChange, variant = 'app' }: Props) => {
           aria-label={language === 'zh' ? '选择语言' : 'Select language'}
           className={[
             'absolute right-0 top-full z-50 mt-2 min-w-40 rounded-xl border p-2 shadow-[0_22px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl',
-            isHome ? 'border-white/10 bg-home-dark/95' : 'border-[#2f4b42]/10 bg-white/95',
+            isHome ? 'border-[#c8b89d] bg-[#eee3d1]/98' : 'border-[#2f4b42]/10 bg-white/95',
           ].join(' ')}
           onKeyDown={moveMenuFocus}
         >
@@ -128,8 +128,8 @@ const LanguageSelector = ({ language, onChange, variant = 'app' }: Props) => {
                   'flex w-full items-center justify-between gap-4 rounded-lg px-3 py-2 text-left text-sm transition focus:outline-none',
                   isHome
                     ? selected
-                      ? 'bg-white/[0.07] font-semibold text-white'
-                      : 'font-medium text-white/70 hover:bg-white/[0.07] hover:text-white focus:bg-white/[0.07] focus:text-white'
+                      ? 'bg-home-gold/35 font-semibold text-home-dark'
+                      : 'font-medium text-home-muted hover:bg-home-gold/25 hover:text-home-dark focus:bg-home-gold/25 focus:text-home-dark'
                     : selected
                       ? 'bg-[#e3f0eb] font-semibold text-[#0d4f43]'
                       : 'font-medium text-[#60716a] hover:bg-[#e3f0eb] hover:text-[#0d4f43] focus:bg-[#e3f0eb] focus:text-[#0d4f43]',

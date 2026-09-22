@@ -39,6 +39,7 @@ export type ShellNavSection = {
   matchDescendants?: boolean
   activePathPrefixes?: string[]
   mobileNavigateFirst?: boolean
+  mobileDirectLink?: boolean
   items: ShellNavItem[]
 }
 

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Church,
   Fingerprint,
+  FlaskConical,
   KeyRound,
   LoaderCircle,
   LockKeyhole,
@@ -411,6 +412,7 @@ const OnboardingView = () => {
         <button className="alife-primary-button mt-6 w-full" type="button" disabled={busy || !capabilities.passkeysEnabled} onClick={() => void runPasskeyAuthentication()}>{t('usePasskey')}</button>
         <label className="mt-4 flex min-h-11 items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1 h-4 w-4" checked={publicDevice} onChange={event => setPublicDevice(event.target.checked)} /><span>{t('publicDevice')}<span className="block text-xs text-[#66766f]">{t('publicDeviceHint')}</span></span></label>
         <PasskeyPrivacy t={t} />
+        {import.meta.env.DEV ? <button className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#9b6447]/35 bg-[#f8eee6] px-4 text-sm font-bold text-[#7b4e36] transition hover:border-[#9b6447]/60 hover:bg-[#f4e5da]" type="button" disabled={busy} onClick={() => navigate('/internal/alpha-login')}><FlaskConical className="h-4 w-4" aria-hidden="true" />{auth.language === 'zh' ? '本地测试：跳过 Passkey' : 'Local testing: skip Passkey'}</button> : null}
         <button className="alife-secondary-button mt-5 w-full" type="button" disabled={busy} onClick={() => { setMode('firstTime'); setStatus('') }}>{t('churchApplicationTitle')}</button>
         <button className="mt-3 min-h-11 w-full text-sm font-semibold text-[#176b5a]" type="button" disabled={busy} onClick={() => { formStarted.current = Date.now(); setMode('recovery'); setStatus('') }}>{t('lostPasskey')}</button>
       </div>
@@ -434,20 +436,31 @@ const OnboardingView = () => {
     }
     return (
       <div>
-        <span className="inline-flex items-center gap-2 rounded-full bg-[#e3f0eb] px-3 py-1.5 text-xs font-bold text-[#176b5a]">
+        <span className="inline-flex items-center gap-2 rounded-full border border-[#176b5a]/10 bg-[#e3f0eb] px-3 py-1.5 text-xs font-bold text-[#176b5a]">
           <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" /> {t('onboardingEyebrow')}
         </span>
-        <h1 className="mt-5 text-4xl font-bold tracking-[-0.045em] text-[#18332d]">{t('onboardingTitle')}</h1>
-        <p className="mt-3 text-sm leading-6 text-[#66766f]">{t('onboardingSubtitle')}</p>
-        <div className="mt-7 divide-y divide-[#2f4b42]/10 overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white/75">
+        <h1 className="mt-5 text-4xl font-black leading-[1.08] tracking-[-0.045em] text-[#18332d]">{t('onboardingTitle')}</h1>
+        <p className="mt-4 max-w-lg text-sm leading-6 text-[#66766f]">{t('onboardingSubtitle')}</p>
+        <div className="mt-7 grid gap-3">
+          <IntentButton primary icon={Fingerprint} title={t('enterMyAlife')} hint={t('churchApplicationSignInHint')} disabled={busy || !capabilities.passkeysEnabled} onClick={() => { setStatus(''); setMode('signIn') }} />
           <IntentButton icon={UserPlus} title={t('churchApplicationTitle')} hint={t('churchApplicationDescription')} disabled={busy} onClick={() => { setStatus(''); setMode('firstTime') }} />
-          <IntentButton icon={Fingerprint} title={t('enterMyAlife')} hint={t('churchApplicationSignInHint')} disabled={busy || !capabilities.passkeysEnabled} onClick={() => { setStatus(''); setMode('signIn') }} />
-          <IntentButton icon={MessageSquareText} title={t('visitorMessage')} hint={t('visitorMessageHint')} onClick={() => { formStarted.current = Date.now(); setMode('visitor') }} />
-          <IntentButton icon={Church} title={t('learnAboutChurch')} hint={t('learnAboutChurchHint')} onClick={() => navigate('/')} />
+        </div>
+        <div className="mt-6 border-t border-[#2f4b42]/10 pt-5">
+          <p className="text-xs font-bold text-[#718079]">{auth.language === 'zh' ? '需要其他帮助？' : 'Need another way in?'}</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <button type="button" className="group flex min-h-20 items-center gap-3 rounded-2xl border border-[#2f4b42]/10 bg-white/68 p-3 text-left transition hover:border-[#176b5a]/25 hover:bg-[#edf5f1]" onClick={() => { formStarted.current = Date.now(); setMode('visitor') }}>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e3f0eb] text-[#176b5a]"><MessageSquareText className="h-5 w-5" aria-hidden="true" /></span>
+              <span><strong className="block text-sm text-[#18332d]">{t('visitorMessage')}</strong><span className="mt-1 block text-xs leading-5 text-[#66766f]">{t('visitorMessageHint')}</span></span>
+            </button>
+            <button type="button" className="group flex min-h-20 items-center gap-3 rounded-2xl border border-[#2f4b42]/10 bg-white/68 p-3 text-left transition hover:border-[#176b5a]/25 hover:bg-[#edf5f1]" onClick={() => navigate('/')}>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f8eee6] text-[#9b6447]"><Church className="h-5 w-5" aria-hidden="true" /></span>
+              <span><strong className="block text-sm text-[#18332d]">{t('learnAboutChurch')}</strong><span className="mt-1 block text-xs leading-5 text-[#66766f]">{t('learnAboutChurchHint')}</span></span>
+            </button>
+          </div>
         </div>
         {!capabilities.passkeysEnabled ? <p className="mt-3 text-sm text-[#915040]">{t('passkeyUnavailable')}</p> : null}
-        <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-[#176b5a]">
-          <button type="button" onClick={() => setMode('firstTime')}>{t('firstTimeHere')}</button>
+        <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-[#176b5a]">
+          {import.meta.env.DEV ? <button type="button" className="inline-flex items-center gap-1.5 text-[#9b6447]" onClick={() => navigate('/internal/alpha-login')}><FlaskConical className="h-4 w-4" aria-hidden="true" />{auth.language === 'zh' ? '本地测试登录' : 'Local test login'}</button> : null}
           <button type="button" onClick={() => { formStarted.current = Date.now(); setMode('recovery') }}>{t('lostPasskey')}</button>
           {capabilities.lineLegacyEnabled ? <button type="button" disabled={busy} onClick={() => void startLine()}>{t('lineLegacyAccess')}</button> : null}
         </div>
@@ -456,17 +469,23 @@ const OnboardingView = () => {
   })()
 
   return (
-    <section className="mx-auto grid min-h-[calc(100dvh-8rem)] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-[#2f4b42]/10 bg-[#fffdf8]/95 shadow-[0_28px_80px_rgba(31,56,48,0.13)] lg:grid-cols-[0.86fr_1.14fr]">
-      <aside className="relative hidden overflow-hidden bg-[#123e35] p-10 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#e37b63]/20 blur-3xl" />
-        <div className="relative flex items-center gap-3"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white"><img src={logo} alt={t('appName')} className="h-10 w-auto" /></span><div><p className="text-xl font-bold">ALIFE</p><p className="text-sm text-white/60">{t('secureMemberAccess')}</p></div></div>
-        <div className="relative">
-          <ShieldCheck className="h-10 w-10 text-[#8dd0bd]" aria-hidden="true" />
-          <p className="mt-5 text-3xl font-bold leading-tight tracking-[-0.04em]">{t('loginPageIntro')}</p>
-          <p className="mt-4 text-sm leading-6 text-white/65">{t('identitySecurityFooter')}</p>
+    <section className="mx-auto grid min-h-[calc(100dvh-8rem)] w-full max-w-7xl overflow-hidden rounded-[2rem] border border-[#2f4b42]/10 bg-[#fffdf8]/96 shadow-[0_30px_90px_rgba(31,56,48,0.14)] lg:grid-cols-[1.04fr_0.96fr]">
+      <aside className="relative hidden overflow-hidden bg-[linear-gradient(145deg,#123f36_0%,#0d342d_62%,#092b25_100%)] p-10 text-white lg:flex lg:flex-col lg:justify-between xl:p-12">
+        <div className="absolute -right-24 -top-28 h-80 w-80 rounded-full border border-white/10 bg-[#6da994]/12" />
+        <div className="absolute -bottom-28 -left-24 h-72 w-72 rounded-full border border-[#f08b72]/20 bg-[#e37b63]/10" />
+        <div className="relative flex items-center gap-3"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff9ef] shadow-[0_12px_30px_rgba(0,0,0,0.2)]"><img src={logo} alt={t('appName')} className="h-10 w-auto" /></span><div><p className="text-xl font-bold">ALIFE</p><p className="text-sm text-[#a9c8bd]">{t('secureMemberAccess')}</p></div></div>
+        <div className="relative max-w-lg py-12">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.07] px-3 py-1.5 text-xs font-bold text-[#b9d8cd]"><ShieldCheck className="h-4 w-4" aria-hidden="true" />{auth.language === 'zh' ? '社区从这里继续' : 'Community continues here'}</span>
+          <p className="mt-6 text-4xl font-black leading-[1.12] tracking-[-0.045em] xl:text-5xl">{t('loginPageIntro')}</p>
+          <p className="mt-5 max-w-md text-sm leading-7 text-[#b9d2c9]">{t('identitySecurityFooter')}</p>
+          <div className="mt-9 grid grid-cols-3 gap-3 border-t border-white/10 pt-6 text-xs font-bold text-[#cce0d8]">
+            <span>{auth.language === 'zh' ? '安全登录' : 'Secure access'}</span>
+            <span>{auth.language === 'zh' ? '资料由你掌握' : 'Your data, your control'}</span>
+            <span>{auth.language === 'zh' ? '中英文支持' : 'English and Chinese'}</span>
+          </div>
         </div>
       </aside>
-      <main className="flex items-start px-5 py-8 sm:px-10 lg:items-center lg:px-14 lg:py-12">
+      <main className="flex items-start bg-[radial-gradient(circle_at_92%_0%,rgba(169,216,199,0.2),transparent_22rem)] px-5 py-8 sm:px-10 lg:items-center lg:px-14 lg:py-12">
         <div className="mx-auto w-full max-w-xl">
           <div className="mb-7 flex items-center gap-3 lg:hidden"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e3f0eb]"><img src={logo} alt={t('appName')} className="h-9 w-auto" /></span><span className="text-xl font-bold text-[#18332d]">ALIFE</span></div>
           {content}
@@ -488,11 +507,11 @@ const OnboardingView = () => {
   )
 }
 
-const IntentButton = ({ icon: Icon, title, hint, disabled, onClick }: { icon: typeof Fingerprint; title: string; hint: string; disabled?: boolean; onClick: () => void }) => (
-  <button className="group flex min-h-[5.25rem] w-full items-center gap-4 px-4 py-3 text-left transition hover:bg-[#e3f0eb]/55 disabled:cursor-not-allowed disabled:opacity-45" type="button" disabled={disabled} onClick={onClick}>
-    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-[#176b5a]"><Icon className="h-5 w-5" aria-hidden="true" /></span>
-    <span className="min-w-0 flex-1"><strong className="block text-sm text-[#18332d]">{title}</strong><span className="mt-1 block text-xs leading-5 text-[#66766f]">{hint}</span></span>
-    <ArrowRight className="h-4 w-4 shrink-0 text-[#92a099] transition group-hover:translate-x-0.5" aria-hidden="true" />
+const IntentButton = ({ icon: Icon, title, hint, primary = false, disabled, onClick }: { icon: typeof Fingerprint; title: string; hint: string; primary?: boolean; disabled?: boolean; onClick: () => void }) => (
+  <button className={`group flex min-h-[5.5rem] w-full items-center gap-4 rounded-2xl border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-45 ${primary ? 'border-[#176b5a] bg-[#176b5a] text-white shadow-[0_16px_34px_rgba(23,107,90,0.2)] hover:bg-[#0d4f43]' : 'border-[#2f4b42]/12 bg-white/76 hover:border-[#176b5a]/28 hover:bg-[#edf5f1]'}`} type="button" disabled={disabled} onClick={onClick}>
+    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${primary ? 'bg-white/14 text-white' : 'bg-[#e3f0eb] text-[#176b5a]'}`}><Icon className="h-5 w-5" aria-hidden="true" /></span>
+    <span className="min-w-0 flex-1"><strong className={`block text-sm ${primary ? 'text-white' : 'text-[#18332d]'}`}>{title}</strong><span className={`mt-1 block text-xs leading-5 ${primary ? 'text-white/72' : 'text-[#66766f]'}`}>{hint}</span></span>
+    <ArrowRight className={`h-4 w-4 shrink-0 transition group-hover:translate-x-0.5 ${primary ? 'text-white/75' : 'text-[#92a099]'}`} aria-hidden="true" />
   </button>
 )
 

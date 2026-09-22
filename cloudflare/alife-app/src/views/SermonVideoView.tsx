@@ -219,7 +219,7 @@ const SermonVideoView = () => {
 
   if (!embedUrl && sermonLoading && !sermon) {
     return (
-      <AppPageShell title={t('sermons')} context={sermonContext}>
+      <AppPageShell title={t('sermons')} context={sermonContext} backLink={{ to: '/sermons', label: `${t('back')} ${t('sermons')}` }}>
         <AppSectionCard dense>
           <p className="text-sm text-slate-600">{t('loadingPage')}</p>
         </AppSectionCard>
@@ -229,7 +229,7 @@ const SermonVideoView = () => {
 
   if (!embedUrl && sermonError && !sermon) {
     return (
-      <AppPageShell title={t('sermons')} context={sermonContext}>
+      <AppPageShell title={t('sermons')} context={sermonContext} backLink={{ to: '/sermons', label: `${t('back')} ${t('sermons')}` }}>
         <AppSectionCard dense>
           <p className="text-sm text-rose-700">{t('sermonsLoadFailed')}</p>
         </AppSectionCard>
