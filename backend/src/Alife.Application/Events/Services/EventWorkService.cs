@@ -3,12 +3,14 @@ using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Alife.Application.Events.Services;
 
 public sealed record EventWorkLink(string Key, string Stage, LocalizedTextDto Title, string Url, bool CanEdit);
 public sealed record EventWorkOccurrence(Guid Id, DateTime StartUtc, DateTime EndUtc, string Stage, string Status);
-public sealed record EventWorkSummary(Guid EventId, Guid GroupId, LocalizedTextDto Title, string Stage, bool CanManage, string[] Roles);
+public sealed record EventWorkSummary(Guid EventId, Guid GroupId, LocalizedTextDto Title, DateTime StartUtc, DateTime EndUtc,
+    string? PosterImageUrl, string Stage, bool CanManage, string[] Roles);
 public sealed record EventWorkPage(EventWorkSummary Event, IReadOnlyList<EventWorkLink> Links, IReadOnlyList<EventWorkOccurrence> Occurrences,
     int OccurrencePage, bool HasMoreOccurrences, IReadOnlyList<EventDuty> Duties, EventPlanSnapshotDto? Plan, IReadOnlyList<EventReportRevisionDto> Reports,
     RamEventPlanContextDto? PlanContext = null, ReadinessDto? PreparationProgress = null);
@@ -16,6 +18,23 @@ public sealed record EventWorkList(IReadOnlyList<EventWorkSummary> Items, int Pa
 
 public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionService duties)
 {
+    private static string? PosterImageUrl(Alife.Domain.Entities.GroupEvent item)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(item.EventDataJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty("posterImageUrl", out var value) ||
+                value.ValueKind != JsonValueKind.String) return null;
+            var url = value.GetString()?.Trim();
+            return string.IsNullOrWhiteSpace(url) ? null : url;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private static string Stage(DateTime start, DateTime end, bool published, bool recurring)
         => !published ? "preparation" : start <= DateTime.UtcNow && end > DateTime.UtcNow ? "execution" : end <= DateTime.UtcNow && !recurring ? "followup" : "registration";
     private async Task<string> StageAsync(Alife.Domain.Entities.GroupEvent e, CancellationToken ct)
@@ -37,7 +56,8 @@ public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionServ
         enrollment = enrollment || await db.EventRegistrationApplications.AnyAsync(x => x.EventId == id && (!x.IsInvitation || x.InvitedUtc != null) &&
             (x.OrganiserMemberId == actor || x.Participants.Any(p => p.MemberId == actor || p.IsChild && p.GuardianMemberId == actor)), ct);
         if (!reader && !roster && !enrollment && myDuties.Count == 0) return AppResult<EventWorkPage>.Forbidden("No current Event responsibility. / 当前没有此活动的工作权限。");
-        var summary = new EventWorkSummary(id, e.GroupId, new(e.TitleEn, e.TitleZh), await StageAsync(e,ct), owner, roles);
+        var summary = new EventWorkSummary(id, e.GroupId, new(e.TitleEn, e.TitleZh), e.StartDate, e.EndDate,
+            PosterImageUrl(e), await StageAsync(e,ct), owner, roles);
         var published = e.PublicationStatus is EventPublicationStatus.Published or EventPublicationStatus.LegacyImplicit;
         var links = new List<EventWorkLink>();
         void Add(string key, string stage, string en, string zh, string url, bool edit) => links.Add(new(key, stage, new(en, zh), url, edit));
@@ -109,7 +129,8 @@ public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionServ
         if (!string.IsNullOrWhiteSpace(search)) query = query.Where(x => x.TitleEn.Contains(search) || x.TitleZh.Contains(search));
         var rows = await query.OrderByDescending(x => x.UpdatedUtc).ThenBy(x => x.Id).Skip((page - 1) * 20).Take(21).ToArrayAsync(ct);
         var items = new List<EventWorkSummary>();
-        foreach (var e in rows.Take(20)) items.Add(new(e.Id, e.GroupId, new(e.TitleEn, e.TitleZh), await StageAsync(e,ct), await EventWorkAccess.OwnerAsync(db, e, actor, ct), await EventWorkAccess.RolesAsync(db, e, actor, ct)));
+        foreach (var e in rows.Take(20)) items.Add(new(e.Id, e.GroupId, new(e.TitleEn, e.TitleZh), e.StartDate, e.EndDate,
+            PosterImageUrl(e), await StageAsync(e,ct), await EventWorkAccess.OwnerAsync(db, e, actor, ct), await EventWorkAccess.RolesAsync(db, e, actor, ct)));
         return new(items, page, rows.Length > 20);
     }
 }

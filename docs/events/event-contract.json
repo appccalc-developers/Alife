@@ -5402,7 +5402,7 @@
       "method": "GET",
       "path": "/api/events/work",
       "request": "page, search",
-      "response": "filtered persistent Event work summaries",
+      "response": "filtered persistent Event work summaries with bilingual title, date range, optional adopted poster URL, stage and current-actor responsibility markers",
       "auth": "current actor",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false

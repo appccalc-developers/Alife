@@ -18,6 +18,10 @@ The companion [collaboration implementation (#784)](https://github.com/appccalc-
 
 ## Experience
 
+**Saved-preparation refinement, 2026-09-22:** the user selected a bright architectural-magazine direction and authorized local implementation. The [editorial saved workspace](EVENT-PREPARATION-EDITORIAL.md) supersedes Prism Glass for this bounded overview: warm paper, generous typography, an asymmetric brief/approval spread and restrained domain-coloured selections. Creation, specialist interiors and other areas retain their existing materials. Four-stage navigation, six-level interaction depth and all business boundaries still apply.
+
+**Personal Event work list, 2026-09-22:** the actor-filtered list uses image-led Event cards rather than text-only work rows. An adopted Event poster is the preferred artwork. When none is available, the card renders an explicitly decorative stage/date composition rather than inventing a poster or Event fact. Date, current responsibility and the existing workspace action remain readable outside the artwork. This list pattern is a bounded warm-paper surface, not a rollout of Prism Glass to navigation or all Event cards.
+
 Event Workspace should feel colourful, dimensional, responsive, approachable and information-rich. Colour, shape, spatial grouping, icons, depth and purposeful motion should help people see the Event's condition and decide what to do next.
 
 Use Material 3 Expressive as the principal reference for colour, shape, containment and feedback, and Fluent 2 for depth and coherent transitions. Apply those principles through existing Alife components and styling. This is not a requirement to install either component framework.
@@ -79,6 +83,8 @@ All meaningful graphics and icon-only controls have bilingual accessible names. 
 Use stable grouping. Give important conditions more visual emphasis without unexpectedly rearranging controls while the user is working. A planning region must communicate something useful before opening it. Tables and cards remain valid when they are the clearest representation of the content.
 
 Desktop should expose several useful signals at once. Mobile transforms the same model into compact regions, disclosures and focused work surfaces. Preserve domain identity and state meanings; do not shrink a desktop diagram into unreadable controls. Retain single-level tabs where appropriate and existing list filtering, sorting and pagination.
+
+For the personal Event work list, use one column on narrow screens, two at medium widths and three only when the content region can support the card title, date and action without crowding. The image remains 16:9; long titles wrap to two lines, responsibility text stays outside the image, and the action keeps a usable touch target. Search and result count stack on narrow screens.
 
 ## Six depth levels and motion
 

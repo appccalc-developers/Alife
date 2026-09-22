@@ -7,7 +7,7 @@ import { setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 import type { DetailsFocusRequest } from '../components/events/creation/DetailsWorkspace'
 import EventDetailsAssistant from '../components/events/creation/EventDetailsAssistant'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
@@ -158,8 +158,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
   const previewStatus = <div aria-live="polite" className="rounded-xl border border-[#2f4b42]/15 bg-white p-3 text-sm">{currentPreview ? (zh ? '已根据当前安排更新管理功能。' : 'Tools updated for the current arrangements.') : previewState === 'error' ? <><p role="alert">{previewError}</p><AppActionButton className="mt-2" onClick={() => setPreviewAttempt(value => value + 1)}>{zh ? '重新计算' : 'Retry'}</AppActionButton></> : (zh ? '正在根据活动安排更新功能，请稍候……' : 'Updating tools from event arrangements…')}</div>
 
 
-  return <AppPageShell title={zh ? '活动工作区 · 建立活动' : 'Event Workspace · Create event'} context={zh ? '小组生活 / 活动' : 'Group Life / Events'}>
-    <Link className="text-sm font-semibold text-[#176b5a]" to={`/groups/${encodeURIComponent(groupId)}?section=events`}>{zh ? '← 返回活动' : '← Back to events'}</Link>
+  return <AppPageShell title={zh ? '活动工作区 · 建立活动' : 'Event Workspace · Create event'} context={zh ? '小组生活 / 活动' : 'Group Life / Events'} backLink={{ to: `/groups/${encodeURIComponent(groupId)}?section=events`, label: zh ? '返回活动' : 'Back to events' }}>
     <EventFlowRail current={step} zh={zh} disabled={busy || aiBusy || (step === 3 && !currentPreview)} onSelect={value => { if (value === 4 && step === 3) { void next(); return }; setError(''); setStep(value as Step) }} />
     {catalogue === 'loading' ? <p role="status">{zh ? '正在载入活动模板……' : 'Loading event templates…'}</p> : null}
     {catalogue === 'error' ? <AppEmptyState title={zh ? '活动模板无法载入' : 'Event templates unavailable'} description={catalogueError} actionLabel={zh ? '重试' : 'Retry'} onAction={() => setCatalogueAttempt(value => value + 1)} /> : null}

@@ -4,6 +4,8 @@
 
 ## Domain palette
 
+The [2026-09-22 saved editorial overview](EVENT-PREPARATION-EDITORIAL.md) uses opaque paper `#fffdf8`, ink `#18332d`, secondary text `#596a63`, separators `#d9dfd7` and a handover surface `#233e35` with `#fffdf8`/`#e2e9df` text. Domain light/text pairs below remain on symbols and selected entries; six depth levels and 3px keyboard focus remain. This scoped, user-selected material supersedes Prism Glass only for the saved overview, not the shared creation pilot.
+
 Retain stable identity across pages and states. Safeguarding uses **Magenta / Plum**, consistently; Violet belongs to People & Teams. Domains may share a colour family when a different icon, shape and label distinguish their function. Colour alone is not the complete identifier.
 
 | Domain / module | Family | Accent | Light surface | Text on light surface | Graphic cue |
@@ -27,6 +29,19 @@ Retain stable identity across pages and states. Safeguarding uses **Magenta / Pl
 The newly completed domain mappings are starting choices for the pilot. Availability remains governed by the capability catalogue; a palette row never enables a feature. Risk-domain amber does not replace the church's published RAM matrix colours or risk classification. Approval-domain green does not imply an approved decision.
 
 Prefer neutral/lightly tinted large surfaces, distinct identity headers or graphics, and stronger selection. Treat the original neutral/domain/status area ratios as a balancing aid, not a quota. Make visual richness apparent without saturating every surface.
+
+### Personal Event work card artwork
+
+The personal work list uses a real adopted poster when present. Its fallback artwork uses the existing lifecycle stage only as an identity cue; it does not imply approval, readiness or publication. Keep the card body on warm paper/white with `#18332D` ink, `#596A63` secondary text, a `#DCE5E0` boundary and a deep-green `#173F36` workspace action. Stage fallbacks use these gradient families:
+
+| Stage | Fallback artwork family | Light label surface / text |
+| --- | --- | --- |
+| `preparation` | indigo → violet | `#EEF2FF` / `#3730A3` |
+| `registration` | cyan → blue | `#EFF6FF` / `#1E40AF` |
+| `execution` | teal → emerald | `#ECFDF5` / `#065F46` |
+| `followup` | deep rose → rose | `#FFF1F2` / `#9F1239` |
+
+Poster images use `object-cover`, a useful bilingual alt description and an on-error return to the stage fallback. Decorative glow, date and briefcase marks are hidden from assistive technology. Hover may lift the card and scale a poster by at most 1.025; reduced motion removes both transforms. Keyboard focus remains a separate 3px blue ring.
 
 ## ALIFE Prism Glass material
 

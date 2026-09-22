@@ -819,7 +819,7 @@ const EventsPanel = ({ groupId, isChurch = false, events, copy, currentGroupRout
                       {activeTab === 'planning' ? <AppActionButton size="sm" variant="secondary" onClick={() => {
                         activeEntityService.setEvent(event.id)
                         navigate(`${detailPath}/workspace?flow=setup&stage=arrangements`)
-                      }}>{language === 'zh' ? '编辑 / RAM' : 'Edit / RAM'}</AppActionButton> : null}
+                      }}>{language === 'zh' ? '继续筹备' : 'Continue preparation'}</AppActionButton> : null}
                       {activeTab === 'upcoming' && lifecycleData.acceptsEnrollments && (lifecycleData.registrationDeadlineTime ?? 0) >= Date.now() ? <AppActionButton size="sm" variant="primary" onClick={() => {
                         activeEntityService.setEvent(event.id)
                         navigate(`${detailPath}/enroll`)

@@ -4,6 +4,8 @@
 
 ## Start with one part
 
+The user-authorized [2026-09-22 editorial refinement](EVENT-PREPARATION-EDITORIAL.md) is the current saved-preparation candidate and includes its four-stage entry rail. The older Prism screenshots below remain historical references for creation/details, not evidence of the current saved overview. The new slice reuses existing specialist and approval editors.
+
 Choose one bounded Event area, implement and inspect it, then refine before expanding to the rest of the workspace. The following are candidates, not authorization to build them all. The Event preparation overview is a useful first candidate because it can exercise domain colour, state graphics, depth and nonlinear selection together. The user selected the preparation overview and shared details/AI workspace on 2026-09-15. Other module interiors and the global stage rail remain outside this pilot.
 
 Use actual supported fields and authorized projections. Prototype fixtures must be clearly identified in development/review material and must not imply a delivered capability. Preserve current routes, drafts and business gates while changing presentation.
@@ -12,6 +14,7 @@ Use actual supported fields and authorized projections. Prototype fixtures must 
 
 | Area | What the visual design should communicate | Useful graphics | Key boundary |
 | --- | --- | --- | --- |
+| Personal Event work list | which Events need this actor's work, current stage, date, responsibility and direct workspace entry | adopted poster; otherwise stage/date artwork; responsibility icon | actor-filtered summaries only; artwork does not confer access or invent Event content |
 | Event preparation overview | current stage, incomplete areas, blockers, current responsibility and next action | domain regions, readiness segments, stage band, inspector relationship | four existing stages; nonlinear preparation; explicit approval/publication gates |
 | Event Package approval | source readiness, decision state, blockers, who decides and what the decision enables | checkpoint, source groups, blocker markers, decision history | readiness is not approval; approval does not publish or open registration |
 | People, roles and handoffs | requirements, assignments, acceptance, outstanding responses | role slots, people groups, confirmation markers | distinguish teams, roster assignments and `TEAM.WORK` tasks; do not expose unauthorized identities |
@@ -27,6 +30,12 @@ Plan B is not planned and has no reference page or rollout slot. Risk assessment
 Keep Event title, date/zone, occurrence scope and the four-stage rail compact. Let the main planning surface show real domain state before navigation. Selecting a region should reveal its details with a strong selected treatment and, where the work fits, an inspector. On narrow screens use a focused view/disclosure with a clear way back to the same context.
 
 Preparation areas have no imposed filling order. Submission readiness and approval/publication checkpoints remain apparent. A returned Package may direct work back to an affected domain; that is a real dependency, not a requirement to repeat every preparation screen.
+
+### Personal Event work list
+
+Lead with a 16:9 Event image and keep the decision data immediately below it: stage, date, bilingual title, current responsibility and one workspace action. Prefer the adopted Event poster. The fallback is a recognizable stage/date composition, never fabricated promotional content. Search, empty, loading, error and pagination states retain the same access boundary and do not require an unrestricted Event fetch.
+
+The implemented 2026-09-22 slice was inspected in the authenticated local desktop app at approximately 1380px in Chinese and English with three owner-visible Events. The three-column layout, fallback artwork, stage/date metadata, titles, owner labels and existing workspace links were visible together. The running backend had not yet reloaded the added date/poster summary fields, so the browser correctly showed the unknown-date fallback; adopted-poster rendering is covered by the code/fixture path but was not visually accepted in that live session. Production build and source-level responsive breakpoints passed; a 320px browser capture remains pending and this record is **implemented and desktop-inspected, not user-accepted**.
 
 ### Approval
 
