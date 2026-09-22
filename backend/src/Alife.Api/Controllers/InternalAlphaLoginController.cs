@@ -34,13 +34,18 @@ public sealed class InternalAlphaLoginController(
             return NotFound();
         }
 
-        var client = IdentityHttp.GetClientRateLimitKey(Request, configuration);
-        var ipDecision = await rateLimiter.TryConsumeAsync(
-            "alpha-login-ip-15m", client, 10, TimeSpan.FromMinutes(15), cancellationToken);
-        if (!ipDecision.Allowed) return this.RateLimited(ipDecision);
-        var accountDecision = await rateLimiter.TryConsumeAsync(
-            "alpha-login-account-15m", request.AccountId, 5, TimeSpan.FromMinutes(15), cancellationToken);
-        if (!accountDecision.Allowed) return this.RateLimited(accountDecision);
+        var bypassLocalRateLimit = !identityConfiguration.IsProduction &&
+                                   configuration.GetValue("AlphaLogin:BypassLocalRateLimit", false);
+        if (!bypassLocalRateLimit)
+        {
+            var client = IdentityHttp.GetClientRateLimitKey(Request, configuration);
+            var ipDecision = await rateLimiter.TryConsumeAsync(
+                "alpha-login-ip-15m", client, 10, TimeSpan.FromMinutes(15), cancellationToken);
+            if (!ipDecision.Allowed) return this.RateLimited(ipDecision);
+            var accountDecision = await rateLimiter.TryConsumeAsync(
+                "alpha-login-account-15m", request.AccountId, 5, TimeSpan.FromMinutes(15), cancellationToken);
+            if (!accountDecision.Allowed) return this.RateLimited(accountDecision);
+        }
 
         var result = await identityAccess.AlphaLoginAsync(
             request.AccountId,
