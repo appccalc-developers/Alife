@@ -15,6 +15,8 @@ export type Env = {
   API_PROXY_TARGET?: string
   /** Optional images API origin override for local development. */
   IMAGES_API_PROXY_TARGET?: string
+  /** Frontend build output exposed through the Workers Static Assets binding. */
+  ASSETS?: Fetcher
   /** Global second-level cache for public API responses and public page metadata. */
   API_CACHE?: KVNamespace
   /** Comma-separated frontend origins allowed for credentialed CORS. */
@@ -56,7 +58,36 @@ export { EventPlanningSession, EnrollmentSession, ReviewSession }
 
 const app = new Router()
 
+const serveStaticAssetWithoutSpaFallback = async (request: Request, env: Env) => {
+  if (!env.ASSETS) {
+    return new Response('Static asset service unavailable.', {
+      status: 503,
+      headers: {
+        'cache-control': 'no-store',
+        'content-type': 'text/plain; charset=utf-8',
+        'x-content-type-options': 'nosniff',
+      },
+    })
+  }
+
+  const response = await env.ASSETS.fetch(request)
+  const contentType = response.headers.get('content-type') ?? ''
+  if (response.status !== 200 || !contentType.toLowerCase().startsWith('text/html')) {
+    return response
+  }
+
+  return new Response('Static asset not found.', {
+    status: 404,
+    headers: {
+      'cache-control': 'no-store',
+      'content-type': 'text/plain; charset=utf-8',
+      'x-content-type-options': 'nosniff',
+    },
+  })
+}
+
 // Outermost priority routing (bypasses middleware entirely)
+app.all('/assets/*', async (req, env) => serveStaticAssetWithoutSpaFallback(req, env))
 app.all('/images', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.all('/images/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.all('/proxy/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
