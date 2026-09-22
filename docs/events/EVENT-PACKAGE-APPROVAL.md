@@ -54,11 +54,17 @@ Formal preparation explains the matching Enhanced/Standard/Light policy conditio
 
 ### Canonical generation and submission
 
+Only the current accountable Event owner with approved owning-group membership may generate or submit the formal Package. Accepted `event.lead`, ordinary team membership, group leadership, platform approval permission and temporary approval delegation do not themselves grant submission authority. The capability projection and command use the same current owner/membership check. This owner-only submission rule was explicitly confirmed on 2026-09-22; historical submissions/decisions remain unchanged. Standard/enhanced independent approval and onsite execution roles keep their existing boundaries.
+
+Lifecycle guidance for missing/expired Packages and generation of occurrence reviews identifies `event.accountableOwner`, not the onsite lead, as the responsible role. Generating/submitting for review is never described as the owner granting approval.
+
 The server validates `If-Match` for the current Event Plan, reads only system-defined module contribution contracts, orders source references deterministically, canonicalises JSON, and calculates `sourceVectorHash` and `contentHash`. The Package schema, policy, Plan, source vector, scope, and content all participate in the hash contract. Before commit, every required source version is revalidated. A changed source returns `event.package.sourceChanged`; a retry with the same idempotency key and request hash returns the same result, while key reuse with different input is rejected.
 
 A draft may be regenerated. Submission freezes the Package. Returned or rejected content is never edited in place; corrected source data produces a new Package version. Historical templates, policies, source summaries, decisions, and hashes are not rewritten.
 
 ### Package lifecycle, decisions, and conditions
+
+Withdrawal of a draft/submitted Package is distinct from revoking an approval. It requires current authorized Package access and being its generator, its submitter, or the current accountable Event owner. Group leadership alone does not grant withdrawal. This clarification preserves the existing implementation and was confirmed on 2026-09-22; `canWithdraw` uses the same scope/actor boundary and version checks still apply.
 
 Package lifecycle values are `draft`, `submitted`, `returnedForAmendment`, `rejected`, `approvedWithConditions`, `approved`, `withdrawn`, and `superseded`. `Under Review` is the user-facing label for `submitted` unless a later contract introduces a real review-claim transition. History queries are server-paged and can filter by status and exact Event/Occurrence scope without changing which Package is current.
 

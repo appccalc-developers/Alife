@@ -7,7 +7,7 @@ import type { MissingTranslatableField } from '../../utils/bilingualValidation'
 
 type Props = {
   fields: MissingTranslatableField[]
-  onTranslated: (fields: TranslatedTextField[]) => void
+  onTranslated: (fields: TranslatedTextField[]) => void | boolean
   groupId?: string
   scope?: 'group' | 'church'
   disabled?: boolean
@@ -33,7 +33,7 @@ const AiLanguageAutofill = ({
   const translating = status === 'translating'
 
   const translate = async () => {
-    if (fields.length === 0 || translating) return
+    if (disabled || fields.length === 0 || translating) return
 
     setStatus('translating')
     setMessage(isZh ? 'Gemini 正在补全缺少的语言…' : 'Gemini is filling the missing language…')
@@ -43,7 +43,11 @@ const AiLanguageAutofill = ({
         groupId: groupId || undefined,
         fields,
       })
-      onTranslated(translated)
+      if (onTranslated(translated) === false) {
+        setStatus('error')
+        setMessage(isZh ? '译文未填入：内容或编辑权限已变化，或译文不符合字段要求。请检查后重试。' : 'Translation was not applied: content or edit access changed, or the result did not meet field requirements. Review and retry.')
+        return
+      }
       setStatus('translated')
       setMessage(isZh ? '另一种语言已作为 AI 草稿补全，请人工检查。' : 'The other language was filled as an AI draft. Please review it.')
     } catch (reason) {

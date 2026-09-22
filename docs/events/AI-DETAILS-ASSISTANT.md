@@ -20,6 +20,12 @@ Sources and revision metadata supplied by the client are presentation claims, ne
 
 ## Details workspace presentation
 
+### Reused field translation entry
+
+Event title, description and location, plus the public registration purpose, eligibility, participation rules, privacy notice and cancellation terms, expose the existing `AiLanguageAutofill` button. They reuse `/api/ai/translate-text-fields` with the owning group and a single allowlisted `content` field; no new provider, API or event authority is introduced. Only a missing language is filled. The secondary-language disclosure opens for review; the user must still explicitly save. A changed source, manually filled target, unmounted/read-only field, changed account/group, invalid or over-length result is not adopted. Errors retain text and allow retry.
+
+This is an explicit field allowlist, not automatic translation of all Event data: payment instructions, participant materials, approval evidence, RAM and private reports are not wired to this button. Read-only fields expose no action. Translation service access is not permission to mutate an Event; existing save/freeze and server authorization remain authoritative.
+
 Creation and saved preparation share the Event details pilot. On desktop (viewport at least 1024px and workspace content at least 880px), the form and assistant appear side by side at approximately 60:40. Narrower surfaces use one accessible Details form / AI assistant tablist, initially showing the form. Desktop opens the assistant initially and offers collapse/show controls. Panels and conversation stay mounted across collapse, module changes and UI-language changes; these presentation actions do not save or start a new AI session. Hidden assistants stop voice recognition; leaving the entire flow closes a started session.
 
 The form has three visible sections: Name and description, Time and place, Visibility and registration. Each bilingual field shows the UI language first, with its other language in a keyboard-accessible disclosure and an Added/Missing marker. Save validation remains backward-compatible: existing single-language acceptance is unchanged, while field completion still requires both languages. Time zone is always visible; its editor expands on demand beside the local start/end controls and series interval. Current saved registration rules retain capacity/deadline authority.

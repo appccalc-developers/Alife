@@ -224,7 +224,7 @@ public sealed partial class EventPackageService(
         var groupEvent = await db.GroupEvents.FirstOrDefaultAsync(x => x.Id == eventId, ct);
         if (groupEvent is null) return AppResult<EventPackageDto>.NotFound("Event not found.");
         if (!await EventCompositionPersistence.CanManageEventAsync(db, authorization, groupEvent, memberId, ct))
-            return AppResult<EventPackageDto>.Forbidden("The accountable owner or owning-group leadership is required to generate an Event Package.");
+            return AppResult<EventPackageDto>.Forbidden("The current accountable owner is required to generate an Event Package.");
 
         var normalizedKey = idempotencyKey!.Trim();
         var requestHash = EventPackageCanonicalizer.HashCanonical(new { eventId, memberId, request });
@@ -331,7 +331,7 @@ public sealed partial class EventPackageService(
         var groupEvent = await db.GroupEvents.FirstOrDefaultAsync(x => x.Id == eventId, ct);
         if (groupEvent is null) return AppResult<EventPackageDto>.NotFound("Event not found.");
         if (!await CanSubmitAsync(groupEvent, memberId, ct))
-            return AppResult<EventPackageDto>.Forbidden("The accountable owner, accepted Event Lead, or owning-group leadership is required to submit this Package.");
+            return AppResult<EventPackageDto>.Forbidden("Only the current accountable owner may submit this Package.");
         if (!Matches(ifMatch, ETag(package)))
             return AppResult<EventPackageDto>.PreconditionFailed("The Event Package changed; reload before submitting.");
         if (package.Status != EventPackageStatus.Draft)
@@ -1876,13 +1876,13 @@ public sealed partial class EventPackageService(
         var (message, role, action) = code switch
         {
             var value when value.EndsWith(".packageMissing", StringComparison.Ordinal) =>
-                (new LocalizedTextDto("Generate and approve a current Event Package.", "请生成并批准当前活动方案审批包。"), "event.lead", "event.package.generate"),
+                (new LocalizedTextDto("The accountable owner must generate and submit a current Event Package for approval.", "请由活动总负责人生成当前审批包并提交正式审批。"), "event.accountableOwner", "event.package.generate"),
             var value when value.EndsWith(".packageNotApproved", StringComparison.Ordinal) ||
                 value.EndsWith(".approvalDecisionMissing", StringComparison.Ordinal) ||
                 value.EndsWith(".approvalQuorumMissing", StringComparison.Ordinal) =>
                 (new LocalizedTextDto("The current Package still needs its required approval decision.", "当前审批包仍缺少必要的批准决定。"), "package.approver", "event.package.decide"),
             var value when value.EndsWith(".approvalExpired", StringComparison.Ordinal) =>
-                (new LocalizedTextDto("The Package approval has expired; generate and submit a current version.", "审批包批准已过期；请生成并提交当前版本。"), "event.lead", "event.package.generate"),
+                (new LocalizedTextDto("The Package approval has expired; the accountable owner must generate and submit a current version.", "审批包批准已过期；请由活动总负责人生成并提交当前版本。"), "event.accountableOwner", "event.package.generate"),
             var value when value.EndsWith(".conditionOpen", StringComparison.Ordinal) =>
                 (new LocalizedTextDto("A condition for this gate still needs evidence and verification.", "此门槛仍有条件需要提交证据并核验。"), "condition.owner", "event.package.condition.satisfy"),
             var value when value.EndsWith(".conditionExpired", StringComparison.Ordinal) =>
@@ -1890,7 +1890,7 @@ public sealed partial class EventPackageService(
             var value when value.EndsWith(".readinessBlocked", StringComparison.Ordinal) =>
                 (new LocalizedTextDto("One or more authoritative module readiness requirements are blocked.", "一个或多个权威模块的就绪要求仍受阻。"), "event.team", "event.readiness.review"),
             var value when value.EndsWith(".occurrenceReviewRequired", StringComparison.Ordinal) =>
-                (new LocalizedTextDto("One occurrence has a Package-relevant exception and needs a scoped review before execution.", "某个场次存在影响审批包的例外，执行前需要完成该场次的范围化复审。"), "event.lead", "event.package.generateOccurrenceReview"),
+                (new LocalizedTextDto("The accountable owner must prepare a scoped review for an occurrence exception before execution.", "某个场次存在影响审批包的例外，请由活动总负责人在执行前准备该场次的范围化复审。"), "event.accountableOwner", "event.package.generateOccurrenceReview"),
             var value when value.EndsWith(".capabilityUnavailable", StringComparison.Ordinal) =>
                 (new LocalizedTextDto("Payment, deposit, and fee acceptance are not implemented and remain unavailable.", "付款、押金和收费确认尚未实现，当前不可用。"), "system.admin", "event.payment.unavailable"),
             _ => (new LocalizedTextDto("This lifecycle gate is blocked; refresh the Package evidence and review the reason code.",
@@ -2072,11 +2072,8 @@ public sealed partial class EventPackageService(
         return groups.Count == 0 ? slots : new { slots, groups };
     }
 
-    private async Task<bool> CanSubmitAsync(GroupEvent groupEvent, Guid memberId, CancellationToken ct)
-        => await EventCompositionPersistence.CanManageEventAsync(db, authorization, groupEvent, memberId, ct) ||
-           await db.EventRoleAssignments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id &&
-               x.MemberId == memberId && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null &&
-               x.RoleRequirementKey.EndsWith(":event.lead"), ct);
+    private Task<bool> CanSubmitAsync(GroupEvent groupEvent, Guid memberId, CancellationToken ct)
+        => EventWorkAccess.OwnerAsync(db, groupEvent, memberId, ct);
 
     private async Task<DecisionAuthority> ResolveDecisionAuthorityAsync(
         GroupEvent groupEvent, EventPackage package, Guid memberId, CancellationToken ct)

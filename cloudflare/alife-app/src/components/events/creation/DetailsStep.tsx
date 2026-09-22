@@ -1,4 +1,5 @@
-import { useId, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useId, useRef, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import EventTextTranslation from '../EventTextTranslation'
 import { CalendarDays, ChevronDown, Globe2, Languages, NotebookPen } from 'lucide-react'
 import type { Bilingual, DetailField } from '../../../../../shared/eventDetails'
 import type { EventActivityType, EventArchetype } from '../../../types/eventComposition'
@@ -10,22 +11,24 @@ function DetailGroup({ field, label, children }: { field: string; label: string;
   const { updatedFields } = useDetailsWorkspace()
   return <fieldset tabIndex={-1} data-detail-field={field} data-ai-updated={updatedFields.includes(field)} className="event-detail-field"><legend>{label}</legend>{children}</fieldset>
 }
-export function DetailsBilingualField({ field, label, value, onChange, zh, multiline = false, maxLength }: {
-  field: string; label: string; value: Bilingual; onChange: (value: Bilingual) => void; zh: boolean; multiline?: boolean; maxLength?: number
+export function DetailsBilingualField({ field, label, value, onChange, zh, multiline = false, maxLength, translationGroupId }: {
+  field: string; label: string; value: Bilingual; onChange: (value: Bilingual) => void; zh: boolean; multiline?: boolean; maxLength?: number; translationGroupId?: string
 }) {
   const { readOnly } = useDetailsWorkspace(), id = useId()
+  const translation = useRef<HTMLDetailsElement>(null)
   const primary = zh ? 'zh' : 'en', secondary = zh ? 'en' : 'zh'
   const input = (locale: 'en' | 'zh') => <label className="event-detail-language" htmlFor={`${id}-${locale}`}><span id={`${id}-${locale}-label`}>{locale === 'zh' ? '中文' : 'English'}</span>{multiline
     ? <textarea id={`${id}-${locale}`} aria-labelledby={`${id}-${locale}-label`} data-locale={locale} maxLength={maxLength} disabled={readOnly} rows={3} className={`${creationInput} py-2`} value={value[locale]} onChange={event => onChange({ ...value, [locale]: event.target.value })} />
     : <input id={`${id}-${locale}`} aria-labelledby={`${id}-${locale}-label`} data-locale={locale} maxLength={maxLength} disabled={readOnly} className={creationInput} value={value[locale]} onChange={event => onChange({ ...value, [locale]: event.target.value })} />}</label>
   return <DetailGroup field={field} label={label}>
     {input(primary)}
-    <details className="event-detail-translation"><summary><Languages size={15} aria-hidden="true" /><span>{secondary === 'zh' ? '中文' : 'English'}</span><span className={value[secondary].trim() ? '' : 'event-detail-pending'}>{value[secondary].trim() ? (zh ? '已填写' : 'Added') : (zh ? '待补充' : 'Missing')}</span><ChevronDown size={15} aria-hidden="true" /></summary>{input(secondary)}</details>
+    {translationGroupId && !readOnly ? <EventTextTranslation groupId={translationGroupId} value={value} textType={label} maxLength={maxLength} onChange={next => { onChange(next); if (translation.current) translation.current.open = true }} /> : null}
+    <details ref={translation} className="event-detail-translation"><summary><Languages size={15} aria-hidden="true" /><span>{secondary === 'zh' ? '中文' : 'English'}</span><span className={value[secondary].trim() ? '' : 'event-detail-pending'}>{value[secondary].trim() ? (zh ? '已填写' : 'Added') : (zh ? '待补充' : 'Missing')}</span><ChevronDown size={15} aria-hidden="true" /></summary>{input(secondary)}</details>
   </DetailGroup>
 }
 
-export default function DetailsStep({ draft, setDraft: updateDraft, zh, type, archetype, ai, saved = false, registrationRulesManaged = false }: {
-  draft: CreationDraft; setDraft: Dispatch<SetStateAction<CreationDraft>>; zh: boolean
+export default function DetailsStep({ draft, setDraft: updateDraft, zh, type, archetype, ai, saved = false, registrationRulesManaged = false, groupId }: {
+  draft: CreationDraft; setDraft: Dispatch<SetStateAction<CreationDraft>>; zh: boolean; groupId: string
   type: EventActivityType; archetype: EventArchetype; ai: ReactNode; saved?: boolean; registrationRulesManaged?: boolean
 }) {
   const { readOnly } = useDetailsWorkspace()
@@ -40,7 +43,7 @@ export default function DetailsStep({ draft, setDraft: updateDraft, zh, type, ar
   })
   const mark = (current: CreationDraft, field: DetailField) => ({ ...current.detailSources, [field]: 'human' as const })
   const textField = (key: 'startLocal' | 'endLocal' | 'maxCapacity' | 'timeZone' | 'intervalWeeks', label: string, inputType = 'text') => <DetailGroup field={key} label={label}><input aria-label={label} disabled={readOnly} className={creationInput} type={inputType} value={draft[key] ?? ''} min={inputType === 'number' ? 1 : undefined} max={key === 'intervalWeeks' ? 52 : undefined} step={inputType === 'number' ? 1 : undefined} onChange={event => setDraft(current => ({ ...current, [key]: event.target.value, detailSources: mark(current, key) }))} /></DetailGroup>
-  const bilingual = (key: 'title' | 'description' | 'locationName', label: string) => <DetailsBilingualField field={key} label={label} value={draft[key]} zh={zh} multiline={key === 'description'} onChange={value => setDraft(current => ({ ...current, [key]: value, detailSources: mark(current, key) }))} />
+  const bilingual = (key: 'title' | 'description' | 'locationName', label: string) => <DetailsBilingualField translationGroupId={groupId} field={key} label={label} value={draft[key]} zh={zh} multiline={key === 'description'} onChange={value => setDraft(current => ({ ...current, [key]: value, detailSources: mark(current, key) }))} />
   const timesUnconfirmed = [draft.detailSources?.startLocal, draft.detailSources?.endLocal].some(source => source !== 'human' && source !== 'explicit')
   return <div className="event-details-sections">
     <section className="event-details-section" aria-label={zh ? '名称与说明' : 'Name and description'}>

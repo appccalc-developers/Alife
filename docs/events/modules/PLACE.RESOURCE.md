@@ -26,6 +26,8 @@ Reusable venues, rooms, authoritative capacity, Event/Occurrence reservations, c
 
 ### Roles and authority
 
+The user-confirmed 2026-09-22 clarification retains the collaboration-v1 split: catalogue writes require leadership/co-leadership of the venue's managing group, or the existing platform-admin group-authorization path. Being an Event owner or accepted resource coordinator grants no catalogue administration by itself. Those Event actors may reserve authorized venues, including the owning group's root-church catalogue, without editing the shared venue record. The machine authorization rule reflects this existing implementation.
+
 At least one `resource.coordinator` who is an Event team member. Catalogue authority is scoped to the managing group; reservation authority is scoped to the Event and enforced on the server.
 
 ### Data classification

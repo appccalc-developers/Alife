@@ -6,6 +6,12 @@
 
 ## Evidence and version scope
 
+### Translation and responsibility refinement — 2026-09-22
+
+Event details and allowlisted public registration copy reuse the existing field-translation entry, retaining manual text and requiring explicit save. Role management now distinguishes platform/group/Event authority and filters Event permissions. The user confirmed owner-only formal submission; both command and capabilities require current accountable ownership and approved owning-group membership. Existing narrower Package-withdrawal and shared-venue catalogue/reservation boundaries are reflected in the machine/topic rules. Historical decisions, independent approval, private caching and default platform grants are unchanged. See the [scope, responsibility map and resolved discrepancies](EVENT-AUTHORIZATION-REVIEW-2026-09-22.md).
+
+This publishing slice excludes concurrent editorial/header, global-navigation and virtual-church work. Verification against the isolated branch: 135 focused backend cases, six bilingual/translation unit cases, and 12 browser cases (translation, permission guide and creation-to-saved details; zh/en × 320/1280px) passed. Complete frontend TypeScript, production/PWA build, Event documentation generation/check and staged diff checks passed. The existing saved-details fixture now waits for the asynchronously loaded RAM heading before asserting its count. Build checks used the Node equivalents of the package scripts because npm was unavailable; an imported, hoisted verification-only install is not a dependency/lockfile change in this slice. No migration, real role assignment, live-provider/account test or deployment is implied. Tracking: [#812](https://github.com/appccalc-developers/Alife/issues/812).
+
 A capability is implemented only when matching persistence, server-authorized API and a reachable user flow exist. A catalogue, migration or placeholder alone is insufficient. **Current** means a dedicated core flow, not complete target scope; **Partial** means a bounded usable portion; **Unavailable / target** means no supported operational flow.
 
 New Events use collaboration version 1. Version 0 retains legacy interpretation until explicit adoption of version-1 reports/rules. In particular, version-0 account-seat enrollment is not the version-1 actual-person/household model. Rule-1 frozen roster Packages remain compatible until reopening/reapproval; rule 2 separates ordinary staffing from approved requirements. Historical descriptions of unavailable finance/food must not replace the current version-1 scope below.

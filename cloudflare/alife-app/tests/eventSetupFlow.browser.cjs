@@ -199,6 +199,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       assert.equal(await flow().getByRole('button', { disabled: true }).count(), 3); await checkLayout('setup');
       const safetyPanel = page.getByRole('region', { name: t('RAM and safety', 'RAM与安全'), exact: true });
       await open('SAFETY.RAM');
+      await safetyPanel.getByRole('heading', { name: t('RAM · Final risk review', 'RAM · 汇总风险核对') }).waitFor({ state: 'visible' });
       assert.equal(await safetyPanel.getByRole('heading', { name: t('RAM · Final risk review', 'RAM · 汇总风险核对') }).count(), 1);
       await open('TEAM.WORK');
       if (process.env.ALIFE_STAGE_ROLE_SMOKE === '1') {

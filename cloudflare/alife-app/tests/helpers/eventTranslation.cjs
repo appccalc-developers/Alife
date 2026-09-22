@@ -1,0 +1,40 @@
+const assert = require('node:assert/strict');
+const path = require('node:path');
+
+exports.checkEventTranslation = async ({ page, group, language, width, root, detailSaves }) => {
+  const zh = language === 'zh';
+  const source = group.getByLabel(zh ? '中文' : 'English', { exact: true });
+  const target = group.getByLabel(zh ? 'English' : '中文', { exact: true });
+  const originalSource = await source.inputValue(), originalTarget = await target.inputValue();
+  const button = group.getByRole('button', { name: zh ? 'AI 补全另一语言' : 'AI fill missing language', exact: true });
+  assert.ok(await button.isDisabled(), 'complete bilingual text is never overwritten');
+  await target.fill('');
+  let mode = 'success', release, requests = [];
+  await page.route('**/api/ai/translate-text-fields', async route => {
+    const request = route.request().postDataJSON(); requests.push(request);
+    if (mode === 'delayed') await new Promise(resolve => { release = resolve; });
+    await route.fulfill({ status: mode === 'denied' ? 403 : 200, contentType: 'application/json', body: JSON.stringify(mode === 'denied' ? { message: 'Translation access denied' } : { fields: [{ field: 'content', language: zh ? 'en' : 'zh', text: zh ? 'Translated community dinner' : '已翻译的社区聚餐' }] }) });
+  });
+  await button.click();
+  await group.getByText(/另一种语言已作为 AI 草稿|other language was filled as an AI draft/).waitFor();
+  assert.equal(await target.inputValue(), zh ? 'Translated community dinner' : '已翻译的社区聚餐');
+  assert.equal(await source.inputValue(), originalSource);
+  assert.equal(await group.locator('details').evaluate(el => el.open), true, 'translation opens for review');
+  assert.deepEqual(requests[0], { scope: 'group', groupId: 'qa-group', fields: [{ field: 'content', sourceLanguage: zh ? 'zh' : 'en', targetLanguage: zh ? 'en' : 'zh', sourceText: originalSource.trim(), textType: zh ? '活动名称' : 'Event title' }] });
+  assert.equal(detailSaves.length, 0, 'translation does not save the event');
+  await group.screenshot({ path: path.join(root, `translation-${language}-${width}.png`) });
+  await target.fill(''); mode = 'delayed';
+  await button.click();
+  for (let attempt = 0; !release && attempt < 100; attempt++) await page.waitForTimeout(20);
+  assert.ok(release, 'translation request reached the existing endpoint');
+  await target.fill('Manual text wins'); release();
+  await group.getByText(/译文未填入|Translation was not applied/).waitFor();
+  assert.equal(await target.inputValue(), 'Manual text wins', 'late translation preserves manual edits');
+  await target.fill(''); mode = 'denied';
+  await button.click(); await group.getByText(/Translation access denied/).waitFor();
+  assert.equal(await target.inputValue(), ''); assert.equal(await source.inputValue(), originalSource);
+  mode = 'success'; await button.click();
+  await group.getByText(/另一种语言已作为 AI 草稿|other language was filled as an AI draft/).waitFor();
+  await target.fill(originalTarget);
+  assert.equal(detailSaves.length, 0);
+};
