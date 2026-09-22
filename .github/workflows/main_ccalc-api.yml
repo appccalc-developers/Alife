@@ -21,6 +21,8 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       PASSKEY_RP_ID: ccalc.live
       PASSKEY_ORIGIN: https://ccalc.live
+      # These ten fictional members must not return after the separate cleanup.
+      Seed__IncludeDemoMembers: 'false'
       FileAssets__ProviderCode: cloudflare-r2
       FileAssets__BucketName: ccalc
       FileAssets__ImageApiBaseUrl: https://images.ccalc.live
@@ -82,6 +84,7 @@ jobs:
           fi
 
           settings=(
+            "Seed__IncludeDemoMembers=$Seed__IncludeDemoMembers"
             "FileAssets__ProviderCode=$FileAssets__ProviderCode"
             "FileAssets__BucketName=$FileAssets__BucketName"
             "FileAssets__ImageApiBaseUrl=$FileAssets__ImageApiBaseUrl"

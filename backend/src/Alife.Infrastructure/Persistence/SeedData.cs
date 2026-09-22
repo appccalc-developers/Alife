@@ -284,7 +284,9 @@ public static class SeedData
 			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee19"), "赵雅文 Vivian Zhao", "Female", 63, "vivian.zhao@alife.local", "+640000000019", false)
 		};
 
-		foreach (var demoMember in demoMembers)
+		// Production cleanup must not be undone by a later DbMigrator run.
+		var seedDemoMembers = configuration?.GetValue<bool?>("Seed:IncludeDemoMembers") ?? true;
+		foreach (var demoMember in seedDemoMembers ? demoMembers : [])
 		{
 			var seededMember = await EnsureMemberAsync(
 				dbContext,
