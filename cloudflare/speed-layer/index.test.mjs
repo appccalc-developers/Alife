@@ -87,6 +87,59 @@ test('frontend build revalidates SPA files in browsers while retaining hashed as
   )
 })
 
+test('static asset routes preserve real assets and reject SPA HTML fallbacks', async () => {
+  const assetRequests = []
+  const env = {
+    ...createEnv(),
+    ASSETS: {
+      async fetch(request) {
+        assetRequests.push(request.url)
+        const pathname = new URL(request.url).pathname
+        if (pathname.endsWith('missing.js')) {
+          return new Response('<!doctype html><title>Alife</title>', {
+            headers: {
+              'cache-control': 'public, max-age=31536000, immutable',
+              'content-type': 'text/html; charset=utf-8',
+            },
+          })
+        }
+
+        return new Response('export const ready = true', {
+          headers: {
+            'cache-control': 'public, max-age=31536000, immutable',
+            'content-type': 'text/javascript; charset=utf-8',
+          },
+        })
+      },
+    },
+  }
+
+  const existing = await dispatch('https://ccalc.live/assets/AppView-current.js', { env })
+  assert.equal(existing.status, 200)
+  assert.equal(existing.headers.get('content-type'), 'text/javascript; charset=utf-8')
+  assert.equal(await existing.text(), 'export const ready = true')
+
+  const missing = await dispatch('https://ccalc.live/assets/AppView-missing.js', { env })
+  assert.equal(missing.status, 404)
+  assert.equal(missing.headers.get('cache-control'), 'no-store')
+  assert.equal(missing.headers.get('content-type'), 'text/plain; charset=utf-8')
+  assert.equal(missing.headers.get('x-content-type-options'), 'nosniff')
+  assert.equal(await missing.text(), 'Static asset not found.')
+
+  assert.deepEqual(assetRequests, [
+    'https://ccalc.live/assets/AppView-current.js',
+    'https://ccalc.live/assets/AppView-missing.js',
+  ])
+})
+
+test('static assets fail closed when the asset binding is unavailable', async () => {
+  const response = await dispatch('https://ccalc.live/assets/current.js', { env: createEnv() })
+  assert.equal(response.status, 503)
+  assert.equal(response.headers.get('cache-control'), 'no-store')
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff')
+  assert.equal(await response.text(), 'Static asset service unavailable.')
+})
+
 let fetchCalls
 let fetchInits
 let originResponses
@@ -189,13 +242,24 @@ beforeEach(() => {
 })
 
 test('missing non-API resources return an uncacheable plain-text 404', async () => {
-  const response = await dispatch(`${ORIGIN}/assets/missing-route-chunk.js`)
+  const response = await dispatch(`${ORIGIN}/assets/missing-route-chunk.js`, {
+    env: {
+      ...createEnv(),
+      ASSETS: {
+        async fetch() {
+          return new Response('<!doctype html><title>Alife</title>', {
+            headers: { 'content-type': 'text/html; charset=utf-8' },
+          })
+        },
+      },
+    },
+  })
 
   assert.equal(response.status, 404)
   assert.equal(response.headers.get('cache-control'), 'no-store')
   assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8')
   assert.equal(response.headers.get('x-content-type-options'), 'nosniff')
-  assert.equal(await response.text(), 'Not found')
+  assert.equal(await response.text(), 'Static asset not found.')
   assert.equal(fetchCalls.length, 0)
 })
 
