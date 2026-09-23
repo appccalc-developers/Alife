@@ -132,18 +132,18 @@ const NavItemBadges = ({ badges, collapsed, itemLabel }: { badges: ShellNavBadge
 
 const NavItemContent = ({ item, active, compact = false, collapsed = false }: { item: ShellNavItem; active: boolean; compact?: boolean; collapsed?: boolean }) => (
   <>
-    {active && !collapsed && !compact ? <span className="absolute left-2 h-5 w-1 rounded-full bg-[#de6c4d]" aria-hidden="true" /> : null}
+    {active && !collapsed && !compact ? <span className="absolute left-2 h-5 w-1 rounded-full bg-[#de6c4d] desktop:bg-[#f08b72]" aria-hidden="true" /> : null}
     <span
       className={[
         'flex shrink-0 items-center justify-center transition duration-200',
         collapsed ? 'h-10 w-10 rounded-2xl desktop:rounded-xl' : compact ? 'h-6 w-6 rounded-xl' : 'h-9 w-9 rounded-2xl desktop:rounded-xl',
         collapsed
           ? active
-            ? 'bg-[#173f36] text-white desktop:shadow-none'
-            : 'text-[#6d7b76] group-hover:bg-[#edf5f1] group-hover:text-[#123d34]'
+            ? 'bg-[#173f36] text-white desktop:bg-[#fff9ef] desktop:text-[#123d34] desktop:shadow-none'
+            : 'text-[#6d7b76] group-hover:bg-[#edf5f1] group-hover:text-[#123d34] desktop:text-[#b9d2c9] desktop:group-hover:bg-white/10 desktop:group-hover:text-white'
           : active
-            ? 'bg-[#173f36] text-white shadow-[0_10px_20px_rgba(23,63,54,0.14)] desktop:shadow-none'
-            : 'bg-[#f2eee6] text-[#68766f] group-hover:bg-[#e8f1ed] group-hover:text-[#123d34]',
+            ? 'bg-[#173f36] text-white shadow-[0_10px_20px_rgba(23,63,54,0.14)] desktop:bg-[#fff9ef] desktop:text-[#123d34] desktop:shadow-none'
+            : 'bg-[#f2eee6] text-[#68766f] group-hover:bg-[#e8f1ed] group-hover:text-[#123d34] desktop:bg-white/[0.07] desktop:text-[#b9d2c9] desktop:group-hover:bg-white/12 desktop:group-hover:text-white',
       ].join(' ')}
     >
       {item.icon}
@@ -151,7 +151,7 @@ const NavItemContent = ({ item, active, compact = false, collapsed = false }: { 
     {!collapsed ? (
       <span className="min-w-0 flex-1 text-left">
         <span className={compact ? 'block truncate text-[11px] font-bold leading-tight' : 'block truncate text-sm font-extrabold leading-5 desktop:font-semibold'}>{item.label}</span>
-        {!compact && active && item.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#74837d]">{item.description}</span> : null}
+        {!compact && active && item.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#74837d] desktop:text-[#c2d8d0]">{item.description}</span> : null}
       </span>
     ) : null}
     {item.badges?.length
@@ -171,11 +171,11 @@ const SidebarLink = ({ item, collapsed = false, nested = false, onClick }: { ite
     collapsed ? 'mx-auto h-11 w-11 justify-center rounded-2xl p-0 desktop:rounded-xl' : nested ? 'min-h-10 gap-2 rounded-xl py-1 pl-7 pr-2.5' : [active ? 'min-h-14' : 'min-h-12', 'gap-2.5 rounded-2xl py-1.5 pl-4 pr-2.5 desktop:rounded-xl'].join(' '),
     collapsed
       ? active
-        ? 'text-[#123d34]'
-        : 'text-[#53665f] hover:bg-white/60 hover:text-[#123d34]'
+        ? 'text-[#123d34] desktop:text-white'
+        : 'text-[#53665f] hover:bg-white/60 hover:text-[#123d34] desktop:text-[#c5d8d1] desktop:hover:bg-white/10 desktop:hover:text-white'
       : active
-        ? 'bg-white text-[#123d34] shadow-[0_12px_26px_rgba(27,55,48,0.08)] ring-1 ring-[#dbe4de] desktop:bg-[#e7f0eb] desktop:shadow-none desktop:ring-0'
-        : 'text-[#4e5f58] hover:bg-white/72 hover:text-[#123d34]',
+        ? 'bg-white text-[#123d34] shadow-[0_12px_26px_rgba(27,55,48,0.08)] ring-1 ring-[#dbe4de] desktop:bg-white/[0.12] desktop:text-white desktop:shadow-none desktop:ring-1 desktop:ring-white/15'
+        : 'text-[#4e5f58] hover:bg-white/72 hover:text-[#123d34] desktop:text-[#c5d8d1] desktop:hover:bg-white/10 desktop:hover:text-white',
   ].join(' ')
   const handleClick = (event: NavigationClickEvent) => {
     guardNavigationClick(event, item.to, () => {
@@ -209,8 +209,8 @@ const NestedSidebarItem = ({ item, onItemClick }: { item: ShellNavItem; onItemCl
   if (!item.children?.length) return <SidebarLink item={item} onClick={onItemClick} />
 
   return (
-    <div className={['overflow-hidden rounded-xl transition', childActive ? 'bg-white/80 ring-1 ring-[#dbe4de]' : 'bg-transparent'].join(' ')}>
-      <div className="group flex min-h-11 w-full items-center rounded-xl text-[#4e5f58] transition hover:bg-white/72 hover:text-[#123d34]">
+    <div className={['overflow-hidden rounded-xl transition', childActive ? 'bg-white/80 ring-1 ring-[#dbe4de] desktop:bg-white/[0.07] desktop:ring-white/10' : 'bg-transparent'].join(' ')}>
+      <div className="group flex min-h-11 w-full items-center rounded-xl text-[#4e5f58] transition hover:bg-white/72 hover:text-[#123d34] desktop:text-[#c5d8d1] desktop:hover:bg-white/10 desktop:hover:text-white">
         <Link
           to={item.to}
           onClick={(event) => guardNavigationClick(event, item.to, () => { item.onClick?.(); onItemClick?.() }, () => navigate(item.to))}
@@ -218,7 +218,7 @@ const NestedSidebarItem = ({ item, onItemClick }: { item: ShellNavItem; onItemCl
         >
           <NavItemContent item={item} active={childActive} compact />
         </Link>
-        <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} ${item.label}`} className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-[#e3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45">
+        <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} ${item.label}`} className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-[#e3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45 desktop:hover:bg-white/10">
           <ChevronDown className={['h-3.5 w-3.5 transition-transform duration-200', open ? '' : '-rotate-90'].join(' ')} aria-hidden="true" />
         </button>
       </div>
@@ -271,20 +271,20 @@ const NavigationSection = ({
   const sectionActive = isSectionActive(section, location.pathname, location.search)
   const collapsible = section.collapsible ?? section.items.length > 0
   const sectionHeaderClassName = [
-    'group flex w-full items-center gap-2 rounded-[1.1rem] px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45 desktop:rounded-lg desktop:px-2.5',
-    open ? 'text-[#53665f] hover:bg-white/62 desktop:hover:bg-[#f1eee7]' : 'bg-white text-[#18332d] shadow-[0_10px_22px_rgba(30,54,48,0.06)] desktop:bg-[#f1eee7] desktop:shadow-none',
+    'group flex w-full items-center gap-2 rounded-[1.1rem] px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45 desktop:rounded-xl desktop:px-2.5',
+    open ? 'text-[#53665f] hover:bg-white/62 desktop:text-[#d6e5df] desktop:hover:bg-white/10' : 'bg-white text-[#18332d] shadow-[0_10px_22px_rgba(30,54,48,0.06)] desktop:bg-white/10 desktop:text-white desktop:shadow-none',
   ].join(' ')
   const sectionIcon = section.icon ? (
-    <span className={['flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', sectionActive ? 'bg-[#173f36] text-white' : 'bg-[#e7eee9] text-[#53665f]'].join(' ')}>{section.icon}</span>
+    <span className={['flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', sectionActive ? 'bg-[#173f36] text-white desktop:bg-[#fff9ef] desktop:text-[#123d34]' : 'bg-[#e7eee9] text-[#53665f] desktop:bg-white/[0.08] desktop:text-[#b9d2c9]'].join(' ')}>{section.icon}</span>
   ) : null
   const sectionText = (
     <span className="min-w-0 flex-1">
-      <span className={['block truncate text-xs font-black leading-4 desktop:font-semibold', sectionActive ? 'text-[#173f36]' : 'text-[#314840]'].join(' ')}>{section.label}</span>
-      {(section.showDescription || !open) && section.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#87938e]">{section.description}</span> : null}
+      <span className={['block truncate text-xs font-black leading-4 desktop:font-semibold', sectionActive ? 'text-[#173f36] desktop:text-white' : 'text-[#314840] desktop:text-[#dce9e4]'].join(' ')}>{section.label}</span>
+      {(section.showDescription || !open) && section.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#87938e] desktop:text-[#9fbdb2]">{section.description}</span> : null}
     </span>
   )
   const sectionChevron = collapsible ? (
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[#6b7a74] transition group-hover:bg-[#edf5f1] group-hover:text-[#123d34]">
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[#6b7a74] transition group-hover:bg-[#edf5f1] group-hover:text-[#123d34] desktop:bg-white/[0.08] desktop:text-[#b9d2c9] desktop:group-hover:bg-white/15 desktop:group-hover:text-white">
       <ChevronDown
         className={['h-3.5 w-3.5 transition-transform duration-200', open ? '' : '-rotate-90'].join(' ')}
         aria-hidden="true"
@@ -350,8 +350,8 @@ const NavigationSection = ({
 
   return (
     <section className={[
-      'rounded-[1.35rem] p-1.5 transition desktop:rounded-none desktop:bg-transparent desktop:p-0 desktop:ring-0',
-      sectionActive ? 'bg-[#f4f8f5] ring-1 ring-[#cddfd6]' : 'bg-[#f7f3ec] ring-1 ring-[#ded6cb]/70',
+      'rounded-[1.35rem] p-1.5 transition desktop:rounded-xl desktop:border desktop:border-white/[0.08] desktop:bg-transparent desktop:p-1 desktop:ring-0',
+      sectionActive ? 'bg-[#f4f8f5] ring-1 ring-[#cddfd6] desktop:bg-white/[0.06]' : 'bg-[#f7f3ec] ring-1 ring-[#ded6cb]/70 desktop:bg-transparent',
       section.alignToBottom ? 'mt-auto' : '',
     ].join(' ')}>
       {section.toggleOnHeaderClick ? (
@@ -477,16 +477,16 @@ const SidebarBrand = ({ collapsed }: { collapsed: boolean }) => {
     <Link
       to="/"
       onClick={(event) => guardNavigationClick(event, '/', undefined, () => navigate('/'))}
-      className={['flex items-center text-[#18332d] transition', collapsed ? 'mx-auto h-12 w-12 justify-center rounded-[var(--alife-radius-control)] hover:bg-[#e7eee9]' : 'gap-3 px-0.5 py-1.5'].join(' ')}
+      className={['flex items-center text-white transition', collapsed ? 'mx-auto h-12 w-12 justify-center rounded-[var(--alife-radius-control)] hover:bg-white/10' : 'gap-3 px-0.5 py-1.5'].join(' ')}
       aria-label={t('home')}
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--alife-radius-control)] bg-[#e3f0eb] ring-1 ring-[#176b5a]/10">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--alife-radius-control)] bg-[#fff9ef] ring-1 ring-white/20 shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
         <img src={logo} alt={t('appName')} className="h-full w-full object-contain p-1 drop-shadow-sm" />
       </span>
       {!collapsed ? (
         <span className="min-w-0">
           <span className="block text-sm font-semibold leading-5 tracking-[-0.02em]">{t('appName')}</span>
-          <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#78857f]">Alife</span>
+          <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9fc3b6]">Alife</span>
         </span>
       ) : null}
     </Link>
@@ -508,14 +508,14 @@ export const DesktopNavigation = ({
       transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
       className={['fixed bottom-0 left-0 top-0 z-20 hidden transition-[width] duration-300 desktop:block', collapsed ? 'w-20' : 'w-72'].join(' ')}
     >
-      <aside className="flex h-full flex-col overflow-hidden border-r border-[#ddd4c8] bg-[#f8f5ee]/97 shadow-[10px_0_32px_rgba(30,54,48,0.06)] backdrop-blur-xl" aria-label={t('primaryNavigation')}>
-        <div className={['border-b border-[#e2d8cc]', collapsed ? 'p-3' : 'p-4'].join(' ')}>
+      <aside className="flex h-full flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#123f36_0%,#0d342d_58%,#092b25_100%)] text-white shadow-[14px_0_38px_rgba(13,52,45,0.18)]" aria-label={t('primaryNavigation')}>
+        <div className={['border-b border-white/10', collapsed ? 'p-3' : 'p-4'].join(' ')}>
           <SidebarBrand collapsed={collapsed} />
         </div>
 
-        <nav className={['flex min-h-0 flex-1 flex-col overflow-y-auto', collapsed ? 'gap-3 px-3 py-4' : 'gap-5 px-3 py-4'].join(' ')}>
+        <nav className={['alife-sidebar-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto', collapsed ? 'gap-3 px-3 py-4' : 'gap-5 px-3 py-4'].join(' ')}>
           {workspaceSections.length ? (
-            <div className={collapsed ? 'space-y-2 border-b border-[#e5ddd2] pb-3' : 'space-y-3'}>
+            <div className={collapsed ? 'space-y-2 border-b border-white/10 pb-3' : 'space-y-3'}>
               {workspaceSections.map((section) => <NavigationSection key={section.key} section={section} collapsed={collapsed} />)}
             </div>
           ) : null}
@@ -524,8 +524,8 @@ export const DesktopNavigation = ({
           </div>
         </nav>
 
-        <div className={['border-t border-[#e2d8cc]', collapsed ? 'p-3' : 'p-3'].join(' ')}>
-          <button type="button" className={['flex h-11 items-center justify-center rounded-xl text-xs font-semibold text-[#62736c] transition hover:bg-white hover:text-[#18332d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45', collapsed ? 'w-full' : 'w-full gap-2'].join(' ')} onClick={onToggle} aria-label={collapsed ? props.copy.expand : props.copy.collapse}>
+        <div className={['border-t border-white/10', collapsed ? 'p-3' : 'p-3'].join(' ')}>
+          <button type="button" className={['flex h-11 items-center justify-center rounded-xl text-xs font-semibold text-[#b9d2c9] transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f08b72]/55', collapsed ? 'w-full' : 'w-full gap-2'].join(' ')} onClick={onToggle} aria-label={collapsed ? props.copy.expand : props.copy.collapse}>
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>{props.copy.collapse}</span></>}
           </button>
         </div>
@@ -561,6 +561,10 @@ export const BottomNavigation = ({
   }, [openSectionKey])
 
   const handleSectionClick = (event: MouseEvent<HTMLButtonElement>, section: ShellNavSection) => {
+    if (section.mobileDirectLink && section.to) {
+      guardNavigationClick(event, section.to, () => navigate(section.to || '/'))
+      return
+    }
     if (section.mobileNavigateFirst && section.to && !isSectionActive(section, location.pathname, location.search)) {
       guardNavigationClick(event, section.to, () => navigate(section.to || '/'))
       return
@@ -581,13 +585,14 @@ export const BottomNavigation = ({
         initial={{ y: 80 }}
         animate={{ y: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }}
-        className="alife-panel fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-30 rounded-[1.6rem] px-2 py-1.5 desktop:hidden"
+        className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-30 rounded-[1.6rem] border border-white/10 bg-[#103c33]/[0.97] px-2 py-1.5 shadow-[0_18px_46px_rgba(13,52,45,0.28)] backdrop-blur-xl desktop:hidden"
         aria-label={t('primaryNavigation')}
       >
         <div className="mx-auto flex max-w-xl items-stretch gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {sections.map((section) => {
             const active = isSectionActive(section, location.pathname, location.search)
             const sheetOpen = openSectionKey === section.key
+            const hasMobileSubmenu = section.items.length > 0 && !section.mobileDirectLink
             const submenuId = `mobile-submenu-${section.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`
 
             return (
@@ -597,17 +602,17 @@ export const BottomNavigation = ({
                 whileTap={{ scale: 0.95 }}
                 onClick={(event) => handleSectionClick(event, section)}
                 aria-current={active ? 'page' : undefined}
-                aria-expanded={section.items.length > 0 ? sheetOpen : undefined}
-                aria-controls={section.items.length > 0 ? submenuId : undefined}
-                aria-haspopup={section.items.length > 0 ? 'dialog' : undefined}
+                aria-expanded={hasMobileSubmenu ? sheetOpen : undefined}
+                aria-controls={hasMobileSubmenu ? submenuId : undefined}
+                aria-haspopup={hasMobileSubmenu ? 'dialog' : undefined}
                 className={[
                   'group flex min-w-[4.25rem] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-[10px] font-black leading-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55',
                   active || sheetOpen
-                    ? 'bg-[#173f36] text-white shadow-[0_8px_18px_rgba(23,63,54,0.18)]'
-                    : 'text-[#60716a] hover:bg-[#e3f0eb] hover:text-[#0d4f43]',
+                    ? 'bg-[#fff9ef] text-[#123d34] shadow-[0_8px_18px_rgba(0,0,0,0.15)]'
+                    : 'text-[#c3d7cf] hover:bg-white/10 hover:text-white',
                 ].join(' ')}
               >
-                <span className={['flex h-6 w-7 items-center justify-center transition', active || sheetOpen ? 'text-white' : 'text-[#53665f] group-hover:text-[#176b5a]'].join(' ')}>
+                <span className={['flex h-6 w-7 items-center justify-center transition', active || sheetOpen ? 'text-[#176b5a]' : 'text-[#a9c8bd] group-hover:text-white'].join(' ')}>
                   {section.icon || <Menu className="h-5 w-5" aria-hidden="true" />}
                 </span>
                 <span className="max-w-full truncate">{section.label}</span>

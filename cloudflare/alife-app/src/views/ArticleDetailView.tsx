@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, CalendarDays, ExternalLink, FileQuestion } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { CalendarDays, ExternalLink, FileQuestion } from 'lucide-react'
+import { useParams } from 'react-router-dom'
+import AppPageBackLink from '../components/layout/AppPageBackLink'
 import { richTextBodyClass, sanitizeRichTextHtml } from '../components/rich-text/richTextHtml'
 import { contentPostService, contentPostQueryKeys } from '../services/contentPostService'
 import { useAuthStore } from '../stores/auth'
@@ -60,10 +61,7 @@ const ArticleDetailView = () => {
           <FileQuestion className="mx-auto h-12 w-12 text-[#718079]" strokeWidth={1.5} />
           <h1 className="mt-5 text-3xl font-bold text-[#18332d]">{copy.detailErrorTitle}</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#718079]">{copy.detailErrorBody}</p>
-          <Link className="mt-7 inline-flex items-center gap-2 rounded-full bg-[#18332d] px-5 py-3 text-sm font-bold text-white" to="/articles">
-            <ArrowLeft className="h-4 w-4" />
-            {copy.backToArchive}
-          </Link>
+          <AppPageBackLink className="mt-7" to="/articles" label={copy.backToArchive} />
         </div>
       </main>
     )
@@ -71,13 +69,7 @@ const ArticleDetailView = () => {
 
   return (
     <main className="mx-auto max-w-4xl pb-12">
-      <Link
-        className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-[#31594e] transition hover:text-[#9b792c]"
-        to={`/articles?category=${article.category}`}
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {copy.backToArchive}
-      </Link>
+      <AppPageBackLink className="mb-6" to={`/articles?category=${article.category}`} label={copy.backToArchive} />
       <article className="overflow-hidden rounded-[2rem] border border-[#18332d]/8 bg-white shadow-[0_18px_60px_rgba(24,51,45,0.08)]">
         <header className="border-b border-[#18332d]/8 bg-[linear-gradient(145deg,#18332d,#264d43)] px-6 py-10 text-white sm:px-12 sm:py-14">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#d6bc72]">

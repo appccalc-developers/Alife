@@ -243,6 +243,7 @@ export const useShellNavigation = ({
         collapsible: true,
         showDescription: true,
         toggleOnHeaderClick: true,
+        mobileDirectLink: true,
         items: auth.isGuest ? [] : accountItems,
       }
       : null,

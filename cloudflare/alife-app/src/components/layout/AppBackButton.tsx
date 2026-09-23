@@ -36,8 +36,8 @@ const AppBackButton = ({ label, fallbackTo = '/', onClick, className = '' }: Pro
   }
 
   return (
-    <AppActionButton variant="secondary" size="sm" onClick={handleClick} className={className}>
-      <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" />
+    <AppActionButton variant="secondary" onClick={handleClick} className={className}>
+      <ArrowLeft className="mr-2 h-5 w-5" strokeWidth={2.4} aria-hidden="true" />
       {label || t('back')}
     </AppActionButton>
   )

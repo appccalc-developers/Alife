@@ -13,6 +13,7 @@ import AppStableTabBody from '../layout/AppStableTabBody'
 import ChurchGroupFilter from './ChurchGroupFilter'
 import ChurchSiteNavigation from './ChurchSiteNavigation'
 import { churchSiteDescription } from './churchSiteCopy'
+import AccessTypeBadge from '../group/AccessTypeBadge'
 
 const ChurchSiteGroupsContext = createContext<Dispatch<SetStateAction<ChurchLifeGroup[]>> | null>(null)
 
@@ -32,6 +33,9 @@ const ChurchSiteLayout = ({ children }: { children: ReactNode }) => {
   const churchQuery = useQuery({ queryKey: churchQueryKey, queryFn: groupService.getChurch, staleTime: 5 * 60_000, enabled: !auth.isGuest })
   const section = getChurchSiteSection(location.pathname, location.search)
   const isSidebarPage = section === 'bulletins'
+  const isDetailPage = (location.pathname.startsWith('/sermons/') && location.pathname !== '/sermons')
+    || /^\/church\/groups\/[^/]+\/albums(?:\/[^/]+)?$/.test(location.pathname)
+    || /^\/church\/forum\/posts\/[^/]+$/.test(location.pathname)
   const sidebarPageLabel = section === 'sermons'
     ? (auth.language === 'zh' ? '主日证道' : 'Sunday Sermons')
     : (auth.language === 'zh' ? '主日周报' : 'Sunday Bulletins')
@@ -41,11 +45,12 @@ const ChurchSiteLayout = ({ children }: { children: ReactNode }) => {
   return (
     <ChurchSiteGroupsContext.Provider value={setGroups}>
       <div className="mx-auto w-full max-w-6xl space-y-5 desktop:space-y-6">
-        <AppPageTitleBar
+        {!isDetailPage ? <AppPageTitleBar
           title={title}
           context={auth.language === 'zh' ? '教会生活' : 'Church Life'}
           subtitle={churchSiteDescription(section, auth.language)}
           showSubtitleOnMobile
+          status={churchQuery.data ? <AccessTypeBadge accessType={churchQuery.data.accessType} showProtected /> : undefined}
           controls={!auth.isGuest ? <ChurchGroupFilter
             disabled={!filterable}
             groups={groups}
@@ -54,8 +59,8 @@ const ChurchSiteLayout = ({ children }: { children: ReactNode }) => {
             onChange={groupId => setSearchParams(updateChurchLifeOwnerFilter(searchParams, groupId), { preventScrollReset: true })}
           /> : undefined}
           navigation={<ChurchSiteNavigation />}
-        />
-        <div id="church-site-panel" role={isSidebarPage ? 'region' : 'tabpanel'} aria-labelledby={section && !isSidebarPage ? `church-site-tab-${section}` : undefined} aria-label={isSidebarPage ? sidebarPageLabel : undefined} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]">
+        /> : null}
+        <div id="church-site-panel" role={isSidebarPage || isDetailPage ? 'region' : 'tabpanel'} aria-labelledby={section && !isSidebarPage && !isDetailPage ? `church-site-tab-${section}` : undefined} aria-label={isDetailPage ? (auth.language === 'zh' ? '教会内容详情' : 'Church content detail') : isSidebarPage ? sidebarPageLabel : undefined} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]">
           <AppStableTabBody>{children}</AppStableTabBody>
         </div>
       </div>

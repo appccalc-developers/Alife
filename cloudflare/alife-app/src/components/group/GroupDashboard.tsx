@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, Bell, CalendarDays, FileText, Settings2 } from 'lucide-react'
+import { ArrowUpRight, Bell, BookOpenText, CalendarDays, Images, MessagesSquare, Settings2, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import AccessTypeBadge from './AccessTypeBadge'
 import AppPageShell from '../layout/AppPageShell'
 import type { GroupDto, GroupPageDto } from '../../types/group'
 import type { GroupEventRecord } from '../../types/event'
@@ -11,6 +10,7 @@ import { localizeText } from '../../utils/localizedText'
 import { announcementService } from '../../services/announcementService'
 import type { AnnouncementDto } from '../../types/announcement'
 import { buildScopedEventDetailPath } from '../../utils/eventRoutes'
+import { normalizeImageUrl } from '../../services/imageWorkerApi'
 
 type Props = {
   group: GroupDto
@@ -19,6 +19,56 @@ type Props = {
   canManage: boolean
   scope?: 'group' | 'church'
   explicitGroupRoute?: boolean
+}
+
+const groupContentArtwork = [
+  { canvas: 'bg-[#dbece5]', ink: 'text-[#0d4f43]', accent: 'bg-[#edb48d]', fallbackImage: '/media/alife-groups.jpg', Icon: UsersRound },
+  { canvas: 'bg-[#f4e8dc]', ink: 'text-[#7a4c34]', accent: 'bg-[#8bc5b3]', fallbackImage: '/media/alife-church-community-hero.jpg', Icon: BookOpenText },
+  { canvas: 'bg-[#e6e9f2]', ink: 'text-[#38466b]', accent: 'bg-[#e7a285]', fallbackImage: '/media/alife-message-poster.jpg', Icon: MessagesSquare },
+] as const
+
+const GroupContentArtwork = ({ imageUrl, title, language, index }: { imageUrl?: string | null; title: string; language: 'en' | 'zh'; index: number }) => {
+  const [imageFailed, setImageFailed] = useState(false)
+  const [fallbackFailed, setFallbackFailed] = useState(false)
+  const artwork = groupContentArtwork[index % groupContentArtwork.length]
+  const Icon = artwork.Icon
+
+  return (
+    <div className={`relative aspect-[16/9] overflow-hidden ${artwork.canvas}`}>
+      <div className="absolute inset-0 opacity-45" aria-hidden="true">
+        <div className={`absolute -right-8 -top-12 h-40 w-40 rounded-full ${artwork.accent}`} />
+        <div className="absolute -bottom-16 -left-8 h-36 w-36 rounded-full border-[22px] border-white/55" />
+        <div className="absolute bottom-5 right-6 h-20 w-28 rotate-[-8deg] rounded-2xl border border-white/70 bg-white/35 shadow-[0_15px_30px_rgba(24,51,45,0.08)]" />
+      </div>
+      <div className={`absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-5 ${artwork.ink}`} aria-hidden="true">
+        <Icon className="h-9 w-9 opacity-75" />
+        <span className="max-w-[70%] text-right text-3xl font-black leading-none opacity-20">{title.slice(0, 2)}</span>
+      </div>
+      {imageUrl && !imageFailed ? (
+        <img
+          src={normalizeImageUrl(imageUrl)}
+          alt={language === 'zh' ? `${title}内容封面` : `${title} content cover`}
+          className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.025] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
+      ) : !fallbackFailed ? (
+        <img
+          src={artwork.fallbackImage}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.025] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+          loading="lazy"
+          onError={() => setFallbackFailed(true)}
+        />
+      ) : null}
+      <div className="absolute inset-0 bg-[linear-gradient(118deg,rgba(13,79,67,0.08)_0%,transparent_55%,rgba(24,51,45,0.18)_100%)]" aria-hidden="true" />
+      <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/35 to-transparent" aria-hidden="true" />
+      <span className="absolute left-4 top-4 rounded-full border border-white/25 bg-[#102a24]/70 px-3 py-1.5 text-[0.65rem] font-black text-white shadow-sm backdrop-blur-md">
+        {language === 'zh' ? '小组内容' : 'Group content'}
+      </span>
+    </div>
+  )
 }
 
 const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', explicitGroupRoute = false }: Props) => {
@@ -79,7 +129,6 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
         title={groupName}
         context={language === 'zh' ? '教会生活 / 总览' : 'Church Life / Overview'}
         subtitle={groupDescription || (language === 'zh' ? '查看教会近期安排与重要公告。' : 'See the church’s upcoming schedule and important notices.')}
-        status={<AccessTypeBadge accessType={group.accessType} showProtected />}
         overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
         overflowActions={canManage ? [{
           label: language === 'zh' ? '管理教会' : 'Manage church',
@@ -173,7 +222,6 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
       title={groupName}
       context={language === 'zh' ? '小组生活 / 总览' : 'Group Life / Overview'}
       subtitle={groupDescription || (language === 'zh' ? '查看小组最近的活动、公告与已发布内容。' : 'See the group’s latest events, notices, and published content.')}
-      status={<AccessTypeBadge accessType={group.accessType} showProtected />}
     >
     <div className="space-y-7 pb-4">
       <section className="grid grid-cols-3 overflow-hidden rounded-[1.5rem] border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] shadow-[var(--alife-shadow-soft)]" aria-label={language === 'zh' ? '小组近况' : 'Group at a glance'}>
@@ -217,8 +265,19 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
       </div>
 
       <section aria-labelledby="group-pages-heading">
-        <div className="mb-4 flex items-end justify-between gap-4 px-1"><div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? '发现' : 'Discover'}</p><h2 id="group-pages-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? '小组内容' : 'Group content'}</h2></div><FileText className="h-5 w-5 text-[#87968f]" aria-hidden="true" /></div>
-        {pages.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{pages.slice(0, 6).map((page, index) => <Link key={page.id} to={explicitGroupRoute ? `/groups/${encodeURIComponent(group.id)}?page=${encodeURIComponent(page.id)}` : '/groups'} onClick={() => { if (!explicitGroupRoute) activeEntityService.setPage(page.id, group.id) }} className="group relative min-h-32 overflow-hidden rounded-[1.4rem] border border-[#dfe7e3] bg-white p-5 shadow-[0_10px_30px_rgba(24,51,45,0.04)] transition hover:-translate-y-0.5 hover:border-[#a9cabe] hover:shadow-[0_16px_38px_rgba(24,51,45,0.08)]"><span className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-[#9aa69f]">{String(index + 1).padStart(2, '0')}</span><h3 className="mt-5 pr-8 text-base font-black text-[#27473f]">{localizeText(page.title, language)}</h3><ArrowUpRight className="absolute bottom-5 right-5 h-4 w-4 text-[#9aaba4] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" /></Link>)}</div> : <div className="rounded-[1.5rem] border border-dashed border-[#cfdcd6] bg-white/55 px-6 py-8 text-sm text-[#718079]">{language === 'zh' ? '这个小组还没有发布内容。' : 'This group has not published any content yet.'}</div>}
+        <div className="mb-4 flex items-end justify-between gap-4 px-1"><div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? '发现' : 'Discover'}</p><h2 id="group-pages-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? '小组内容' : 'Group content'}</h2></div><Images className="h-5 w-5 text-[#87968f]" aria-hidden="true" /></div>
+        {pages.length ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{pages.slice(0, 6).map((page, index) => {
+          const pageTitle = localizeText(page.title, language)
+          const cardText = localizeText(page.cardText, language) || localizeText(page.description, language)
+          return <Link key={page.id} to={explicitGroupRoute ? `/groups/${encodeURIComponent(group.id)}?page=${encodeURIComponent(page.id)}` : '/groups'} onClick={() => { if (!explicitGroupRoute) activeEntityService.setPage(page.id, group.id) }} className="group overflow-hidden rounded-[1.5rem] border border-[#dce5e0] bg-white shadow-[0_10px_30px_rgba(24,51,45,0.06)] transition duration-200 hover:-translate-y-1 hover:border-[#9fc5b8] hover:shadow-[0_18px_44px_rgba(24,51,45,0.11)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#1d4ed8]/35 motion-reduce:transform-none motion-reduce:transition-none">
+            <GroupContentArtwork imageUrl={page.cardImageUrl} title={pageTitle} language={language} index={index} />
+            <div className="flex min-h-36 flex-col p-5 sm:p-6">
+              <h3 className="line-clamp-2 text-lg font-black leading-snug tracking-[-0.02em] text-[#18332d]">{pageTitle}</h3>
+              {cardText ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#66766f]">{cardText}</p> : <p className="mt-2 text-sm leading-6 text-[#839089]">{language === 'zh' ? '打开查看小组分享的完整内容。' : 'Open the full content shared by the group.'}</p>}
+              <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-black text-[#176b5a]">{language === 'zh' ? '查看内容' : 'View content'}<ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" /></span>
+            </div>
+          </Link>
+        })}</div> : <div className="rounded-[1.5rem] border border-dashed border-[#cfdcd6] bg-white/55 px-6 py-8 text-sm text-[#718079]">{language === 'zh' ? '这个小组还没有发布内容。' : 'This group has not published any content yet.'}</div>}
       </section>
     </div>
     </AppPageShell>
