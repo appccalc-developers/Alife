@@ -95,13 +95,61 @@ function Remove-ImportedEnvironment {
     }
 }
 
+function Get-ListeningProcessIds {
+    param([int]$Port)
+
+    $processIds = @(
+        Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+            Where-Object { $_.OwningProcess -gt 0 } |
+            Select-Object -ExpandProperty OwningProcess -Unique
+    )
+
+    if ($processIds.Count -eq 0) {
+        $netstatPattern = "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+(\d+)\s*$"
+        $processIds = @(
+            netstat -ano -p tcp 2>$null |
+                ForEach-Object {
+                    if ($_ -match $netstatPattern) {
+                        [int]$Matches[1]
+                    }
+                } |
+                Where-Object { $_ -gt 0 } |
+                Select-Object -Unique
+        )
+    }
+
+    return $processIds
+}
+
 function Test-PortListening {
     param([int]$Port)
 
-    $connection = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-        Select-Object -First 1
+    $processIds = @(Get-ListeningProcessIds -Port $Port)
 
-    return $null -ne $connection
+    return $processIds.Count -gt 0
+}
+
+function Assert-FrontendFallbackPortIsFree {
+    param([int]$Port = 5174)
+
+    $processIds = @(Get-ListeningProcessIds -Port $Port)
+    if ($processIds.Count -eq 0) {
+        return
+    }
+
+    $processSummary = @(
+        foreach ($processId in $processIds) {
+            $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+            if ($null -eq $process) {
+                "PID $processId"
+            }
+            else {
+                "PID $processId ($($process.ProcessName))"
+            }
+        }
+    ) -join ", "
+
+    throw "Port $Port is already in use by $processSummary. Alife requires the stable frontend origin http://localhost:5173 and will not reuse Vite fallback ports. Stop or relocate the process on $Port, then run the local-dev command again; this prevents an old PWA origin from requesting stale application chunks."
 }
 
 function Wait-Port {
@@ -131,11 +179,7 @@ function Stop-ProcessesListeningOnPort {
         [int]$TimeoutSeconds = 30
     )
 
-    $processIds = @(
-        Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-            Where-Object { $_.OwningProcess -gt 0 } |
-            Select-Object -ExpandProperty OwningProcess -Unique
-    )
+    $processIds = @(Get-ListeningProcessIds -Port $Port)
 
     if ($processIds.Count -eq 0) {
         return
@@ -265,6 +309,10 @@ function Get-NpmCommand {
     return $npmCommand
 }
 
+if (-not $SkipFrontend) {
+    Assert-FrontendFallbackPortIsFree
+}
+
 if (-not $SkipSql) {
     Write-Host "Starting SQL Server container..."
     Push-Location $backendRoot
@@ -380,7 +428,11 @@ if (-not $SkipImagesApi) {
 if (-not $SkipApi) {
     Stop-ProcessesListeningOnPort -Port 7071 -Name "Alife API"
 
-    $funcCommand = Get-Command func -ErrorAction SilentlyContinue
+    $funcCommand = Get-Command func.cmd -ErrorAction SilentlyContinue
+    if ($null -eq $funcCommand) {
+        $funcCommand = Get-Command func -ErrorAction SilentlyContinue
+    }
+
     if ($null -eq $funcCommand) {
         throw "Azure Functions Core Tools was not found. Install it before starting the API."
     }

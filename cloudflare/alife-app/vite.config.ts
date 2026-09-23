@@ -179,6 +179,8 @@ export default defineConfig(({ command, mode }) => {
       }),
     ],
     server: {
+      // A fallback port creates another browser origin with a separate PWA cache.
+      strictPort: true,
       // Local mobile Passkey testing uses one explicitly selected HTTPS tunnel
       // host. Never broadly allow every public tunnel host.
       allowedHosts: publicDevHost ? [publicDevHost] : undefined,

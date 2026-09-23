@@ -21,6 +21,7 @@
     "test:current-tasks": "node --test --experimental-strip-types tests/currentTasks.test.ts",
     "test:event-duties": "node --test --experimental-strip-types tests/currentTasks.test.ts tests/eventDuties.test.ts",
     "test:current-group-selection": "node --test --experimental-strip-types tests/currentGroupSelection.test.ts",
+    "test:collection-adapters": "node --test --experimental-strip-types tests/collectionAdapters.test.ts",
     "test:visit-contact": "node --test --experimental-strip-types tests/visitContactValidation.test.ts",
     "test:identity": "node --test --experimental-strip-types tests/identityPathPolicy.test.ts tests/currentTasks.test.ts tests/passkeyErrors.test.ts tests/churchApplicationValidation.test.ts tests/passkeyRequestGuard.test.ts tests/deviceClass.test.ts tests/manualActivationClipboard.test.ts",
     "test:web-dialogs": "node --test --experimental-strip-types tests/webDialogs.test.ts",
@@ -32,8 +33,8 @@
     "deploy": "npm run build && npm --prefix ../speed-layer run deploy"
   },
   "dependencies": {
-    "@tanstack/query-db-collection": "^1.0.36",
-    "@tanstack/react-db": "^0.1.83",
+    "@tanstack/query-db-collection": "1.0.36",
+    "@tanstack/react-db": "0.1.83",
     "@tanstack/react-query": "^5.100.9",
     "@tinymce/tinymce-react": "^6.3.0",
     "@youversion/platform-core": "^2.2.0",
@@ -63,6 +64,7 @@
     "postcss": "^8.5.8",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "workbox-window": "7.4.1"
   }
 }

@@ -372,6 +372,66 @@ public sealed partial class IdentityAccessFlowTests
         Assert.IsAssignableFrom<IReadOnlyList<AlphaAccountDto>>(ok.Value);
     }
 
+    [Fact]
+    public async Task AlphaLogin_LocalBypassEnabled_SkipsPersistentRateLimiter()
+    {
+        var expiresUtc = DateTime.UtcNow.AddHours(12);
+        var identityAccess = Substitute.For<IIdentityAccessService>();
+        identityAccess.AlphaLoginAsync("configured", null, Arg.Any<CancellationToken>())
+            .Returns(AppResult<IdentitySession>.Success(new(
+                "local-alpha-token", expiresUtc, false, "alpha", "alpha", "/enter")));
+        var identityConfiguration = Substitute.For<IIdentityAccessConfiguration>();
+        identityConfiguration.AlphaLoginEnabled.Returns(true);
+        identityConfiguration.IsProduction.Returns(false);
+        var limiter = Substitute.For<IServerRateLimiter>();
+        var controller = new InternalAlphaLoginController(
+            identityAccess,
+            identityConfiguration,
+            limiter,
+            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AlphaLogin:BypassLocalRateLimit"] = "true"
+            }).Build())
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+
+        var result = await controller.Login(new("configured"), default);
+
+        Assert.IsType<OkObjectResult>(result);
+        await limiter.DidNotReceiveWithAnyArgs().TryConsumeAsync(default!, default!, default, default, default);
+    }
+
+    [Fact]
+    public async Task AlphaLogin_ProductionIgnoresLocalRateLimitBypass()
+    {
+        var identityAccess = Substitute.For<IIdentityAccessService>();
+        var identityConfiguration = Substitute.For<IIdentityAccessConfiguration>();
+        identityConfiguration.AlphaLoginEnabled.Returns(true);
+        identityConfiguration.IsProduction.Returns(true);
+        var limiter = Substitute.For<IServerRateLimiter>();
+        limiter.TryConsumeAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(new RateLimitDecision(false, DateTime.UtcNow.AddMinutes(1), 0));
+        var controller = new InternalAlphaLoginController(
+            identityAccess,
+            identityConfiguration,
+            limiter,
+            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AlphaLogin:BypassLocalRateLimit"] = "true"
+            }).Build())
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+
+        var result = await controller.Login(new("configured"), default);
+
+        var limited = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status429TooManyRequests, limited.StatusCode);
+        await identityAccess.DidNotReceiveWithAnyArgs().AlphaLoginAsync(default!, default, default);
+    }
+
     [Theory]
     [InlineData(ActivationStatus.PendingDelivery, false, AppResultStatus.Conflict, "activation_not_delivered")]
     [InlineData(ActivationStatus.Used, false, AppResultStatus.Conflict, "activation_used")]

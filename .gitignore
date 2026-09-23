@@ -3,6 +3,9 @@
 Thumbs.db
 .vs/
 .idea/
+~$*.docx
+~$*.xlsx
+~$*.pptx
 
 # Logs
 *.log
@@ -39,6 +42,9 @@ packages/
 appsettings.*.json
 
 # Environment files
+# pnpm local content-addressable store (cache, regenerated on install)
+.pnpm-store/
+
 .env
 .setsecret
 .env.*
@@ -61,6 +67,11 @@ override.tf.json
 *.tmp
 .local-dev/
 .codex-build/
+/.codex-worktrees/
+.codex-remote-attachments/
+.workbuddy/
+# Local compatibility junction; generated data lives under C:/Data/Alife/Temp.
+.tmp/
 /tmp/
 artifacts/
 .tmpbuild/

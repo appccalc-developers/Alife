@@ -158,7 +158,19 @@ Include Issue, branch, commit, and PR links only when publishing occurred.
 
 ## Local development shortcuts
 
-For `/localdev` or `/dev`, run from the repository root:
+### Local generated-data storage
+
+For this Windows workspace, the user-approved data root is `C:\Data\Alife`.
+
+- Put disposable builds, experiments, rendered previews, diagnostic reports, and temporary exports under `C:\Data\Alife\Temp`, with task-specific subdirectories.
+- Keep original character and animation inputs under `C:\Data\Alife\Sources`, recovery backups under `C:\Data\Alife\Backups`, and package caches under `C:\Data\Alife\Cache`.
+- Software installations and executable tools remain in appropriately named subdirectories of `C:\Developer`; do not use it for newly generated project data.
+- Never create temporary output directly under `C:\` or `C:\.tmp`. Prefer explicit absolute output paths so a tool's working directory cannot redirect artifacts to the drive root.
+- The repository `.tmp` and legacy Alife source/cache/backup locations may be compatibility junctions to the data root. They are not additional copies; do not replace them with real directories or recursively delete through them.
+- Keep code, required distributable assets, and authoritative documentation in the repository. Do not move production assets or change their URLs as part of local-data housekeeping.
+- Remove obsolete, reproducible build outputs after review. Retain original inputs, current candidates, required reproduction scripts, and recovery backups; do not retain every failed binary experiment by default. Inspect exact targets before cleanup and preserve unrelated user work.
+
+When the user types `/localdev` or `/dev`, start the local stack from the repository root with:
 
 ```powershell
 .\alife-dev.cmd -SkipSql
@@ -167,3 +179,13 @@ For `/localdev` or `/dev`, run from the repository root:
 - Add `-ApplyMigrations` when migrations, database refresh, seed data, or DbMigrator are requested.
 - Omit `-SkipSql` only when the user explicitly asks Codex to start Docker SQL Server.
 - Add `-UseAzurite -EnableScheduledJobs` only for requested TimerTrigger or scheduled-job testing.
+
+Local startup keeps the frontend at port 5173; Vite fails instead of silently
+choosing a second origin, and the launcher reports an occupied fallback port 5174.
+It does not kill that fallback-port process automatically.
+
+For explicitly configured local alpha-login testing,
+`AlphaLogin:BypassLocalRateLimit=true` skips only the controller's IP/account
+throttles outside production. It defaults to false, is ignored in production,
+and never bypasses alpha-login enablement or configured account restrictions.
+Do not enable it on shared environments as part of ordinary local testing.
