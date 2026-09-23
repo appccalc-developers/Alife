@@ -7,17 +7,19 @@ import '../../../styles/eventPreparation.css'
 export type DetailsFocusRequest = { field: DetailField; version: number }
 const DetailsContext = createContext({
   readOnly: false,
+  translationGroupId: undefined as string | undefined,
   updatedFields: [] as string[],
   revealField: (_field?: string) => {},
   markUpdated: (_fields: string[]) => {},
 })
 export const useDetailsWorkspace = () => useContext(DetailsContext)
 
-export default function DetailsWorkspace({ zh, active, form, assistant, readOnly = false, focusRequest, labels, limitAssistantHeight = false }: {
+export default function DetailsWorkspace({ zh, active, form, assistant, readOnly = false, focusRequest, labels, limitAssistantHeight = false, translationGroupId }: {
   zh: boolean; active: boolean; form: ReactNode; assistant: (active: boolean) => ReactNode
   readOnly?: boolean; focusRequest?: DetailsFocusRequest
   labels?: { workspace: string; form: string; assistant: string }
   limitAssistantHeight?: boolean
+  translationGroupId?: string
 }) {
   const root = useRef<HTMLDivElement>(null), formRegion = useRef<HTMLDivElement>(null)
   const id = useId()
@@ -66,7 +68,7 @@ export default function DetailsWorkspace({ zh, active, form, assistant, readOnly
   }, [pendingReveal])
   useEffect(() => { if (active && focusRequest) revealField(focusRequest.field) }, [active, focusRequest, revealField])
   const assistantVisible = active && (wide ? assistantOpen : view === 'assistant')
-  return <DetailsContext.Provider value={{ readOnly, updatedFields, revealField, markUpdated: setUpdatedFields }}>
+  return <DetailsContext.Provider value={{ readOnly, translationGroupId, updatedFields, revealField, markUpdated: setUpdatedFields }}>
     <div ref={root} className={`event-details-workspace${labels ? ' event-module-form-workspace' : ''}`} data-wide={wide} data-assistant-open={assistantOpen}>
       {!wide ? <div className="event-details-tabs" role="tablist" aria-label={labels?.workspace ?? (zh ? '活动资料工作区' : 'Event details workspace')}>
         {(['form', 'assistant'] as const).map((tab, index) => <button key={tab} id={`${id}-${tab}-tab`} type="button" role="tab" aria-selected={view === tab} aria-controls={`${id}-${tab}`} tabIndex={view === tab ? 0 : -1} onClick={() => setView(tab)} onKeyDown={event => {

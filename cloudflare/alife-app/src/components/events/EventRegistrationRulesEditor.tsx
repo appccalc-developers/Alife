@@ -9,7 +9,7 @@ import type { LocalizedText } from '../../types/eventComposition'
 import AppActionButton from '../layout/AppActionButton'
 import AppSectionCard from '../layout/AppSectionCard'
 import { setUnsavedChangesGuard } from '../../utils/unsavedChangesGuard'
-import DetailsWorkspace from './creation/DetailsWorkspace'
+import DetailsWorkspace, { useDetailsWorkspace } from './creation/DetailsWorkspace'
 import EventFormAssistant from './creation/EventFormAssistant'
 import { DetailsBilingualField } from './creation/DetailsStep'
 import { registrationAssistantForm, applyRegistrationAssistantForm } from '../../utils/eventFormAssistant'
@@ -21,7 +21,10 @@ export function BilingualRuleField({ label, value, onChange, required = false }:
 }
 function RegistrationBilingualField({ field, label, value, onChange, required = false }: { field?: string; label: string; value: LocalizedText; onChange: (value: LocalizedText) => void; required?: boolean }) {
   const { language } = useAuthStore()
-  return <DetailsBilingualField field={field || label} label={`${label}${required ? ' *' : ''}`} value={{ en: value?.en || '', zh: value?.zh || '' }} onChange={onChange} zh={language === 'zh'} multiline maxLength={10000} />
+  const { translationGroupId } = useDetailsWorkspace()
+  // Explicitly exclude payment instructions, evidence and participant/material data.
+  const translatable = field && ['purpose', 'eligibility', 'terms', 'privacyNotice', 'cancellationTerms'].includes(field)
+  return <DetailsBilingualField translationGroupId={translatable ? translationGroupId : undefined} field={field || label} label={`${label}${required ? ' *' : ''}`} value={{ en: value?.en || '', zh: value?.zh || '' }} onChange={onChange} zh={language === 'zh'} multiline maxLength={10000} />
 }
 export default function EventRegistrationRulesEditor({ eventId, onDirty, onSaved, onBusy }: { eventId: string; onDirty?: (dirty: boolean) => void; onSaved?: () => void; onBusy?: (busy: boolean) => void }) {
   const { me, language } = useAuthStore(), zh = language === 'zh', cache = useQueryClient()
@@ -63,7 +66,7 @@ export default function EventRegistrationRulesEditor({ eventId, onDirty, onSaved
     {error ? <p role="alert" className="mb-4 text-sm text-rose-800">{error}</p> : null}
     {!query.data.canConfigure ? <p className="mb-3 text-sm">{zh ? '当前为只读。只有活动总负责人可在方案开放编辑时修改规则。' : 'Read only. The event owner can change rules while the plan is open for editing.'}</p> : null}
     {query.data.policy && base !== query.data.policy.eTag ? <p role="alert" className="mb-3 text-amber-900">{zh ? '服务端规则已改变。你的草稿仍保留，请核对后重新读取。' : 'The saved rules changed. Your draft is retained; review before reloading.'}</p> : null}
-    <DetailsWorkspace key={`${me?.id}:${eventId}`} zh={zh} active readOnly={busy || !query.data.canConfigure} limitAssistantHeight
+    <DetailsWorkspace key={`${me?.id}:${eventId}`} translationGroupId={query.data.groupId} zh={zh} active readOnly={busy || !query.data.canConfigure} limitAssistantHeight
       labels={{ workspace: zh ? '报名规则工作区' : 'Registration rules workspace', form: zh ? '报名规则表单' : 'Registration rules form', assistant: zh ? 'AI 报名资料助手' : 'AI registration assistant' }}
       assistant={active => <EventFormAssistant eventId={eventId} scope="registration" form={registrationAssistantForm(draft)} contextSignature={JSON.stringify([draft, base])} zh={zh} active={active} initiallyConfirmed={Boolean(query.data.policy)} onBusy={setAiBusy} onAdopt={(form, fields) => setDraft(current => current && JSON.stringify(current) === JSON.stringify(draft) ? applyRegistrationAssistantForm(current, form, fields, Intl.DateTimeFormat().resolvedOptions().timeZone) : current)} />}
       form={<form onInvalidCapture={e => revealArrangementControl(e.target as HTMLElement)} onSubmit={e => { e.preventDefault(); void save() }}><fieldset disabled={busy || !query.data.canConfigure} className="space-y-5">

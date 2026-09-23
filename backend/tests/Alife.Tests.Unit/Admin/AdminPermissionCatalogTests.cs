@@ -5,6 +5,20 @@ namespace Alife.Tests.Unit.Admin;
 public class AdminPermissionCatalogTests
 {
     [Fact]
+    public void EventPermissions_AreExplicitAndDoNotTurnScopedRolesIntoPlatformGrants()
+    {
+        var permissions = AdminPermissionCatalog.ListAll();
+        Assert.Equal(new[] {
+            "admin.events.approvePackages", "admin.events.audit", "admin.events.managePackagePolicies",
+            "admin.events.manageRamPolicies", "admin.events.manageTemplates", "admin.events.sponsor"
+        }, permissions.Where(x => x.Code.StartsWith("admin.events.", StringComparison.Ordinal)).Select(x => x.Code).OrderBy(x => x, StringComparer.Ordinal));
+        Assert.DoesNotContain(permissions, x => x.Code is "event.package.decide" or "event.accountableOwner" or "registration.manager");
+        var policy = Assert.Single(permissions, x => x.Code == AdminPermissionCatalog.ManageEventPackagePolicies);
+        Assert.Contains("delegation", policy.Description["en"]);
+        Assert.Contains("委派", policy.Description["zh"]);
+    }
+
+    [Fact]
     public void ListAll_ContainsOnlyUniqueLocalizedEffectivePermissions()
     {
         var permissions = AdminPermissionCatalog.ListAll();

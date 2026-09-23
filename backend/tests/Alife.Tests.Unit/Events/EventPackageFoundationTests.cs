@@ -250,6 +250,11 @@ public sealed partial class EventPackageFoundationTests
         (await db.EventPackageGovernancePolicyVersions.SingleAsync()).EnforcementMode = EventPackageEnforcementMode.Enforced;
         await db.SaveChangesAsync();
         var service = new EventPackageService(db, Authorization());
+        var missing = await service.GetLifecycleAsync(seeded.Event.Id, seeded.Owner, default);
+        var missingPackage = Assert.Single(missing.Value!.Gates.First(x => x.Gate == EventLifecycleGate.Publish).Blockers,
+            x => x.Code == "event.publish.packageMissing");
+        Assert.Equal("event.accountableOwner", missingPackage.ResponsibleRole);
+        Assert.Equal("event.package.generate", missingPackage.NextAction);
         var generated = await service.GenerateAsync(
             seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "gate-projection", default);
         Assert.True(generated.IsSuccess, generated.Message);

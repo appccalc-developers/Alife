@@ -456,7 +456,7 @@ const EventDetailView = () => {
       status={lifecycle ? <AppBadge variant={lifecycle === 'upcoming' ? 'success' : lifecycle === 'planning' ? 'warning' : 'neutral'}>{lifecycleLabel}</AppBadge> : undefined}
       primaryAction={!isGuest && event ? (
         <AppTitleBarAction
-          label={canEditPlan ? (language === 'zh' ? '继续活动筹备' : 'Continue event preparation') : (language === 'zh' ? '活动工作区' : 'Event workspace')}
+          label={canEditPlan ? (language === 'zh' ? '继续筹备' : 'Continue preparation') : (language === 'zh' ? '活动工作台' : 'Event workspace')}
           icon={<LayoutDashboard className="h-4 w-4" />}
           to={`${eventBasePath}/workspace${canEditPlan ? '?flow=setup&stage=arrangements' : ''}`}
         />

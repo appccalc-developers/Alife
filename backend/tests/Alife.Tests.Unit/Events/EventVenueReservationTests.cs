@@ -20,6 +20,38 @@ public sealed class EventVenueReservationTests
 {
     private static readonly DateTime StartUtc = new(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EventOwnerOrCoordinator_CanReserveSharedVenue_ButCannotEditItsCatalogue(bool useCoordinator)
+    {
+        await using var db = CreateDb();
+        var seeded = Seed(db);
+        var church = new Group { Id = Guid.NewGuid(), NameJson = "{}", IsChurch = true, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
+        db.Groups.Add(church); seeded.Group.ParentGroupId = church.Id; seeded.Venue.ManagingGroupId = church.Id;
+        var actor = useCoordinator ? Guid.NewGuid() : seeded.Owner;
+        if (useCoordinator) {
+            db.Members.Add(Member(actor, "Coordinator"));
+            db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = seeded.Group.Id, MemberId = actor, Status = MembershipStatus.Approved });
+            db.EventRoleAssignments.Add(Role(seeded.Event.Id, actor, seeded.Owner, EventRoleAssignmentStatus.Accepted));
+        }
+        await db.SaveChangesAsync();
+        var catalogueManager = Guid.NewGuid();
+        var service = new EventVenueService(db, Authorization(catalogueManager));
+        var workspace = await service.GetWorkspaceAsync(seeded.Event.Id, actor, default);
+        Assert.True(workspace.IsSuccess, workspace.Message);
+        var venue = Assert.Single(workspace.Value!.Venues);
+        var denied = await service.UpdateVenueAsync(church.Id, seeded.Venue.Id, actor,
+            new(new("Changed hall", "修改礼堂"), new("Road", "道路"), 20), venue.ETag, default);
+        Assert.Equal(AppResultStatus.Forbidden, denied.Status);
+        var reserved = await service.ReserveAsync(seeded.Event.Id, actor,
+            new(seeded.Venue.Id, seeded.Occurrence.Id, StartUtc, StartUtc.AddHours(1), 10), venue.ETag, "reserve-only", default);
+        Assert.True(reserved.IsSuccess, reserved.Message);
+        var updated = await service.UpdateVenueAsync(church.Id, seeded.Venue.Id, catalogueManager,
+            new(new("Managed hall", "管理后的礼堂"), new("Road", "道路"), 20), Assert.Single(reserved.Value!.Venues).ETag, default);
+        Assert.True(updated.IsSuccess, updated.Message);
+    }
+
     [Fact]
     public async Task Workspace_RequiresAcceptedResourceCoordinatorOrEventManager()
     {

@@ -6020,12 +6020,11 @@ public sealed record AcceptEventPlanRequest(
     {
       "code": "resource.catalogue.manage",
       "actors": [
-        "resource.coordinator accepted",
-        "event.accountableOwner",
-        "owningGroup.leader",
-        "owningGroup.coLeader"
+        "managingGroup.leader",
+        "managingGroup.coLeader",
+        "platform.admin via existing group authorization"
       ],
-      "scope": "managingGroup"
+      "scope": "venue managing group, including root-church shared catalogue; Event ownership or resource.coordinator alone grants reservation, not catalogue administration"
     },
     {
       "code": "resource.reservation.manage",
@@ -6120,20 +6119,18 @@ public sealed record AcceptEventPlanRequest(
     {
       "code": "event.package.submit",
       "actors": [
-        "event.accountableOwner",
-        "accepted event.lead"
+        "event.accountableOwner"
       ],
-      "scope": "current draft Package for managed Event or occurrence; actor cannot be supplied by client"
+      "scope": "current draft Package for managed Event or occurrence; current approved owning-group membership required; event.lead or group leadership alone does not grant submission; actor cannot be supplied by client"
     },
     {
       "code": "event.package.withdraw",
       "actors": [
+        "package.generator",
         "package.submitter",
-        "event.accountableOwner",
-        "owningGroup.leader",
-        "owningGroup.coLeader"
+        "event.accountableOwner"
       ],
-      "scope": "current draft or submitted Package before final decision"
+      "scope": "current draft or submitted Package before final decision, with current authorised Package view; group leadership alone does not grant withdrawal"
     },
     {
       "code": "event.package.decide",
@@ -7860,7 +7857,7 @@ public sealed record AcceptEventPlanRequest(
       "method": "GET",
       "path": "/api/events/work",
       "request": "page, search",
-      "response": "filtered persistent Event work summaries",
+      "response": "filtered persistent Event work summaries with bilingual title, date range, optional adopted poster URL, stage and current-actor responsibility markers",
       "auth": "current actor",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false

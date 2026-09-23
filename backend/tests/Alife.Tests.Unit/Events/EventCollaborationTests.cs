@@ -161,7 +161,9 @@ public sealed class EventCollaborationTests
     [Fact]
     public async Task PersistentWork_IsRoleScoped_AndSurvivesCompletedReportDuty()
     {
-        await using var f = new Fixture(); await f.Save();
+        await using var f = new Fixture();
+        f.Event.EventDataJson = "{\"visibility\":\"public\",\"posterImageUrl\":\"https://example.test/event-poster.jpg\"}";
+        await f.Save();
         var duties = new EventDutyProjectionService(f.Db,f.Approval); var work = new EventWorkService(f.Db,duties);
         var author = await work.GetAsync(f.Event.Id,f.Author,1,default); Assert.True(author.IsSuccess,author.Message);
         Assert.NotNull(author.Value!.PlanContext); Assert.Null(author.Value.PreparationProgress);
@@ -175,7 +177,11 @@ public sealed class EventCollaborationTests
         var adopted = await reports.ActAsync(f.Event.Id,"PROGRAM.PRODUCTION",f.Owner,"adopt",new(RevisionId:submitted.Value!.SubmittedRevisionId),submitted.Value.ETag,"work-adopt",default);
         Assert.True(adopted.IsSuccess,adopted.Message);
         Assert.DoesNotContain(await duties.ListAsync(f.Author,default),x => x.Task.SourceType == "moduleReport");
-        Assert.Contains((await work.ListAsync(f.Author,1,null,default)).Items,x => x.EventId == f.Event.Id);
+        var summary = Assert.Single((await work.ListAsync(f.Author,1,null,default)).Items);
+        Assert.Equal(f.Event.Id, summary.EventId);
+        Assert.Equal(f.Event.StartDate, summary.StartUtc);
+        Assert.Equal(f.Event.EndDate, summary.EndUtc);
+        Assert.Equal("https://example.test/event-poster.jpg", summary.PosterImageUrl);
         f.Db.EventRoleAssignments.Single(x => x.MemberId == f.Author).EndedUtc = DateTime.UtcNow; await f.Save();
         Assert.Empty((await work.ListAsync(f.Author,1,null,default)).Items);
         Assert.Equal(AppResultStatus.Forbidden,(await work.GetAsync(f.Event.Id,f.Author,1,default)).Status);

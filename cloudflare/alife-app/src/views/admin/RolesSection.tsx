@@ -4,6 +4,7 @@ import type { AdminPlatformRoleDto } from '../../services/groupService'
 import { Empty, LabeledField, SearchInput, TextInput } from './AdminUi'
 import type { LabelFn } from './AdminUi'
 import { formatRole, readLocalized } from './adminUtils'
+import EventPermissionGuide from './EventPermissionGuide'
 
 export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, deletingRoleId, updatingRolePermissionId, roleCodeValidation, roleCodeFeedback, canSubmitCreateRole, createRole, deleteRole, updateRolePermissions, refresh, loading, language }: {
   l: LabelFn
@@ -116,6 +117,7 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
         </div>
       </section>
 
+      <EventPermissionGuide zh={language === 'zh'} onFilter={() => setPermissionSearch('admin.events.')} />
       <div className="grid gap-4 xl:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 p-4">

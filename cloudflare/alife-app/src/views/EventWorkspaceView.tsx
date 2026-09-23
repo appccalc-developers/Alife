@@ -178,6 +178,15 @@ const EventWorkspaceView = () => {
   const selectedPageItem = selectedPageDefinition
     ? resolvedItems.find((item) => item.surfaceKey === selectedPageDefinition.surfaceKey)
     : undefined
+  const workspaceReturnPath = returnToRamSetup
+    ? `${workspaceBasePath}?flow=setup&stage=arrangements&module=safety.ram`
+    : workspaceBasePath
+  const workspaceReturnLabel = returnToRamSetup
+    ? (language === 'zh' ? '返回活动筹备' : 'Back to event preparation')
+    : text.backWorkspace
+  const currentTaskBackLink = searchParams.has('returnTo')
+    ? { to: dutyReturnPath(searchParams.get('returnTo')), label: language === 'zh' ? '返回当前事务' : 'Back to current tasks' }
+    : undefined
 
   if (!groupId || !eventId) return <Navigate to="/" replace />
 
@@ -200,7 +209,7 @@ const EventWorkspaceView = () => {
 
   if (surfacePath && (!selectedPageDefinition || !selectedPageItem)) {
     return (
-      <AppPageShell title={text.unknownSurface} subtitle={text.unknownSurfaceDescription} actions={<Link className="text-sm font-bold text-[#176b5a]" to={returnToRamSetup ? `${workspaceBasePath}?flow=setup&stage=arrangements&module=safety.ram` : workspaceBasePath}>{returnToRamSetup ? (language === 'zh' ? '返回活动筹备' : 'Back to event preparation') : text.backWorkspace}</Link>}>
+      <AppPageShell title={text.unknownSurface} subtitle={text.unknownSurfaceDescription} backLink={{ to: workspaceReturnPath, label: workspaceReturnLabel }}>
         <AppEmptyState title={text.unknownSurface} description={text.unknownSurfaceDescription} />
       </AppPageShell>
     )
@@ -209,10 +218,10 @@ const EventWorkspaceView = () => {
   if (surfacePath && selectedPageItem) {
     return (
       <AppPageShell
-        backLink={searchParams.has('returnTo') ? { to: dutyReturnPath(searchParams.get('returnTo')), label: language === 'zh' ? '返回当前事务' : 'Back to current tasks' } : undefined}
+        backLink={currentTaskBackLink ?? { to: workspaceReturnPath, label: workspaceReturnLabel }}
         title={localize(selectedPageItem.label, language)}
         subtitle={text.independentPage}
-        actions={<div className="flex flex-wrap gap-4 text-sm font-bold text-[#176b5a]"><Link to={returnToRamSetup ? `${workspaceBasePath}?flow=setup&stage=arrangements&module=safety.ram` : workspaceBasePath}>{returnToRamSetup ? (language === 'zh' ? '返回活动筹备' : 'Back to event preparation') : text.backWorkspace}</Link>{surfacePath === 'roster' ? <><Link to={eventBasePath}>{language === 'zh' ? '查看活动' : 'View event'}</Link><Link to={`/events/${eventId}/work`}>{language === 'zh' ? '查看活动阶段' : 'View event stages'}</Link></> : null}</div>}
+        actions={surfacePath === 'roster' ? <div className="flex flex-wrap gap-4 text-sm font-bold text-[#176b5a]"><Link to={eventBasePath}>{language === 'zh' ? '查看活动' : 'View event'}</Link><Link to={`/events/${eventId}/work`}>{language === 'zh' ? '查看活动阶段' : 'View event stages'}</Link></div> : undefined}
       >
         <EventSurfaceRenderer item={selectedPageItem} language={language} eventBasePath={eventBasePath} eventId={eventId} groupId={groupId} canManage={workspace.canManage} />
       </AppPageShell>
@@ -221,10 +230,9 @@ const EventWorkspaceView = () => {
 
   return (
     <AppPageShell
-        backLink={searchParams.has('returnTo') ? { to: dutyReturnPath(searchParams.get('returnTo')), label: language === 'zh' ? '返回当前事务' : 'Back to current tasks' } : undefined}
+      backLink={currentTaskBackLink ?? { to: eventBasePath, label: text.back }}
       title={`${text.title} · ${localize(workspace.title, language)}`}
       subtitle={text.subtitle}
-      actions={<Link className="text-sm font-bold text-[#176b5a]" to={eventBasePath}>{text.back}</Link>}
     >
       <Link className="text-sm font-semibold text-[#176b5a]" to={`/events/${eventId}/work`}>{language === 'zh' ? '我的活动工作与阶段 →' : 'My event work and stages →'}</Link>
 
@@ -258,8 +266,8 @@ const EventWorkspaceView = () => {
           </div>
 
           {workspace.canManage ? <AppSectionCard title={language === 'zh' ? '活动筹备' : 'Event preparation'}>
-            <Link className="inline-flex min-h-11 items-center rounded-xl bg-[#176b5a] px-4 text-sm font-bold text-white" to={`${workspaceBasePath}?flow=setup&stage=details`}>
-              {language === 'zh' ? '进入活动筹备流程' : 'Open event preparation'}
+            <Link className="inline-flex min-h-11 items-center rounded-xl bg-[#176b5a] px-4 text-sm font-bold text-white" to={`${workspaceBasePath}?flow=setup&stage=arrangements`}>
+              {language === 'zh' ? '继续筹备' : 'Continue preparation'}
             </Link>
           </AppSectionCard> : null}
 
