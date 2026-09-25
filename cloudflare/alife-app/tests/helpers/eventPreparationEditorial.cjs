@@ -23,6 +23,7 @@ async function checkEditorialPreparation({ page, base, language, width, open, er
     await page.evaluate(() => window.scrollTo(0, 0));
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${label}: no horizontal page overflow`);
     await page.screenshot({ path: path.join(root, `${label}-${language}-${width}.png`), fullPage: true });
+    if (label === 'overview') await page.screenshot({ path: path.join(root, `overview-clean-${language}-${width}.png`), fullPage: true, style: 'button[title*="Ctrl+Shift+C"] { visibility: hidden !important; }' });
   };
   let releaseLoading;
   const loadingGate = new Promise(resolve => { releaseLoading = resolve; });
@@ -47,9 +48,19 @@ async function checkEditorialPreparation({ page, base, language, width, open, er
   assert.equal(await page.locator('.event-editorial-check-count strong').innerText(), '1');
   assert.ok(await nav().getByRole('button', { name: t('Poster', '海报制作'), exact: true }).isDisabled());
   await screenshot('overview');
-  const overviewHeight = await page.locator('[data-editorial-overview]').evaluate(el => el.getBoundingClientRect().height);
-  assert.ok(overviewHeight < (width >= 1024 ? 600 : 1000), `compact overview height: ${overviewHeight}`);
-  if (width >= 1280) assert.ok((await page.locator('.event-editorial-domain').last().boundingBox()).y < 900, 'all related area entries start in the desktop first viewport');
+  assert.ok(await page.locator('.event-editorial-core').isVisible(), 'event core is visible in the preparation map');
+  assert.equal(await page.locator('.event-editorial-domain[data-arrangement-tile="TEAM.WORK"]').getAttribute('data-readiness'), 'blocked', 'server blocker is visible on its module');
+  assert.ok((await page.locator('.event-editorial-domain[data-arrangement-tile="TEAM.WORK"]').innerText()).includes(t('Assign the required responsibilities.', '请安排所需职责。')), 'module card explains the actual blocker');
+  assert.equal(await page.locator('.event-editorial-domain[data-arrangement-tile="PLACE.RESOURCE"]').getAttribute('data-readiness'), 'ready', 'server-ready module is not inferred from local confirmation');
+  assert.equal(await page.locator('.event-editorial-domain[data-arrangement-tile="PEOPLE.REGISTRATION"]').getAttribute('data-readiness'), 'working', 'server not-ready module is shown as in progress');
+  assert.equal(await page.locator('.event-editorial-core > strong').innerText(), '1 / 8', 'core counts checked ready modules, not local confirmations');
+  assert.equal(await page.locator('[data-arrangement-tile="FESTIVAL.OPERATIONS"]').count(), 0, 'inactive plan modules are absent from the saved map');
+  assert.equal(await page.getByRole('button', { name: /Show related modules|显示相关模块|Show all modules|显示所有模块/ }).count(), 0, 'saved map has no redundant module-mode switch');
+  if (width >= 1280) {
+    const core = await page.locator('.event-editorial-core').boundingBox();
+    const first = await page.locator('.event-editorial-domain').first().boundingBox();
+    assert.ok(core.y > first.y && core.x > first.x, 'event core sits inside the surrounding card map');
+  }
   assert.ok(await page.getByRole('button', { name: t('Save arrangements', '保存活动安排'), exact: true }).isDisabled(), 'unchanged arrangements cannot submit a redundant save');
   const contrast = await page.evaluate(() => {
     const rgb = value => value.match(/[\d.]+/g).slice(0, 3).map(Number);
@@ -76,10 +87,17 @@ async function checkEditorialPreparation({ page, base, language, width, open, er
   await page.keyboard.press('Tab');
   assert.equal(await page.evaluate(() => getComputedStyle(document.activeElement).outlineWidth), '3px');
   assert.ok(await page.locator('.event-editorial-domain').first().evaluate(el => parseFloat(getComputedStyle(el).transitionDuration) <= .001));
-  await page.getByRole('button', { name: /Show all modules|显示所有模块/ }).click();
-  assert.ok(await page.locator('[data-arrangement-tile="FESTIVAL.OPERATIONS"]').isVisible());
-  await page.getByRole('button', { name: /Show related modules|显示相关模块/ }).click();
-  assert.equal(await page.locator('[data-arrangement-tile="FESTIVAL.OPERATIONS"]').count(), 0);
+  const focusCard = page.locator('[data-arrangement-tile="PEOPLE.REGISTRATION"]');
+  await focusCard.hover();
+  assert.equal(await focusCard.getAttribute('data-preview'), 'true', 'hover previews the target without requiring a click');
+  assert.equal(await page.locator('.event-editorial-map-lines line[data-preview="true"]').count(), 1, 'the corresponding core connection responds');
+  await focusCard.click();
+  await page.locator('[data-module-editor="PEOPLE.REGISTRATION"]').waitFor({ state: 'visible' });
+  assert.equal(new URL(page.url()).searchParams.get('module'), 'PEOPLE.REGISTRATION', 'card click directly opens the compatible editor bookmark');
+  assert.equal(await page.locator('[data-editorial-overview]:visible').count(), 0, 'card click replaces the map with the editor');
+  assert.equal(acceptedPlans.length, 0, 'opening a module does not save or approve');
+  await page.getByRole('button', { name: t('← Back to preparation overview', '← 返回筹备总览'), exact: true }).click();
+  await page.locator('[data-editorial-overview]').waitFor({ state: 'visible' });
   await open('EVENT.DETAILS');
   assert.equal(await page.locator('[data-editorial-overview]:visible').count(), 0, 'editor replaces the overview rather than extending its long page');
   const assertEditorInView = async code => {

@@ -3,7 +3,7 @@ import { emptyActivityPlan } from '../../../types/eventActivityPlan'
 import EventCapabilityNotice, { capabilityStatusText, useEventCapabilities } from '../EventCapabilityNotice'
 import '../../../styles/eventPreparation.css'
 import EventPreparationOverview from '../EventPreparationOverview'
-import type { Readiness } from '../../../types/eventComposition'
+import type { EventWorkspaceItem, Readiness } from '../../../types/eventComposition'
 import type { DetailsFocusRequest } from './DetailsWorkspace'
 export { default as DetailsWorkspace } from './DetailsWorkspace'
 export { default as DetailsStep } from './DetailsStep'
@@ -105,7 +105,7 @@ function ArrangementModule({ draft, setDraft, zh, decision, current, type, group
   </ToolTileDeck>
 }
 
-export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, proposal, current, status, groupId, saved = false, ramPanel, ramDirty = false, modulePanels, rolePanels, ownerPanel, detailsPanel, detailsDraft = draft, detailsDirty = false, detailsFocusRequest, focusModule, savedModules = {}, onUnsavedTools, editorial }: DraftProps & { editorial?: { onSelectModule: (code: string | null) => void; readiness?: Readiness; onReview: () => void; reviewDisabled: boolean }; onUnsavedTools?: (dirty: boolean) => void; savedModules?: Record<string, number>; type: EventActivityType; ownerPanel?: ReactNode; detailsPanel?: (active: boolean) => ReactNode; detailsDraft?: CreationDraft; detailsDirty?: boolean; detailsFocusRequest?: DetailsFocusRequest; proposal: EventPlanProposal | null; current: boolean; status: ReactNode; groupId: string; saved?: boolean; ramPanel?: ReactNode; ramDirty?: boolean; readOnly?: boolean; modulePanels?: Record<string, ReactNode>; rolePanels?: Record<string, ReactNode>; focusModule?: string | null }) {
+export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, proposal, current, status, groupId, saved = false, ramPanel, ramDirty = false, modulePanels, rolePanels, ownerPanel, detailsPanel, detailsDraft = draft, detailsDirty = false, detailsFocusRequest, focusModule, savedModules = {}, onUnsavedTools, editorial }: DraftProps & { editorial?: { onSelectModule: (code: string | null) => void; readiness?: Readiness; workspaceItems: EventWorkspaceItem[]; onReview: () => void; reviewDisabled: boolean }; onUnsavedTools?: (dirty: boolean) => void; savedModules?: Record<string, number>; type: EventActivityType; ownerPanel?: ReactNode; detailsPanel?: (active: boolean) => ReactNode; detailsDraft?: CreationDraft; detailsDirty?: boolean; detailsFocusRequest?: DetailsFocusRequest; proposal: EventPlanProposal | null; current: boolean; status: ReactNode; groupId: string; saved?: boolean; ramPanel?: ReactNode; ramDirty?: boolean; readOnly?: boolean; modulePanels?: Record<string, ReactNode>; rolePanels?: Record<string, ReactNode>; focusModule?: string | null }) {
   const [active, setActive] = useState<string | null>(null), [visited, setVisited] = useState<string[]>([])
   const [showAllModules, setShowAllModules] = useState(false)
   const capabilities = useEventCapabilities()
@@ -119,8 +119,9 @@ export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, 
   const [confirmationError, setConfirmationError] = useState('')
   const grid = useRef<HTMLDivElement>(null), panelsRef = useRef<HTMLDivElement>(null), savedRef = useRef(savedModules)
   const decisions = proposal?.moduleDecisions ?? []
-  const relevantModules = decisions.filter(item => item.status !== 'inactive')
-  const moduleChoices = [...(showAllModules ? decisions : relevantModules)].sort((a, b) => Number(a.moduleCode === 'SAFETY.RAM') - Number(b.moduleCode === 'SAFETY.RAM'))
+  const focusedMode = Boolean(editorial && saved)
+  const relevantModules = decisions.filter(item => draft.moduleOverrides[item.moduleCode] ?? item.status !== 'inactive')
+  const moduleChoices = [...(!focusedMode && showAllModules ? decisions : relevantModules)].sort((a, b) => Number(a.moduleCode === 'SAFETY.RAM') - Number(b.moduleCode === 'SAFETY.RAM'))
   const relatedCount = relevantModules.length
   const totalCount = decisions.length || creationModuleCodes.length
   const visibleIds = new Set(moduleChoices.map(item => item.moduleCode))
@@ -128,7 +129,6 @@ export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, 
     code === 'PROGRAM.PRODUCTION' ? draft.arrangements?.sessions : code === 'PLACE.RESOURCE' ? draft.arrangements?.venues : code === 'SERVICE.ROSTER' ? draft.arrangements?.slots : null])
   const [baseline, setBaseline] = useState<Record<string, string>>(() => Object.fromEntries(creationModuleCodes.map(code => [code, moduleSignature(code)])))
   const edited = Object.fromEntries(decisions.map(item => [item.moduleCode, baseline[item.moduleCode] !== moduleSignature(item.moduleCode)]))
-  const focusedMode = Boolean(editorial && saved)
   const focusModulePanel = (element: HTMLElement | null) => {
     if (focusedMode && element?.id.startsWith('module-heading-')) {
       // Reveal the navigation as well as the heading, below the live-height savebar.
@@ -174,8 +174,8 @@ export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, 
         {decisions.map(item => <option key={item.moduleCode} value={item.moduleCode}>{localText(item.label, zh)}</option>)}
       </select></label>
     </div> : null}
-    {!detailsPanel ? <div className="flex justify-end">{modeToggle}</div> : null}
-    <div ref={grid} hidden={focusedMode && Boolean(active)} className="space-y-3">{editorial && saved ? <EventPreparationOverview draft={detailsDraft} typeName={type.name} owner={ownerPanel} active={active} onSelect={choose} modeToggle={modeToggle} zh={zh} dirty={detailsDirty} {...editorial} domains={moduleChoices.map(decision => ({ decision, enabled: draft.moduleOverrides[decision.moduleCode] ?? decision.status !== 'inactive', dirty: Object.values(toolDrafts[decision.moduleCode] || {}).some(Boolean) || edited[decision.moduleCode] || (decision.moduleCode === 'SAFETY.RAM' && ramDirty), confirmed: draft.moduleConfirmations?.[decision.moduleCode] === true, ...tileMeta[decision.moduleCode], capability: capabilities.find(c => c.moduleCode === decision.moduleCode && c.status !== 'coreAvailable') ? capabilityStatusText(capabilities.find(c => c.moduleCode === decision.moduleCode)!.status, zh) : undefined }))} /> : <>{detailsPanel ? <div data-event-details-card data-selected={active === 'EVENT.DETAILS'} className="event-arrangement-context">
+    {!focusedMode && !detailsPanel ? <div className="flex justify-end">{modeToggle}</div> : null}
+    <div ref={grid} hidden={focusedMode && Boolean(active)} className="space-y-3">{editorial && saved ? <EventPreparationOverview draft={detailsDraft} typeName={type.name} owner={ownerPanel} active={active} onSelect={choose} zh={zh} dirty={detailsDirty} {...editorial} domains={moduleChoices.map(decision => ({ decision, enabled: draft.moduleOverrides[decision.moduleCode] ?? decision.status !== 'inactive', dirty: Object.values(toolDrafts[decision.moduleCode] || {}).some(Boolean) || edited[decision.moduleCode] || (decision.moduleCode === 'SAFETY.RAM' && ramDirty), workspaceItem: editorial.workspaceItems.find(item => item.moduleCode === decision.moduleCode), ...tileMeta[decision.moduleCode], capability: capabilities.find(c => c.moduleCode === decision.moduleCode && c.status !== 'coreAvailable') ? capabilityStatusText(capabilities.find(c => c.moduleCode === decision.moduleCode)!.status, zh) : undefined }))} /> : <>{detailsPanel ? <div data-event-details-card data-selected={active === 'EVENT.DETAILS'} className="event-arrangement-context">
       <header className="event-arrangement-context-header"><h2 className="flex min-h-11 min-w-0 items-center gap-2 break-words font-semibold"><CalendarCheck size={20} className="shrink-0" /><span className="min-w-0">{localText(type.name, zh)}</span></h2>{modeToggle}</header>
       <button type="button" data-arrangement-tile="EVENT.DETAILS" aria-expanded={active === 'EVENT.DETAILS'} aria-controls="tile-panel-EVENT.DETAILS" onClick={() => choose('EVENT.DETAILS')} className="w-full min-h-11 text-left focus-visible:outline focus-visible:outline-2">
         {detailsDirty ? <span className="block text-xs">{zh ? '未保存' : 'Unsaved'}</span> : null}
