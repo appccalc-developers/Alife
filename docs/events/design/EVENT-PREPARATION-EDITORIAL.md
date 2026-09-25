@@ -18,9 +18,10 @@ Saved/frozen/unsaved status
 Sticky explicit save actions (below application header)
 
 Overview only:
+Preparation map — only modules enabled for this Event
+Large domain cards around event core; core shows enabled confirmations
+Card click opens the existing module editor directly
 Compact event brief / local date + approval review entry
-Preparation areas                         Related / all
-Domain entries: identity · enabled · draft · confirmation
 Saved blockers (disclosure)
 
 Focused editor (replaces the overview):
@@ -28,7 +29,7 @@ Back to overview                          Current area selector
 Selected existing editor; other visited drafts stay mounted, hidden
 ```
 
-Desktop uses a compact asymmetric brief/review spread and four-column domain index. Phone widths put the two-column area index before the supplementary brief/review regions. The four stages remain visible together; the secondary preparation-tool rail scrolls without wrapping and reveals the selected tool when it changes. Approval uses the existing authorized Package/assessment/reopening panels. Frozen routes keep the existing explicit reopening boundary; the new overview does not expose frozen editors. Non-owner work remains on the role-specific work routes.
+Desktop uses a four-column spatial card map around the event core, adapting its rows to the number of enabled areas. Narrow containers collapse to two or one column without horizontal scrolling; the brief/review spread follows the map. The four stages remain visible together; the secondary preparation-tool rail scrolls without wrapping and reveals the selected tool when it changes. Approval uses the existing authorized Package/assessment/reopening panels. Frozen routes keep the existing explicit reopening boundary; the new overview does not expose frozen editors. Non-owner work remains on the role-specific work routes.
 
 ### Usability correction after user review
 
@@ -55,6 +56,12 @@ Save actions sit in a sticky top bar rather than below the page. The scroll targ
 The compact revision was checked in zh/en at 320/390/1024/1280px, with explicit assertions for visible editor headings, unobscured back buttons, sticky save actions, no sideways document panning, clearing the module bookmark, area switching, history navigation and cancellation of discard. The existing creation-to-saved/AI-details regression also passed at 320/1280px in both languages. The focused 14 unit tests, Event-scoped TypeScript check and documentation check passed. Live backend authorization and deployment were not rerun for this UI-only correction.
 
 With the same synthetic Chinese fixture, full-page overview captures reduced from 1804px to 1175px at 1280px width (35%) and from 2713px to 1493px at 320px width (45%). These are fixture measurements, not guarantees for arbitrarily long titles or module lists. The desktop related-domain entries fit the initial 900px-high viewport; on phones domains precede the supplementary brief. Current compact screenshots are under `C:\Data\Alife\Temp\event-preparation-compact-20260922`, including viewport-only `editor-{language}-{width}.png` captures. Full-page captures include the actual fixed mobile navigation/diagnostic overlay; long specialist forms still scroll, while the top save actions remain accessible.
+
+### Spatial overview revision (2026-09-25)
+
+The user chose the original large-card, central-core composition over later architectural or star-chart concepts. The first spatial implementation displayed all 12 authorized modules and required a second click in an inspector to edit. That behavior was rejected: the saved overview now projects only modules enabled for this Event from the accepted plan and current local overrides. There is no Related/All switch or intermediate inspector in this view; one click opens the existing editor and its compatible `module` bookmark. Pointer hover and keyboard focus preview the card's core connection; a brief editor-entry transition gives orientation without delaying the action, and reduced-motion users receive the same final state without animation. Creation mode retains its optional-module switch. The event brief continues to open its existing details editor directly. Connector lines represent enabled areas joining this Event, not readiness or approval dependencies.
+
+The palette follows the user's large-card reference: quiet off-white paper, restrained domain-colour outlines and a deep green core. Each card now projects its own authorized workspace item's server-checked readiness: blocked items show their first real blocker, ready/complete items show the corresponding state, and `notReady` appears as in progress. Local unsaved changes cannot be shown as ready; they appear as in progress, or as an additional warning if a server blocker already exists. Missing workspace items or missing check time remain unknown rather than becoming ready by inference. The core's fraction counts only enabled areas that are server-ready/complete and have no local unsaved changes; its label explicitly says this is not formal approval. The domain colour identifies the module, while a separate restrained state marker identifies its readiness. No fabricated five-step checklist or percent is introduced. The prior compact-layout measurements above are historical and no longer describe the current spatial overview. This change does not alter authorization, saving, approval or published event surfaces.
 
 ## State transitions
 
