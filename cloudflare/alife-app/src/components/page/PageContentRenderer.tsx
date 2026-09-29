@@ -331,6 +331,7 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
       styleJson: {
         layout: 'reviewedPageCarousel',
         frontendType: 'ReviewedPageCarousel',
+        contentWidth: 'contained',
       },
     }
   }
