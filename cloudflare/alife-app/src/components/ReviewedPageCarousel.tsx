@@ -7,6 +7,7 @@ import EditorialPageIndex from './EditorialPageIndex'
 import EventEditorialShowcase from './EventEditorialShowcase'
 import EventPageStage from './EventPageStage'
 import FloatingCardLoop from './FloatingCardLoop'
+import FeaturedCarousel from './FeaturedCarousel'
 import { localizeText } from '../utils/localizedText'
 import {
   getPublicReviewedPages,
@@ -15,7 +16,7 @@ import {
   sortPublicReviewedPages,
 } from '../utils/publicPageMenus'
 import type { PageSummaryDto } from '../types'
-import type { ReviewedPagePresentation } from '../utils/reviewedPagePresentation'
+import type { ReviewedPageContentWidth, ReviewedPagePresentation } from '../utils/reviewedPagePresentation'
 import { EditableText } from './page-sections/sectionUtils'
 
 const entranceAnimation = (prefersReducedMotion: boolean | null) =>
@@ -40,6 +41,7 @@ type Props = {
   badge: string
   compact?: boolean
   presentation?: ReviewedPagePresentation
+  contentWidth?: ReviewedPageContentWidth
   ordered?: boolean
   showAll?: boolean
   shellClassName?: string
@@ -60,6 +62,7 @@ const ReviewedPageCarousel = ({
   badge,
   compact = false,
   presentation = 'floatingLoop',
+  contentWidth = 'contained',
   ordered = false,
   showAll = false,
   shellClassName,
@@ -93,6 +96,7 @@ const ReviewedPageCarousel = ({
   const shellClass = shellClassName || (compact
     ? 'px-4 py-8 sm:px-5 lg:py-10'
     : 'px-5 py-20 sm:px-8 lg:px-10 lg:py-28')
+  const sectionClass = `${shellClass} alife-reviewed-showcase ${contentWidth === 'full' ? 'alife-reviewed-showcase--full' : ''} ${compact ? 'alife-reviewed-showcase--compact' : ''}`
   const carouselMargin = compact ? 'mt-6' : 'mt-10'
   const showcaseProps = {
     items: carouselItems,
@@ -126,8 +130,8 @@ const ReviewedPageCarousel = ({
 
   if (carouselItems.length === 0) {
     return (
-      <section id={sectionId} className={`${shellClass} alife-reviewed-showcase ${compact ? 'alife-reviewed-showcase--compact' : ''}`}>
-        <div className="mx-auto max-w-6xl">
+      <section id={sectionId} className={sectionClass}>
+        <div className="alife-reviewed-showcase__content">
           <motion.div {...entrance} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             {heading}
           </motion.div>
@@ -143,8 +147,8 @@ const ReviewedPageCarousel = ({
   }
 
   return (
-    <section id={sectionId} className={`${shellClass} alife-reviewed-showcase ${compact ? 'alife-reviewed-showcase--compact' : ''}`}>
-      <div className="alife-reviewed-showcase__header mx-auto max-w-6xl">
+    <section id={sectionId} className={sectionClass}>
+      <div className="alife-reviewed-showcase__content alife-reviewed-showcase__header">
         <motion.div {...entrance} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           {heading}
           <Link
@@ -159,9 +163,19 @@ const ReviewedPageCarousel = ({
       </div>
 
       <motion.div {...entrance} className={carouselMargin}>
-        <div className="alife-reviewed-showcase__stage">
+        <div className="alife-reviewed-showcase__content alife-reviewed-showcase__stage">
           {presentation === 'editorialEvents' ? (
             <EventEditorialShowcase {...showcaseProps} language={language} />
+          ) : presentation === 'carousel' ? (
+            <FeaturedCarousel
+              items={carouselItems}
+              ariaLabel={eyebrow}
+              previousLabel={language === 'zh' ? `上一项${badge}` : `Previous ${badge}`}
+              nextLabel={language === 'zh' ? `下一项${badge}` : `Next ${badge}`}
+              compact={compact}
+              linksDisabled={interactionDisabled}
+              onActiveItemChange={updateActiveItem}
+            />
           ) : presentation === 'cinematicEvents' ? (
             <CinematicEventGallery {...showcaseProps} language={language} />
           ) : presentation === 'eventStage' ? (

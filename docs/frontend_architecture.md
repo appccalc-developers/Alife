@@ -262,6 +262,8 @@ Important areas:
 - `utils/listViewMetadata.ts`
 
 Pages have bilingual metadata and ordered sections. Sections have explicit types and JSON content/style payloads.
+The Reviewed Page Showcase section stores `styleJson.contentWidth` as `contained` (the "Featured Width" option, `max-w-7xl`) or `full` (near viewport width). Missing or unrecognized values render as `contained`.
+Its `styleJson.presentation` can be `carousel` to use the same FeaturedCarousel interaction as List View; unset values retain the existing automatic menu-placement behavior.
 
 When changing page builder behavior:
 

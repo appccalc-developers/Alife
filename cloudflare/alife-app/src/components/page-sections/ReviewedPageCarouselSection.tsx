@@ -12,6 +12,7 @@ import {
 } from '../../utils/publicPageMenus'
 import {
   isReviewedPagePresentation,
+  resolveReviewedPageContentWidth,
   resolveReviewedPagePresentation,
 } from '../../utils/reviewedPagePresentation'
 import {
@@ -59,6 +60,7 @@ const ReviewedPageCarouselSection = ({
   )
   const selectedMenu = primaryMenuOptions.find((option) => option.id === selectedPrimaryMenuId)
   const configuredPresentation = section.styleJson.presentation
+  const contentWidth = resolveReviewedPageContentWidth(section.styleJson.contentWidth)
   const presentation = resolveReviewedPagePresentation(
     configuredPresentation,
     selectedMenu?.homePlacement,
@@ -106,21 +108,28 @@ const ReviewedPageCarouselSection = ({
     else styleJson.presentation = value
     onUpdate?.({ ...section, styleJson })
   }
+  const updateContentWidth = (value: string) =>
+    onUpdate?.({
+      ...section,
+      styleJson: { ...section.styleJson, contentWidth: resolveReviewedPageContentWidth(value) },
+    })
   const presentationOptions = auth.language === 'zh'
     ? [
       { value: 'auto', label: '自动匹配内容（推荐）' },
       { value: 'floatingLoop', label: '浮动社区' },
+      { value: 'carousel', label: t('carousel') },
       { value: 'editorialEvents', label: '活动编辑画册' },
-      { value: 'cinematicEvents', label: '沉浸活动画廊（兼容）' },
-      { value: 'eventStage', label: '分栏活动舞台（兼容）' },
+      { value: 'cinematicEvents', label: '沉浸活动画廊' },
+      { value: 'eventStage', label: '分栏活动舞台' },
       { value: 'editorialIndex', label: '编辑目录' },
     ]
     : [
       { value: 'auto', label: 'Auto-match content (recommended)' },
       { value: 'floatingLoop', label: 'Floating community' },
+      { value: 'carousel', label: t('carousel') },
       { value: 'editorialEvents', label: 'Editorial event spread' },
-      { value: 'cinematicEvents', label: 'Cinematic event gallery (legacy)' },
-      { value: 'eventStage', label: 'Split event stage (legacy)' },
+      { value: 'cinematicEvents', label: 'Cinematic event gallery' },
+      { value: 'eventStage', label: 'Split event stage' },
       { value: 'editorialIndex', label: 'Editorial index' },
     ]
   const renderProperties = () => (
@@ -141,6 +150,22 @@ const ReviewedPageCarouselSection = ({
         disabled={disabled}
         options={presentationOptions}
         onChange={updatePresentation}
+      />
+      <SelectInput
+        focusKey="reviewed-carousel-content-width"
+        label={auth.language === 'zh' ? '内容宽度' : 'Content width'}
+        value={contentWidth}
+        disabled={disabled}
+        options={auth.language === 'zh'
+          ? [
+            { value: 'contained', label: '特色宽度' },
+            { value: 'full', label: '全宽' },
+          ]
+          : [
+            { value: 'contained', label: 'Featured Width' },
+            { value: 'full', label: 'Full width' },
+          ]}
+        onChange={updateContentWidth}
       />
       <p className="self-end text-xs leading-5 text-slate-500 md:col-span-2">
         {t('primaryMenuPublicPagesHelp')}
@@ -168,6 +193,7 @@ const ReviewedPageCarouselSection = ({
         badge={menuLabel}
         compact={compact}
         presentation={presentation}
+        contentWidth={contentWidth}
         ordered
         showAll
         shellClassName={`px-5 sm:px-8 lg:px-10 ${sectionSpacingClass(section)}`}

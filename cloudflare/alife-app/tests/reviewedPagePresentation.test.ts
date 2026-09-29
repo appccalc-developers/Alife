@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { resolveReviewedPagePresentation } from '../src/utils/reviewedPagePresentation.ts'
+import { resolveReviewedPageContentWidth, resolveReviewedPagePresentation } from '../src/utils/reviewedPagePresentation.ts'
+
+test('reviewed-page showcase width defaults safely and preserves explicit full width', () => {
+  assert.equal(resolveReviewedPageContentWidth(undefined), 'contained')
+  assert.equal(resolveReviewedPageContentWidth('contained'), 'contained')
+  assert.equal(resolveReviewedPageContentWidth('full'), 'full')
+  assert.equal(resolveReviewedPageContentWidth('future-width'), 'contained')
+  assert.equal(resolveReviewedPageContentWidth({ width: 'full' }), 'contained')
+})
 
 test('legacy reviewed-page sections derive distinct presentations from existing menu placement', () => {
   assert.equal(resolveReviewedPagePresentation(undefined, 'churchOrganization'), 'floatingLoop')
@@ -9,6 +17,8 @@ test('legacy reviewed-page sections derive distinct presentations from existing 
 })
 
 test('explicit compatible presentation overrides automatic placement', () => {
+  assert.equal(resolveReviewedPagePresentation('carousel', 'churchOrganization'), 'carousel')
+  assert.equal(resolveReviewedPagePresentation('carousel', 'recentEvents'), 'carousel')
   assert.equal(resolveReviewedPagePresentation('editorialIndex', 'churchOrganization'), 'editorialIndex')
   assert.equal(resolveReviewedPagePresentation('floatingLoop', 'recentEvents'), 'floatingLoop')
   assert.equal(resolveReviewedPagePresentation('eventStage', 'recentEvents'), 'eventStage')

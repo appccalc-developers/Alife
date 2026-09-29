@@ -2,6 +2,7 @@ import type { PagePrimaryMenuHomePlacement } from '../types'
 
 export const REVIEWED_PAGE_PRESENTATIONS = [
   'floatingLoop',
+  'carousel',
   'editorialEvents',
   'cinematicEvents',
   'eventStage',
@@ -9,6 +10,11 @@ export const REVIEWED_PAGE_PRESENTATIONS = [
 ] as const
 
 export type ReviewedPagePresentation = (typeof REVIEWED_PAGE_PRESENTATIONS)[number]
+
+export type ReviewedPageContentWidth = 'contained' | 'full'
+
+export const resolveReviewedPageContentWidth = (value: unknown): ReviewedPageContentWidth =>
+  value === 'full' ? 'full' : 'contained'
 
 export const isReviewedPagePresentation = (value: unknown): value is ReviewedPagePresentation =>
   typeof value === 'string' && REVIEWED_PAGE_PRESENTATIONS.includes(value as ReviewedPagePresentation)

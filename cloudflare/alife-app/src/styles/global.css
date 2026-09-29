@@ -920,16 +920,24 @@ select {
   }
 }
 
-.alife-reviewed-showcase__stage {
+.alife-reviewed-showcase__content {
   position: relative;
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+}
+
+.alife-reviewed-showcase--full .alife-reviewed-showcase__content {
   left: 50%;
   width: min(calc(100vw - 1rem), 118rem);
+  max-width: none;
+  margin-inline: 0;
   transform: translateX(-50%);
 }
 
-.alife-reviewed-showcase--compact .alife-reviewed-showcase__stage {
+.alife-reviewed-showcase--compact.alife-reviewed-showcase--full .alife-reviewed-showcase__content {
   left: auto;
-  width: auto;
+  width: 100%;
   transform: none;
 }
 
