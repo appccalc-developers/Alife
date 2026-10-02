@@ -1,3 +1,5 @@
+> Historical builder proposal, not an active instruction list or delivery claim. Use [Page orientation](../pages/README.md), its current contract, saved schemas and implementation for new tasks. Retained proposals below do not authorize dependency installation or contract changes.
+
 We are refactoring Alife Page/Section Builder.
 
 Goal:

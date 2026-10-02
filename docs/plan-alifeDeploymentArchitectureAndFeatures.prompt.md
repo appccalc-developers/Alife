@@ -1,5 +1,7 @@
 # Alife Plan
 
+> Historical planning input. Paths, authentication choices and delivery assumptions below are not the current specification. Use [system architecture](architecture.md), its layer documents and owning domain contracts for implementation. Preserve this plan as provenance rather than executing its old instructions.
+
 ## Objective
 Build and validate a clear deployment plan, architecture map, and feature/use analysis for Alife so the team can align implementation, release, and refinement.
 

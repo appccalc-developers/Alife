@@ -2,7 +2,29 @@
 
 ## Overview
 
-Alife is a full-stack community and church group platform with four main runtime areas:
+Alife is a full-stack community and church group platform with three logical layers: App/PWA, edge acceleration, and backend/API/persistence. Logical layers describe responsibility; they are not a count of deployed services. The image Worker/R2 and AI Durable Objects are supporting runtimes within this topology.
+
+## Architecture authority and orientation
+
+This document owns the system topology, cross-layer responsibilities and established technology choices. [Backend](backend_architecture.md), [edge](speed-layer_architecture.md), [frontend](frontend_architecture.md), and [frontend code organization](../cloudflare/alife-app/ARCHITECTURE.md) expand their respective boundaries. [Cache coordination](cache-coordination.md) records the cross-layer review matrix; route-specific contracts remain in their owning documents. Repository [AGENTS.md](../AGENTS.md) governs agent operation and change approval. Domain contracts govern detailed business meaning, including [identity](identity-access.md) and [Events](events/EVENT-CONTRACT.md).
+
+Read only the layers and domain contracts affected by a task. Inspect implementation and nearby tests before changing a contract. Record current behavior separately from target scope, and resolve documentation drift rather than copying contradictory rules. A prototype or generated HTML explains a design; it cannot authorize a different API, permission, persistence model or lifecycle.
+
+### Three-layer responsibilities
+
+| Layer | Owns | Boundary |
+| --- | --- | --- |
+| App/PWA | Presentation, accessible interaction, routing, bilingual rendering, draft editing, client-state coordination and conditional reads | No final authorization, direct database access or automatic publication of AI drafts |
+| Edge acceleration | Static delivery, API/image proxying, eligible shared caching, validators, derived authorization mirrors and temporary AI sessions | Does not become the business source of truth; no shared user-specific responses or invented authority |
+| Backend/API/persistence | Identity, current roles and membership, application rules, DTOs, controlled mutations, concurrency, database transactions and backend invalidation | No UI composition responsibility; private data stays within authorized projections |
+
+### Established technology decisions
+
+React 19 is the App UI framework, TypeScript is its programming language, and Vite builds the PWA. TanStack Query owns API-backed query and mutation coordination; TanStack React DB supports established local collections; React Context/providers retain authentication and active-group state. Redux is not part of the selected architecture. Introducing or replacing a framework, library or state architecture requires explicit approval under repository instructions.
+
+The service worker caches eligible shell/static resources and never replays `/api/*`. App API freshness uses HTTP validation and application caches. The edge uses Cloudflare Workers, Cache API and the existing public-page KV cache. The backend uses .NET, Azure Functions, EF Core and SQL Server/Azure SQL; persistence remains behind backend contracts. Exact package versions belong in project manifests, not duplicated upgrade instructions.
+
+Current runtime areas:
 
 - **Backend**: .NET 10 Azure Functions v4 isolated worker, ASP.NET Core controllers, MediatR, EF Core, SQL Server, HybridCache.
 - **Frontend**: React 19 + TypeScript + Vite PWA, Tailwind CSS, TanStack Query, TanStack React DB, Axios, IndexedDB-backed ETag cache, browser WebAuthn, and local QR rendering.
@@ -50,11 +72,13 @@ The speed layer is the normal browser-facing entry for deployed traffic. It serv
 ### Clean Architecture Layers
 
 ```text
-Alife.Domain
-  -> Alife.Application
-  -> Alife.Infrastructure
-  -> Alife.Api
+Application -> Domain
+Infrastructure -> Application, Domain
+Api -> Application, Infrastructure
+DbMigrator -> Infrastructure, Application
 ```
+
+Arrows above mean project references (the left project depends on the right). Domain has no dependency on the outer layers. Runtime request flow is a separate concern.
 
 - `Alife.Domain`: entities and enums with no infrastructure dependency.
 - `Alife.Application`: commands, queries, DTOs, service interfaces, and use-case rules.
@@ -224,13 +248,13 @@ The PWA service worker deliberately avoids replaying `/api/*` responses from run
 
 ```text
 cloudflare/alife-app/src/
-  App.tsx                 App shell, route tree, navigation
+  App.tsx                 Compatibility export of app/AppShell
+  app/                    Shell composition, routing, navigation and context
   main.tsx                React root and providers
-  stores/                 Auth, current group, leader UI preferences
+  stores/                 Auth and current group context
   views/                  Route-level screens
   components/             Reusable UI and domain components
   services/               Axios-backed API clients and workflow clients
-  api/                    Additional API helpers
   db/                     TanStack collections and ETag HTTP cache
   hooks/                  Screen/data composition hooks
   types/                  TypeScript DTO and model types
