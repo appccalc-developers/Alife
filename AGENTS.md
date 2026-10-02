@@ -56,6 +56,8 @@ After implementing:
 
 ## Architecture and API contracts
 
+Use [the design orientation](docs/design/README.md) to locate the affected architecture/domain requirements. For UI work follow the applicable [UI/UX requirements](docs/design/UI-UX.md); use [QA](docs/design/QA.md) for requirement-to-evidence completion. Read only relevant sections. Preserve the Event reading/update matrix as its domain authority. Prototypes and generated presentations explain design and never replace server contracts or prove delivery.
+
 Preserve separation between the frontend/PWA, backend application logic, Cloudflare speed/cache layer, authentication and authorization, persistent storage, and AI workflows. Do not move responsibility across layers without a documented reason and explicit approval.
 
 For API changes, explicitly consider authentication, role/group visibility, backend and client caching, backward compatibility, and bilingual data shapes.
