@@ -1,4 +1,5 @@
 import { registerSW } from 'virtual:pwa-register'
+import { createServiceWorkerControllerChangeHandler, prepareDevelopmentServiceWorker } from './serviceWorkerControllerChange'
 
 /**
  * Register the service worker for PWA support.
@@ -14,32 +15,33 @@ import { registerSW } from 'virtual:pwa-register'
  * - Offline support for previously viewed images
  * - Reduced network bandwidth (no repeated downloads)
  */
-export function registerServiceWorker(): void {
+export function registerServiceWorker(): boolean | Promise<boolean> {
   if (!('serviceWorker' in navigator)) {
-    return
+    return true
   }
 
   if (import.meta.env.DEV) {
-    const cleanupReloadKey = 'alife:dev-service-worker-cleanup-reload'
-    const wasControlled = Boolean(navigator.serviceWorker.controller)
-    navigator.serviceWorker.getRegistrations()
-      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-      .then(() => caches.keys())
-      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
-      .then(() => {
-        if (wasControlled && sessionStorage.getItem(cleanupReloadKey) !== 'done') {
-          sessionStorage.setItem(cleanupReloadKey, 'done')
-          window.location.reload()
-          return
-        }
-
-        sessionStorage.removeItem(cleanupReloadKey)
-      })
-      .catch((err: unknown) => {
+    return prepareDevelopmentServiceWorker({
+      wasControlled: Boolean(navigator.serviceWorker.controller),
+      cleanup: async () => {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(registrations.map((registration) => registration.unregister()))
+        const keys = await caches.keys()
+        await Promise.all(keys.map((key) => caches.delete(key)))
+      },
+      // Read storage inside the guarded preparation step: privacy-restricted
+      // browsers may throw even when merely accessing sessionStorage.
+      storage: {
+        getItem: key => sessionStorage.getItem(key),
+        setItem: (key, value) => sessionStorage.setItem(key, value),
+        removeItem: key => sessionStorage.removeItem(key),
+      },
+      reload: () => window.location.reload(),
+      onError: (err) => {
         // eslint-disable-next-line no-console
         console.warn('Failed to clear development service worker cache:', err)
-      })
-    return
+      },
+    })
   }
 
   registerSW({
@@ -49,12 +51,14 @@ export function registerServiceWorker(): void {
     },
   })
 
-  // Listen for controller change to notify app of updates
-  let refreshing = false
+  // A first install may claim this page. Reload only when an existing
+  // controller is replaced, so an in-progress 3D visit is not interrupted.
+  const handleControllerChange = createServiceWorkerControllerChangeHandler(
+    navigator.serviceWorker.controller,
+    () => window.location.reload(),
+  )
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return
-    refreshing = true
-    // A new service worker has taken over - optionally refresh to load new content
-    window.location.reload()
+    handleControllerChange(navigator.serviceWorker.controller)
   })
+  return true
 }

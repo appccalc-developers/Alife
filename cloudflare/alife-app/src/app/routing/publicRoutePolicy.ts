@@ -23,5 +23,16 @@ export const isHomeLocation = (location: RouteLocation) =>
 export const usesPublicHomeLayout = (location: RouteLocation) =>
   isHomeLocation(location) || isPublicPageLocation(location)
 
-export const isAuthOptionalLocation = (location: RouteLocation) =>
-  isHomeLocation(location) || isPublicPageLocation(location) || isPublicArticlePath(location.pathname)
+export const isVirtualChurchSceneLocation = (location: RouteLocation) =>
+  location.pathname === '/virtual-church'
+  || location.pathname === '/virtual-church/study-room'
+  || location.pathname === '/virtual-church/main-hall'
+
+export const usesVirtualChurchSceneShell = (location: RouteLocation, guestVisitEnabled: boolean) =>
+  guestVisitEnabled && isVirtualChurchSceneLocation(location)
+
+export const isAuthOptionalLocation = (location: RouteLocation, guestVirtualChurchEnabled = false) =>
+  isHomeLocation(location)
+  || isPublicPageLocation(location)
+  || isPublicArticlePath(location.pathname)
+  || (guestVirtualChurchEnabled && isVirtualChurchSceneLocation(location))

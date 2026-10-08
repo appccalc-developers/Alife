@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 2,
+  "visualVariant": "vroid-fair-v1",
+  "animationVariant": "vroid-fair-motion-v8",
+  "assetId": "alife-v3-gate-a-female-hero",
+  "displayName": {
+    "en": "Alife Gate A Female Hero",
+    "zh": "Alife Gate A 女性引导角色"
+  },
+  "provenance": {
+    "sourceType": "VRoid Studio sample-model derivative",
+    "sourceModel": "AvatarSample_Q",
+    "sourceCreator": "pixiv VRoid Project",
+    "adaptation": "Alife project",
+    "sourceBlend": "tools/blender/virtual_church/v3/character-hero-female-beauty-source.blend",
+    "sourceVroidWorkspace": "C:/Developer/VRoidStudioTools/projects/VirtualChurchHero_Fair_v1.vroid",
+    "generator": {
+      "application": "Blender 4.5.12 LTS with VRM Add-on",
+      "path": "tools/blender/virtual_church/v3/export_vroid_gate_a_female_hero.py"
+    }
+  },
+  "license": {
+    "name": "VRoidPreset_A-Z sample-model conditions of use",
+    "url": "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
+    "attributionRequired": false,
+    "commercialUseAllowed": true,
+    "modificationAllowed": true,
+    "redistributionAllowed": true,
+    "cc0": false,
+    "thirdPartyContentEmbedded": true,
+    "note": "The derivative must not be represented or redistributed as CC0."
+  },
+  "coordinateSystem": {
+    "metresPerUnit": 1,
+    "forwardAxis": "+Z",
+    "rootOrigin": [0, 0, 0]
+  },
+  "silhouette": {
+    "profile": "adult-stylized-anime",
+    "visibleHeightMetres": 1.7198,
+    "visibleWidthMetres": 0.653,
+    "visibleDepthMetres": 0.655,
+    "groundClearanceMetres": 0
+  },
+  "appearance": {
+    "skinTone": "fair-warm",
+    "skinBaseColor": "#DFAB94",
+    "skinShadowColor": "#A06656",
+    "skinHighlightColor": "#F0C9B0",
+    "hairColor": "white",
+    "outfitPalette": ["forest-green", "warm-pink", "soft-gold", "cream"]
+  },
+  "rig": {
+    "sharedAcrossLods": true,
+    "bones": 187,
+    "coreBones": [
+      "J_Bip_C_Hips",
+      "J_Bip_C_Spine",
+      "J_Bip_C_Chest",
+      "J_Bip_C_UpperChest",
+      "J_Bip_C_Neck",
+      "J_Bip_C_Head",
+      "J_Bip_L_UpperArm",
+      "J_Bip_L_LowerArm",
+      "J_Bip_R_UpperArm",
+      "J_Bip_R_LowerArm",
+      "J_Bip_L_UpperLeg",
+      "J_Bip_L_LowerLeg",
+      "J_Bip_R_UpperLeg",
+      "J_Bip_R_LowerLeg"
+    ]
+  },
+  "animation": {
+    "sharedAcrossLods": true,
+    "clips": [
+      "Idle_A",
+      "Idle_B",
+      "Walk_Start",
+      "Walk",
+      "Walk_Stop",
+      "Run_Start",
+      "Run",
+      "Run_Stop",
+      "Jump_Start",
+      "Jump_Loop",
+      "Jump_Land",
+      "Turn_L",
+      "Turn_R",
+      "Greet"
+    ],
+    "contract": {
+      "durationsSeconds": {
+        "Idle_A": 2,
+        "Idle_B": 2.4,
+        "Walk_Start": 0.36,
+        "Walk": 1,
+        "Walk_Stop": 0.32,
+        "Run_Start": 0.3,
+        "Run": 0.8,
+        "Run_Stop": 0.38,
+        "Jump_Start": 0.28,
+        "Jump_Loop": 0.5,
+        "Jump_Land": 0.32,
+        "Turn_L": 0.8,
+        "Turn_R": 0.8,
+        "Greet": 1.4
+      },
+      "loopingClips": ["Idle_A", "Idle_B", "Walk", "Run", "Jump_Loop"],
+      "oneShotClips": ["Walk_Start", "Walk_Stop", "Run_Start", "Run_Stop", "Jump_Start", "Jump_Land", "Turn_L", "Turn_R", "Greet"],
+      "requiredTargets": {
+        "Idle_A": ["J_Bip_C_Chest", "J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_R_UpperArm"],
+        "Idle_B": ["J_Bip_C_Chest", "J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_R_LowerArm", "J_Bip_R_UpperArm"],
+        "Walk_Start": ["J_Bip_C_Hips", "J_Bip_C_Spine", "J_Bip_C_Chest", "J_Bip_C_UpperChest", "J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_L_LowerArm", "J_Bip_R_UpperArm", "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_L_Foot", "J_Bip_L_ToeBase", "J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_Foot", "J_Bip_R_ToeBase", "J_Sec_Hair1_03", "J_Sec_Hair1_07", "J_Sec_L_SkirtFront0_02", "J_Sec_R_SkirtFront0_02", "J_Sec_L_SkirtBack0_02", "J_Sec_R_SkirtBack0_02"],
+        "Walk": ["J_Bip_C_Hips", "J_Bip_C_Spine", "J_Bip_C_Chest", "J_Bip_C_UpperChest", "J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_L_LowerArm", "J_Bip_R_UpperArm", "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_L_Foot", "J_Bip_L_ToeBase", "J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_Foot", "J_Bip_R_ToeBase", "J_Sec_Hair1_03", "J_Sec_Hair1_07", "J_Sec_L_SkirtFront0_02", "J_Sec_R_SkirtFront0_02", "J_Sec_L_SkirtBack0_02", "J_Sec_R_SkirtBack0_02"],
+        "Walk_Stop": ["J_Bip_C_Hips", "J_Bip_C_Spine", "J_Bip_C_Chest", "J_Bip_C_UpperChest", "J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_L_LowerArm", "J_Bip_R_UpperArm", "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_L_Foot", "J_Bip_L_ToeBase", "J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_Foot", "J_Bip_R_ToeBase", "J_Sec_Hair1_03", "J_Sec_Hair1_07", "J_Sec_L_SkirtFront0_02", "J_Sec_R_SkirtFront0_02", "J_Sec_L_SkirtBack0_02", "J_Sec_R_SkirtBack0_02"],
+        "Run_Start": ["J_Bip_C_Hips", "J_Bip_C_Spine", "J_Bip_C_Chest", "J_Bip_C_UpperChest", "J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_L_LowerArm", "J_Bip_R_UpperArm", "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_L_Foot", "J_Bip_L_ToeBase", "J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_Foot", "J_Bip_R_ToeBase", "J_Sec_Hair1_03", "J_Sec_Hair1_07", "J_Sec_L_SkirtFront0_02", "J_Sec_R_SkirtFront0_02", "J_Sec_L_SkirtBack0_02", "J_Sec_R_SkirtBack0_02"],
+        "Run": ["J_Bip_C_Hips", "J_Bip_C_Spine", "J_Bip_C_Chest", "J_Bip_C_UpperChest", "J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_L_LowerArm", "J_Bip_R_UpperArm", "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_L_Foot", "J_Bip_L_ToeBase", "J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_Foot", "J_Bip_R_ToeBase", "J_Sec_Hair1_03", "J_Sec_Hair1_07", "J_Sec_L_SkirtFront0_02", "J_Sec_R_SkirtFront0_02", "J_Sec_L_SkirtBack0_02", "J_Sec_R_SkirtBack0_02"],
+        "Run_Stop": ["J_Bip_C_Hips", "J_Bip_C_Spine", "J_Bip_C_Chest", "J_Bip_C_UpperChest", "J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_L_LowerArm", "J_Bip_R_UpperArm", "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_L_Foot", "J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_Foot", "J_Bip_R_ToeBase", "J_Sec_Hair1_03", "J_Sec_Hair1_07", "J_Sec_L_SkirtFront0_02", "J_Sec_R_SkirtFront0_02", "J_Sec_L_SkirtBack0_02", "J_Sec_R_SkirtBack0_02"],
+        "Jump_Start": ["J_Bip_C_Chest", "J_Bip_L_LowerLeg", "J_Bip_L_UpperArm", "J_Bip_L_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_UpperArm", "J_Bip_R_UpperLeg"],
+        "Jump_Loop": ["J_Bip_C_Chest", "J_Bip_L_LowerLeg", "J_Bip_L_UpperArm", "J_Bip_L_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_UpperArm", "J_Bip_R_UpperLeg"],
+        "Jump_Land": ["J_Bip_C_Chest", "J_Bip_L_LowerLeg", "J_Bip_L_UpperArm", "J_Bip_L_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_UpperArm", "J_Bip_R_UpperLeg"],
+        "Turn_L": ["J_Bip_C_Hips", "J_Bip_C_Spine", "J_Bip_C_Chest", "J_Bip_C_UpperChest", "J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_L_LowerArm", "J_Bip_R_UpperArm", "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_L_Foot", "J_Bip_L_ToeBase", "J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_Foot", "J_Bip_R_ToeBase", "J_Sec_Hair1_03", "J_Sec_Hair1_07", "J_Sec_L_SkirtFront0_02", "J_Sec_R_SkirtFront0_02", "J_Sec_L_SkirtBack0_02", "J_Sec_R_SkirtBack0_02"],
+        "Turn_R": ["J_Bip_C_Hips", "J_Bip_C_Spine", "J_Bip_C_Chest", "J_Bip_C_UpperChest", "J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_L_LowerArm", "J_Bip_R_UpperArm", "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_L_Foot", "J_Bip_L_ToeBase", "J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_Foot", "J_Bip_R_ToeBase", "J_Sec_Hair1_03", "J_Sec_Hair1_07", "J_Sec_L_SkirtFront0_02", "J_Sec_R_SkirtFront0_02", "J_Sec_L_SkirtBack0_02", "J_Sec_R_SkirtBack0_02"],
+        "Greet": ["J_Bip_C_Head", "J_Bip_L_UpperArm", "J_Bip_R_LowerArm", "J_Bip_R_UpperArm"]
+      },
+      "rootMotion": "none",
+      "locomotionContactWindows": {
+        "Walk": { "L": [0.125, 0.225], "R": [0.625, 0.725] },
+        "Run": { "L": [0, 0.1], "R": [0.5, 0.6] }
+      },
+      "loopSeamTolerance": 0.00001,
+      "locomotionQuality": {
+        "keyPosesPerCycle": 9,
+        "footRoll": true,
+        "toeRoll": true,
+        "lateralWeightShift": true,
+        "counterRotatedTorso": true,
+        "stabilizedHeadAndNeck": true,
+        "armSwing": true,
+        "secondaryMotionBones": [
+          "J_Sec_Hair1_01", "J_Sec_Hair1_02", "J_Sec_Hair1_03", "J_Sec_Hair1_04", "J_Sec_Hair1_05",
+          "J_Sec_Hair1_06", "J_Sec_Hair1_07", "J_Sec_Hair1_08", "J_Sec_Hair1_09", "J_Sec_Hair1_10",
+          "J_Sec_L_SkirtFront0_01", "J_Sec_L_SkirtFront0_02", "J_Sec_L_SkirtFront0_03", "J_Sec_L_SkirtFront0_04",
+          "J_Sec_R_SkirtFront0_01", "J_Sec_R_SkirtFront0_02", "J_Sec_R_SkirtFront0_03", "J_Sec_R_SkirtFront0_04",
+          "J_Sec_L_SkirtBack0_01", "J_Sec_L_SkirtBack0_02", "J_Sec_L_SkirtBack0_03", "J_Sec_L_SkirtBack0_04",
+          "J_Sec_R_SkirtBack0_01", "J_Sec_R_SkirtBack0_02", "J_Sec_R_SkirtBack0_03", "J_Sec_R_SkirtBack0_04",
+          "J_Sec_L_SkirtSide0_01", "J_Sec_L_SkirtSide0_02", "J_Sec_L_SkirtSide0_03", "J_Sec_L_SkirtSide0_04",
+          "J_Sec_R_SkirtSide0_01", "J_Sec_R_SkirtSide0_02", "J_Sec_R_SkirtSide0_03", "J_Sec_R_SkirtSide0_04"
+        ],
+        "layeredSecondaryMotion": true,
+        "runFlightPhase": true,
+        "authoredStartAndStopClips": ["Walk_Start", "Walk_Stop", "Run_Start", "Run_Stop"],
+        "fullBodyTurnClips": ["Turn_L", "Turn_R"],
+        "turnReviewAnglesDegrees": [45, 90, 180],
+        "parentBeforeChildArmEvaluation": true,
+        "interpolationPolicy": {
+          "groundingBones": "LINEAR",
+          "upperBodyAndSecondaryBones": "AUTO_CLAMPED_BEZIER_BAKED_TO_GLTF_LINEAR_SAMPLES"
+        },
+        "elbowFlexionDegrees": {
+          "Walk": { "minimum": 148.81, "maximum": 162.28 },
+          "Run": { "minimum": 113.65, "maximum": 117.74 }
+        },
+        "compactStride": true,
+        "recoveredRunHeel": true,
+        "controllerTranslationSpeedMetresPerSecond": {
+          "Walk": 1.15,
+          "Run": 3.4
+        },
+        "playbackScaleAtFullInput": {
+          "Walk": 1.12,
+          "Run": 1.41
+        }
+      }
+    }
+  },
+  "materials": {
+    "sharedSlotCount": 18,
+    "textureFormat": "WebP",
+    "maximumTextureSizeByLod": { "high": 512, "medium": 384, "low": 256 },
+    "names": [
+      "N00_000_00_Body_00_SKIN (Instance)",
+      "N00_002_03_Tops_01_CLOTH_01 (Instance)",
+      "N00_010_01_Onepiece_00_CLOTH_01 (Instance)",
+      "N00_002_03_Tops_01_CLOTH_02 (Instance)",
+      "N00_000_00_HairBack_00_HAIR (Instance)",
+      "N00_002_03_Tops_01_CLOTH_03 (Instance)",
+      "N00_002_03_Tops_01_CLOTH_04 (Instance)",
+      "N00_008_01_Shoes_01_CLOTH (Instance)",
+      "N00_010_01_Onepiece_00_CLOTH_02 (Instance)",
+      "N00_000_00_FaceMouth_00_FACE (Instance)",
+      "N00_000_00_EyeIris_00_EYE (Instance)",
+      "N00_000_00_EyeHighlight_00_EYE (Instance)",
+      "N00_000_00_Face_00_SKIN (Instance)",
+      "N00_000_00_EyeWhite_00_EYE (Instance)",
+      "N00_000_00_FaceBrow_00_FACE (Instance)",
+      "N00_000_00_FaceEyeline_00_FACE (Instance)",
+      "N00_000_Hair_00_HAIR_01 (Instance)",
+      "N00_000_Hair_00_HAIR_02 (Instance)"
+    ]
+  },
+  "compression": {
+    "geometry": "KHR_draco_mesh_compression using the decoder already required by the church hero",
+    "draco": {
+      "level": 7,
+      "positionQuantizationBits": 16,
+      "normalQuantizationBits": 12,
+      "texcoordQuantizationBits": 14,
+      "colorQuantizationBits": 12,
+      "genericQuantizationBits": 14
+    },
+    "textures": "EXT_texture_webp",
+    "facialMorphTargetsIncluded": false
+  },
+  "lods": [
+    {
+      "lod": "high",
+      "file": "character-hero-female-high.glb",
+      "sha256": "9dfa95fab0691e93f5280206bd9156702cc7f572b76e3de599695af456f618d9",
+      "bytes": 703824,
+      "triangles": 42397,
+      "skinnedMeshes": 3,
+      "materials": 18,
+      "bones": 187,
+      "animations": 14,
+      "rootNode": "Armature",
+      "sizeMetres": [0.653, 1.7198, 0.655]
+    },
+    {
+      "lod": "medium",
+      "file": "character-hero-female-medium.glb",
+      "sha256": "7fcd34bdc880719d8b75c51cc8a0198d32b1a3bc156b74b8fe038ac5304bbcff",
+      "bytes": 633108,
+      "triangles": 30523,
+      "skinnedMeshes": 3,
+      "materials": 18,
+      "bones": 187,
+      "animations": 14,
+      "rootNode": "Armature",
+      "sizeMetres": [0.653, 1.7198, 0.655]
+    },
+    {
+      "lod": "low",
+      "file": "character-hero-female-low.glb",
+      "sha256": "9e79f08b5a11db8f7c5f10ef0aaded26753366136628e75f7fccf47fdb507810",
+      "bytes": 531848,
+      "triangles": 19499,
+      "skinnedMeshes": 3,
+      "materials": 18,
+      "bones": 187,
+      "animations": 14,
+      "rootNode": "Armature",
+      "sizeMetres": [0.653, 1.7198, 0.655]
+    }
+  ],
+  "runtime": {
+    "desktopLod": "medium",
+    "mobileLod": "low",
+    "fallback": "Procedural GateAFemaleHeroAvatar"
+  }
+}

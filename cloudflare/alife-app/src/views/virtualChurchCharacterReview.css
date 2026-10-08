@@ -1,0 +1,145 @@
+/* DEV-only opt-in candidate. No global/homepage selectors, fonts or images. */
+[data-vc-character-ui="editorial"] {
+  max-width: 464px;
+  padding-inline: 24px;
+  border-color: #cfc6b7;
+  background: #f8f4ec;
+  color: #32281f;
+  box-shadow: -12px 0 40px rgb(20 17 14 / 16%);
+  backdrop-filter: none;
+}
+
+[data-vc-character-ui="editorial"] > div:first-child {
+  padding-bottom: 20px;
+  border-bottom: 1px solid #d8cfc1;
+}
+
+[data-vc-character-ui="editorial"] h2 {
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+[data-vc-character-ui="editorial"] > div:first-child p,
+[data-vc-character-ui="editorial"] > section > p,
+[data-vc-character-ui="editorial"] > p {
+  color: #675d50;
+  font-weight: 500;
+}
+
+[data-vc-character-ui="editorial"] > div:first-child p {
+  color: #806536;
+}
+
+[data-vc-character-ui="editorial"] > div:first-child button {
+  border-radius: 8px;
+  border-color: #d8cfc1;
+  background: transparent;
+}
+
+[data-vc-character-ui="editorial"] :is(button[data-hero-id], button[data-character-review]) {
+  grid-template-columns: 118px minmax(0, 1fr);
+  border: 1px solid #d8cfc1;
+  border-radius: 8px;
+  background: #fffdf8;
+  box-shadow: none;
+}
+
+[data-vc-character-ui="editorial"] :is(button[data-hero-id], button[data-character-review])[aria-pressed="true"] {
+  border-color: #8f7545;
+  background: #f1e9db;
+  box-shadow: inset 0 0 0 1px #8f7545;
+}
+
+[data-vc-character-ui="editorial"] :is(button[data-hero-id], button[data-character-review]) > span:first-child {
+  border-color: #ded5c7;
+  background: linear-gradient(180deg, #ebe3d4, #f6f0e6);
+}
+
+[data-vc-character-ui="editorial"] :is(button[data-hero-id], button[data-character-review]) > span:nth-child(2) {
+  padding: 16px;
+}
+
+[data-vc-character-ui="editorial"] :is(button[data-hero-id], button[data-character-review]) > span:nth-child(2) > span:first-child > span:first-child > span:first-child {
+  color: #32281f;
+  font-weight: 600;
+}
+
+[data-vc-character-ui="editorial"] :is(button[data-hero-id], button[data-character-review]) > span:nth-child(2) > span:first-child > span:first-child > span:nth-child(2) {
+  color: #755d32;
+}
+
+[data-vc-character-ui="editorial"] :is(button[data-hero-id], button[data-character-review]) > span:nth-child(2) > span:first-child > span:nth-child(2) {
+  border-radius: 4px;
+  background: #32281f;
+  font-weight: 500;
+}
+
+[data-vc-character-ui="editorial"] .vc-character-detail-label {
+  color: #32281f;
+  font-weight: 600;
+}
+
+[data-vc-character-ui="editorial"] .vc-character-detail-label + span,
+[data-vc-character-ui="editorial"] [data-hero-source] {
+  color: #675d50;
+}
+
+[data-vc-character-ui="editorial"] .vc-character-outfits button {
+  min-height: 84px;
+  padding: 12px;
+  border-radius: 8px;
+  border-color: #d8cfc1;
+  background: #fffdf8;
+  color: #32281f;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+[data-vc-character-ui="editorial"] .vc-character-outfits button[aria-pressed="true"] {
+  border-color: #8f7545;
+  background: #f1e9db;
+  box-shadow: inset 0 0 0 1px #8f7545;
+}
+
+[data-vc-character-ui="editorial"] .vc-character-note {
+  padding: 16px 0 0;
+  border-top: 1px solid #d8cfc1;
+  border-radius: 0;
+  background: transparent;
+  color: #675d50;
+}
+
+[data-vc-character-ui="editorial"] .vc-character-note svg {
+  color: #806536;
+}
+
+[data-vc-character-ui="editorial"] button:hover {
+  border-color: #8f7545;
+  background-color: #f1e9db;
+}
+
+[data-vc-character-ui="editorial"] button:focus-visible {
+  outline: 2px solid #32281f;
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+@media (max-width: 380px) {
+  [data-vc-character-ui="editorial"] {
+    padding-inline: 16px;
+  }
+
+  [data-vc-character-ui="editorial"] :is(button[data-hero-id], button[data-character-review]) {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+
+  [data-vc-character-ui="editorial"] :is(button[data-hero-id], button[data-character-review]) > span:nth-child(2) {
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-vc-character-ui="editorial"] button {
+    transition: none;
+  }
+}

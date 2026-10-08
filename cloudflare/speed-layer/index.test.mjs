@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { beforeEach, test } from 'node:test'
 
-import worker from './dist/app_ccalc/index.js'
-import { EventPlanningSession } from './dist/app_ccalc/index.js'
+const { default: worker, EventPlanningSession } = await import(
+  process.env.ALIFE_WORKER_TEST_BUNDLE ?? './dist/app_ccalc/index.js',
+)
 
 const ORIGIN = 'https://ccalc.live'
 
@@ -95,11 +96,42 @@ test('static asset routes preserve real assets and reject SPA HTML fallbacks', a
       async fetch(request) {
         assetRequests.push(request.url)
         const pathname = new URL(request.url).pathname
-        if (pathname.endsWith('missing.js')) {
+        if (pathname.endsWith('missing.js') || pathname.endsWith('missing.glb')) {
           return new Response('<!doctype html><title>Alife</title>', {
             headers: {
               'cache-control': 'public, max-age=31536000, immutable',
               'content-type': 'text/html; charset=utf-8',
+            },
+          })
+        }
+
+        if (pathname.endsWith('missing-404.glb')) {
+          return new Response('Not found', {
+            status: 404,
+            headers: {
+              'cache-control': 'public, max-age=31536000, immutable',
+              'content-type': 'text/html; charset=utf-8',
+            },
+          })
+        }
+
+        if (pathname.endsWith('wrong-mime.glb')) {
+          return Response.json({ error: 'not found' })
+        }
+
+        if (pathname.endsWith('wrong-mime.js') || pathname.endsWith('wrong-mime.css')) {
+          return new Response('Not found', { headers: { 'content-type': 'text/plain' } })
+        }
+
+        if (pathname.endsWith('theme-current.css')) {
+          return new Response('body { color: green; }', { headers: { 'content-type': 'text/css; charset=utf-8' } })
+        }
+
+        if (pathname.endsWith('church-hero.glb')) {
+          return new Response('GLB fixture', {
+            headers: {
+              'cache-control': 'public, max-age=31536000, immutable',
+              'content-type': 'model/gltf-binary',
             },
           })
         }
@@ -126,9 +158,46 @@ test('static asset routes preserve real assets and reject SPA HTML fallbacks', a
   assert.equal(missing.headers.get('x-content-type-options'), 'nosniff')
   assert.equal(await missing.text(), 'Static asset not found.')
 
+  const virtualChurchAsset = await dispatch('https://ccalc.live/virtual-church-assets/church-hero.glb', { env })
+  assert.equal(virtualChurchAsset.status, 200)
+  assert.equal(virtualChurchAsset.headers.get('content-type'), 'model/gltf-binary')
+  assert.equal(await virtualChurchAsset.text(), 'GLB fixture')
+
+  const missingVirtualChurchAsset = await dispatch('https://ccalc.live/virtual-church-assets/missing.glb', { env })
+  assert.equal(missingVirtualChurchAsset.status, 404)
+  assert.equal(missingVirtualChurchAsset.headers.get('cache-control'), 'no-store')
+  assert.equal(missingVirtualChurchAsset.headers.get('content-type'), 'text/plain; charset=utf-8')
+  assert.equal(missingVirtualChurchAsset.headers.get('x-content-type-options'), 'nosniff')
+  assert.equal(await missingVirtualChurchAsset.text(), 'Static asset not found.')
+
+  const origin404 = await dispatch('https://ccalc.live/virtual-church-assets/missing-404.glb', { env })
+  assert.equal(origin404.status, 404)
+  assert.equal(origin404.headers.get('cache-control'), 'no-store')
+  assert.equal(origin404.headers.get('content-type'), 'text/plain; charset=utf-8')
+  assert.equal(origin404.headers.get('x-content-type-options'), 'nosniff')
+
+  const validCss = await dispatch('https://ccalc.live/assets/theme-current.css', { env })
+  assert.equal(validCss.status, 200)
+  assert.equal(validCss.headers.get('content-type'), 'text/css; charset=utf-8')
+
+  for (const path of ['/assets/wrong-mime.js', '/assets/wrong-mime.css', '/virtual-church-assets/wrong-mime.glb']) {
+    const wrongMime = await dispatch(`https://ccalc.live${path}`, { env })
+    assert.equal(wrongMime.status, 404, path)
+    assert.equal(wrongMime.headers.get('cache-control'), 'no-store', path)
+    assert.equal(wrongMime.headers.get('content-type'), 'text/plain; charset=utf-8', path)
+    assert.equal(wrongMime.headers.get('x-content-type-options'), 'nosniff', path)
+  }
+
   assert.deepEqual(assetRequests, [
     'https://ccalc.live/assets/AppView-current.js',
     'https://ccalc.live/assets/AppView-missing.js',
+    'https://ccalc.live/virtual-church-assets/church-hero.glb',
+    'https://ccalc.live/virtual-church-assets/missing.glb',
+    'https://ccalc.live/virtual-church-assets/missing-404.glb',
+    'https://ccalc.live/assets/theme-current.css',
+    'https://ccalc.live/assets/wrong-mime.js',
+    'https://ccalc.live/assets/wrong-mime.css',
+    'https://ccalc.live/virtual-church-assets/wrong-mime.glb',
   ])
 })
 
@@ -139,7 +208,6 @@ test('static assets fail closed when the asset binding is unavailable', async ()
   assert.equal(response.headers.get('x-content-type-options'), 'nosniff')
   assert.equal(await response.text(), 'Static asset service unavailable.')
 })
-
 let fetchCalls
 let fetchInits
 let originResponses

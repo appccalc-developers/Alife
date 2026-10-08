@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 2,
+  "desktop": {
+    "network": {
+      "kilobitsPerSecond": 20000,
+      "latencyMs": 100
+    },
+    "heroReadyMsMax": 4000,
+    "averageFpsMin": 50,
+    "visibleTrianglesMax": 425000,
+    "visibleDrawCallsMax": 120,
+    "characterEncodedBodySizeBytesMax": 2621440,
+    "initialCriticalEncodedBodySizeBytesMax": 12582912,
+    "gpuMemoryEstimateBytesMax": 440401920
+  },
+  "mobile": {
+    "network": {
+      "kilobitsPerSecond": 10000,
+      "latencyMs": 150
+    },
+    "heroReadyMsMax": 6500,
+    "averageFpsMin": 40,
+    "visibleTrianglesMax": 175000,
+    "visibleDrawCallsMax": 72,
+    "characterEncodedBodySizeBytesMax": 1887437,
+    "initialCriticalEncodedBodySizeBytesMax": 6815744,
+    "gpuMemoryEstimateBytesMax": 230686720
+  },
+  "relativeGate": {
+    "averageFpsRegressionMaxRatio": 0.1,
+    "p95FrameTimeIncreaseMaxRatio": 0.2
+  }
+}

@@ -30,7 +30,7 @@ const PersonalCenterView = () => {
   )
   const progressQuery = useQuery({
     queryKey: ['personal-center', 'bible-reading-progress', me?.id ?? ''],
-    queryFn: bibleReadingProgressService.get,
+    queryFn: ({ signal }) => bibleReadingProgressService.get(signal),
     enabled: Boolean(me?.id && !auth.isGuest),
     retry: false,
     staleTime: 30_000,

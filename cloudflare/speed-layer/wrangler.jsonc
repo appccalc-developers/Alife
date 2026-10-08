@@ -13,7 +13,8 @@
 		"run_worker_first": [
 			"/api/*",
 			"/images/*",
-			"/assets/*"
+			"/assets/*",
+			"/virtual-church-assets/*"
 		]
 	},
 	"vars": {
