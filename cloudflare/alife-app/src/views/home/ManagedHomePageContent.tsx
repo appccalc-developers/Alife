@@ -7,6 +7,7 @@ import {
 } from '../../components/page-sections/sectionPresets'
 import { usePublicPageDetailQuery } from '../../hooks/usePublicPageQueries'
 import type { HomeCopy } from './homeCopy'
+import { virtualChurchGuestVisitEnabled } from '../../app/routing/virtualChurchPublicAccess'
 
 type Props = {
   copy: HomeCopy
@@ -38,6 +39,7 @@ const ManagedHomePageContent = ({ copy, pageId, navigationPending, navigationFai
           allowGroupDataSources={false}
           showHeader={false}
           framed={false}
+          virtualChurchEntryVisible={virtualChurchGuestVisitEnabled()}
         />
       ) : null}
       {!pagePending && !page ? (

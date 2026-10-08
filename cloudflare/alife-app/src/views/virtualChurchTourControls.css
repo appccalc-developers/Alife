@@ -1,0 +1,130 @@
+/* Loaded with the 3D route, not the homepage. V2 retains its existing UI. */
+.virtual-church-ui[data-vc-visual="v3"] .vc-edge-action {
+  top: calc(env(safe-area-inset-top) + 4.75rem);
+  right: max(.75rem, env(safe-area-inset-right));
+  max-width: 11rem;
+  padding: 0;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-edge-action button {
+  min-height: 44px;
+  max-width: 100%;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-button,
+.virtual-church-ui[data-vc-visual="v3"] .vc-church-badge,
+.virtual-church-ui[data-vc-visual="v3"] .vc-camera-panel,
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-callout,
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-hint {
+  border-color: rgb(255 255 255 / 18%);
+  background: rgb(23 28 30 / 94%);
+  color: #f2f0ea;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 12%);
+  backdrop-filter: none;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-button,
+.virtual-church-ui[data-vc-visual="v3"] .vc-camera-choice {
+  font-weight: 600;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-button,
+.virtual-church-ui[data-vc-visual="v3"] .vc-church-badge,
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-callout {
+  border-radius: 10px;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-topbar .vc-tour-button span {
+  font-weight: 600;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-button:hover {
+  border-color: rgb(255 255 255 / 35%);
+  background: #303638;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 12%);
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-button:focus-visible,
+.virtual-church-ui[data-vc-visual="v3"] .vc-camera-choice:focus-visible,
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-callout button:focus-visible,
+.virtual-church-ui[data-vc-visual="v3"] .vc-movement-joystick:focus-visible {
+  outline: 2px solid #f2f0ea;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px #171c1e;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-church-badge p {
+  margin-top: 3px;
+  color: #f2f0ea;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-church-badge span {
+  padding: 0;
+  background: none;
+  color: #c3c7c6;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-camera-panel {
+  gap: 2px;
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-camera-choice {
+  border-radius: 8px;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-camera-choice[aria-pressed="true"],
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-callout button {
+  background: #f2f0ea;
+  color: #171c1e;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-camera-choice[aria-pressed="false"] {
+  color: #f2f0ea;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-camera-choice[aria-pressed="false"]:hover {
+  background: #303638;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-callout p,
+.virtual-church-ui[data-vc-visual="v3"] .vc-tour-hint {
+  color: #f2f0ea;
+  font-weight: 500;
+}
+
+.virtual-church-ui[data-vc-visual="v3"] .vc-movement-joystick {
+  border-color: rgb(255 255 255 / 35%);
+  background: rgb(23 28 30 / 94%);
+  backdrop-filter: none;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 12%);
+}
+
+@media (min-width: 1024px) {
+  .virtual-church-ui[data-vc-visual="v3"] .vc-keyboard-hint {
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 5.5rem);
+    max-width: calc(100% - 3rem);
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .virtual-church-ui[data-vc-visual="v3"] .vc-tour-button,
+  .virtual-church-ui[data-vc-visual="v3"] .vc-camera-choice {
+    transition: none;
+  }
+
+  .virtual-church-ui[data-vc-visual="v3"] .vc-tour-button:active {
+    transform: none;
+  }
+}

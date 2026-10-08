@@ -12,14 +12,17 @@ internal sealed class ApiHttpPipeline
         var app = new ApplicationBuilder(serviceProvider);
 
         app.UseRouting();
-        // Apply before authorization/model binding so denied or invalid RAM requests
-        // have the same privacy policy as successful controller responses.
+        // Apply before authorization/model binding so denied or invalid private
+        // requests have the same no-storage policy as controller responses.
         app.Use(async (context, next) =>
         {
             var segments = context.Request.Path.Value?.Split('/', StringSplitOptions.RemoveEmptyEntries) ?? [];
             var isRam = segments.Length >= 4 && segments[0] == "api" && segments[1] == "events" && segments[3] == "ram";
             var isPolicy = segments.Length >= 5 && segments[0] == "api" && segments[1] == "admin" && segments[2] == "churches" && segments[4] == "ram-policies";
-            if (isRam || isPolicy)
+            var isBibleReadingProgress = string.Equals(
+                context.Request.Path.Value?.TrimEnd('/'),
+                "/api/me/bible-reading-progress", StringComparison.OrdinalIgnoreCase);
+            if (isRam || isPolicy || isBibleReadingProgress)
             {
                 context.Response.Headers.CacheControl = "private, no-store";
                 context.Response.Headers.Pragma = "no-cache";

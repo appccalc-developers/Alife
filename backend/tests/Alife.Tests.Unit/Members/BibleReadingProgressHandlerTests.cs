@@ -54,6 +54,74 @@ public class BibleReadingProgressHandlerTests
         Assert.Equal("en", progress.Language);
     }
 
+    [Fact]
+    public async Task SaveForTwoMembers_UpdatingOneDoesNotChangeTheOthersProgress()
+    {
+        using var dbContext = CreateDbContext();
+        var firstMemberId = Guid.NewGuid();
+        var secondMemberId = Guid.NewGuid();
+        var saveHandler = new SaveBibleReadingProgressCommandHandler(dbContext);
+
+        var firstSaved = await saveHandler.Handle(
+            new SaveBibleReadingProgressCommand(firstMemberId, "JHN", 3, "zh", "123", "206"),
+            CancellationToken.None);
+        var secondSaved = await saveHandler.Handle(
+            new SaveBibleReadingProgressCommand(secondMemberId, "ACT", 4, "en", "46", "111"),
+            CancellationToken.None);
+        var firstUpdated = await saveHandler.Handle(
+            new SaveBibleReadingProgressCommand(firstMemberId, "ROM", 7, "zh", "48", "59"),
+            CancellationToken.None);
+        dbContext.ChangeTracker.Clear();
+
+        var getHandler = new GetBibleReadingProgressQueryHandler(dbContext);
+        var firstLoaded = await getHandler.Handle(
+            new GetBibleReadingProgressQuery(firstMemberId),
+            CancellationToken.None);
+        var secondLoaded = await getHandler.Handle(
+            new GetBibleReadingProgressQuery(secondMemberId),
+            CancellationToken.None);
+
+        Assert.True(firstSaved.IsSuccess);
+        Assert.True(secondSaved.IsSuccess);
+        Assert.True(firstUpdated.IsSuccess);
+        Assert.True(firstLoaded.IsSuccess);
+        Assert.True(secondLoaded.IsSuccess);
+        Assert.Equal("ROM", firstLoaded.Value!.Book);
+        Assert.Equal(7, firstLoaded.Value.Chapter);
+        Assert.Equal("zh", firstLoaded.Value.Language);
+        Assert.Equal("48", firstLoaded.Value.ZhVersion);
+        Assert.Equal("59", firstLoaded.Value.EnVersion);
+        Assert.Equal("ACT", secondLoaded.Value!.Book);
+        Assert.Equal(4, secondLoaded.Value.Chapter);
+        Assert.Equal("en", secondLoaded.Value.Language);
+        Assert.Equal("46", secondLoaded.Value.ZhVersion);
+        Assert.Equal("111", secondLoaded.Value.EnVersion);
+        Assert.Equal(2, await dbContext.BibleReadingProgresses.CountAsync());
+    }
+
+    [Fact]
+    public async Task Get_WhenOnlyAnotherMemberHasProgress_ReturnsNotFound()
+    {
+        using var dbContext = CreateDbContext();
+        var memberWithProgress = Guid.NewGuid();
+        var memberWithoutProgress = Guid.NewGuid();
+        var saveHandler = new SaveBibleReadingProgressCommandHandler(dbContext);
+        var saved = await saveHandler.Handle(
+            new SaveBibleReadingProgressCommand(memberWithProgress, "JHN", 3, "zh", "123", "206"),
+            CancellationToken.None);
+        dbContext.ChangeTracker.Clear();
+
+        var getHandler = new GetBibleReadingProgressQueryHandler(dbContext);
+        var loaded = await getHandler.Handle(
+            new GetBibleReadingProgressQuery(memberWithoutProgress),
+            CancellationToken.None);
+
+        Assert.True(saved.IsSuccess);
+        Assert.Equal(AppResultStatus.NotFound, loaded.Status);
+        Assert.Null(loaded.Value);
+        Assert.Equal(memberWithProgress, (await dbContext.BibleReadingProgresses.SingleAsync()).MemberId);
+    }
+
     [Theory]
     [InlineData("", 1, "zh")]
     [InlineData("ROM", 0, "zh")]

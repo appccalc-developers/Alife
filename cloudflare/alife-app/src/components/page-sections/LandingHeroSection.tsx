@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { ArrowDown, ArrowRight, PlayCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
 import {
@@ -49,7 +50,7 @@ const LandingHeroMedia = ({ src, poster }: { src: string; poster: string }) => {
   )
 }
 
-const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', headingLevel = 'h1', propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
+const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', headingLevel = 'h1', propertiesOnly, showProperties = true, virtualChurchEntryVisible = false, contextGroupId, page, onUpdate }: SectionComponentProps) => {
   const heroRef = useRef<HTMLElement>(null)
   const auth = useAuthStore()
   const t = useUiText()
@@ -303,6 +304,15 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
               onLabelChange: (value) => updateLocalizedContent({ secondaryLinkLabel: value, secondaryLabel: value, secondaryCtaLabel: value }),
             }) : null}
           </div> : null}
+          {virtualChurchEntryVisible && mode === 'render' && !compactPreview ? (
+            <Link
+              to="/virtual-church?vcVisual=v3"
+              className="mt-4 inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-white/45 bg-white/10 px-4 py-2 text-sm font-medium text-white/95 transition-colors hover:border-white/70 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              {auth.language === 'zh' ? '参观 3D 教堂' : 'Explore the 3D church'}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          ) : null}
         </div>
       </div>
 

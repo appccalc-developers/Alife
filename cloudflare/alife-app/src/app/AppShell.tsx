@@ -16,7 +16,8 @@ import { getCopy } from '../views/home/homeCopy'
 import { buildPageMenuNavItems } from '../views/home/homeUtils'
 import { usePublicPagesQuery } from '../hooks/usePublicPageQueries'
 import { workspaceResumeService } from '../services/workspaceResumeService'
-import { isHomeLocation, isPublicArticlePath, isPublicPageLocation, usesPublicHomeLayout } from './routing/publicRoutePolicy'
+import { isHomeLocation, isPublicArticlePath, isPublicPageLocation, usesPublicHomeLayout, usesVirtualChurchSceneShell } from './routing/publicRoutePolicy'
+import { isVirtualChurchStudyRoomReading, resolveVirtualChurchGuestReturn, virtualChurchGuestVisitEnabled } from './routing/virtualChurchPublicAccess'
 import { getWorkspaceArea } from './routing/workspaceArea'
 import ChurchSiteLayout from '../components/church-life/ChurchSiteLayout'
 import { getChurchSiteSection } from './navigation/churchSiteNavigation'
@@ -163,21 +164,28 @@ const PublicHomeShell = () => {
 
 const AppShell = () => {
   const location = useLocation()
+  const auth = useAuthStore()
   const reduceMotion = useReducedMotion()
+  const guestVisitEnabled = virtualChurchGuestVisitEnabled()
+  const publicSceneReturn = location.pathname === '/onboarding' && Boolean(resolveVirtualChurchGuestReturn(location.search, guestVisitEnabled))
+  const showSceneShell = usesVirtualChurchSceneShell(location, guestVisitEnabled) || publicSceneReturn
   const showPublicShell = usesPublicHomeLayout(location)
+    || (auth.initialized && auth.isGuest && guestVisitEnabled
+      && location.pathname === '/study' && isVirtualChurchStudyRoomReading(location.search))
+  const shellKey = showSceneShell ? 'scene' : showPublicShell ? 'public' : 'workspace'
   const identityScreen = location.pathname === '/onboarding' || location.pathname === '/internal/alpha-login' || /^\/(activate|join|application)\/[^/]+$/.test(location.pathname)
 
   return (
     <>
       <AnimatePresence initial={false} mode="wait">
         <motion.div
-          key={showPublicShell ? 'public' : 'workspace'}
+          key={shellKey}
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeInOut' }}
         >
-          {showPublicShell ? <PublicHomeShell /> : <WorkspaceShell />}
+          {showSceneShell ? <AppRoutes /> : showPublicShell ? <PublicHomeShell /> : <WorkspaceShell />}
         </motion.div>
       </AnimatePresence>
       {identityScreen ? null : <CacheInspectorHud />}

@@ -37,6 +37,7 @@ type Props = {
   showHeader?: boolean
   framed?: boolean
   sectionHeroHeadingLevel?: 'h1' | 'h2'
+  virtualChurchEntryVisible?: boolean
   activeSectionIndex?: number
   activeSectionFocusToken?: number
   sectionLanguageIssueCounts?: Record<number, number>
@@ -525,6 +526,7 @@ const PageContentRenderer = ({
   showHeader = true,
   framed = true,
   sectionHeroHeadingLevel = 'h1',
+  virtualChurchEntryVisible = false,
   activeSectionIndex,
   activeSectionFocusToken,
   sectionLanguageIssueCounts,
@@ -599,6 +601,7 @@ const PageContentRenderer = ({
               pageId={pageId}
               domId={getPageSectionDomId(section, index)}
               headingLevel={sectionHeroHeadingLevel}
+              virtualChurchEntryVisible={virtualChurchEntryVisible && index === 0 && section.type === 'LandingHero'}
             />
             {index < sections.length - 1 ? <hr className={pageSectionDividerClass} /> : null}
           </Fragment>
@@ -695,6 +698,7 @@ const PageContentRenderer = ({
                 pageId={pageId}
                 domId={getPageSectionDomId(section, index)}
                 headingLevel={sectionHeroHeadingLevel}
+                virtualChurchEntryVisible={virtualChurchEntryVisible && index === 0 && section.type === 'LandingHero'}
               />
               {index < sections.length - 1 ? <hr className={pageSectionDividerClass} /> : null}
             </Fragment>

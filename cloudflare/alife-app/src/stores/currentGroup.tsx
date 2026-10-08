@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { isAuthOptionalLocation } from '../app/routing/publicRoutePolicy'
+import { virtualChurchGuestVisitEnabled } from '../app/routing/virtualChurchPublicAccess'
 import { GROUP_NOT_FOUND_EVENT, fetchFreshVisibleGroupsForViewer, fetchGroupForViewer } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
 import { ACTIVE_ENTITY_CHANGED_EVENT, activeEntityService } from '../services/activeEntityService'
@@ -22,7 +23,7 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   const t = useUiText()
   const auth = useAuthStore()
   const location = useLocation()
-  const groupContextEnabled = !isAuthOptionalLocation(location)
+  const groupContextEnabled = !isAuthOptionalLocation(location, virtualChurchGuestVisitEnabled())
   const [CurrentGroup, setCurrentGroup] = useState<GroupDto | null>(null)
   const [activeGroupId, setActiveGroupId] = useState(() => activeEntityService.getAll().groupId)
   const [loading, setLoading] = useState(false)

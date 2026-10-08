@@ -1,9 +1,10 @@
 import { ApiClient, BibleClient, type BibleVersion } from '@youversion/platform-core'
+import { YouVersionConfigurationError } from '../utils/bibleRequestFailure'
 
 const appKey = import.meta.env.VITE_YOUVERSION_APP_KEY?.trim()
 
 const createBibleClient = () => {
-  if (!appKey) throw new Error('YouVersion App Key is not configured.')
+  if (!appKey) throw new YouVersionConfigurationError()
   return new BibleClient(new ApiClient({ appKey }))
 }
 

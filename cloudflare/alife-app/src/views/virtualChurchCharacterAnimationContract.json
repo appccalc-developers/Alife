@@ -1,0 +1,205 @@
+{
+  "durationsSeconds": {
+    "Idle_A": 8.3,
+    "Idle_B": 2.4,
+    "Walk_Start": 0.6,
+    "Walk": 1.0333333333333334,
+    "Walk_Stop": 0.8,
+    "Run_Start": 0.4,
+    "Run": 0.7333333333333333,
+    "Run_Stop": 0.85,
+    "Jump_Start": 0.28,
+    "Jump_Loop": 0.5,
+    "Jump_Land": 0.32,
+    "Turn_L": 0.9,
+    "Turn_R": 0.9333333333333333,
+    "Greet": 1.4
+  },
+  "loopingClips": [
+    "Idle_A",
+    "Idle_B",
+    "Walk",
+    "Run",
+    "Jump_Loop"
+  ],
+  "oneShotClips": [
+    "Walk_Start",
+    "Walk_Stop",
+    "Run_Start",
+    "Run_Stop",
+    "Jump_Start",
+    "Jump_Land",
+    "Turn_L",
+    "Turn_R",
+    "Greet"
+  ],
+  "requiredTargets": {
+    "Idle_A": [
+      "Hips",
+      "Torso",
+      "Head",
+      "HairBack",
+      "Book"
+    ],
+    "Idle_B": [
+      "Torso",
+      "Head",
+      "Shoulder.L",
+      "HairBack",
+      "Book"
+    ],
+    "Walk_Start": [
+      "Hips",
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Shoulder.L",
+      "Shoulder.R",
+      "Torso",
+      "HairBack"
+    ],
+    "Walk": [
+      "Hips",
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Shoulder.L",
+      "Shoulder.R",
+      "HairBack",
+      "Book"
+    ],
+    "Walk_Stop": [
+      "Hips",
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Shoulder.L",
+      "Shoulder.R",
+      "Torso",
+      "HairBack"
+    ],
+    "Run_Start": [
+      "Hips",
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Shoulder.L",
+      "Shoulder.R",
+      "Torso",
+      "HairBack"
+    ],
+    "Run": [
+      "Hips",
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Shoulder.L",
+      "Shoulder.R",
+      "Torso",
+      "HairBack",
+      "Book"
+    ],
+    "Run_Stop": [
+      "Hips",
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Shoulder.L",
+      "Shoulder.R",
+      "Torso",
+      "HairBack"
+    ],
+    "Jump_Start": [
+      "Hips",
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Torso",
+      "HairBack",
+      "Book"
+    ],
+    "Jump_Loop": [
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Torso",
+      "HairBack",
+      "Book"
+    ],
+    "Jump_Land": [
+      "Hips",
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Torso",
+      "HairBack",
+      "Book"
+    ],
+    "Turn_L": [
+      "Hips",
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Shoulder.L",
+      "Shoulder.R",
+      "Torso",
+      "Head",
+      "HairBack"
+    ],
+    "Turn_R": [
+      "Hips",
+      "UpperLeg.L",
+      "UpperLeg.R",
+      "LowerLeg.L",
+      "LowerLeg.R",
+      "Shoulder.L",
+      "Shoulder.R",
+      "Torso",
+      "Head",
+      "HairBack"
+    ],
+    "Greet": [
+      "Shoulder.R",
+      "Head",
+      "HairBack",
+      "Book"
+    ]
+  },
+  "rootMotion": "none",
+  "locomotionContactWindows": {
+    "Walk": {
+      "L": [0.25, 0.78],
+      "R": [0.8, 0.98]
+    },
+    "Run": {
+      "L": [0.29, 0.62],
+      "R": [0.8, 0.98]
+    }
+  },
+  "locomotionTransitionDurationsSeconds": {
+    "Walk_Start": 0.6,
+    "Walk_Stop": 0.8,
+    "Run_Start": 0.4,
+    "Run_Stop": 0.85
+  },
+  "turnReviewAnglesDegrees": [45, 90, 180],
+  "allowedTranslationTarget": "Hips",
+  "hipsVerticalRangeMetres": {
+    "min": 0.79,
+    "max": 0.91
+  },
+  "maximumHorizontalTranslationMetres": 0,
+  "maximumQuaternionAngleRadians": 1.3,
+  "loopSeamTolerance": 0.0005,
+  "transitionSeamToleranceMetres": 0.05
+}

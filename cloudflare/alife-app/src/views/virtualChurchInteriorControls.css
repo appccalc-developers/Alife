@@ -1,0 +1,210 @@
+/* Loaded only by the two interior routes. Scene/reference captions remain
+   visible; none of these rules apply to the exterior, V2, or the app shell. */
+.virtual-church-ui[data-vc-interior] {
+  background: #171c1e;
+  color: #f2f0ea;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgb(255 255 255 / 14%);
+  padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-caption {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+  text-align: center;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-caption h1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-caption p {
+  margin: 2px 0 0;
+  color: #c3c7c6;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 10px;
+  background: #171c1e;
+  padding: 8px 12px;
+  color: #f2f0ea;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  transition: background-color 160ms, border-color 160ms;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-button:hover:not(:disabled) {
+  border-color: rgb(255 255 255 / 35%);
+  background: #303638;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-button[aria-pressed="true"] {
+  border-color: #c3c7c6;
+  background: #303638;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-button:focus-visible {
+  outline: 2px solid #f2f0ea;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px #171c1e;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-primary,
+.virtual-church-ui[data-vc-interior] .vc-interior-primary:hover:not(:disabled) {
+  border-color: #f2f0ea;
+  background: #f2f0ea;
+  color: #171c1e;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-top: 1px solid rgb(255 255 255 / 14%);
+  padding: 8px max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-note {
+  width: 100%;
+  color: #c3c7c6;
+  text-align: center;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-panel,
+.virtual-church-ui[data-vc-interior] .vc-interior-hint {
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 10px;
+  background: rgb(23 28 30 / 94%);
+  color: #f2f0ea;
+}
+
+.virtual-church-ui[data-vc-interior] .vc-interior-walk-button {
+  min-width: 44px;
+  touch-action: none;
+  background: rgb(23 28 30 / 94%);
+}
+
+@media (min-width: 640px) {
+  .virtual-church-ui[data-vc-interior] .vc-interior-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+  }
+  .virtual-church-ui[data-vc-interior] .vc-interior-caption {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .virtual-church-ui[data-vc-interior] .vc-interior-caption h1 {
+    font-size: 16px;
+  }
+  .virtual-church-ui[data-vc-interior] .vc-interior-button {
+    font-size: 14px;
+  }
+  .virtual-church-ui[data-vc-interior] .vc-interior-note {
+    width: auto;
+  }
+}
+
+.virtual-church-ui[data-vc-interior="main-hall"] .vc-interior-label-compact {
+  display: none;
+}
+
+/* Keep the auditorium itself clear. Help is explicit, not timed or animated;
+   its transparent wrapper never intercepts looking/dragging over the scene. */
+.virtual-church-ui[data-vc-interior="main-hall"] .vc-interior-walk-help {
+  position: absolute;
+  top: 8px;
+  right: max(8px, env(safe-area-inset-right));
+  width: min(400px, calc(100% - 16px));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.virtual-church-ui[data-vc-interior="main-hall"] .vc-interior-walk-help .vc-interior-button {
+  pointer-events: auto;
+}
+
+.virtual-church-ui[data-vc-interior="main-hall"] .vc-interior-walk-help .vc-interior-hint {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Short landscape compacts both interior headers and only the hall footer.
+   Full reference/concept captions remain visible; action names never shorten.
+   No orientation handler, remount, or rule for the exterior/app shell. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .virtual-church-ui[data-vc-interior] .vc-interior-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: max(4px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
+  }
+  .virtual-church-ui[data-vc-interior] .vc-interior-caption {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .virtual-church-ui[data-vc-interior] .vc-interior-caption h1 {
+    font-size: 12px;
+    line-height: 16px;
+  }
+  .virtual-church-ui[data-vc-interior="main-hall"] .vc-interior-footer {
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 4px max(8px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+  .virtual-church-ui[data-vc-interior="main-hall"] .vc-interior-footer .vc-interior-button {
+    flex: 0 0 auto;
+    gap: 6px;
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+  .virtual-church-ui[data-vc-interior="main-hall"] .vc-interior-label-full {
+    display: none;
+  }
+  .virtual-church-ui[data-vc-interior="main-hall"] .vc-interior-label-compact {
+    display: inline;
+  }
+  .virtual-church-ui[data-vc-interior="main-hall"] .vc-interior-note {
+    width: auto;
+    flex: 0 1 320px;
+    min-width: 0;
+    line-height: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .virtual-church-ui[data-vc-interior] .vc-interior-button {
+    transition: none;
+  }
+}

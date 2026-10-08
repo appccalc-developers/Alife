@@ -1,0 +1,461 @@
+{
+  "schemaVersion": 1,
+  "status": "beauty-surface-polish-v1-awaiting-manual-face-hair-costume-refinement",
+  "assetId": "alife-gate-a-hero-beauty-v1",
+  "visualTarget": {
+    "id": "hero-visual-target-v1",
+    "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/hero-visual-target.png",
+    "sha256": "88cd4245da0d50e4c10d1dc0fcf96d5b395b643fbdcc80e7b23f3db826a386f4",
+    "width": 1536,
+    "height": 1024,
+    "conceptOnly": true
+  },
+  "modelingReferences": [
+    {
+      "id": "hero-turnaround-v1",
+      "role": "orthographic-front-left-back",
+      "objectName": "HeroBeauty_TurnaroundReference",
+      "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/hero-turnaround-v1.png",
+      "sha256": "aa4aa2a67380a050b7f3fa66ccb504fc7d3f4598117fa20a47895362aab29da2",
+      "width": 1536,
+      "height": 1024,
+      "conceptOnly": true,
+      "draftForUserReview": true
+    },
+    {
+      "id": "hero-face-hair-expression-v1",
+      "role": "face-profile-hair-expression-detail",
+      "objectName": "HeroBeauty_FaceHairReference",
+      "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/hero-face-hair-expression-v1.png",
+      "sha256": "9cf0e9881523cd4199c47b4bc2d82b9dcd6c29d0137cc73c6d8f0815c34a9350",
+      "width": 1536,
+      "height": 1024,
+      "conceptOnly": true,
+      "draftForUserReview": true
+    },
+    {
+      "id": "hero-costume-material-props-v1",
+      "role": "costume-material-footwear-journal-detail",
+      "objectName": "HeroBeauty_CostumeMaterialReference",
+      "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/hero-costume-material-props-v1.png",
+      "sha256": "4cdf7bedd26c12c85f241ecd557ccf4ac5eb0e4628b886af9fc502c8fd8774e5",
+      "width": 1536,
+      "height": 1024,
+      "conceptOnly": true,
+      "draftForUserReview": true
+    }
+  ],
+  "authoring": {
+    "blenderVersion": "4.5.12 LTS",
+    "blenderExecutable": "C:/Developer/Blender/4.5/blender-4.5.12-windows-arm64/blender.exe",
+    "blenderPlatform": "windows-arm64",
+    "blenderArchive": "C:/Developer/Blender/downloads/blender-4.5.12-windows-arm64.zip",
+    "blenderArchiveSha256": "0bae137dc02418e846c5fe75997277be86fa923a1d64c75415b229cfdf22b18b",
+    "portableConfig": "C:/Developer/Blender/4.5/blender-4.5.12-windows-arm64/portable",
+    "sourceBlend": "tools/blender/virtual_church/v3/character-hero-female-beauty-source.blend",
+    "workspaceMirror": "C:/Developer/Blender/projects/Alife/workfiles/character-hero-female-beauty-source.blend",
+    "bootstrapScript": "tools/blender/virtual_church/v3/build_gate_a_beauty_hero_source.py",
+    "faceBlockoutScript": "tools/blender/virtual_church/v3/apply_gate_a_beauty_face_blockout.py",
+    "featureRefinementScript": "tools/blender/virtual_church/v3/apply_gate_a_beauty_feature_refinement.py",
+    "hairBlockoutScript": "tools/blender/virtual_church/v3/apply_gate_a_beauty_hair_blockout.py",
+    "faceSculptRefinementScript": "tools/blender/virtual_church/v3/apply_gate_a_beauty_face_sculpt_refinement.py",
+    "costumeBlockoutScript": "tools/blender/virtual_church/v3/apply_gate_a_beauty_costume_blockout.py",
+    "surfacePolishScript": "tools/blender/virtual_church/v3/apply_gate_a_beauty_surface_polish.py",
+    "method": "manual-sculpt-retopology-uv-bake",
+    "proceduralPrimitiveBodyAllowed": false,
+    "rejectedBaselineMayBeRetopologized": false
+  },
+  "sculptBase": {
+    "id": "blender-human-base-meshes-realistic-female-v1",
+    "status": "selected-anatomical-scaffold-requires-full-beauty-restyle",
+    "sourceUrl": "https://download.blender.org/demo/bundles/bundles-3.6/human-base-meshes-bundle-v1.0.0.zip",
+    "archive": "C:/Developer/Blender/downloads/human-base-meshes-bundle-v1.0.0.zip",
+    "archiveSha256": "46a912c0524072ac3b78c35d5d2471df7b8df102394a050ca8cd7184e3393648",
+    "libraryBlend": "C:/Developer/Blender/assets/human-base-meshes-v1.0.0/human_base_meshes_bundle.blend",
+    "libraryBlendSha256": "660e245812ef56768bc71293bd4c8bc1fd19a63710e16aafc8258a7351cbc35e",
+    "assetCollection": "Body Female - Realistic",
+    "sourceBodyObject": "GEO-body_female_realistic",
+    "sourceEyeLeftObject": "GEO-body_female_realistic.eye.L",
+    "sourceEyeRightObject": "GEO-body_female_realistic.eye.R",
+    "author": "Dan Ulrich",
+    "license": "CC0",
+    "targetCollection": "HeroBeauty_SculptBase",
+    "bodyObject": "HeroBeauty_SculptBase_Body",
+    "baseBodyVertices": 10582,
+    "baseBodyPolygons": 10590,
+    "baseBodyQuads": 10570,
+    "uvLayer": "UVMap",
+    "runtimeUseAllowed": false,
+    "directPublishAllowed": false,
+    "manualRestyleRequired": true,
+    "selectionReason": "Adult anatomy and natural hands/limbs are a safer scaffold than the overly childlike stylized body; face, eyes, silhouette and proportions still require full authored restyling."
+  },
+  "beautySculptWorkfile": {
+    "status": "beauty-surface-polish-v1-not-a-candidate",
+    "collection": "HeroBeauty_BeautySculpt_WIP",
+    "bodyObject": "HeroBeauty_BeautySculpt_Body",
+    "eyeLeftObject": "HeroBeauty_BeautySculpt_Eye_L",
+    "eyeRightObject": "HeroBeauty_BeautySculpt_Eye_R",
+    "eyeSurfaceObjects": [
+      "HeroBeauty_BeautySculpt_Iris_L",
+      "HeroBeauty_BeautySculpt_Pupil_L",
+      "HeroBeauty_BeautySculpt_Iris_R",
+      "HeroBeauty_BeautySculpt_Pupil_R"
+    ],
+    "derivedFromLicensedBase": true,
+    "independentMeshDataRequired": true,
+    "originalSculptBaseHiddenRequired": true,
+    "candidateReady": false,
+    "runtimeExportAllowed": false,
+    "manualRestyleRequired": true,
+    "proceduralTubeHairAllowed": false,
+    "reviewCameras": [
+      "HeroBeauty_SculptFront_Camera",
+      "HeroBeauty_SculptProfile_Camera",
+      "HeroBeauty_SculptPortrait_Camera",
+      "HeroBeauty_SculptThreeQuarter_Camera"
+    ]
+  },
+  "faceBlockout": {
+    "passId": "adult-face-proportion-blockout-v1",
+    "status": "accepted-as-wip-proportion-pass-needs-manual-sculpt-refinement",
+    "candidateReady": false,
+    "runtimeExportAllowed": false,
+    "sourceBodyTopologyPreserved": true,
+    "proceduralPrimitivePartsCreated": false,
+    "changedVerticesByRegion": {
+      "eyeSocket": 1137,
+      "jaw": 975,
+      "cheek": 189,
+      "nose": 526,
+      "mouth": 405
+    },
+    "eyeLocations": {
+      "left": [0.035, -0.124, 1.535],
+      "right": [-0.035, -0.124, 1.535]
+    },
+    "eyeScale": [1.22, 1.12, 1.16],
+    "eyeLayering": "derived-sclera-iris-pupil-wip",
+    "reviewImages": [
+      {
+        "view": "front",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-face-blockout-v1/front.png",
+        "sha256": "8f07b871efbb631564bc8ba57815856c9e8845d35d5f99b887f2dbee44fe72b8"
+      },
+      {
+        "view": "profile",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-face-blockout-v1/profile.png",
+        "sha256": "eeb0a87712bf3b2cf30dfc675f1a7f8ef03a28eff9f6653f5c57cf0cb6f5ced9"
+      },
+      {
+        "view": "portrait",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-face-blockout-v1/portrait.png",
+        "sha256": "edd739ad8a0a466b94f5e2f4ec51ab80705e5ed73eaa95483ff963807a42ea30"
+      },
+      {
+        "view": "three-quarter",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-face-blockout-v1/three-quarter.png",
+        "sha256": "05685a6acf9b44b9c274d279a91246c54fcd91b67537198278ded519bc3d78d5"
+      }
+    ]
+  },
+  "featureRefinement": {
+    "passId": "face-feature-refinement-v1",
+    "status": "accepted-as-wip-eye-feature-pass-needs-hair-and-manual-sculpt-review",
+    "selectionMethod": "licensed-base-sculpt-face-set-eyelid-boundaries",
+    "eyelidBoundaryVertices": {
+      "left": 10,
+      "right": 10
+    },
+    "featureObjects": [
+      "HeroBeauty_BeautySculpt_UpperLash_L",
+      "HeroBeauty_BeautySculpt_UpperLash_R",
+      "HeroBeauty_BeautySculpt_Brow_L",
+      "HeroBeauty_BeautySculpt_Brow_R"
+    ],
+    "eyeHighlightObjects": [
+      "HeroBeauty_BeautySculpt_Highlight_L",
+      "HeroBeauty_BeautySculpt_Highlight_R"
+    ],
+    "irisRadialFactor": 0.88,
+    "pupilRadialFactor": 1.05,
+    "lipRefinement": "deferred-requires-topology-conforming-manual-sculpt",
+    "rejectedLipMethods": [
+      "coordinate-box-material-selection",
+      "disconnected-polygon-tint-extraction",
+      "floating-authored-surface-patch"
+    ],
+    "sourceBodyTopologyPreserved": true,
+    "candidateReady": false,
+    "runtimeExportAllowed": false,
+    "reviewImages": [
+      {
+        "view": "portrait",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-feature-refinement-v1/portrait.png",
+        "sha256": "b3e39e94fe3654a21149e0165bf4d432cb2cb6dba14e6ee02064d8091018c105"
+      },
+      {
+        "view": "three-quarter",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-feature-refinement-v1/three-quarter.png",
+        "sha256": "521e16ec580ff765eab7490342e4bc2e30365a31ebbda9a7845ff99df6a268de"
+      },
+      {
+        "view": "profile",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-feature-refinement-v1/profile.png",
+        "sha256": "a586489eba5325ca28b09fdc5825da73f2fa864cc5c2acee87d6e26821f2adef"
+      }
+    ]
+  },
+  "hairBlockout": {
+    "passId": "hair-silhouette-blockout-v1",
+    "status": "accepted-as-wip-silhouette-pass-needs-manual-sculpt-and-costume-review",
+    "sourceMethod": "licensed-body-topology-derived-scalp-plus-authored-surface-ribbons",
+    "continuousScalpCoverage": true,
+    "surfaceBoundPrimaryClumps": true,
+    "sideFringeRooted": true,
+    "lowBunConnected": true,
+    "proceduralTubeHairCreated": false,
+    "detachedFringeCreated": false,
+    "helmetShellAcceptedAsFinal": false,
+    "candidateReady": false,
+    "runtimeExportAllowed": false,
+    "manualSculptRequired": true,
+    "reviewImages": [
+      {
+        "view": "portrait",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-hair-blockout-v1/hair-portrait.png",
+        "sha256": "50e27560a5ba53365b1b876efb6c9d8a03d77c56451fcff81ad2e4032f8c676c"
+      },
+      {
+        "view": "three-quarter",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-hair-blockout-v1/hair-three-quarter.png",
+        "sha256": "7ff03053ecd711a7d4007fc9f8b2e56cc3e9cfc0ac33257e077831bc11bc3ee4"
+      },
+      {
+        "view": "profile",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-hair-blockout-v1/hair-profile.png",
+        "sha256": "5209c0ef7f85c6632f51c63f910f489091b3ee400f8049db76f64fe9edfa036a"
+      },
+      {
+        "view": "back",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-hair-blockout-v1/hair-back.png",
+        "sha256": "c292b9794177ec6e1edd8fd5ae3eec21b5203b0228d870269806abd886cee29c"
+      }
+    ]
+  },
+  "faceSculptRefinement": {
+    "passId": "face-sculpt-refinement-v1",
+    "status": "accepted-as-wip-topology-conforming-face-pass-needs-hair-detail-and-costume-review",
+    "sourceBodyTopologyPreserved": true,
+    "mouthFaceSet": 22,
+    "lipTintMethod": "smooth-point-domain-color-attribute",
+    "floatingLipGeometryCreated": false,
+    "extractedLipPolygonsCreated": false,
+    "eyelidFaceSets": {
+      "left": 2,
+      "right": 3
+    },
+    "upperLashesConformedToMovedRims": true,
+    "candidateReady": false,
+    "runtimeExportAllowed": false,
+    "manualSculptReviewRequired": true,
+    "reviewImages": [
+      {
+        "view": "portrait",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-eyelid-sculpt-v1/portrait.png",
+        "sha256": "e11f2874e5b1d517a86ebd3bd35206dbd48604859828ee817c70209bb0c3b698"
+      },
+      {
+        "view": "three-quarter",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-eyelid-sculpt-v1/three-quarter.png",
+        "sha256": "38da4d7b92f8b778458c8c32c1f1e18a3a8290a20c188431038245ccf1ab2f55"
+      },
+      {
+        "view": "profile",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-eyelid-sculpt-v1/profile.png",
+        "sha256": "fc5be1d0adf056993f94b8816839cc407a95c3967bca30505e8f2e38922ab821"
+      }
+    ]
+  },
+  "costumeBlockout": {
+    "passId": "costume-silhouette-blockout-v1",
+    "status": "accepted-as-wip-tailored-silhouette-needs-hair-and-costume-detail-review",
+    "sourceBodyTopologyPreserved": true,
+    "fittedShellMethod": "licensed-body-topology-derived-cloth-shells",
+    "authoredMeshMethod": "continuous-lofts-surface-ribbons-and-boot-lasts",
+    "forestGreenJacket": true,
+    "ivoryBlouseAndSleeves": true,
+    "warmGoldTrim": true,
+    "layeredHighLowSkirt": true,
+    "connectedCorset": true,
+    "closedToeBootLast": true,
+    "proceduralPrimitiveBodyCreated": false,
+    "candidateReady": false,
+    "runtimeExportAllowed": false,
+    "manualDetailReviewRequired": true,
+    "reviewImages": [
+      {
+        "view": "front",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-costume-blockout-v1/front.png",
+        "sha256": "c1edf4574cc2a5ed0e6b98c34d86730b3d2ce39bff315a2b10cf58afd52a9f27"
+      },
+      {
+        "view": "three-quarter",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-costume-blockout-v1/three-quarter.png",
+        "sha256": "3e612c01cc3c80920ff78ea38b9a7575622a807963830397b2669a451b33f851"
+      },
+      {
+        "view": "profile",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-costume-blockout-v1/profile.png",
+        "sha256": "c847be88663b717b9e048f8bb7e25c60d58f0af6cf51940ea2847541a62a067b"
+      },
+      {
+        "view": "back",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-costume-blockout-v1/back.png",
+        "sha256": "e19e8c44687075ee904a4b457fd997d3530bea0598fc20738fe615a1f9945ee8"
+      }
+    ]
+  },
+  "surfacePolish": {
+    "passId": "beauty-surface-polish-v1",
+    "status": "accepted-as-wip-joint-surface-and-expression-pass-needs-manual-refinement",
+    "sourceBodyTopologyPreserved": true,
+    "expressionMethod": "topology-bound-mouth-corner-and-cheek-millimetre-sculpt",
+    "makeupMethod": "smooth-point-domain-cheek-attribute",
+    "catchlightMethod": "paired-authored-symmetric-disks",
+    "materialPolish": ["skin", "eye", "hair", "cloth", "gold", "leather"],
+    "floatingAccessoryGeometryCreated": false,
+    "candidateReady": false,
+    "runtimeExportAllowed": false,
+    "manualFaceHairCostumeRefinementRequired": true,
+    "reviewImages": [
+      {
+        "view": "portrait",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-surface-polish-v1/portrait.png",
+        "sha256": "ac0474d8874fa3f3ac7a8bdc6f0c5fbdb006c84a3d4eeb046f47c6fdfd98b70d"
+      },
+      {
+        "view": "full-three-quarter",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-surface-polish-v1/full-three-quarter.png",
+        "sha256": "b4bf3827b647b4fd8ce8c20e585de562ed75aadecba8d4e8e7c60a1664c11cb7"
+      },
+      {
+        "view": "profile",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-surface-polish-v1/profile.png",
+        "sha256": "7719cff530d249c2770eaa2a05147ea8cff1933b9a33bfc8e63f71d9b7c4450b"
+      },
+      {
+        "view": "back",
+        "path": ".tmp/virtual-church-art-direction/hero-visual-target-v1/beauty-surface-polish-v1/back.png",
+        "sha256": "152b5c2e245cc47e91ae5ab6b79c53b66e97bdd95a575c84f3d8df747b992b27"
+      }
+    ]
+  },
+  "technicalReferences": [
+    {
+      "id": "blender-ellie-animation-demo-3.0",
+      "sourceUrl": "https://download.blender.org/demo/bundles/bundles-3.0/asset-demo-bundle-3.0-ellie-animation.zip",
+      "archive": "C:/Developer/Blender/downloads/asset-demo-bundle-3.0-ellie-animation.zip",
+      "archiveSha256": "b0293d1f5b39b654236deaf8b7dd0f215be503db2afe9c98d96610a1a97700db",
+      "libraryBlend": "C:/Developer/Blender/assets/ellie-animation-demo-3.0/ellie_animation/ellie_animation.blend",
+      "libraryBlendSha256": "20e00af5488721c5bf5a10534e7f6a5cef667849c671773daf8348b7c1237b9e",
+      "reviewImage": ".tmp/virtual-church-art-direction/hero-visual-target-v1/ellie-technical-reference-review.png",
+      "reviewImageSha256": "0c6d2dec9312e2fa758c5075c8d4dd51266bb48cc2d3ab6fd2f67f639bf5ff3c",
+      "publisher": "Blender Foundation / Blender Studio",
+      "project": "Sprite Fright / Ellie",
+      "role": [
+        "production-head-topology-reference",
+        "separate-eye-iris-highlight-eyelash-reference",
+        "hair-scalp-groom-reference",
+        "facial-rig-and-expression-library-reference"
+      ],
+      "identitySuitability": "rejected-too-childlike-for-alife-hero",
+      "geometryImportAllowed": false,
+      "identityOrWardrobeCopyAllowed": false,
+      "runtimeUseAllowed": false,
+      "technicalReferenceOnly": true
+    }
+  ],
+  "qualityBar": {
+    "firstImpressionMustBeBeautiful": true,
+    "adultStylizedAppeal": true,
+    "identityConsistencyAcrossReferencesRequired": true,
+    "headsTall": { "min": 6.0, "max": 6.5 },
+    "face": [
+      "modeled eyelids and lips",
+      "separate sclera iris and corneal highlight layers",
+      "soft cheek and jaw transitions",
+      "readable expression at gameplay distance"
+    ],
+    "hair": [
+      "continuous scalp coverage",
+      "sculpted primary and secondary clumps",
+      "side fringe connected to the main silhouette",
+      "compact low bun without detached ornaments"
+    ],
+    "body": [
+      "natural shoulder slope",
+      "curved arms and legs",
+      "modeled hands with separated thumb silhouette",
+      "feet shaped for the authored ankle boots"
+    ],
+    "wardrobe": [
+      "layered forest-green jacket",
+      "ivory blouse with modeled collar",
+      "gently flared knee-length skirt",
+      "subtle warm-gold trim",
+      "cream tights and dark ankle boots",
+      "stylized cream-and-gold community journal"
+    ]
+  },
+  "lods": {
+    "high": { "trianglesMin": 42000, "trianglesMax": 65000, "textureSize": 2048 },
+    "medium": { "trianglesMin": 24000, "trianglesMax": 38000, "textureSize": 1024 },
+    "low": { "trianglesMin": 10000, "trianglesMax": 18000, "textureSize": 1024 }
+  },
+  "materials": {
+    "maximumSlots": 8,
+    "required": [
+      "M_HeroBeauty_Skin",
+      "M_HeroBeauty_Eyes",
+      "M_HeroBeauty_Hair",
+      "M_HeroBeauty_Jacket",
+      "M_HeroBeauty_IvoryCloth",
+      "M_HeroBeauty_Gold",
+      "M_HeroBeauty_Shoes",
+      "M_HeroBeauty_Journal"
+    ],
+    "requiredChannels": ["BaseColor", "Normal", "Roughness", "Metallic"],
+    "skinSubsurfacePreviewOnly": true
+  },
+  "rig": {
+    "armature": "HeroBeauty_Rig",
+    "minimumDeformBones": 42,
+    "maximumDeformBones": 72,
+    "fingerSilhouetteRequired": true,
+    "hairSecondaryBonesRequired": true,
+    "facialExpressionMethod": "shape-keys-or-facial-bones",
+    "retargetTenRuntimeClips": true
+  },
+  "animations": [
+    "Idle_A",
+    "Idle_B",
+    "Walk",
+    "Run",
+    "Jump_Start",
+    "Jump_Loop",
+    "Jump_Land",
+    "Turn_L",
+    "Turn_R",
+    "Greet"
+  ],
+  "exportGate": {
+    "sourceBlendRequired": true,
+    "fourViewTurntableRequired": true,
+    "beautyPortraitRequired": true,
+    "gameplayDistanceRequired": true,
+    "deformationPoseSheetRequired": true,
+    "browserVerificationRequired": true,
+    "userApprovalRequired": true
+  }
+}

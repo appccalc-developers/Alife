@@ -65,6 +65,8 @@ override.tf.json
 
 # Misc generated files
 *.tmp
+*.blend1
+*.blend2
 .local-dev/
 .codex-build/
 /.codex-worktrees/
@@ -74,7 +76,10 @@ override.tf.json
 .tmp/
 /tmp/
 artifacts/
+docs/virtual-church-art-direction/
 .tmpbuild/
+# Superseded local Gate A package; current release assets are r8/r9.
+cloudflare/alife-app/public/virtual-church-assets/v3/releases/gate-a-baseline-r7/
 webapp-logs/
 *.temp
 launchSettings.json

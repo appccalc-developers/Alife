@@ -15,6 +15,8 @@ const isNonResumableLocation = (pathname: string) =>
   pathname === '/articles' ||
   pathname.startsWith('/articles/') ||
   pathname.startsWith('/public/pages/') ||
+  pathname === '/virtual-church' ||
+  pathname.startsWith('/virtual-church/') ||
   pathname === '/enter' ||
   pathname === '/onboarding' ||
   pathname === '/internal/alpha-login' ||
