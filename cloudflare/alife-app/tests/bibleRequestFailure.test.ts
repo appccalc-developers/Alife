@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
+import { ApiClient } from '@youversion/platform-core'
 import { bibleRequestFailure, YouVersionConfigurationError } from '../src/utils/bibleRequestFailure.ts'
 
 test('classifies YouVersion HTTP limits and access failures without treating network errors as limits', () => {
@@ -10,6 +11,29 @@ test('classifies YouVersion HTTP limits and access failures without treating net
   assert.equal(bibleRequestFailure(Object.assign(new Error('invalid key'), { status: 401 })), 'access-denied')
   assert.equal(bibleRequestFailure(Object.assign(new Error('server'), { status: 503 })), 'other')
   assert.equal(bibleRequestFailure(new TypeError('network unavailable')), 'other')
+})
+
+test('classifies HTTP errors emitted by the installed SDK without a live provider request', async (t) => {
+  const client = new ApiClient({ appKey: 'unit-test', apiHost: 'sdk-http-status.invalid' })
+  for (const [status, expected] of [
+    [429, 'rate-limited'],
+    [401, 'access-denied'],
+    [403, 'access-denied'],
+    [503, 'other'],
+  ] as const) {
+    t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status }))
+    await assert.rejects(client.get('/test'), (cause: unknown) => {
+      assert.equal(bibleRequestFailure(cause), expected)
+      return true
+    })
+    t.mock.restoreAll()
+  }
+})
+
+test('does not infer an HTTP status from malformed errors or message text', () => {
+  for (const cause of [null, undefined, '429', 429, {}, { status: '429' }, { status: '403' }, new Error('HTTP 429')]) {
+    assert.equal(bibleRequestFailure(cause), 'other')
+  }
 })
 
 test('limited catalog and passage requests do not immediately issue another request', async () => {
