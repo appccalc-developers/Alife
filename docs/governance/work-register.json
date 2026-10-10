@@ -9,6 +9,37 @@
   },
   "tasks": [
     {
+      "id": "ALIFE-PAGE-CACHE-SAFETY",
+      "title": "Repair private page viewer isolation, PWA API exclusion and deletion freshness",
+      "priority": "P1",
+      "dependsOn": [],
+      "owners": [
+        "docs/pages/PAGE-CONTRACT.md",
+        "docs/cache-coordination.md",
+        "docs/pwa.md"
+      ],
+      "status": "done",
+      "implementation": "implemented",
+      "verification": "verified",
+      "acceptance": [
+        "Working/review copies remain viewer-scoped memory only; logout, identity changes and late responses cannot expose a previous copy; language switching retains data identity.",
+        "Generated production Service Worker never caches or replays API image/video/document requests; legacy runtime migration preserves current precache and unrelated caches.",
+        "Deletion clears every page-copy variant and affected lists without late refill; failed deletion preserves data; local type/build and targeted regression checks cover the repair."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "source": "Issue #832; isolated codex/832-page-cache-safety publication branch based on 4ed35f68, with unrelated audit evidence excluded",
+          "environment": "Local Windows/Node 24 and headless Microsoft Edge/Playwright; intercepted page APIs and a synthetic local file/API server for the generated production SW",
+          "check": "11 page/http/PWA cache regressions; 30 existing bilingual/locale/navigation/adapter checks; pageCache.browser.cjs covers view, review, group preview, editor, logout/language switching and deletion/reload; pwaCache.browser.cjs covers activation migration, private cache exclusion/offline rejection and public image/video offline replay",
+          "outcome": "All 11 new and 30 related existing checks pass. Browser scenarios pass for working/review copies, group preview, editor, logout/language switching, failed/successful deletion and reload. The final rebuilt production SW passes legacy-cache migration, private image/video/document exclusion and offline rejection, and public image/video offline replay. Final application/config type checks and production build pass. All targeted checks and both browser suites were rerun successfully on the isolated publication tree; ship-dist contains its rebuilt SW. Existing churchLife import, Package source-string, web-dialog false-positive and personal-task fixture failures were reconfirmed separately and are outside this repair.",
+          "limitations": "Synthetic accounts/APIs only; no live backend/database permissions, deployed edge, real-account acceptance or iOS device verification. Draft publication authorized by /shipit; no deployment. Build/browser artifacts: C:/Data/Alife/Temp/page-cache-fix-20261010."
+        }
+      ],
+      "blockers": [],
+      "nextAction": "Verify the repaired flows with real accounts and the deployed edge after deployment is separately authorized."
+    },
+    {
       "id": "ALIFE-EVENT-CARD-DESIGN",
       "title": "Document lively Event creation cards and the thin Alife design entry",
       "priority": "P2",

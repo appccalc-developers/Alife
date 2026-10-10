@@ -8,7 +8,7 @@ import PageEditorShell from '../components/page-editor/PageEditorShell'
 import PagePresetPicker from '../components/page-editor/PagePresetPicker'
 import PageSettingsPanel from '../components/page-editor/PageSettingsPanel'
 import { createPagePresetModel, isPagePresetId, type PagePresetId } from '../components/page/pagePresets'
-import { ensureFreshPageDetail, setPageDetailCache } from '../db/collections/pageCollection'
+import { ensureFreshPageDetail, getPrivatePageCacheGeneration, setPageDetailCache } from '../db/collections/pageCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { activeEntityService } from '../services/activeEntityService'
 import { cloudflareImageService } from '../services/cloudflareImageService'
@@ -105,7 +105,7 @@ const PageLanguageReviewModal = ({
   )
 }
 
-const PageEditorView = () => {
+const PageEditorContent = () => {
   const { groupId: createGroupIdParam, pageId: editPageIdParam } = useParams<{ groupId?: string; pageId?: string }>()
   const routeCreateGroupId = normalizeRouteGroupId(createGroupIdParam)
   const [searchParams] = useSearchParams()
@@ -260,7 +260,7 @@ const PageEditorView = () => {
 
     const pageData = fromPageReview
       ? await pageService.getPublicationReviewCopy(targetPageId)
-      : await ensureFreshPageDetail(targetPageId)
+      : await ensureFreshPageDetail(targetPageId, auth.me?.id ?? '')
     if (!pageData) {
       throw new Error(t('loadEditorFailed'))
     }
@@ -379,6 +379,7 @@ const PageEditorView = () => {
     }
 
     const requestedModel = pageModelRef.current
+    const cacheGeneration = getPrivatePageCacheGeneration()
     const requestedModelSnapshot = JSON.stringify(requestedModel)
     persistInFlight.current = true
     setSaving(true)
@@ -513,7 +514,7 @@ const PageEditorView = () => {
         visibility: finalVisibility,
       }
       if (savedPage && !fromPageReview) {
-        setPageDetailCache(savedPage)
+        setPageDetailCache(savedPage, auth.me?.id ?? '', cacheGeneration)
       }
       setPageModel((current) => {
         if (JSON.stringify(current) === requestedModelSnapshot) {
@@ -821,6 +822,11 @@ const PageEditorView = () => {
       {confirmationModal}
     </>
   )
+}
+
+const PageEditorView = () => {
+  const { me } = useAuthStore()
+  return <PageEditorContent key={me?.id ?? 'anonymous'} />
 }
 
 export default PageEditorView
