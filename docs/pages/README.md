@@ -2,7 +2,7 @@
 
 ## Authority and task routing
 
-Use repository [instructions](../../AGENTS.md), [system architecture](../architecture.md) and [common design](../design/README.md). [Page contract](PAGE-CONTRACT.md) owns the page lifecycle and acceptance requirements. Current DTOs/section serializers own exact wire shapes until a separate machine contract is explicitly maintained. Do not execute the historical [builder-v2 proposal](../codex/page-builder-v2.md) as an outstanding task list.
+Use repository [instructions](../../AGENTS.md), [system architecture](../architecture.md) and [common design](../design/README.md). [Page contract](PAGE-CONTRACT.md) owns the page lifecycle and acceptance requirements. Current DTOs/section serializers own exact wire shapes until a separate machine contract is explicitly maintained. Do not execute the historical [builder-v2 proposal](../../archive/pending-docs-review/2026-10-10/docs/codex/page-builder-v2.md) as an outstanding task list.
 
 | Task | Read/inspect |
 | --- | --- |

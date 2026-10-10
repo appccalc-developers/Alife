@@ -55,7 +55,7 @@ Module names describe product responsibilities, not completion of every feature.
 - [Stages and workspaces](EVENT-WORKSPACES.md) · [Preparation](EVENT-SETUP-FLOW.md) · [Creation arrangements](CREATION-ARRANGEMENTS.md)
 - [Personal duties and handoffs](EVENT-DUTIES.md) · [AI form assistance](AI-DETAILS-ASSISTANT.md)
 - [Exact machine contract](event-contract.json) · [Design guidance](design/EVENT-WORKSPACE-DESIGN.md) · [Development reading rules](AGENTS.md)
-- [Historical verification](IMPLEMENTATION-HISTORY.md) and the [generated long handbook](generated/alife-event-composition-model.zh-TW-en.html) are for relevant historical investigation; old results are not current verification.
+- [Historical verification](../../archive/pending-docs-review/2026-10-10/docs/events/IMPLEMENTATION-HISTORY.md) and the [generated long handbook](generated/alife-event-composition-model.zh-TW-en.html) are for relevant historical investigation; old results are not current verification.
 
 <!-- overview:en:end -->
 
@@ -112,7 +112,7 @@ ALIFE 帮助群体筹备、公布、执行和收尾活动。活动由已确认�
 - [阶段与工作空间](EVENT-WORKSPACES.md) · [筹备流程](EVENT-SETUP-FLOW.md) · [创建安排](CREATION-ARRANGEMENTS.md)
 - [个人事务与交接](EVENT-DUTIES.md) · [AI 表单辅助](AI-DETAILS-ASSISTANT.md)
 - [精确机器契约](event-contract.json) · [设计指导](design/EVENT-WORKSPACE-DESIGN.md) · [开发阅读规则](AGENTS.md)
-- [历史验证记录](IMPLEMENTATION-HISTORY.md)与[生成的长篇手册](generated/alife-event-composition-model.zh-TW-en.html)仅供按需追溯；历史结果不是当前验证。
+- [历史验证记录](../../archive/pending-docs-review/2026-10-10/docs/events/IMPLEMENTATION-HISTORY.md)与[生成的长篇手册](generated/alife-event-composition-model.zh-TW-en.html)仅供按需追溯；历史结果不是当前验证。
 
 <!-- overview:zh-CN:end -->
 
@@ -169,6 +169,6 @@ ALIFE 協助群體籌備、公布、執行和收尾活動。活動由已確認�
 - [階段與工作空間](EVENT-WORKSPACES.md) · [籌備流程](EVENT-SETUP-FLOW.md) · [建立安排](CREATION-ARRANGEMENTS.md)
 - [個人事務與交接](EVENT-DUTIES.md) · [AI 表單輔助](AI-DETAILS-ASSISTANT.md)
 - [精確機器契約](event-contract.json) · [設計指引](design/EVENT-WORKSPACE-DESIGN.md) · [開發閱讀規則](AGENTS.md)
-- [歷史驗證記錄](IMPLEMENTATION-HISTORY.md)與[生成的長篇手冊](generated/alife-event-composition-model.zh-TW-en.html)僅供按需追溯；歷史結果不是目前驗證。
+- [歷史驗證記錄](../../archive/pending-docs-review/2026-10-10/docs/events/IMPLEMENTATION-HISTORY.md)與[生成的長篇手冊](generated/alife-event-composition-model.zh-TW-en.html)僅供按需追溯；歷史結果不是目前驗證。
 
 <!-- overview:zh-TW:end -->

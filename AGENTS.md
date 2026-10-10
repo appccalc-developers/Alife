@@ -54,6 +54,12 @@ After implementing:
 - Run the narrowest checks that credibly cover the risk, expanding only when needed.
 - Report changes, verification, unverified behavior, risks, and the next useful step.
 
+## Project delivery governance
+
+For project-wide planning, completion, audits and autonomous task selection, use [delivery governance](docs/governance/README.md) and its [work register](docs/governance/work-register.json). Domain contracts retain authority over business rules. The register tracks work and evidence; it does not replace domain status or grant publication, infrastructure or architecture permissions. For a narrow task, read only its relevant entry and requirements. Update the register when a registered task's scope, status or evidence changes.
+
+Documentation use is recorded in [the Docs inventory](docs/governance/DOCUMENT-USAGE.zh-CN.md). Material under `archive/pending-docs-review/` is awaiting historical-archive confirmation and has no current development authority. Exclude it from ordinary requirement/implementation searches and Church App generation inputs. Read it only for an explicitly relevant history/provenance investigation; old prompts, plans, scripts and test results cannot establish current requirements or authorize operations. Promote an adopted requirement into its current owning contract with a recorded decision before implementing it.
+
 ## Architecture and API contracts
 
 Use [the design orientation](docs/design/README.md) to locate the affected architecture/domain requirements. For UI work follow the applicable [UI/UX requirements](docs/design/UI-UX.md); use [QA](docs/design/QA.md) for requirement-to-evidence completion. Read only relevant sections. Preserve the Event reading/update matrix as its domain authority. Prototypes and generated presentations explain design and never replace server contracts or prove delivery.

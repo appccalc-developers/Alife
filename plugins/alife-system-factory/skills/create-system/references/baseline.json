@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "sourceRevision": "4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31",
+  "reviewedOn": "2026-10-10",
+  "scope": "Capability routing snapshot based on source documentation; not a fresh runtime certification or exhaustive scenario specification.",
+  "sourceRequired": true,
+  "families": [
+    {
+      "id": "IDENTITY",
+      "title": "Identity, onboarding and recovery",
+      "authorities": [
+        "docs/identity-access.md",
+        "docs/workspaces/IDENTITY.md"
+      ],
+      "baselineStatus": "documented-source",
+      "acceptance": [
+        "Activation, Passkeys and recovery with expiry, single-use and negative actors",
+        "HttpOnly sessions, current membership and independent RP/origin configuration"
+      ]
+    },
+    {
+      "id": "WORKSPACES",
+      "title": "Church, groups, members and personal work",
+      "authorities": [
+        "docs/workspaces/README.md",
+        "docs/workspaces/OPERATION-MATRIX.md"
+      ],
+      "baselineStatus": "documented-source",
+      "acceptance": [
+        "Hierarchy, applications/invitations, management and personal projections",
+        "Current actor/group/owner/platform permissions and denied cross-group access"
+      ]
+    },
+    {
+      "id": "PAGES",
+      "title": "Bilingual builders and publication",
+      "authorities": [
+        "docs/pages/PAGE-CONTRACT.md"
+      ],
+      "baselineStatus": "documented-source",
+      "acceptance": [
+        "Saved sections and links, save/reload, editor preview and public rendering",
+        "Working/submitted/published isolation, return/approval/withdrawal and concurrency"
+      ]
+    },
+    {
+      "id": "COMMUNITY",
+      "title": "Announcements, albums, forums, contacts and visitor flows",
+      "authorities": [
+        "docs/church-life-site.md",
+        "docs/group-life-site.md"
+      ],
+      "baselineStatus": "documented-source",
+      "acceptance": [
+        "Complete scoped read/write/moderation journeys with real persistence",
+        "Protected/public boundaries, actor-specific projections and bilingual fallbacks"
+      ]
+    },
+    {
+      "id": "NOTIFICATIONS",
+      "title": "Notifications and responses",
+      "authorities": [
+        "docs/architecture.md",
+        "backend/src/Alife.Api/Controllers/NotificationsController.cs"
+      ],
+      "baselineStatus": "documented-source",
+      "acceptance": [
+        "Recipient-isolated list/read/reply and persistent timestamps",
+        "No cross-recipient leakage or shared user-specific caching"
+      ]
+    },
+    {
+      "id": "SERMONS",
+      "title": "Sermons and provider synchronization",
+      "authorities": [
+        "docs/sermon-metadata.md",
+        "backend/src/Alife.Api/Controllers/SermonsController.cs"
+      ],
+      "baselineStatus": "documented-source",
+      "acceptance": [
+        "Topic/speaker/date metadata and authorized synchronization",
+        "Provider failures, repeat synchronization and cache freshness"
+      ]
+    },
+    {
+      "id": "BULLETINS-BIBLE",
+      "title": "Sunday bulletins and Bible reading",
+      "authorities": [
+        "docs/sunday-bulletins.md",
+        "docs/church-life-site.md"
+      ],
+      "baselineStatus": "documented-source",
+      "acceptance": [
+        "Member-only PDF access and authorized replacement",
+        "Personal Bible progress persistence and viewer isolation"
+      ]
+    },
+    {
+      "id": "EVENT",
+      "title": "Event lifecycle and capability modules",
+      "authorities": [
+        "docs/events/AGENTS.md",
+        "docs/events/EVENT-CONTRACT.md",
+        "docs/events/IMPLEMENTATION-STATUS.md",
+        "docs/events/event-contract.json"
+      ],
+      "baselineStatus": "mixed-see-domain-status",
+      "sourceGaps": [
+        "COMMS.FOLLOWUP: partial; no delivery tracking",
+        "MONEY.FINANCE: partial; no provider payments or full ledger",
+        "FOOD.HOSPITALITY: partial; no full operational tooling",
+        "FESTIVAL.OPERATIONS: target; unavailable in version 1",
+        "MOVE.STAY: current core; inspect detailed status before scope claims",
+        "Plan B and fifth Review/Reflection stage are not current capabilities"
+      ],
+      "acceptance": [
+        "Expand every scoped module against its current status and exact contract",
+        "Versioned plans/occurrences, roles, specialist reviews and Package gates",
+        "Legacy payloads, sensitive participant/child/finance data and concurrent commands"
+      ]
+    },
+    {
+      "id": "MEDIA-AI",
+      "title": "Media and reviewed AI assistance",
+      "authorities": [
+        "docs/architecture.md",
+        "docs/events/AI-DETAILS-ASSISTANT.md"
+      ],
+      "baselineStatus": "documented-source",
+      "acceptance": [
+        "Public/restricted media routes and authorized upload/delete",
+        "Temporary AI sessions, minimal personal data and human-confirmed persistent changes"
+      ]
+    },
+    {
+      "id": "VIRTUAL-CHURCH",
+      "title": "Virtual Church within its current first-release scope",
+      "authorities": [
+        "docs/virtual-church-visual-upgrade-plan.zh-CN.md",
+        "cloudflare/alife-app/public/virtual-church-assets/ASSET-LICENSES.md"
+      ],
+      "baselineStatus": "pinned-source-only-not-on-main",
+      "sourceGaps": [
+        "This family exists in the pinned source and isolated PR #827; current main does not include its runtime or plan. Include it only when that source/release scope is explicitly selected.",
+        "Current first-release scope and Definition of Done govern; older full V3 production plans are historical",
+        "Android follow-up, iOS and deployment evidence remain scoped/unverified as recorded in the current plan",
+        "Asset permissions and independent branding must be reviewed before reuse"
+      ],
+      "acceptance": [
+        "Verify current scoped entry, loading/recovery, movement/view controls, study/reading flow and exit resource release",
+        "Preserve first-release scope, bilingual interaction, unrelated homepage behavior and asset provenance; do not revive historical expansion tasks"
+      ]
+    },
+    {
+      "id": "CROSSCUTTING",
+      "title": "Cache, PWA, bilingual UX and operations",
+      "authorities": [
+        "docs/cache-coordination.md",
+        "docs/pwa.md",
+        "docs/design/UI-UX.md",
+        "docs/design/QA.md"
+      ],
+      "baselineStatus": "unverified-in-this-package",
+      "acceptance": [
+        "Viewer isolation, permission revocation, validators and mutation freshness",
+        "Both languages, stable language switch, saved JSON and mobile/desktop accessibility",
+        "Independent configuration, operational recovery and authorized provider/deployment evidence"
+      ]
+    }
+  ]
+}

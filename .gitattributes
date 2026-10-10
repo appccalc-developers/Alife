@@ -1,0 +1,2 @@
+# Preserve pending historical originals exactly, including their line endings.
+archive/pending-docs-review/** -text

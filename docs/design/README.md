@@ -4,6 +4,8 @@
 
 This is the top-level design entry, not a replacement for repository [agent rules](../../AGENTS.md). [Architecture](../architecture.md) owns system boundaries and technology decisions. Domain contracts own business semantics. [UI/UX](UI-UX.md) owns common experience requirements; [QA](QA.md) owns evidence and completion criteria. Detailed Event work continues to use its [reading/update matrix](../events/AGENTS.md).
 
+For visual surface selection, use the thin [ALIFE-DESIGN entry](../../ALIFE-DESIGN.md); it links existing owners rather than defining another design system.
+
 | Task | Read first | Then inspect |
 | --- | --- | --- |
 | Architecture or cross-layer behavior | Architecture and affected layer; [cache matrix](../cache-coordination.md) for freshness changes | Affected source, contracts and nearby tests |
@@ -35,10 +37,12 @@ HTML presentations follow the existing [Event overview](../events/EventManagemen
 
 ## Delivery tracking
 
+Project-wide priorities, task selection and completion use [delivery governance](../governance/README.md) and its [work register](../governance/work-register.json). This design coverage record continues to cover documentation deliverables only.
+
 See [coverage and gaps](COVERAGE.md) for the requested deliverables and evidence. Open the [local rule demonstration](prototypes/review.html) to explore fictional page-copy, workspace-role and identity-intent boundaries. It is a demonstrable explanatory prototype, not a complete screen specification or actual server authorization.
 
 ### Generated explanation pages
 
 Run `node docs/design/scripts/generate-design-presentations.mjs`, then the same command with `--check`. Generated [architecture](generated/architecture.html), [pages](generated/pages.html), [identity](generated/identity.html), [Church](generated/church.html), [Group](generated/group.html), [Personal](generated/personal.html), and [management](generated/management.html) explain their source contracts with shared navigation. These are explanation presentations, not interactive business prototypes. Event keeps its existing separate generator and [provenance orientation](../events/DESIGN-PROVENANCE.md).
 
-The [implementation plan](../design-documentation-plan.zh-CN.md) records the full scope. Architecture, common orientation/UI/UX/QA, page/workspace booklets, generated explanations and the bounded demonstration now exist. The coverage record retains unresolved original Event provenance, comprehensive operation mapping and visual/product acceptance. Document publication does not certify the current application against every requirement.
+The [historical implementation plan](../../archive/pending-docs-review/2026-10-10/docs/design-documentation-plan.zh-CN.md) records the original documentation programme; it is not a current execution plan. Architecture, common orientation/UI/UX/QA, page/workspace booklets, generated explanations and the bounded demonstration now exist. Current obligations and gaps follow this orientation, QA and the coverage record, including unresolved original Event provenance, comprehensive operation mapping and visual/product acceptance. Document publication does not certify the current application against every requirement.

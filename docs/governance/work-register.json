@@ -1,0 +1,389 @@
+{
+  "schemaVersion": 1,
+  "updatedOn": "2026-10-10",
+  "baseline": {
+    "sourceCommit": "4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31",
+    "branch": "codex/826-public-3d-church-trial",
+    "scope": "Initial governance and generator work; product release scope awaits GOV-01 reconciliation.",
+    "productCertification": "No fresh application, database, provider or deployment certification in this task."
+  },
+  "tasks": [
+    {
+      "id": "ALIFE-EVENT-CARD-DESIGN",
+      "title": "Document lively Event creation cards and the thin Alife design entry",
+      "priority": "P2",
+      "dependsOn": [],
+      "owners": [
+        "ALIFE-DESIGN.md",
+        "docs/events/design/event-creation-cards/DESIGN.md",
+        "docs/events/design/EVENT-WORKSPACE-DESIGN.md",
+        "docs/events/design/EVENT-UI-VISUAL-TOKENS.md",
+        "docs/events/IMPLEMENTATION-STATUS.md"
+      ],
+      "status": "done",
+      "implementation": "implemented",
+      "verification": "verified",
+      "acceptance": [
+        "Provide a thin surface-reading entry linking existing owners and distinguishing creation cards from saved editorial preparation.",
+        "Document the user-requested bounded card expansion/contraction, Refero recommendation provenance, draft/focus/route/reduced-motion behavior and ECARD-01 through ECARD-06 pilot criteria.",
+        "Validate documentation links, register structure and Event projection freshness; explicitly leave animated UI implementation and product acceptance pending."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "source": "Working tree based on da1ed878075e34469683e26aa7a975e41edc9f7a; ALIFE-DESIGN.md, creation-card DESIGN.md, design orientation, Event design/tokens/references/status and this scoped register entry only",
+          "environment": "Local Windows workspace; Refero pages inspected through web tools; no application mutation",
+          "check": "Seven affected Markdown files checked with Event validateLinks plus whitespace scan; register JSON/task IDs/dependencies validated; node docs/events/scripts/generate-event-docs.mjs --check; scoped git diff --check",
+          "outcome": "Local links/anchors and whitespace valid; register structure valid; Event projections and contracts current. Documentation deliverable complete.",
+          "limitations": "This entry certifies documentation only. Card morph implementation, rendered motion, real roles/provider/database verification, deployment and user visual acceptance remain pending; the designer-recommended Refero source was not verified to provide the morph."
+        }
+      ],
+      "blockers": [],
+      "nextAction": "For a subsequent authorized UI task, implement one available creation-capability pilot and verify ECARD-01 through ECARD-06 before expanding the rollout."
+    },
+    {
+      "id": "GOV-01",
+      "title": "Reconcile release requirements and current evidence",
+      "priority": "P1",
+      "dependsOn": [],
+      "owners": [
+        "docs/design/README.md",
+        "docs/design/QA.md",
+        "docs/architecture.md"
+      ],
+      "status": "ready",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Map current domain requirements to implementation and evidence without copying historical success claims.",
+        "Identify conflicts, missing authorities and proposed release scope for user review.",
+        "Split confirmed gaps into bounded tasks with stable requirement references."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Inventory identity and access first, using its contracts, handlers and nearby tests."
+    },
+    {
+      "id": "ALIFE-IDENTITY",
+      "title": "Verify identity, authorization and cross-viewer isolation",
+      "priority": "P1",
+      "dependsOn": [
+        "GOV-01"
+      ],
+      "owners": [
+        "docs/identity-access.md",
+        "docs/cache-coordination.md",
+        "docs/workspaces/IDENTITY.md"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Verify activation, Passkey login/recovery and current role checks with allowed/denied actors.",
+        "Verify revocation, group isolation and relevant cache invalidation against current source."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Choose a complete identity journey after GOV-01."
+    },
+    {
+      "id": "ALIFE-CONTENT",
+      "title": "Verify workspaces and bilingual publishing",
+      "priority": "P1",
+      "dependsOn": [
+        "GOV-01"
+      ],
+      "owners": [
+        "docs/workspaces/README.md",
+        "docs/pages/PAGE-CONTRACT.md",
+        "docs/design/UI-UX.md"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Verify reading/management scope and working/submitted/published copy separation.",
+        "Verify save/reload, concurrent edits, visibility withdrawal, bilingual switching and mobile/desktop interaction."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Derive bounded PAGE/workspace scenarios from their owners."
+    },
+    {
+      "id": "ALIFE-EVENT",
+      "title": "Reconcile Event delivery and close agreed gaps",
+      "priority": "P1",
+      "dependsOn": [
+        "GOV-01"
+      ],
+      "owners": [
+        "docs/events/AGENTS.md",
+        "docs/events/EVENT-CONTRACT.md",
+        "docs/events/IMPLEMENTATION-STATUS.md"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Link each scoped Event requirement to its existing status, implementation and current evidence.",
+        "Keep partial/target modules explicit; verify plan acceptance, specialist approval and Package gates separately.",
+        "Complete agreed module gaps and compatibility/role/cache checks using the Event reading/update matrix."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Read only relevant current-status entries and split Event work packages."
+    },
+    {
+      "id": "ALIFE-COMMUNITY",
+      "title": "Verify remaining community journeys",
+      "priority": "P2",
+      "dependsOn": [
+        "GOV-01"
+      ],
+      "owners": [
+        "docs/church-life-site.md",
+        "docs/group-life-site.md",
+        "docs/sunday-bulletins.md",
+        "docs/sermon-metadata.md"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Cover groups/membership, announcements, albums, forums, contacts, notifications, sermons, bulletins, Bible reading and personal work in agreed scope.",
+        "Verify persistence, visibility, protected media, provider boundaries and bilingual behavior per journey."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Locate exact controllers, client services and tests for one journey at a time."
+    },
+    {
+      "id": "ALIFE-RELEASE",
+      "title": "Complete target-environment acceptance and handover",
+      "priority": "P1",
+      "dependsOn": [
+        "ALIFE-IDENTITY",
+        "ALIFE-CONTENT",
+        "ALIFE-EVENT",
+        "ALIFE-COMMUNITY"
+      ],
+      "owners": [
+        "docs/design/QA.md",
+        "docs/architecture.md"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "All agreed requirements have current evidence or user-accepted deferrals.",
+        "Authorized environment configuration, backups/restoration, integrations and user journeys verified.",
+        "User product acceptance and maintainable operational handover recorded."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Prepare exact environment and acceptance plan after functional gaps are assessed."
+    },
+    {
+      "id": "GEN-01",
+      "title": "Build dual-profile plugin workflow and planning generator",
+      "priority": "P1",
+      "dependsOn": [],
+      "owners": [
+        "docs/governance/README.md",
+        "plugins/alife-system-factory/skills/create-system/SKILL.md"
+      ],
+      "status": "done",
+      "implementation": "implemented",
+      "verification": "verified",
+      "acceptance": [
+        "Ask system name, resource availability and explicit deployment profile without inventing credentials or identity.",
+        "Generate distinct Azure/Cloudflare plans and shared functional parity requirements.",
+        "Validate plugin structure, skill resources and planning-generator behavior; disclose missing runtime templates."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "source": "Working tree based on 4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31; new governance and plugins/alife-system-factory files plus AGENTS.md and docs/design/README.md routing edits",
+          "environment": "Local Windows; Node CLI; no external accounts or application database",
+          "check": "node --test plugins/alife-system-factory/skills/create-system/scripts/plan-system.test.mjs",
+          "outcome": "7 tests passed: both profiles, explicit profile selection, resource availability, invalid names/slugs, non-credential resource input, source gaps and task dependency order",
+          "limitations": "Planning JSON only; no runtime template, application generation, browser, provider, database or deployment verification"
+        },
+        {
+          "date": "2026-10-10",
+          "source": "Same governance/plugin working-tree scope",
+          "environment": "Local filesystem and Node structural checks",
+          "check": "Plugin fields, skill metadata, Markdown targets, baseline authority paths and governance dependencies; git diff --check; node docs/events/scripts/generate-event-docs.mjs --check",
+          "outcome": "Package fields and two skill metadata files checked; 41 local links, 23 authority paths and 10 task dependencies valid; tracked diff whitespace check passed; Event projection check passed",
+          "limitations": "Official quick_validate.py could not run in system or bundled Python because PyYAML is missing. Alternative checks cover this package's simple frontmatter/UI fields, not the full official validator or plugin-host installation. GEN-01 completion covers planning/workflow resources only."
+        }
+      ],
+      "blockers": [],
+      "nextAction": "Continue GEN-02 source/configuration inventory and independent Azure reference extraction; GEN-03/04 remain unimplemented."
+    },
+    {
+      "id": "GEN-02",
+      "title": "Extract and verify an independent Azure reference system",
+      "priority": "P1",
+      "dependsOn": [
+        "GEN-01"
+      ],
+      "owners": [
+        "docs/architecture.md",
+        "plugins/alife-system-factory/skills/create-system/references/azure-cloudflare.md"
+      ],
+      "status": "planned",
+      "implementation": "unimplemented",
+      "verification": "unverified",
+      "acceptance": [
+        "Pin source and review reuse rights/assets; include code/contracts without tenant data, secrets or production identifiers.",
+        "Generate a differently named independent system with fresh resources and configuration.",
+        "Build and exercise complete scoped journeys, permissions, caches and saved-payload parity."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Create reviewed file and configuration inventories from the pinned Alife source."
+    },
+    {
+      "id": "GEN-03",
+      "title": "Implement and verify the pure Cloudflare reference system",
+      "priority": "P1",
+      "dependsOn": [
+        "GEN-02"
+      ],
+      "owners": [
+        "plugins/alife-system-factory/skills/create-system/references/cloudflare-only.md",
+        "docs/design/QA.md"
+      ],
+      "status": "planned",
+      "implementation": "unimplemented",
+      "verification": "unverified",
+      "acceptance": [
+        "Implement application/domain/persistence boundaries on Workers/D1 while preserving shared contracts.",
+        "Verify authentication, current role authority, one-time consumption, concurrency, transactions, cache isolation and scheduled/provider flows.",
+        "Pass the same scoped parity scenarios as the Azure reference; disclose explicit differences and unfinished capabilities."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Prove one identity/group vertical slice before porting all domains."
+    },
+    {
+      "id": "GEN-04",
+      "title": "Validate plugin installation and full project generation",
+      "priority": "P2",
+      "dependsOn": [
+        "GEN-02",
+        "GEN-03"
+      ],
+      "owners": [
+        "plugins/alife-system-factory/plugin.json",
+        "docs/governance/README.md"
+      ],
+      "status": "planned",
+      "implementation": "unimplemented",
+      "verification": "unverified",
+      "acceptance": [
+        "Install in the authorized target Codex environment and exercise intake with a new system name for each profile.",
+        "Generate from packaged resources or an explicitly available pinned source and verify the resulting systems.",
+        "Document runtime/provider/deployment evidence and publish only when specifically authorized."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Run installation rehearsal once reference implementations are ready."
+    },
+    {
+      "id": "DOCS-01",
+      "title": "Classify every Docs file and isolate pending historical material",
+      "priority": "P1",
+      "dependsOn": [],
+      "owners": [
+        "docs/governance/DOCUMENT-USAGE.zh-CN.md",
+        "docs/governance/document-register.json",
+        "AGENTS.md"
+      ],
+      "status": "done",
+      "implementation": "implemented",
+      "verification": "verified",
+      "acceptance": [
+        "Every original Docs file has separate Alife/new Church App usage decisions and reasons, including ignored local materials.",
+        "Preserve useful contracts, operations, user guides, adopted references and generation tools; move historical candidates without deletion or byte changes.",
+        "Preserve ignored status, update active historical links, enforce non-authority/archive exclusion and pass affected generation/link checks."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "source": "Working tree based on 4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31; Docs inventory, 99 byte-preserving file moves, active historical-link updates, archive policy, retained-guide annotations and Church App source routing",
+          "environment": "Local Windows filesystem and Node checks; no database, cloud mutation, Git publication or deployment",
+          "check": "audit-document-usage.mjs --report/--check; active Markdown/HTML link and anchor checks; Event regeneration and --check; design presentation --check; planning-generator CLI tests; git diff --check",
+          "outcome": "196 original files individually classified: 97 retained and 99 pending history; 3 new audit files; all 99 moved-file SHA-256 hashes preserved; 65 original ignored paths remain ignored; active links/anchors checked in 82 files; 11 Church App families reference retained sources; 13 task owners/dependencies valid; Event outputs and 7 design presentations current; 7 planning-generator tests passed",
+          "limitations": "Historical archival/deletion not permanently confirmed; retained mixed/current plans remain scoped. Archived originals preserve their original relative-link context, resolved through document-register original/current paths. Word text extraction and dependency review do not certify document layout or current product delivery; PDF font encoding limits text matching. External GitHub links were updated in local source but not published or live-verified; no browser/application/provider/database/deployment certification."
+        },
+        {
+          "date": "2026-10-10",
+          "source": "Issue #828 working tree based on main 830829e8; source-aware inventory, new Event card design record and updated report",
+          "environment": "Local Windows/Node 24.18.0; fixed source Git object available",
+          "check": "audit-document-usage.mjs --report --check; active links/anchors and pinned authority routing; archive Git text attributes; Event/design regeneration and checks; bounded credential-pattern scan; exact staged manifest/index blob checks; disposable public-index audit and negative integrity cases",
+          "outcome": "200 inventory records: 196 original files, 3 audit controls and 1 post-review design; 97 retained includes 1 pinned-only source reference; 99 archived originals and 65 ignored paths preserved; 88 active link files and 25 pinned authority paths valid. Detected that Git would normalize 22 publishable archive originals; added archive-scoped -text attributes and verified all archive records disable conversion. Event and seven design presentations regenerated/checked; bounded scan of the 106 original changed paths found no credential-pattern candidates. All 107 selected staged paths match the reviewed manifest; 34 public archive index blobs match their original SHA-256 and main-source content (text comparison accounts only for original line endings). Public-index audit passes with 65 local-only files absent and pinned source object unavailable; modified archive bytes and a missing current document are rejected.",
+          "limitations": "The first main-based inventory check failed because a feature-branch-only Virtual Church plan was missing. Reclassified it as a fixed source reference instead of importing runtime code/assets. Main application, archive permanence and source-only feature delivery are not certified. Whole-diff whitespace inspection reports preserved historical CRLF/legacy formatting; active/authored staged checks pass and archive originals are verified by hashes rather than reformatted. Public-snapshot reproduction script and artifacts remain under C:/Data/Alife/Temp/ship-828-20261010."
+        }
+      ],
+      "blockers": [],
+      "nextAction": "User may review the pending-history list; DOCS-RECONCILE maps draft/legacy intent to current owners before any adoption or deletion."
+    },
+    {
+      "id": "DOCS-RECONCILE",
+      "title": "Reconcile retained draft sections and historical follow-up candidates",
+      "priority": "P1",
+      "dependsOn": [
+        "DOCS-01"
+      ],
+      "owners": [
+        "docs/governance/document-register.json",
+        "docs/file-asset-design.md",
+        "docs/design/COVERAGE.md",
+        "docs/events/DESIGN-PROVENANCE.md"
+      ],
+      "status": "ready",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Reconcile early FileAsset current-state/target paragraphs with existing DTOs, handlers, signed access and backfill; preserve adopted requirements and actual gaps.",
+        "For a bounded provenance review, map old AI-session follow-up candidates (TTL/cleanup, outage fallback, malformed output/SSE recovery, restore/commit/duplicate handling, consent copy and compatibility-route need) to current contracts/source/evidence; do not automatically reopen delivered work.",
+        "Check original business proposal intent and unresolved Event YAML/EMBOK provenance for requirements missing from current owners; record adoption, supersession or a needed user decision before implementing."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "After DOCS-01, inspect FileAsset current handlers and record which proposal sections remain relevant; historical inputs are evidence only."
+    },
+    {
+      "id": "ALIFE-VIRTUAL",
+      "title": "Assess Virtual Church when its isolated feature becomes part of the release scope",
+      "priority": "P1",
+      "dependsOn": [
+        "GOV-01"
+      ],
+      "owners": [
+        "docs/governance/README.md",
+        "docs/design/QA.md",
+        "plugins/alife-system-factory/skills/create-system/references/baseline.json"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "First establish whether the isolated feature from PR #827 is included in the agreed release/source version; current main does not contain its runtime or plan.",
+        "Once included, use that version's owning first-release scope and inspect entry/loading/movement/reading/exit, asset rights and current evidence; do not revive older full V3 expansion/history."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Reconcile PR #827 availability in GOV-01; inspect Virtual Church only in an explicitly selected source/release scope. The pinned generator baseline is not evidence of delivery on main."
+    }
+  ],
+  "deliveryBatch": {
+    "issue": "https://github.com/appccalc-developers/Alife/issues/828",
+    "branch": "agent/828-delivery-design-baseline",
+    "baseCommit": "830829e8241ef1496bf4f7b59b8f648459f2d0a3",
+    "scope": "All current publishable local governance, documentation archive, planning package and Event card design changes; Virtual Church runtime stays in PR #827.",
+    "verification": "Passed: 200-record inventory and archive attributes, 88 active link files, 25 pinned source authority paths, 14 task owner/dependency records, package declared metadata, 7 planning-generator tests, Event and 7 design presentation checks, 107-path staged manifest, 34 public archive index hashes, public-snapshot audit plus 2 integrity rejection cases, scoped authored whitespace checks and bounded credential scan. No application, plugin installation, provider/database or deployment certification."
+  }
+}

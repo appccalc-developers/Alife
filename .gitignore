@@ -74,6 +74,9 @@ override.tf.json
 .tmp/
 /tmp/
 artifacts/
+# Previously ignored local communications/prompts remain local after documentation review.
+/archive/pending-docs-review/2026-10-10/docs/Communication/
+/archive/pending-docs-review/2026-10-10/docs/VibeCoding/
 .tmpbuild/
 webapp-logs/
 *.temp

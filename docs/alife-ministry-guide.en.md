@@ -1,5 +1,7 @@
 # Alife Ministry Guide
 
+> Retained user-guide and new Church App handover reference. Current behavior, permissions and delivery scope belong to the [identity contract](identity-access.md), [Page contract](pages/PAGE-CONTRACT.md), [Event status](events/IMPLEMENTATION-STATUS.md) and relevant domain sources; this guide does not certify deployment.
+
 ## 1. Purpose Of This Document
 
 This guide is written for:
@@ -24,7 +26,7 @@ Alife is designed to bring scattered church processes into one consistent platfo
 
 ### 3.1 Member Sign-In And Identity Management
 
-- Members can sign in through LINE.
+- Passkeys are the primary sign-in method. LINE remains an explicitly configured compatibility path.
 - The system stores member profile and group relationship data.
 - Different users see different capabilities based on their role.
 - Permissions are checked against current data so role changes take effect reliably.
