@@ -1,3 +1,4 @@
+import { eventDetailsAssistantText } from '../i18n/eventDetailsAssistant.ts'
 import type { EventActivityType } from '../types/eventComposition'
 import { creationSettings, type CreationDraft } from './eventCreationDraft.ts'
 import { detailFields, localTimeToUtc, isTimeZone, type DetailsSnapshot, type DetailsResult, type EventDetailsForm } from '../../../shared/eventDetails.ts'
@@ -29,7 +30,7 @@ export function applyDetailsResult(draft: CreationDraft, result: DetailsResult, 
       const endUtc = end ? localTimeToUtc(end, zone) : null
       if (startUtc && endUtc && endUtc <= startUtc) throw new Error()
     } catch {
-      throw new Error('AI 时间或时区无效，资料未修改。请确认活动时区和时间后重试。 / Invalid AI time or time zone. Details were kept; confirm the event time zone and times, then retry.')
+      throw new Error(eventDetailsAssistantText.applyDetailsResult)
     }
   }
   const next = { ...draft, detailSources: { ...result.sources }, overrides: { ...draft.overrides } }

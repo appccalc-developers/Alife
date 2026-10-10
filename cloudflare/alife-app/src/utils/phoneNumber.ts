@@ -1,10 +1,11 @@
+import { phoneNumberText } from '../i18n/phoneNumber.ts'
 export const supportedPhoneRegions = [
-  { code: '+64', countryCode: 'NZ', en: 'New Zealand', zh: '新西兰', minLength: 8, maxLength: 10 },
-  { code: '+86', countryCode: 'CN', en: 'Mainland China', zh: '中国大陆', minLength: 10, maxLength: 12 },
-  { code: '+886', countryCode: 'TW', en: 'Taiwan', zh: '台湾', minLength: 8, maxLength: 9 },
-  { code: '+852', countryCode: 'HK', en: 'Hong Kong', zh: '香港', minLength: 8, maxLength: 8 },
-  { code: '+853', countryCode: 'MO', en: 'Macau', zh: '澳门', minLength: 8, maxLength: 8 },
-  { code: '+61', countryCode: 'AU', en: 'Australia', zh: '澳大利亚', minLength: 9, maxLength: 9 },
+  { code: '+64', countryCode: 'NZ', en: phoneNumberText.text64.en, zh: phoneNumberText.text64.zh, minLength: 8, maxLength: 10 },
+  { code: '+86', countryCode: 'CN', en: phoneNumberText.text86.en, zh: phoneNumberText.text86.zh, minLength: 10, maxLength: 12 },
+  { code: '+886', countryCode: 'TW', en: phoneNumberText.text886.en, zh: phoneNumberText.text886.zh, minLength: 8, maxLength: 9 },
+  { code: '+852', countryCode: 'HK', en: phoneNumberText.text852.en, zh: phoneNumberText.text852.zh, minLength: 8, maxLength: 8 },
+  { code: '+853', countryCode: 'MO', en: phoneNumberText.text853.en, zh: phoneNumberText.text853.zh, minLength: 8, maxLength: 8 },
+  { code: '+61', countryCode: 'AU', en: phoneNumberText.text61.en, zh: phoneNumberText.text61.zh, minLength: 9, maxLength: 9 },
 ] as const
 
 export type SupportedPhoneRegionCode = (typeof supportedPhoneRegions)[number]['code']

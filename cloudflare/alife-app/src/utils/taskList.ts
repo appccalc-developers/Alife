@@ -1,3 +1,4 @@
+import { taskListText } from '../i18n/taskList.ts'
 import type { AppNotification } from '../types/notification'
 
 export function selectTaskPage(tasks: AppNotification[], filter: { category: string; eventId?: string; sourceType?: string; sort?: string; page?: number }) {
@@ -11,10 +12,10 @@ export function selectTaskPage(tasks: AppNotification[], filter: { category: str
 
 export function taskSourceLabel(source: string, zh: boolean) {
   const labels: Record<string, [string, string]> = {
-    teamInvitation: ['Team invitation', '团队邀请'], roleInvitation: ['Role invitation', '职责邀请'], rosterAssignment: ['Service confirmation', '排班确认'],
-    rosterCoordination: ['Service arrangements', '排班补位'], eventTask: ['Task completion & review', '任务执行与审核'], ramAssessment: ['RAM preparation', 'RAM 起草与修改'],
-    ramRevision: ['RAM confirmation & review', 'RAM 确认与审核'], eventPackage: ['Event approval', '活动审批'], packageCondition: ['Approval conditions', '审批条件'],
-    sponsorship: ['Church sponsorship', '教会身份审批'], preparationReopen: ['Reopen preparation', '重新编辑审批'], eventNextStep: ['Owner next step', '负责人推进'], execution: ['Execution confirmation', '执行确认'],
+    teamInvitation: [taskListText.teamInvitation.en, taskListText.teamInvitation.zh], roleInvitation: [taskListText.roleInvitation.en, taskListText.roleInvitation.zh], rosterAssignment: [taskListText.serviceConfirmation.en, taskListText.serviceConfirmation.zh],
+    rosterCoordination: [taskListText.serviceArrangements.en, taskListText.serviceArrangements.zh], eventTask: [taskListText.taskCompletionReview.en, taskListText.taskCompletionReview.zh], ramAssessment: [taskListText.ramPreparation.en, taskListText.ramPreparation.zh],
+    ramRevision: [taskListText.ramConfirmationReview.en, taskListText.ramConfirmationReview.zh], eventPackage: [taskListText.eventApproval.en, taskListText.eventApproval.zh], packageCondition: [taskListText.approvalConditions.en, taskListText.approvalConditions.zh],
+    sponsorship: [taskListText.churchSponsorship.en, taskListText.churchSponsorship.zh], preparationReopen: [taskListText.reopenPreparation.en, taskListText.reopenPreparation.zh], eventNextStep: [taskListText.ownerNextStep.en, taskListText.ownerNextStep.zh], execution: [taskListText.executionConfirmation.en, taskListText.executionConfirmation.zh],
   }
-  return labels[source]?.[zh ? 1 : 0] || (zh ? '其他事务' : 'Other responsibilities')
+  return labels[source]?.[zh ? 1 : 0] || (zh ? taskListText.otherResponsibilities.zh : taskListText.otherResponsibilities.en)
 }

@@ -1,3 +1,4 @@
+import { bibleStudyViewText } from '../i18n/bibleStudyView.ts'
 import { AlertCircle, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -21,16 +22,16 @@ type Testament = 'old' | 'new'
 const OLD_TESTAMENT_COUNT = 39
 
 const bookGroups = [
-  { id: 'law', testament: 'old' as const, zh: '律法书', en: 'Law', books: bibleBooks.slice(0, 5) },
-  { id: 'history-ot', testament: 'old' as const, zh: '历史书', en: 'History', books: bibleBooks.slice(5, 17) },
-  { id: 'wisdom', testament: 'old' as const, zh: '诗歌智慧书', en: 'Poetry & Wisdom', books: bibleBooks.slice(17, 22) },
-  { id: 'major-prophets', testament: 'old' as const, zh: '大先知书', en: 'Major Prophets', books: bibleBooks.slice(22, 27) },
-  { id: 'minor-prophets', testament: 'old' as const, zh: '小先知书', en: 'Minor Prophets', books: bibleBooks.slice(27, 39) },
-  { id: 'gospels', testament: 'new' as const, zh: '福音书', en: 'Gospels', books: bibleBooks.slice(39, 43) },
-  { id: 'history-nt', testament: 'new' as const, zh: '历史书', en: 'History', books: bibleBooks.slice(43, 44) },
-  { id: 'pauline', testament: 'new' as const, zh: '保罗书信', en: 'Pauline Letters', books: bibleBooks.slice(44, 57) },
-  { id: 'general-letters', testament: 'new' as const, zh: '普通书信', en: 'General Letters', books: bibleBooks.slice(57, 65) },
-  { id: 'apocalyptic', testament: 'new' as const, zh: '启示文学', en: 'Apocalyptic', books: bibleBooks.slice(65) },
+  { id: 'law', testament: 'old' as const, zh: bibleStudyViewText.law.zh, en: bibleStudyViewText.law.en, books: bibleBooks.slice(0, 5) },
+  { id: 'history-ot', testament: 'old' as const, zh: bibleStudyViewText.historyOt.zh, en: bibleStudyViewText.historyOt.en, books: bibleBooks.slice(5, 17) },
+  { id: 'wisdom', testament: 'old' as const, zh: bibleStudyViewText.wisdom.zh, en: bibleStudyViewText.wisdom.en, books: bibleBooks.slice(17, 22) },
+  { id: 'major-prophets', testament: 'old' as const, zh: bibleStudyViewText.majorProphets.zh, en: bibleStudyViewText.majorProphets.en, books: bibleBooks.slice(22, 27) },
+  { id: 'minor-prophets', testament: 'old' as const, zh: bibleStudyViewText.minorProphets.zh, en: bibleStudyViewText.minorProphets.en, books: bibleBooks.slice(27, 39) },
+  { id: 'gospels', testament: 'new' as const, zh: bibleStudyViewText.gospels.zh, en: bibleStudyViewText.gospels.en, books: bibleBooks.slice(39, 43) },
+  { id: 'history-nt', testament: 'new' as const, zh: bibleStudyViewText.historyOt.zh, en: bibleStudyViewText.historyOt.en, books: bibleBooks.slice(43, 44) },
+  { id: 'pauline', testament: 'new' as const, zh: bibleStudyViewText.pauline.zh, en: bibleStudyViewText.pauline.en, books: bibleBooks.slice(44, 57) },
+  { id: 'general-letters', testament: 'new' as const, zh: bibleStudyViewText.generalLetters.zh, en: bibleStudyViewText.generalLetters.en, books: bibleBooks.slice(57, 65) },
+  { id: 'apocalyptic', testament: 'new' as const, zh: bibleStudyViewText.apocalyptic.zh, en: bibleStudyViewText.apocalyptic.en, books: bibleBooks.slice(65) },
 ]
 
 const englishVersion: BibleVersion = {
@@ -194,21 +195,21 @@ const BibleStudyView = () => {
 
   return (
     <AppPageShell
-      title={isZh ? '查经' : 'Bible study'}
-      context={isZh ? '个人中心 / 查经进度' : 'Personal Center / Bible progress'}
-      subtitle={isZh ? '选择经卷和章节，安静阅读、预备和记录。' : 'Choose a book and chapter to read, prepare, and reflect.'}
+      title={isZh ? bibleStudyViewText.bibleStudy.zh : bibleStudyViewText.bibleStudy.en}
+      context={isZh ? bibleStudyViewText.personalCenterBibleProgress.zh : bibleStudyViewText.personalCenterBibleProgress.en}
+      subtitle={isZh ? bibleStudyViewText.chooseABookAndChapterToReadPrepareAnd.zh : bibleStudyViewText.chooseABookAndChapterToReadPrepareAnd.en}
     >
       <section className="space-y-4">
         <div className="rounded-[1.5rem] border border-[#d8e1dc] bg-[#f8fbf8] p-4 shadow-[0_16px_38px_rgba(30,54,48,0.06)] sm:p-5">
           <div className="flex flex-col gap-4 border-b border-[#dfe9e4] pb-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-2 text-sm font-black text-[#18332d]"><BookOpen className="h-5 w-5 text-[#176b5a]" />{isZh ? '选择经文' : 'Choose Scripture'}</div>
+            <div className="flex items-center gap-2 text-sm font-black text-[#18332d]"><BookOpen className="h-5 w-5 text-[#176b5a]" />{isZh ? bibleStudyViewText.chooseScripture.zh : bibleStudyViewText.chooseScripture.en}</div>
             <div className="flex flex-wrap gap-2">
-              <div className="flex rounded-xl border border-[#cddbd4] bg-white p-1" aria-label={isZh ? '阅读语言' : 'Reading language'}>
-                {(['zh', 'en'] as const).map((item) => <button key={item} type="button" onClick={() => setReference({ lang: item })} className={['rounded-lg px-3 py-2 text-sm font-black transition', language === item ? 'bg-[#173f36] text-white shadow-sm' : 'text-[#63756d] hover:bg-[#edf5f1]'].join(' ')}>{item === 'zh' ? '中文' : 'English'}</button>)}
+              <div className="flex rounded-xl border border-[#cddbd4] bg-white p-1" aria-label={isZh ? bibleStudyViewText.readingLanguage.zh : bibleStudyViewText.readingLanguage.en}>
+                {(['zh', 'en'] as const).map((item) => <button key={item} type="button" onClick={() => setReference({ lang: item })} className={['rounded-lg px-3 py-2 text-sm font-black transition', language === item ? 'bg-[#173f36] text-white shadow-sm' : 'text-[#63756d] hover:bg-[#edf5f1]'].join(' ')}>{item === 'zh' ? bibleStudyViewText.english.zh : bibleStudyViewText.english.en}</button>)}
               </div>
               {availableVersions.length ? <label className="flex h-10 max-w-full items-center gap-2 rounded-xl border border-[#cddbd4] bg-white pl-3 text-sm font-bold text-[#40554e] focus-within:border-[#176b5a] focus-within:ring-2 focus-within:ring-[#176b5a]/15">
-                <span className="shrink-0 text-xs text-[#718079]">{language === 'zh' ? (isZh ? '译本' : 'Translation') : (isZh ? '英文译本' : 'Translation')}</span>
-                <select value={version?.id || ''} onChange={(event) => setReference({ version: event.target.value })} className="h-full min-w-0 max-w-[17rem] bg-transparent pr-3 text-sm font-bold text-[#18332d] outline-none" aria-label={language === 'zh' ? (isZh ? '选择中文译本' : 'Choose Chinese version') : (isZh ? '选择英文译本' : 'Choose English version')}>
+                <span className="shrink-0 text-xs text-[#718079]">{language === 'zh' ? (isZh ? bibleStudyViewText.translation.zh : bibleStudyViewText.translation.en) : (isZh ? bibleStudyViewText.translationLabel.zh : bibleStudyViewText.translationLabel.en)}</span>
+                <select value={version?.id || ''} onChange={(event) => setReference({ version: event.target.value })} className="h-full min-w-0 max-w-[17rem] bg-transparent pr-3 text-sm font-bold text-[#18332d] outline-none" aria-label={language === 'zh' ? (isZh ? bibleStudyViewText.chooseChineseVersion.zh : bibleStudyViewText.chooseChineseVersion.en) : (isZh ? bibleStudyViewText.chooseEnglishVersion.zh : bibleStudyViewText.chooseEnglishVersion.en)}>
                   {availableVersions.map((item) => <option key={item.id} value={item.id}>{formatVersionName(item)} ({item.localized_abbreviation || item.abbreviation})</option>)}
                 </select>
               </label> : null}
@@ -216,13 +217,13 @@ const BibleStudyView = () => {
           </div>
 
           <div className="pt-4">
-            <div className="flex gap-2" role="tablist" aria-label={isZh ? '圣经部分' : 'Bible testament'}>
-              {(['old', 'new'] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={testament === item} onClick={() => { setTestament(item); setBookGroupId(bookGroups.find((group) => group.testament === item)?.id || '') }} className={['rounded-lg px-4 py-2 text-sm font-black transition', testament === item ? 'bg-[#dceee7] text-[#155345]' : 'text-[#63756d] hover:bg-white'].join(' ')}>{item === 'old' ? (isZh ? '旧约' : 'Old Testament') : (isZh ? '新约' : 'New Testament')}</button>)}
+            <div className="flex gap-2" role="tablist" aria-label={isZh ? bibleStudyViewText.bibleTestament.zh : bibleStudyViewText.bibleTestament.en}>
+              {(['old', 'new'] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={testament === item} onClick={() => { setTestament(item); setBookGroupId(bookGroups.find((group) => group.testament === item)?.id || '') }} className={['rounded-lg px-4 py-2 text-sm font-black transition', testament === item ? 'bg-[#dceee7] text-[#155345]' : 'text-[#63756d] hover:bg-white'].join(' ')}>{item === 'old' ? (isZh ? bibleStudyViewText.oldTestament.zh : bibleStudyViewText.oldTestament.en) : (isZh ? bibleStudyViewText.newTestament.zh : bibleStudyViewText.newTestament.en)}</button>)}
             </div>
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label={isZh ? '经卷分类' : 'Book categories'}>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label={isZh ? bibleStudyViewText.bookCategories.zh : bibleStudyViewText.bookCategories.en}>
               {visibleBookGroups.map((group) => <button key={group.id} type="button" onClick={() => setBookGroupId(group.id)} className={['shrink-0 rounded-lg border px-3 py-2 text-sm font-bold transition', selectedBookGroup?.id === group.id ? 'border-[#176b5a] bg-[#173f36] text-white shadow-sm' : 'border-[#d9e4de] bg-white text-[#52665e] hover:border-[#9fc3b5] hover:bg-[#edf5f1]'].join(' ')}>{isZh ? group.zh : group.en}<span className="ml-1.5 text-xs opacity-70">{group.books.length}</span></button>)}
             </div>
-            <div className="mt-2 rounded-xl border border-[#dfe9e4] bg-white p-3" aria-label={isZh ? '选择经卷' : 'Choose a Bible book'}>
+            <div className="mt-2 rounded-xl border border-[#dfe9e4] bg-white p-3" aria-label={isZh ? bibleStudyViewText.chooseABibleBook.zh : bibleStudyViewText.chooseABibleBook.en}>
               <p className="mb-2 text-xs font-black tracking-wide text-[#718079]">{isZh ? selectedBookGroup?.zh : selectedBookGroup?.en}</p>
               <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {selectedBookGroup?.books.map((item) => <button key={item.id} type="button" onClick={() => setReference({ book: item.id, chapter: '1' })} className={['rounded-lg px-3 py-2 text-left text-sm font-bold transition', item.id === book ? 'bg-[#173f36] text-white shadow-sm' : 'bg-[#f5f8f6] text-[#40554e] hover:bg-[#dceee7] hover:text-[#155345]'].join(' ')}>{isZh ? item.zh : item.en}</button>)}
@@ -231,25 +232,25 @@ const BibleStudyView = () => {
           </div>
 
           <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-[#dbe6e0] bg-white p-2">
-            <button type="button" onClick={() => setReference({ chapter: String(chapter - 1) })} disabled={chapter === 1} className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-transparent px-2 text-sm font-bold text-[#315349] transition hover:border-[#d5e4dc] hover:bg-[#edf5f1] disabled:cursor-not-allowed disabled:opacity-35" aria-label={isZh ? '上一章' : 'Previous chapter'}><ChevronLeft className="h-5 w-5" /><span className="hidden sm:inline">{isZh ? '上一章' : 'Previous'}</span></button>
+            <button type="button" onClick={() => setReference({ chapter: String(chapter - 1) })} disabled={chapter === 1} className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-transparent px-2 text-sm font-bold text-[#315349] transition hover:border-[#d5e4dc] hover:bg-[#edf5f1] disabled:cursor-not-allowed disabled:opacity-35" aria-label={isZh ? bibleStudyViewText.previousChapter.zh : bibleStudyViewText.previousChapter.en}><ChevronLeft className="h-5 w-5" /><span className="hidden sm:inline">{isZh ? bibleStudyViewText.previous.zh : bibleStudyViewText.previous.en}</span></button>
             <details ref={chapterPickerRef} onToggle={(event) => { if (event.currentTarget.open) window.requestAnimationFrame(() => { const grid = chapterGridRef.current; const selected = selectedChapterRef.current; if (grid && selected) grid.scrollTop = Math.max(0, selected.offsetTop - (grid.clientHeight - selected.offsetHeight) / 2) }) }} className="group relative min-w-0 flex-1 sm:max-w-xs">
               <summary className="flex h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-[#cbdad3] bg-[#f8fbf9] px-4 text-[#18332d] shadow-sm transition hover:border-[#94b9aa] hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]/25 [&::-webkit-details-marker]:hidden">
-                <span className="min-w-0 text-left"><span className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#788880]">{isZh ? '当前章节' : 'Current chapter'}</span><span className="block truncate text-sm font-black">{isZh ? `第 ${chapter} 章` : `Chapter ${chapter}`}</span></span>
+                <span className="min-w-0 text-left"><span className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#788880]">{isZh ? bibleStudyViewText.currentChapter.zh : bibleStudyViewText.currentChapter.en}</span><span className="block truncate text-sm font-black">{isZh ? bibleStudyViewText.chapter.zh(chapter) : bibleStudyViewText.chapter.en(chapter)}</span></span>
                 <span className="flex shrink-0 items-center gap-2 text-xs font-bold text-[#718078]">{chapter}/{selectedBook.chapters}<ChevronDown className="h-4 w-4 transition group-open:rotate-180" /></span>
               </summary>
               <div className="absolute bottom-[calc(100%+0.6rem)] left-1/2 z-40 w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-[#cfddd6] bg-white p-3 shadow-[0_20px_55px_rgba(24,51,45,0.2)]">
-                <div className="mb-3 flex items-center justify-between px-1"><p className="text-sm font-black text-[#18332d]">{isZh ? `${selectedBook.zh} · 选择章节` : `${selectedBook.en} · Choose chapter`}</p><span className="text-xs font-bold text-[#7b8b84]">{selectedBook.chapters}</span></div>
+                <div className="mb-3 flex items-center justify-between px-1"><p className="text-sm font-black text-[#18332d]">{isZh ? bibleStudyViewText.chooseChapter.zh(selectedBook.zh) : bibleStudyViewText.chooseChapter.en(selectedBook.en)}</p><span className="text-xs font-bold text-[#7b8b84]">{selectedBook.chapters}</span></div>
                 <div ref={chapterGridRef} className="relative grid max-h-64 grid-cols-5 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-6">
                   {Array.from({ length: selectedBook.chapters }, (_, index) => index + 1).map((item) => <button key={item} ref={item === chapter ? selectedChapterRef : undefined} type="button" onClick={() => { setReference({ chapter: String(item) }); chapterPickerRef.current?.removeAttribute('open') }} aria-current={item === chapter ? 'page' : undefined} className={['relative flex h-10 items-center justify-center rounded-lg text-sm font-black transition', item === chapter ? 'bg-[#176b5a] text-white shadow-sm' : 'bg-[#f3f7f5] text-[#40554e] hover:bg-[#dceee7] hover:text-[#155345]'].join(' ')}>{item}{item === chapter ? <Check className="absolute right-1 top-1 h-3 w-3" /> : null}</button>)}
                 </div>
               </div>
             </details>
-            <button type="button" onClick={() => setReference({ chapter: String(chapter + 1) })} disabled={chapter === selectedBook.chapters} className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-transparent px-2 text-sm font-bold text-[#315349] transition hover:border-[#d5e4dc] hover:bg-[#edf5f1] disabled:cursor-not-allowed disabled:opacity-35" aria-label={isZh ? '下一章' : 'Next chapter'}><span className="hidden sm:inline">{isZh ? '下一章' : 'Next'}</span><ChevronRight className="h-5 w-5" /></button>
+            <button type="button" onClick={() => setReference({ chapter: String(chapter + 1) })} disabled={chapter === selectedBook.chapters} className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-transparent px-2 text-sm font-bold text-[#315349] transition hover:border-[#d5e4dc] hover:bg-[#edf5f1] disabled:cursor-not-allowed disabled:opacity-35" aria-label={isZh ? bibleStudyViewText.nextChapter.zh : bibleStudyViewText.nextChapter.en}><span className="hidden sm:inline">{isZh ? bibleStudyViewText.next.zh : bibleStudyViewText.next.en}</span><ChevronRight className="h-5 w-5" /></button>
           </div>
         </div>
 
-        {versionsLoading ? <div className="flex min-h-[24rem] items-center justify-center rounded-[1.5rem] border border-[#d8e1dc] bg-white text-sm font-bold text-[#60716a] shadow-[0_16px_38px_rgba(30,54,48,0.07)]"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-[#176b5a]" />{isZh ? '正在准备可用译本…' : 'Loading available versions…'}</div> : null}
-        {versionsError ? <div className="rounded-[1.5rem] border border-[#ead8c6] bg-[#fffbf5] p-6 text-center shadow-[0_16px_38px_rgba(30,54,48,0.07)]"><AlertCircle className="mx-auto h-8 w-8 text-[#b65c3e]" /><p className="mt-3 text-sm leading-6 text-[#725b4d]">{isZh ? '暂时无法加载中文译本，请稍后再试。' : 'Chinese versions could not be loaded right now. Please try again shortly.'}</p></div> : null}
+        {versionsLoading ? <div className="flex min-h-[24rem] items-center justify-center rounded-[1.5rem] border border-[#d8e1dc] bg-white text-sm font-bold text-[#60716a] shadow-[0_16px_38px_rgba(30,54,48,0.07)]"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-[#176b5a]" />{isZh ? bibleStudyViewText.loadingAvailableVersions.zh : bibleStudyViewText.loadingAvailableVersions.en}</div> : null}
+        {versionsError ? <div className="rounded-[1.5rem] border border-[#ead8c6] bg-[#fffbf5] p-6 text-center shadow-[0_16px_38px_rgba(30,54,48,0.07)]"><AlertCircle className="mx-auto h-8 w-8 text-[#b65c3e]" /><p className="mt-3 text-sm leading-6 text-[#725b4d]">{isZh ? bibleStudyViewText.chineseVersionsCouldNotBeLoadedRightNowPlease.zh : bibleStudyViewText.chineseVersionsCouldNotBeLoadedRightNowPlease.en}</p></div> : null}
         {!versionsLoading && !versionsError && version ? <YouVersionBibleReader reference={reference} versionId={version.id} providerUrl={providerUrl} language={language} canGoPrevious={chapter > 1} canGoNext={chapter < selectedBook.chapters} onPrevious={() => setReference({ chapter: String(chapter - 1) })} onNext={() => setReference({ chapter: String(chapter + 1) })} /> : null}
       </section>
     </AppPageShell>

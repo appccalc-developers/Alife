@@ -1,3 +1,4 @@
+import { churchLifeViewText } from '../i18n/churchLifeView.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ArrowUpRight, Bell, CalendarDays, ClipboardCheck, Settings2 } from 'lucide-react'
@@ -26,9 +27,9 @@ const GroupPathBadge = ({ groupId, groups, language }: { groupId: string; groups
 
 const QueryError = ({ error, language, retry }: { error: unknown; language: string; retry: () => void }) => (
   <AppEmptyState
-    title={language === 'zh' ? '无法加载这部分内容' : 'This content could not be loaded'}
+    title={language === 'zh' ? churchLifeViewText.thisContentCouldNotBeLoaded.zh : churchLifeViewText.thisContentCouldNotBeLoaded.en}
     description={normalizeApiError(error).message}
-    actionLabel={language === 'zh' ? '重试' : 'Retry'}
+    actionLabel={language === 'zh' ? churchLifeViewText.retry.zh : churchLifeViewText.retry.en}
     onAction={retry}
   />
 )
@@ -36,7 +37,7 @@ const QueryError = ({ error, language, retry }: { error: unknown; language: stri
 const LoadingBlock = ({ language }: { language: string }) => (
   <div className="grid gap-3" aria-live="polite">
     {[0, 1].map((item) => <div key={item} className="h-28 animate-pulse rounded-2xl border border-[var(--alife-line)] bg-[var(--alife-surface-strong)]" />)}
-    <span className="sr-only">{language === 'zh' ? '正在加载' : 'Loading'}</span>
+    <span className="sr-only">{language === 'zh' ? churchLifeViewText.loading.zh : churchLifeViewText.loading.en}</span>
   </div>
 )
 
@@ -50,9 +51,9 @@ const ManageOwnerMenu = ({ groupId, groups, section, language }: {
   if (!group?.canManage) return null
   return (
     <AppOverflowMenu
-      label={language === 'zh' ? '更多操作' : 'More actions'}
+      label={language === 'zh' ? churchLifeViewText.moreActions.zh : churchLifeViewText.moreActions.en}
       actions={[{
-        label: language === 'zh' ? '在所属组管理' : 'Manage in owning group',
+        label: language === 'zh' ? churchLifeViewText.manageInOwningGroup.zh : churchLifeViewText.manageInOwningGroup.en,
         to: `/groups/${encodeURIComponent(groupId)}/manage?section=${section}`,
         icon: <Settings2 className="h-4 w-4" />,
       }]}
@@ -63,7 +64,7 @@ const ManageOwnerMenu = ({ groupId, groups, section, language }: {
 const EventCards = ({ events, groups, language }: { events: GroupEventRecord[]; groups: ChurchLifeGroup[]; language: string }) => {
   const locale = language === 'zh' ? 'zh-CN' : 'en-NZ'
   if (!events.length) {
-    return <AppEmptyState title={language === 'zh' ? '没有符合条件的活动' : 'No matching events'} description={language === 'zh' ? '更换所属组筛选，或稍后再来查看。' : 'Choose another owning group or check again later.'} />
+    return <AppEmptyState title={language === 'zh' ? churchLifeViewText.noMatchingEvents.zh : churchLifeViewText.noMatchingEvents.en} description={language === 'zh' ? churchLifeViewText.chooseAnotherOwningGroupOrCheckAgainLater.zh : churchLifeViewText.chooseAnotherOwningGroupOrCheckAgainLater.en} />
   }
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -90,7 +91,7 @@ const EventCards = ({ events, groups, language }: { events: GroupEventRecord[]; 
 
 const AnnouncementCards = ({ announcements, groups, language }: { announcements: AnnouncementDto[]; groups: ChurchLifeGroup[]; language: string }) => {
   if (!announcements.length) {
-    return <AppEmptyState title={language === 'zh' ? '没有符合条件的公告' : 'No matching announcements'} description={language === 'zh' ? '更换所属组筛选，或稍后再来查看。' : 'Choose another owning group or check again later.'} />
+    return <AppEmptyState title={language === 'zh' ? churchLifeViewText.noMatchingAnnouncements.zh : churchLifeViewText.noMatchingAnnouncements.en} description={language === 'zh' ? churchLifeViewText.chooseAnotherOwningGroupOrCheckAgainLater.zh : churchLifeViewText.chooseAnotherOwningGroupOrCheckAgainLater.en} />
   }
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -98,7 +99,7 @@ const AnnouncementCards = ({ announcements, groups, language }: { announcements:
         <article key={item.id} className="rounded-2xl border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] p-5 shadow-[var(--alife-shadow-soft)]">
           <div className="flex flex-wrap items-center gap-2">
             <GroupPathBadge groupId={item.groupId} groups={groups} language={language} />
-            {item.isPinned ? <span className="rounded-full bg-[#f8eee6] px-2.5 py-1 text-[0.62rem] font-black text-[#9b6447]">{language === 'zh' ? '置顶' : 'Pinned'}</span> : null}
+            {item.isPinned ? <span className="rounded-full bg-[#f8eee6] px-2.5 py-1 text-[0.62rem] font-black text-[#9b6447]">{language === 'zh' ? churchLifeViewText.pinned.zh : churchLifeViewText.pinned.en}</span> : null}
           </div>
           <h2 className="mt-3 text-lg font-black text-[#27473f]">{localizeText(item.title, language)}</h2>
           <p className="mt-2 text-sm leading-6 text-[#718079]">{localizeText(item.summary, language)}</p>
@@ -112,7 +113,7 @@ const AnnouncementCards = ({ announcements, groups, language }: { announcements:
 
 const RamReviewCards = ({ reviews, groups, language }: { reviews: ChurchLifeRamReview[]; groups: ChurchLifeGroup[]; language: string }) => {
   if (!reviews.length) {
-    return <AppEmptyState title={language === 'zh' ? '目前没有待独立审核的 RAM' : 'No independent RAM reviews are waiting'} description={language === 'zh' ? '活动组织方申请 RAM 独立审核后，会出现在这里。' : 'A RAM appears here after an event organiser requests independent review.'} />
+    return <AppEmptyState title={language === 'zh' ? churchLifeViewText.noIndependentRamReviewsAreWaiting.zh : churchLifeViewText.noIndependentRamReviewsAreWaiting.en} description={language === 'zh' ? churchLifeViewText.aRamAppearsHereAfterAnEventOrganiserRequests.zh : churchLifeViewText.aRamAppearsHereAfterAnEventOrganiserRequests.en} />
   }
   const locale = language === 'zh' ? 'zh-CN' : 'en-NZ'
   return (
@@ -122,16 +123,16 @@ const RamReviewCards = ({ reviews, groups, language }: { reviews: ChurchLifeRamR
           <div className="flex flex-wrap items-center gap-2">
             <GroupPathBadge groupId={review.groupId} groups={groups} language={language} />
             <span className="rounded-full bg-[#f8e7db] px-2.5 py-1 text-[0.62rem] font-black text-[#9b583c]">
-              {language === 'zh' ? `剩余风险 ${review.residualLevel}` : `Residual risk ${review.residualLevel}`}
+              {language === 'zh' ? churchLifeViewText.residualRisk.zh(review.residualLevel) : churchLifeViewText.residualRisk.en(review.residualLevel)}
             </span>
           </div>
           <h2 className="mt-3 text-lg font-black text-[#27473f]">{localizeText(review.title, language)}</h2>
           <p className="mt-2 text-xs font-semibold text-[#718079]">
-            {language === 'zh' ? `RAM 版本 ${review.revisionVersion} · 提交于 ` : `RAM version ${review.revisionVersion} · Submitted `}
+            {language === 'zh' ? churchLifeViewText.ramVersionSubmitted.zh(review.revisionVersion) : churchLifeViewText.ramVersionSubmitted.en(review.revisionVersion)}
             {new Date(review.submittedUtc).toLocaleString(locale)}
           </p>
           <Link to={`/events/${encodeURIComponent(review.eventId)}/ram?from=church`} className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#176b5a] px-4 text-sm font-black text-white transition hover:bg-[#105849]">
-            {language === 'zh' ? '打开方案并独立审核' : 'Open plan and review'}<ArrowUpRight className="h-4 w-4" />
+            {language === 'zh' ? churchLifeViewText.openPlanAndReview.zh : churchLifeViewText.openPlanAndReview.en}<ArrowUpRight className="h-4 w-4" />
           </Link>
         </article>
       ))}
@@ -201,50 +202,50 @@ const ChurchLifeView = () => {
   }, [navigate, pagesQuery.data, selectedPageId])
 
 
-  if (churchQuery.isPending) return <AppPageShell title={language === 'zh' ? '教会生活' : 'Church Life'} context={language === 'zh' ? '教会生活 / 总览' : 'Church Life / Overview'}><LoadingBlock language={language} /></AppPageShell>
-  if (churchQuery.error || !churchQuery.data) return <AppPageShell title={language === 'zh' ? '教会生活' : 'Church Life'} context={language === 'zh' ? '教会生活 / 总览' : 'Church Life / Overview'}><QueryError error={churchQuery.error} language={language} retry={() => void churchQuery.refetch()} /></AppPageShell>
+  if (churchQuery.isPending) return <AppPageShell title={language === 'zh' ? churchLifeViewText.churchLife.zh : churchLifeViewText.churchLife.en} context={language === 'zh' ? churchLifeViewText.churchLifeOverview.zh : churchLifeViewText.churchLifeOverview.en}><LoadingBlock language={language} /></AppPageShell>
+  if (churchQuery.error || !churchQuery.data) return <AppPageShell title={language === 'zh' ? churchLifeViewText.churchLife.zh : churchLifeViewText.churchLife.en} context={language === 'zh' ? churchLifeViewText.churchLifeOverview.zh : churchLifeViewText.churchLifeOverview.en}><QueryError error={churchQuery.error} language={language} retry={() => void churchQuery.refetch()} /></AppPageShell>
 
   const title = section === 'events'
-    ? (language === 'zh' ? '教会活动' : 'Church events')
+    ? (language === 'zh' ? churchLifeViewText.churchEvents.zh : churchLifeViewText.churchEvents.en)
     : section === 'announcements'
-      ? (language === 'zh' ? '教会公告' : 'Church announcements')
+      ? (language === 'zh' ? churchLifeViewText.churchAnnouncements.zh : churchLifeViewText.churchAnnouncements.en)
       : section === 'ram-reviews'
-        ? (language === 'zh' ? 'RAM 独立审核' : 'Independent RAM review')
+        ? (language === 'zh' ? churchLifeViewText.independentRamReview.zh : churchLifeViewText.independentRamReview.en)
       : localizeText(churchQuery.data.name, language)
   const context = section === 'events'
-    ? (language === 'zh' ? '教会生活 / 活动' : 'Church Life / Events')
+    ? (language === 'zh' ? churchLifeViewText.churchLifeEvents.zh : churchLifeViewText.churchLifeEvents.en)
     : section === 'announcements'
-      ? (language === 'zh' ? '教会生活 / 公告' : 'Church Life / Announcements')
+      ? (language === 'zh' ? churchLifeViewText.churchLifeAnnouncements.zh : churchLifeViewText.churchLifeAnnouncements.en)
       : section === 'ram-reviews'
-        ? (language === 'zh' ? '教会生活 / RAM 独立审核' : 'Church Life / Independent RAM review')
-      : (language === 'zh' ? '教会生活 / 总览' : 'Church Life / Overview')
+        ? (language === 'zh' ? churchLifeViewText.churchLifeIndependentRamReview.zh : churchLifeViewText.churchLifeIndependentRamReview.en)
+      : (language === 'zh' ? churchLifeViewText.churchLifeOverview.zh : churchLifeViewText.churchLifeOverview.en)
 
   return (
     <AppPageShell
       title={title}
       context={context}
       subtitle={section === 'ram-reviews'
-        ? (language === 'zh' ? '核对完整活动方案及 RAM 报告，并处理你的独立审核职务。' : 'Review the complete Event Plan and RAM report, then handle your independent-review duty.')
-        : (language === 'zh' ? '一起聆听主日信息，关注教会近况，分享生活中的点滴。' : 'Listen to Sunday messages, catch up on church news, and share in everyday life together.')}
+        ? (language === 'zh' ? churchLifeViewText.reviewTheCompleteEventPlanAndRamReportThen.zh : churchLifeViewText.reviewTheCompleteEventPlanAndRamReportThen.en)
+        : (language === 'zh' ? churchLifeViewText.listenToSundayMessagesCatchUpOnChurchNews.zh : churchLifeViewText.listenToSundayMessagesCatchUpOnChurchNews.en)}
     >
       <div className="space-y-7 pb-4">
         {section === 'events' ? (
           <section aria-labelledby="church-events-heading" className="space-y-4">
-            <div className="flex items-center gap-3"><CalendarDays className="h-5 w-5 text-[#176b5a]" /><h2 id="church-events-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? '所有已批准活动' : 'All approved events'}</h2></div>
+            <div className="flex items-center gap-3"><CalendarDays className="h-5 w-5 text-[#176b5a]" /><h2 id="church-events-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? churchLifeViewText.allApprovedEvents.zh : churchLifeViewText.allApprovedEvents.en}</h2></div>
             <ChurchLifeResultsRegion busy={eventsQuery.isFetching && !eventsQuery.isPending} language={language}>
               {eventsQuery.isPending ? <LoadingBlock language={language} /> : eventsQuery.error ? <QueryError error={eventsQuery.error} language={language} retry={() => void eventsQuery.refetch()} /> : <EventCards events={eventsQuery.data?.items ?? []} groups={groups} language={language} />}
             </ChurchLifeResultsRegion>
           </section>
         ) : section === 'announcements' ? (
           <section aria-labelledby="church-announcements-heading" className="space-y-4">
-            <div className="flex items-center gap-3"><Bell className="h-5 w-5 text-[#176b5a]" /><h2 id="church-announcements-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? '当前有效公告' : 'Active announcements'}</h2></div>
+            <div className="flex items-center gap-3"><Bell className="h-5 w-5 text-[#176b5a]" /><h2 id="church-announcements-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? churchLifeViewText.activeAnnouncements.zh : churchLifeViewText.activeAnnouncements.en}</h2></div>
             <ChurchLifeResultsRegion busy={announcementsQuery.isFetching && !announcementsQuery.isPending} language={language}>
               {announcementsQuery.isPending ? <LoadingBlock language={language} /> : announcementsQuery.error ? <QueryError error={announcementsQuery.error} language={language} retry={() => void announcementsQuery.refetch()} /> : <AnnouncementCards announcements={announcementsQuery.data?.items ?? []} groups={groups} language={language} />}
             </ChurchLifeResultsRegion>
           </section>
         ) : section === 'ram-reviews' ? (
           <section aria-labelledby="church-ram-reviews-heading" className="space-y-4">
-            <div className="flex items-center gap-3"><ClipboardCheck className="h-5 w-5 text-[#9b583c]" /><h2 id="church-ram-reviews-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? '等待你的 RAM 独立审核' : 'Waiting for your independent RAM review'}</h2></div>
+            <div className="flex items-center gap-3"><ClipboardCheck className="h-5 w-5 text-[#9b583c]" /><h2 id="church-ram-reviews-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? churchLifeViewText.waitingForYourIndependentRamReview.zh : churchLifeViewText.waitingForYourIndependentRamReview.en}</h2></div>
             <ChurchLifeResultsRegion busy={ramReviewsQuery.isFetching && !ramReviewsQuery.isPending} language={language}>
               {ramReviewsQuery.isPending ? <LoadingBlock language={language} /> : ramReviewsQuery.error ? <QueryError error={ramReviewsQuery.error} language={language} retry={() => void ramReviewsQuery.refetch()} /> : <RamReviewCards reviews={ramReviewsQuery.data?.items ?? []} groups={groups} language={language} />}
             </ChurchLifeResultsRegion>
@@ -252,14 +253,14 @@ const ChurchLifeView = () => {
         ) : (
           <>
             <section aria-labelledby="church-events-heading" className="space-y-4">
-              <div className="flex items-end justify-between gap-4"><div className="flex items-center gap-3"><CalendarDays className="h-5 w-5 text-[#176b5a]" /><h2 id="church-events-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? '近期活动' : 'Upcoming events'}</h2></div><Link className="text-sm font-black text-[#176b5a]" to={`/church?section=events${ownerGroupId ? `&ownerGroupId=${encodeURIComponent(ownerGroupId)}` : ''}`}>{language === 'zh' ? '查看全部' : 'View all'}</Link></div>
+              <div className="flex items-end justify-between gap-4"><div className="flex items-center gap-3"><CalendarDays className="h-5 w-5 text-[#176b5a]" /><h2 id="church-events-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? churchLifeViewText.upcomingEvents.zh : churchLifeViewText.upcomingEvents.en}</h2></div><Link className="text-sm font-black text-[#176b5a]" to={`/church?section=events${ownerGroupId ? `&ownerGroupId=${encodeURIComponent(ownerGroupId)}` : ''}`}>{language === 'zh' ? churchLifeViewText.viewAll.zh : churchLifeViewText.viewAll.en}</Link></div>
               <ChurchLifeResultsRegion busy={eventsQuery.isFetching && !eventsQuery.isPending} language={language}>
                 {eventsQuery.isPending ? <LoadingBlock language={language} /> : eventsQuery.error ? <QueryError error={eventsQuery.error} language={language} retry={() => void eventsQuery.refetch()} /> : <EventCards events={(eventsQuery.data?.items ?? []).filter((event) => !event.endDate || new Date(event.endDate).getTime() >= Date.now()).slice(0, 4)} groups={groups} language={language} />}
               </ChurchLifeResultsRegion>
             </section>
 
             <section aria-labelledby="church-announcements-heading" className="space-y-4">
-              <div className="flex items-end justify-between gap-4"><div className="flex items-center gap-3"><Bell className="h-5 w-5 text-[#176b5a]" /><h2 id="church-announcements-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? '最新公告' : 'Latest announcements'}</h2></div><Link className="text-sm font-black text-[#176b5a]" to={`/church?section=announcements${ownerGroupId ? `&ownerGroupId=${encodeURIComponent(ownerGroupId)}` : ''}`}>{language === 'zh' ? '查看全部' : 'View all'}</Link></div>
+              <div className="flex items-end justify-between gap-4"><div className="flex items-center gap-3"><Bell className="h-5 w-5 text-[#176b5a]" /><h2 id="church-announcements-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? churchLifeViewText.latestAnnouncements.zh : churchLifeViewText.latestAnnouncements.en}</h2></div><Link className="text-sm font-black text-[#176b5a]" to={`/church?section=announcements${ownerGroupId ? `&ownerGroupId=${encodeURIComponent(ownerGroupId)}` : ''}`}>{language === 'zh' ? churchLifeViewText.viewAll.zh : churchLifeViewText.viewAll.en}</Link></div>
               <ChurchLifeResultsRegion busy={announcementsQuery.isFetching && !announcementsQuery.isPending} language={language}>
                 {announcementsQuery.isPending ? <LoadingBlock language={language} /> : announcementsQuery.error ? <QueryError error={announcementsQuery.error} language={language} retry={() => void announcementsQuery.refetch()} /> : <AnnouncementCards announcements={(announcementsQuery.data?.items ?? []).slice(0, 4)} groups={groups} language={language} />}
               </ChurchLifeResultsRegion>

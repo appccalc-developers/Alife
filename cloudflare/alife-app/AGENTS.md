@@ -7,6 +7,7 @@ These rules refine the repository-root `AGENTS.md` for `cloudflare/alife-app/`.
 - Preserve the existing UI framework, state patterns and routing conventions. General pages retain their design language; Event management workspaces use the scoped direction below.
 - Prefer accessible, responsive, mobile-first PWA behavior.
 - Avoid unnecessary fetching, remounting, and duplicated state.
+- Follow the repository [fixed UI copy rule for AI-generated code](../../AGENTS.md#fixed-ui-copy-in-ai-generated-code). Use feature-scoped `src/i18n/` resources for fixed text and preserve editable/API bilingual data and domain identifiers. Run `npm run test:locale` after adding, changing, or moving fixed copy.
 - Provide clear loading, empty, error, success, disabled, and focus states.
 - Keep list, detail, creation, and management views understandable for non-technical group leaders.
 - Use semantic controls, meaningful labels, and usable keyboard/focus behavior.

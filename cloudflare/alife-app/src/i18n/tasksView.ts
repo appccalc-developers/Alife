@@ -1,0 +1,23 @@
+// Fixed bilingual copy for views/TasksView.tsx.
+export const tasksViewText = {
+    personalCenterCurrentTasks: { en: 'Personal Center / Current tasks', zh: '个人中心 / 当前事务' } as const,
+    moreActions: { en: 'More actions', zh: '更多操作' } as const,
+    refreshing: { en: 'Refreshing', zh: '正在刷新' } as const,
+    refreshTasks: { en: 'Refresh tasks', zh: '刷新事务' } as const,
+    event: { en: 'Event', zh: '活动' } as const,
+    allEvents: { en: 'All Events', zh: '全部活动' } as const,
+    responsibility: { en: 'Responsibility', zh: '事项类型' } as const,
+    allTypes: { en: 'All types', zh: '全部类型' } as const,
+    sort: { en: 'Sort', zh: '排序' } as const,
+    dueSoonest: { en: 'Due soonest', zh: '最早期限优先' } as const,
+    newestFirst: { en: 'Newest first', zh: '最近更新优先' } as const,
+    oldestFirst: { en: 'Oldest first', zh: '最早收到优先' } as const,
+    occurrence: { en: 'Occurrence', zh: '场次' } as const,
+    overdue: { en: 'Overdue · ', zh: '已逾期 · ' } as const,
+    due: { en: 'Due · ', zh: '期限 · ' } as const,
+    taskPagination: { en: 'Task pagination', zh: '事务分页' } as const,
+    previous: { en: 'Previous', zh: '上一页' } as const,
+    pageTasks: { en: (value0: unknown, value1: unknown, value2: unknown) => `Page ${value0} / ${value1} · ${value2} tasks`, zh: (value0: unknown, value1: unknown, value2: unknown) => `第 ${value0} / ${value1} 页 · ${value2} 项` },
+    next: { en: 'Next', zh: '下一页' } as const,
+    localizedCopy: { en: { ...{ title: 'Current tasks', subtitle: 'See duty-related work and notifications you received as a group member in one place.', chooser: 'Task type', chooserHint: 'Handle urgent duties first, then review general notifications.', urgent: 'Urgent tasks', general: 'General tasks', urgentEmpty: 'There are no duty-related tasks waiting for you.', generalEmpty: 'There are no unread general notifications.', emptyHint: 'New tasks will appear here automatically.', loading: 'Preparing your current tasks…', loadFailed: 'Current tasks could not be loaded. Check your connection and try again.', retry: 'Reload', open: 'Open task', markRead: 'Mark as read', acknowledge: 'Acknowledge', workflowHint: 'This task will clear automatically after the related workflow is completed.', received: 'Received', actionFailed: 'This task could not be updated. Try again.', details: { displayName: 'Name', email: 'Email', phone: 'Phone', preferredLanguage: 'Preferred language', message: 'Message', sourcePage: 'Source page' }, applicationTitle: 'Application progress', applicationId: 'Application ID', supplement: 'Additional information', sendSupplement: 'Send information', applicationUpdated: 'Information sent. The application is back in review.' } }, zh: { ...{ title: '当前事务', subtitle: '集中查看需要你处理的职能事务和作为组员收到的通知。', chooser: '事务类型', chooserHint: '先处理紧要事务，再查看一般通知。', urgent: '紧要事务', general: '一般事务', urgentEmpty: '目前没有需要你处理的职能事务。', generalEmpty: '目前没有未读的一般通知。', emptyHint: '新的事务出现后，会自动显示在这里。', loading: '正在整理当前事务…', loadFailed: '暂时无法加载当前事务。请检查网络后重试。', retry: '重新加载', open: '前往处理', markRead: '标为已读', acknowledge: '确认已阅', workflowHint: '完成对应处理流程后，这项事务会自动移除。', received: '收到时间', actionFailed: '暂时无法更新这项事务，请重试。', details: { displayName: '姓名', email: 'Email', phone: '电话', preferredLanguage: '首选语言', message: '留言', sourcePage: '来源页面' }, applicationTitle: '申请进度', applicationId: '申请编号', supplement: '补充资料', sendSupplement: '提交补充资料', applicationUpdated: '资料已提交，申请已重新进入审核。' } } },
+};

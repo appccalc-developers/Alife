@@ -1,3 +1,4 @@
+import { eventPageStageText } from '../i18n/eventPageStage.ts'
 import { useEffect, useState, type FocusEvent, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays } from 'lucide-react'
@@ -63,8 +64,8 @@ const EventPageStage = ({
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false)
   }
   const imageUrl = activeItem.imageUrl?.trim() || reviewedPageFallbackImages[activeIndex % reviewedPageFallbackImages.length]
-  const previousLabel = language === 'zh' ? `上一项${ariaLabel}` : `Previous ${ariaLabel}`
-  const nextLabel = language === 'zh' ? `下一项${ariaLabel}` : `Next ${ariaLabel}`
+  const previousLabel = language === 'zh' ? eventPageStageText.previous.zh(ariaLabel) : eventPageStageText.previous.en(ariaLabel)
+  const nextLabel = language === 'zh' ? eventPageStageText.next.zh(ariaLabel) : eventPageStageText.next.en(ariaLabel)
 
   return (
     <div

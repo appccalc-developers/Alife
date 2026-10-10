@@ -1,0 +1,22 @@
+// Fixed bilingual copy for components/group/GroupDissolutionPanel.tsx.
+export const groupDissolutionPanelText = {
+    theRootChurchCannotBeDissolved: { en: 'The root church cannot be dissolved.', zh: '教会根组不能解散。' } as const,
+    otherActiveApprovedMembersRemain: { en: 'Other active (approved) members remain.', zh: '还有其他活跃成员（已批准的成员）。' } as const,
+    childMinistriesOrGroupsRemain: { en: 'Child ministries or groups remain.', zh: '还有下属事工组或小组。' } as const,
+    pagesRemainIncludingDrafts: { en: 'Pages remain, including drafts.', zh: '还有页面（包括草稿）。' } as const,
+    eventsOrEventSeriesRemain: { en: 'Events or event series remain.', zh: '还有活动或定期活动。' } as const,
+    albumsRemain: { en: 'Albums remain.', zh: '还有相册。' } as const,
+    announcementsRemain: { en: 'Announcements remain.', zh: '还有公告。' } as const,
+    dissolve: { en: (value0: unknown) => `Dissolve “${value0}”?`, zh: (value0: unknown) => `解散「${value0}」？` },
+    thisPermanentlyDeletesTheGroupAllItsMembershipsAnd: { en: 'This permanently deletes the group, all its memberships and other information such as forum content, contacts and invitations. It cannot be undone. File objects are cleaned up afterwards, with retries on failure. Accounts, other memberships and audit history remain.', zh: '此操作会永久删除小组、所有组内成员关系及论坛、联系人、邀请等其他资料，无法撤销。文件对象将在解散后清理，失败会重试。个人账号、其他小组身份和审计记录会保留。' } as const,
+    confirmDissolution: { en: 'Confirm dissolution', zh: '确认解散小组' } as const,
+    dissolveGroup: { en: 'Dissolve group', zh: '解散小组' } as const,
+    anEmptyGroupHasOnlyItsLeaderAsAn: { en: 'An empty group has only its leader as an active (approved) member and no child groups, pages, events, albums or announcements. Invitations, requests, former members and other information do not prevent dissolution. Drafts and closed content also count.', zh: '只有组长一名活跃成员（已批准），且没有下属事工组、页面、活动、相册或公告，即为空小组。邀请、申请、已退出成员及其他资料不影响解散。草稿与已关闭内容也会计入检查。' } as const,
+    theGroupHasBeenDissolved: { en: 'The group has been dissolved.', zh: '小组已解散。' } as const,
+    refreshAndReturnToGroupLife: { en: 'Refresh and return to Group Life', zh: '刷新并返回小组生活' } as const,
+    checkingDissolutionRequirements: { en: 'Checking dissolution requirements…', zh: '正在检查解散条件…' } as const,
+    theOperationCouldNotBeCompletedCheckTheGroup: { en: 'The operation could not be completed. Check the group and your permissions again before retrying.', zh: '未能完成操作。请重新检查小组及你的权限后再试。' } as const,
+    pleaseCheckTheDissolutionRequirementsAgain: { en: 'Please check the dissolution requirements again.', zh: '请重新检查解散条件。' } as const,
+    processing: { en: 'Processing…', zh: '正在处理…' } as const,
+    checkAgain: { en: 'Check again', zh: '重新检查' } as const,
+};

@@ -1,3 +1,4 @@
+import { eventRamViewText } from '../i18n/eventRamView.ts'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../stores/auth'
 import AppPageShell from '../components/layout/AppPageShell'
@@ -9,13 +10,13 @@ export default function EventRamView() {
   const zh = language === 'zh'
   const source = searchParams.get('from')
   const backLink = source === 'profile'
-    ? { to: '/profile', label: zh ? '返回个人中心' : 'Back to Personal Center' }
+    ? { to: '/profile', label: zh ? eventRamViewText.backToPersonalCenter.zh : eventRamViewText.backToPersonalCenter.en }
     : source === 'church'
-      ? { to: '/church?section=ram-reviews', label: zh ? '返回教会生活' : 'Back to Church Life' }
-      : { to: `/events/${eventId}`, label: zh ? '返回活动' : 'Back to event' }
+      ? { to: '/church?section=ram-reviews', label: zh ? eventRamViewText.backToChurchLife.zh : eventRamViewText.backToChurchLife.en }
+      : { to: `/events/${eventId}`, label: zh ? eventRamViewText.backToEvent.zh : eventRamViewText.backToEvent.en }
   return <AppPageShell
-    title={zh ? 'RAM 独立审核' : 'Independent RAM review'}
-    subtitle={zh ? '活动筹备 · 同时核对完整活动方案和 RAM 报告' : 'Event preparation · Review the complete Event Plan and RAM report together'}
+    title={zh ? eventRamViewText.independentRamReview.zh : eventRamViewText.independentRamReview.en}
+    subtitle={zh ? eventRamViewText.eventPreparationReviewTheCompleteEventPlanAndRam.zh : eventRamViewText.eventPreparationReviewTheCompleteEventPlanAndRam.en}
     backLink={backLink}
   >{eventId ? <EventRamWorkspace eventId={eventId} language={language} showEventPlan /> : null}</AppPageShell>
 }

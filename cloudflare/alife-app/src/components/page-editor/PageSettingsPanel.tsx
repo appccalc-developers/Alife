@@ -1,3 +1,4 @@
+import { pageSettingsPanelText } from '../../i18n/pageSettingsPanel.ts'
 import type { ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, DoorOpen, ImageUp, Languages, Save, ShieldCheck } from 'lucide-react'
 import AppActionButton from '../layout/AppActionButton'
@@ -35,15 +36,15 @@ const visibilityOptions: PageVisibility[] = ['draft', 'group', 'public']
 const formatVisibilityLabel = (visibility: PageVisibility, isZh: boolean, isGlobalPage = false) => {
   if (visibility === 'public') {
     return isGlobalPage
-      ? (isZh ? '公开访问' : 'Public access')
-      : (isZh ? '公开小组页面' : 'Public group page')
+      ? (isZh ? pageSettingsPanelText.publicAccess.zh : pageSettingsPanelText.publicAccess.en)
+      : (isZh ? pageSettingsPanelText.publicGroupPage.zh : pageSettingsPanelText.publicGroupPage.en)
   }
 
   if (visibility === 'group') {
-    return isZh ? '小组成员可见' : 'Group members only'
+    return isZh ? pageSettingsPanelText.groupMembersOnly.zh : pageSettingsPanelText.groupMembersOnly.en
   }
 
-  return isZh ? '仅保存草稿' : 'Save as draft'
+  return isZh ? pageSettingsPanelText.saveAsDraft.zh : pageSettingsPanelText.saveAsDraft.en
 }
 
 const ReadinessRow = ({
@@ -105,35 +106,35 @@ const PageSettingsPanel = ({
   ].filter(Boolean).length
   const saveActionLabel = model.visibility === 'public'
     ? isGlobalPage
-      ? (isZh ? '保存并发布' : 'Save and publish')
-      : (isZh ? '保存为公开小组页面' : 'Save as public group page')
+      ? (isZh ? pageSettingsPanelText.saveAndPublish.zh : pageSettingsPanelText.saveAndPublish.en)
+      : (isZh ? pageSettingsPanelText.saveAsPublicGroupPage.zh : pageSettingsPanelText.saveAsPublicGroupPage.en)
     : model.visibility === 'group'
-      ? (isZh ? '保存并对小组可见' : 'Save for group')
-      : (isZh ? '保存草稿' : 'Save draft')
+      ? (isZh ? pageSettingsPanelText.saveForGroup.zh : pageSettingsPanelText.saveForGroup.en)
+      : (isZh ? pageSettingsPanelText.saveDraft.zh : pageSettingsPanelText.saveDraft.en)
   const publishGuidance = (() => {
     if (!validationReady) {
       return {
         tone: 'warning',
-        title: isZh ? '下一步：先修正页面内容' : 'Next: fix page content',
-        detail: isZh ? '标题或区块还有错误，修正后才可以保存。' : 'Title or section errors need to be fixed before saving.',
-        action: isZh ? '修正后保存' : 'Save after fixing',
+        title: isZh ? pageSettingsPanelText.nextFixPageContent.zh : pageSettingsPanelText.nextFixPageContent.en,
+        detail: isZh ? pageSettingsPanelText.titleOrSectionErrorsNeedToBeFixedBefore.zh : pageSettingsPanelText.titleOrSectionErrorsNeedToBeFixedBefore.en,
+        action: isZh ? pageSettingsPanelText.saveAfterFixing.zh : pageSettingsPanelText.saveAfterFixing.en,
       }
     }
 
     if (canEditVisibility && !visibilityReady) {
       return {
         tone: 'warning',
-        title: isZh ? '下一步：选择发布范围' : 'Next: choose visibility',
-        detail: isZh ? '现在还是草稿。选择小组可见或公开页面后，再保存交付。' : 'This is still a draft. Choose group or public visibility before saving.',
-        action: isZh ? '保存草稿' : 'Save draft',
+        title: isZh ? pageSettingsPanelText.nextChooseVisibility.zh : pageSettingsPanelText.nextChooseVisibility.en,
+        detail: isZh ? pageSettingsPanelText.thisIsStillADraftChooseGroupOrPublic.zh : pageSettingsPanelText.thisIsStillADraftChooseGroupOrPublic.en,
+        action: isZh ? pageSettingsPanelText.saveDraft.zh : pageSettingsPanelText.saveDraft.en,
       }
     }
 
     if (!translationsReady || !imagesReady) {
       return {
         tone: 'active',
-        title: isZh ? '下一步：保存并处理待办' : 'Next: save and process pending work',
-        detail: isZh ? '保存时会先处理本地图片和双语补全，然后写入页面。' : 'Saving will handle local images and bilingual completion before writing the page.',
+        title: isZh ? pageSettingsPanelText.nextSaveAndProcessPendingWork.zh : pageSettingsPanelText.nextSaveAndProcessPendingWork.en,
+        detail: isZh ? pageSettingsPanelText.savingWillHandleLocalImagesAndBilingualCompletionBefore.zh : pageSettingsPanelText.savingWillHandleLocalImagesAndBilingualCompletionBefore.en,
         action: saveActionLabel,
       }
     }
@@ -142,20 +143,20 @@ const PageSettingsPanel = ({
       return {
         tone: 'active',
         title: model.visibility === 'public'
-          ? (isZh ? '下一步：保存并发布页面' : 'Next: save and publish')
+          ? (isZh ? pageSettingsPanelText.nextSaveAndPublish.zh : pageSettingsPanelText.nextSaveAndPublish.en)
           : model.visibility === 'group'
-            ? (isZh ? '下一步：保存给小组查看' : 'Next: save for group')
-            : (isZh ? '下一步：保存草稿' : 'Next: save draft'),
-        detail: isZh ? '检查项已通过，点击保存后这次编辑才会生效。' : 'Checks are ready. Save to apply the current edits.',
+            ? (isZh ? pageSettingsPanelText.nextSaveForGroup.zh : pageSettingsPanelText.nextSaveForGroup.en)
+            : (isZh ? pageSettingsPanelText.nextSaveDraft.zh : pageSettingsPanelText.nextSaveDraft.en),
+        detail: isZh ? pageSettingsPanelText.checksAreReadySaveToApplyTheCurrentEdits.zh : pageSettingsPanelText.checksAreReadySaveToApplyTheCurrentEdits.en,
         action: saveActionLabel,
       }
     }
 
     return {
       tone: 'done',
-      title: isZh ? '页面已保存' : 'Page is saved',
-      detail: isZh ? '当前内容已经写入，可以退出编辑器或继续调整。' : 'The current content is saved. You can exit or keep editing.',
-      action: isZh ? '已保存' : 'Saved',
+      title: isZh ? pageSettingsPanelText.pageIsSaved.zh : pageSettingsPanelText.pageIsSaved.en,
+      detail: isZh ? pageSettingsPanelText.theCurrentContentIsSavedYouCanExitOr.zh : pageSettingsPanelText.theCurrentContentIsSavedYouCanExitOr.en,
+      action: isZh ? pageSettingsPanelText.saved.zh : pageSettingsPanelText.saved.en,
     }
   })()
   const updateLocalizedField = (field: 'title' | 'description', key: 'en' | 'zh', value: string) => {
@@ -175,10 +176,10 @@ const PageSettingsPanel = ({
       <section className="overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white shadow-[0_14px_36px_rgba(31,56,48,0.1)]">
         <div className="border-b border-slate-200 bg-[#f7f3e9] px-4 py-4">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">
-            {isZh ? '准备发布' : 'Ready to publish'}
+            {isZh ? pageSettingsPanelText.readyToPublish.zh : pageSettingsPanelText.readyToPublish.en}
           </p>
           <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[#18332d]">
-            {isZh ? '保存前最后检查' : 'Final checks before saving'}
+            {isZh ? pageSettingsPanelText.finalChecksBeforeSaving.zh : pageSettingsPanelText.finalChecksBeforeSaving.en}
           </h2>
         </div>
         <div className="space-y-3 p-4">
@@ -195,7 +196,7 @@ const PageSettingsPanel = ({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-[#176b5a]">
-                  {isZh ? '发布指引' : 'Publishing guide'}
+                  {isZh ? pageSettingsPanelText.publishingGuide.zh : pageSettingsPanelText.publishingGuide.en}
                 </p>
                 <h3 className="mt-1 text-base font-black text-slate-950">{publishGuidance.title}</h3>
                 <p className="mt-1 text-xs leading-5 text-slate-600">{publishGuidance.detail}</p>
@@ -247,47 +248,47 @@ const PageSettingsPanel = ({
           </div>
 
           <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-            {isZh ? '保存前检查' : 'Pre-save checks'}
+            {isZh ? pageSettingsPanelText.preSaveChecks.zh : pageSettingsPanelText.preSaveChecks.en}
           </p>
           <ReadinessRow
             ready={validationReady}
             icon={<AlertTriangle className="h-4 w-4" />}
-            label={isZh ? '内容校验' : 'Content validation'}
+            label={isZh ? pageSettingsPanelText.contentValidation.zh : pageSettingsPanelText.contentValidation.en}
             detail={validationReady
-              ? (isZh ? '标题和区块结构可以保存。' : 'Title and section structure can be saved.')
-              : (isZh ? '请先修正标题或区块错误。' : 'Fix title or section errors before saving.')}
+              ? (isZh ? pageSettingsPanelText.titleAndSectionStructureCanBeSaved.zh : pageSettingsPanelText.titleAndSectionStructureCanBeSaved.en)
+              : (isZh ? pageSettingsPanelText.fixTitleOrSectionErrorsBeforeSaving.zh : pageSettingsPanelText.fixTitleOrSectionErrorsBeforeSaving.en)}
           />
           <ReadinessRow
             ready={translationsReady}
             icon={<Languages className="h-4 w-4" />}
-            label={isZh ? '双语完整度' : 'Bilingual completion'}
+            label={isZh ? pageSettingsPanelText.bilingualCompletion.zh : pageSettingsPanelText.bilingualCompletion.en}
             detail={translationsReady
-              ? (isZh ? '中英文内容已补齐。' : 'Chinese and English content is complete.')
-              : (isZh ? `还有 ${publishReadiness.missingTranslationCount} 处会在保存时请求 AI 补齐。` : `${publishReadiness.missingTranslationCount} fields will request AI completion when saving.`)}
+              ? (isZh ? pageSettingsPanelText.chineseAndEnglishContentIsComplete.zh : pageSettingsPanelText.chineseAndEnglishContentIsComplete.en)
+              : (isZh ? pageSettingsPanelText.fieldsWillRequestAiCompletionWhenSaving.zh(publishReadiness.missingTranslationCount) : pageSettingsPanelText.fieldsWillRequestAiCompletionWhenSaving.en(publishReadiness.missingTranslationCount))}
           />
           <ReadinessRow
             ready={imagesReady}
             icon={<ImageUp className="h-4 w-4" />}
-            label={isZh ? '图片上传' : 'Image upload'}
+            label={isZh ? pageSettingsPanelText.imageUpload.zh : pageSettingsPanelText.imageUpload.en}
             detail={imagesReady
-              ? (isZh ? '没有本地待上传图片。' : 'No local images are waiting to upload.')
-              : (isZh ? '保存时会先上传本地图片再替换链接。' : 'Saving will upload local images before replacing links.')}
+              ? (isZh ? pageSettingsPanelText.noLocalImagesAreWaitingToUpload.zh : pageSettingsPanelText.noLocalImagesAreWaitingToUpload.en)
+              : (isZh ? pageSettingsPanelText.savingWillUploadLocalImagesBeforeReplacingLinks.zh : pageSettingsPanelText.savingWillUploadLocalImagesBeforeReplacingLinks.en)}
           />
           <ReadinessRow
             ready={visibilityReady || !canEditVisibility}
             icon={<ShieldCheck className="h-4 w-4" />}
-            label={isZh ? '发布范围' : 'Visibility'}
+            label={isZh ? pageSettingsPanelText.visibility.zh : pageSettingsPanelText.visibility.en}
             detail={canEditVisibility
-              ? (isZh ? `当前设置为：${formatVisibilityLabel(model.visibility, true, isGlobalPage)}。` : `Current setting: ${formatVisibilityLabel(model.visibility, false, isGlobalPage)}.`)
-              : (isZh ? '只有领袖或管理员可以调整发布范围。' : 'Only leaders or admins can change visibility.')}
+              ? (isZh ? pageSettingsPanelText.currentSetting.zh(formatVisibilityLabel(model.visibility, true, isGlobalPage)) : pageSettingsPanelText.currentSetting.en(formatVisibilityLabel(model.visibility, false, isGlobalPage)))
+              : (isZh ? pageSettingsPanelText.onlyLeadersOrAdminsCanChangeVisibility.zh : pageSettingsPanelText.onlyLeadersOrAdminsCanChangeVisibility.en)}
           />
           <ReadinessRow
             ready={savedReady}
             icon={<Save className="h-4 w-4" />}
-            label={isZh ? '保存状态' : 'Save state'}
+            label={isZh ? pageSettingsPanelText.saveState.zh : pageSettingsPanelText.saveState.en}
             detail={savedReady
-              ? (isZh ? '当前页面已保存。' : 'The current page is saved.')
-              : (isZh ? '页面还有未保存内容。' : 'This page still has unsaved content.')}
+              ? (isZh ? pageSettingsPanelText.theCurrentPageIsSaved.zh : pageSettingsPanelText.theCurrentPageIsSaved.en)
+              : (isZh ? pageSettingsPanelText.thisPageStillHasUnsavedContent.zh : pageSettingsPanelText.thisPageStillHasUnsavedContent.en)}
           />
 
         </div>

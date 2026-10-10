@@ -1,3 +1,4 @@
+import { eventDutyViewText } from '../i18n/eventDutyView.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../stores/auth'
@@ -48,7 +49,7 @@ export default function EventDutyView() {
   const changed = useCallback(async () => { await invalidateCurrentTasks(me?.id); setEnded(true) }, [me?.id])
   const beforeAction = useCallback(async () => { await validate() }, [validate])
   const act = async (accept: boolean) => {
-    if (!duty || busy || !await requestConfirmation({ title: zh ? '确认处理此项事务' : 'Confirm this action', description: zh ? '这会更新你的职责回应或当前审批决定。' : 'This updates your response or the current approval decision.', confirmLabel: zh ? '确认' : 'Confirm' })) return
+    if (!duty || busy || !await requestConfirmation({ title: zh ? eventDutyViewText.confirmThisAction.zh : eventDutyViewText.confirmThisAction.en, description: zh ? eventDutyViewText.thisUpdatesYourResponseOrTheCurrentApprovalDecision.zh : eventDutyViewText.thisUpdatesYourResponseOrTheCurrentApprovalDecision.en, confirmLabel: zh ? eventDutyViewText.confirm.zh : eventDutyViewText.confirm.en })) return
     setBusy(true); setError('')
     try {
       await validate()
@@ -63,10 +64,10 @@ export default function EventDutyView() {
       await changed()
     } catch (e) { setError(normalizeApiError(e).message) } finally { setBusy(false) }
   }
-  const title = duty ? localizeNotificationText(duty.task.title, language) : zh ? '活动职务事务' : 'Event duty'
-  return <AppPageShell title={title} context={zh ? '个人中心 / 活动事务' : 'Personal Center / Event duty'} backLink={{ to: returnTo, label: zh ? '返回当前事务' : 'Back to current tasks' }}>
+  const title = duty ? localizeNotificationText(duty.task.title, language) : zh ? eventDutyViewText.eventDuty.zh : eventDutyViewText.eventDuty.en
+  return <AppPageShell title={title} context={zh ? eventDutyViewText.personalCenterEventDuty.zh : eventDutyViewText.personalCenterEventDuty.en} backLink={{ to: returnTo, label: zh ? eventDutyViewText.backToCurrentTasks.zh : eventDutyViewText.backToCurrentTasks.en }}>
     {confirmationModal}
-    {ended ? <AppEmptyState title={zh ? '此项事务已更新或不再需要你处理' : 'This responsibility has changed or no longer needs your action'} description={zh ? '返回当前事务查看最新交接和可处理版本。' : 'Return to current tasks for the latest handoff and actionable version.'} /> : !duty ? <AppEmptyState description={zh ? "正在校验当前版本与处理权限。" : "Checking the current version and your permission."} title={error || (zh ? '正在载入…' : 'Loading…')} actionLabel={zh ? '重试' : 'Retry'} onAction={() => { void load().catch(e => setError(normalizeApiError(e).message)) }} /> : <>
+    {ended ? <AppEmptyState title={zh ? eventDutyViewText.thisResponsibilityHasChangedOrNoLongerNeedsYour.zh : eventDutyViewText.thisResponsibilityHasChangedOrNoLongerNeedsYour.en} description={zh ? eventDutyViewText.returnToCurrentTasksForTheLatestHandoffAnd.zh : eventDutyViewText.returnToCurrentTasksForTheLatestHandoffAnd.en} /> : !duty ? <AppEmptyState description={zh ? eventDutyViewText.checkingTheCurrentVersionAndYourPermission.zh : eventDutyViewText.checkingTheCurrentVersionAndYourPermission.en} title={error || (zh ? eventDutyViewText.loading.zh : eventDutyViewText.loading.en)} actionLabel={zh ? eventDutyViewText.retry.zh : eventDutyViewText.retry.en} onAction={() => { void load().catch(e => setError(normalizeApiError(e).message)) }} /> : <>
       {error ? <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
       {duty.surface === 'task' ? <EventTaskDetailPanel eventId={eventId} taskId={sourceId} beforeAction={beforeAction} onChanged={changed} /> : null}
       {duty.surface === 'ram' ? <EventRamWorkspace eventId={eventId} language={language} showEventPlan beforeAction={beforeAction} onSaved={changed} /> : null}
@@ -75,10 +76,10 @@ export default function EventDutyView() {
       {['invitation', 'rosterInvitation', 'sponsorship'].includes(duty.surface) ? <AppSectionCard title={localizeNotificationText(duty.task.actionLabel, language)}>
         <p className="mb-4 whitespace-pre-wrap text-sm">{localizeNotificationText(duty.context, language) || duty.detailText || localizeNotificationText(duty.task.body, language)}</p>
         {duty.task.dueUtc ? <p className="mb-4 text-sm">{new Date(duty.task.dueUtc).toLocaleString(language)}</p> : null}
-        {duty.surface === 'sponsorship' ? <label className="mb-4 grid gap-2 text-sm">{zh ? '处理理由' : 'Decision reason'}<textarea className="min-h-24 rounded-xl border p-3" value={reason} onChange={e => setReason(e.target.value)} maxLength={2000} /></label> : null}
-        <div className="flex flex-wrap gap-3"><AppActionButton disabled={busy || duty.surface === 'sponsorship' && !reason.trim()} onClick={() => void act(true)}>{zh ? (duty.surface === 'sponsorship' ? '批准' : '接受并确认') : duty.surface === 'sponsorship' ? 'Approve' : 'Accept and confirm'}</AppActionButton><AppActionButton variant="secondary" disabled={busy || duty.surface === 'sponsorship' && !reason.trim()} onClick={() => void act(false)}>{zh ? '拒绝' : 'Decline'}</AppActionButton></div>
+        {duty.surface === 'sponsorship' ? <label className="mb-4 grid gap-2 text-sm">{zh ? eventDutyViewText.decisionReason.zh : eventDutyViewText.decisionReason.en}<textarea className="min-h-24 rounded-xl border p-3" value={reason} onChange={e => setReason(e.target.value)} maxLength={2000} /></label> : null}
+        <div className="flex flex-wrap gap-3"><AppActionButton disabled={busy || duty.surface === 'sponsorship' && !reason.trim()} onClick={() => void act(true)}>{zh ? (duty.surface === 'sponsorship' ? eventDutyViewText.eventDutyView : eventDutyViewText.eventDutyView2) : duty.surface === 'sponsorship' ? 'Approve' : 'Accept and confirm'}</AppActionButton><AppActionButton variant="secondary" disabled={busy || duty.surface === 'sponsorship' && !reason.trim()} onClick={() => void act(false)}>{zh ? eventDutyViewText.decline.zh : eventDutyViewText.decline.en}</AppActionButton></div>
       </AppSectionCard> : null}
-      {['owner', 'roster', 'report', 'registration'].includes(duty.surface) ? <AppSectionCard title={localizeNotificationText(duty.task.actionLabel, language)}><Link className="inline-flex min-h-11 items-center rounded-xl bg-[#176b5a] px-4 font-semibold text-white" to={withDutyReturn(duty.targetUrl || `/events/${eventId}/workspace/roster?occurrenceId=${duty.task.occurrenceId ?? ''}`, returnTo)} onClick={e => { e.preventDefault(); void validate().then(() => navigate(withDutyReturn(duty.targetUrl || `/events/${eventId}/workspace/roster?occurrenceId=${duty.task.occurrenceId ?? ''}`, returnTo))).catch(e => setError(normalizeApiError(e).message)) }}>{zh ? '进入活动处理' : 'Open Event workspace'}</Link></AppSectionCard> : null}
+      {['owner', 'roster', 'report', 'registration'].includes(duty.surface) ? <AppSectionCard title={localizeNotificationText(duty.task.actionLabel, language)}><Link className="inline-flex min-h-11 items-center rounded-xl bg-[#176b5a] px-4 font-semibold text-white" to={withDutyReturn(duty.targetUrl || `/events/${eventId}/workspace/roster?occurrenceId=${duty.task.occurrenceId ?? ''}`, returnTo)} onClick={e => { e.preventDefault(); void validate().then(() => navigate(withDutyReturn(duty.targetUrl || `/events/${eventId}/workspace/roster?occurrenceId=${duty.task.occurrenceId ?? ''}`, returnTo))).catch(e => setError(normalizeApiError(e).message)) }}>{zh ? eventDutyViewText.openEventWorkspace.zh : eventDutyViewText.openEventWorkspace.en}</Link></AppSectionCard> : null}
     </>}
   </AppPageShell>
 }

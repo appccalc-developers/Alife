@@ -1,3 +1,4 @@
+import { detailsWorkspaceText } from '../../../i18n/detailsWorkspace.ts'
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { ClipboardList, MessagesSquare, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import type { DetailField } from '../../../../../shared/eventDetails'
@@ -70,19 +71,19 @@ export default function DetailsWorkspace({ zh, active, form, assistant, readOnly
   const assistantVisible = active && (wide ? assistantOpen : view === 'assistant')
   return <DetailsContext.Provider value={{ readOnly, translationGroupId, updatedFields, revealField, markUpdated: setUpdatedFields }}>
     <div ref={root} className={`event-details-workspace${labels ? ' event-module-form-workspace' : ''}`} data-wide={wide} data-assistant-open={assistantOpen}>
-      {!wide ? <div className="event-details-tabs" role="tablist" aria-label={labels?.workspace ?? (zh ? '活动资料工作区' : 'Event details workspace')}>
+      {!wide ? <div className="event-details-tabs" role="tablist" aria-label={labels?.workspace ?? (zh ? detailsWorkspaceText.eventDetailsWorkspace.zh : detailsWorkspaceText.eventDetailsWorkspace.en)}>
         {(['form', 'assistant'] as const).map((tab, index) => <button key={tab} id={`${id}-${tab}-tab`} type="button" role="tab" aria-selected={view === tab} aria-controls={`${id}-${tab}`} tabIndex={view === tab ? 0 : -1} onClick={() => setView(tab)} onKeyDown={event => {
           if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
           event.preventDefault()
           const next = event.key === 'Home' ? 'form' : event.key === 'End' ? 'assistant' : index === 0 ? 'assistant' : 'form'
           setView(next); document.getElementById(`${id}-${next}-tab`)?.focus()
-        }}>{tab === 'form' ? <ClipboardList size={18} aria-hidden="true" /> : <MessagesSquare size={18} aria-hidden="true" />}{tab === 'form' ? (labels?.form ?? (zh ? '资料表单' : 'Details form')) : (zh ? 'AI 助手' : 'AI assistant')}</button>)}
-      </div> : <div className="event-details-toolbar"><span>{readOnly ? (zh ? '只读 · 可浏览全部资料' : 'Read-only · browse all details') : (zh ? '填写资料，也可与助手一起整理' : 'Edit the details or organise them with your assistant')}</span><button type="button" aria-expanded={assistantOpen} aria-controls={`${id}-assistant`} onClick={() => setAssistantOpen(value => !value)}>{assistantOpen ? <PanelRightClose size={18} aria-hidden="true" /> : <PanelRightOpen size={18} aria-hidden="true" />}{assistantOpen ? (zh ? '收起助手' : 'Collapse assistant') : (zh ? '展开助手' : 'Show assistant')}</button></div>}
+        }}>{tab === 'form' ? <ClipboardList size={18} aria-hidden="true" /> : <MessagesSquare size={18} aria-hidden="true" />}{tab === 'form' ? (labels?.form ?? (zh ? detailsWorkspaceText.detailsForm.zh : detailsWorkspaceText.detailsForm.en)) : (zh ? detailsWorkspaceText.aiAssistant.zh : detailsWorkspaceText.aiAssistant.en)}</button>)}
+      </div> : <div className="event-details-toolbar"><span>{readOnly ? (zh ? detailsWorkspaceText.readOnlyBrowseAllDetails.zh : detailsWorkspaceText.readOnlyBrowseAllDetails.en) : (zh ? detailsWorkspaceText.editTheDetailsOrOrganiseThemWithYourAssistant.zh : detailsWorkspaceText.editTheDetailsOrOrganiseThemWithYourAssistant.en)}</span><button type="button" aria-expanded={assistantOpen} aria-controls={`${id}-assistant`} onClick={() => setAssistantOpen(value => !value)}>{assistantOpen ? <PanelRightClose size={18} aria-hidden="true" /> : <PanelRightOpen size={18} aria-hidden="true" />}{assistantOpen ? (zh ? detailsWorkspaceText.collapseAssistant.zh : detailsWorkspaceText.collapseAssistant.en) : (zh ? detailsWorkspaceText.showAssistant.zh : detailsWorkspaceText.showAssistant.en)}</button></div>}
       <div className="event-details-columns">
-        <div ref={formRegion} id={`${id}-form`} role={wide ? 'region' : 'tabpanel'} aria-label={wide ? (labels?.form ?? (zh ? '资料表单' : 'Details form')) : undefined} aria-labelledby={wide ? undefined : `${id}-form-tab`} tabIndex={-1} hidden={!wide && view !== 'form'} className="event-details-form">
-          {!wide && readOnly ? <p className="event-details-readonly">{zh ? '只读 · 可浏览全部资料' : 'Read-only · browse all details'}</p> : null}{form}
+        <div ref={formRegion} id={`${id}-form`} role={wide ? 'region' : 'tabpanel'} aria-label={wide ? (labels?.form ?? (zh ? detailsWorkspaceText.detailsForm.zh : detailsWorkspaceText.detailsForm.en)) : undefined} aria-labelledby={wide ? undefined : `${id}-form-tab`} tabIndex={-1} hidden={!wide && view !== 'form'} className="event-details-form">
+          {!wide && readOnly ? <p className="event-details-readonly">{zh ? detailsWorkspaceText.readOnlyBrowseAllDetails.zh : detailsWorkspaceText.readOnlyBrowseAllDetails.en}</p> : null}{form}
         </div>
-        <div id={`${id}-assistant`} role={wide ? 'complementary' : 'tabpanel'} aria-label={wide ? (labels?.assistant ?? (zh ? 'AI 资料助手' : 'AI details assistant')) : undefined} aria-labelledby={wide ? undefined : `${id}-assistant-tab`} hidden={wide ? !assistantOpen : view !== 'assistant'} className={`event-details-assistant${limitAssistantHeight ? ' event-details-assistant--viewport' : ''}`}>
+        <div id={`${id}-assistant`} role={wide ? 'complementary' : 'tabpanel'} aria-label={wide ? (labels?.assistant ?? (zh ? detailsWorkspaceText.aiDetailsAssistant.zh : detailsWorkspaceText.aiDetailsAssistant.en)) : undefined} aria-labelledby={wide ? undefined : `${id}-assistant-tab`} hidden={wide ? !assistantOpen : view !== 'assistant'} className={`event-details-assistant${limitAssistantHeight ? ' event-details-assistant--viewport' : ''}`}>
           {assistant(assistantVisible)}
         </div>
       </div>

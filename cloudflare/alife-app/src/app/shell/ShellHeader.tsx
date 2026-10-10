@@ -1,3 +1,4 @@
+import { shellHeaderText } from '../../i18n/shellHeader.ts'
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, TerminalSquare } from 'lucide-react'
@@ -35,7 +36,7 @@ const ShellHeader = ({ appNavItems, contextualGroupId, onboarding, debugLoading,
         {onboarding ? (
           <Link className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-bold text-[#40554e] transition hover:bg-[#e3f0eb] hover:text-[#176b5a]" to="/">
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            <span>{auth.language === 'zh' ? '返回教会首页' : 'Back to church home'}</span>
+            <span>{auth.language === 'zh' ? shellHeaderText.backToChurchHome.zh : shellHeaderText.backToChurchHome.en}</span>
           </Link>
         ) : <HeaderNavigation items={appNavItems} />}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">

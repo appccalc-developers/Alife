@@ -1,3 +1,4 @@
+import { landingHeroSectionText } from '../../i18n/landingHeroSection.ts'
 import { useRef } from 'react'
 import { ArrowDown, ArrowRight, PlayCircle } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
@@ -139,7 +140,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
       />
       <MediaPickerInput
         focusKey="landing-hero-poster"
-        label={auth.language === 'zh' ? '海报图片链接' : 'Poster image URL'}
+        label={auth.language === 'zh' ? landingHeroSectionText.posterImageUrl.zh : landingHeroSectionText.posterImageUrl.en}
         value={posterUrl}
         disabled={disabled}
         groupId={mediaGroupId}
@@ -155,7 +156,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
       />
       <TextInput
         focusKey="landing-hero-secondary-url"
-        label={auth.language === 'zh' ? '次要按钮链接地址' : 'Secondary button link URL'}
+        label={auth.language === 'zh' ? landingHeroSectionText.secondaryButtonLinkUrl.zh : landingHeroSectionText.secondaryButtonLinkUrl.en}
         value={secondaryUrl}
         disabled={disabled}
         onChange={(value) => updateContent({ secondaryLinkUrl: value, secondaryUrl: value, secondaryCtaUrl: value })}
@@ -178,7 +179,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
             className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${bottomFade ? 'bg-white text-[#176b5a] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             onClick={() => updateStyle({ bottomFade: true })}
           >
-            {auth.language === 'zh' ? '显示虚化' : 'Show blur'}
+            {auth.language === 'zh' ? landingHeroSectionText.showBlur.zh : landingHeroSectionText.showBlur.en}
           </button>
           <button
             type="button"
@@ -187,7 +188,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
             className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${!bottomFade ? 'bg-white text-[#176b5a] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             onClick={() => updateStyle({ bottomFade: false })}
           >
-            {auth.language === 'zh' ? '关闭虚化' : 'Hide blur'}
+            {auth.language === 'zh' ? landingHeroSectionText.hideBlur.zh : landingHeroSectionText.hideBlur.en}
           </button>
         </div>
       </div>
@@ -196,16 +197,16 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
         data-field-key="landing-hero-bottom-gradient"
       >
         <p className="text-sm font-bold text-slate-900">
-          {auth.language === 'zh' ? '底部过渡渐变' : 'Bottom transition gradient'}
+          {auth.language === 'zh' ? landingHeroSectionText.bottomTransitionGradient.zh : landingHeroSectionText.bottomTransitionGradient.en}
         </p>
         <p className="mt-1 text-xs leading-5 text-slate-600">
           {auth.language === 'zh'
-            ? '让首屏影像自然融入下一段页面，而不是在底部突然截断。'
-            : 'Blend the hero image naturally into the following section instead of ending abruptly.'}
+            ? landingHeroSectionText.blendTheHeroImageNaturallyIntoTheFollowingSection.zh
+            : landingHeroSectionText.blendTheHeroImageNaturallyIntoTheFollowingSection.en}
         </p>
         <div
           role="group"
-          aria-label={auth.language === 'zh' ? '底部过渡渐变' : 'Bottom transition gradient'}
+          aria-label={auth.language === 'zh' ? landingHeroSectionText.bottomTransitionGradient.zh : landingHeroSectionText.bottomTransitionGradient.en}
           className="mt-3 inline-flex rounded-lg bg-slate-200/70 p-1"
         >
           <button
@@ -215,7 +216,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
             className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${bottomGradient ? 'bg-white text-[#176b5a] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             onClick={() => updateStyle({ bottomGradient: true })}
           >
-            {auth.language === 'zh' ? '显示渐变' : 'Show gradient'}
+            {auth.language === 'zh' ? landingHeroSectionText.showGradient.zh : landingHeroSectionText.showGradient.en}
           </button>
           <button
             type="button"
@@ -224,7 +225,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
             className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${!bottomGradient ? 'bg-white text-[#176b5a] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             onClick={() => updateStyle({ bottomGradient: false })}
           >
-            {auth.language === 'zh' ? '关闭渐变' : 'Hide gradient'}
+            {auth.language === 'zh' ? landingHeroSectionText.hideGradient.zh : landingHeroSectionText.hideGradient.en}
           </button>
         </div>
       </div>
@@ -238,8 +239,8 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
   const compactPreview = previewDensity === 'compact' || editorPreview === true
   const showPrimaryAction = mode === 'edit' || Boolean(primaryUrl.trim())
   const showSecondaryAction = mode === 'edit' || Boolean(secondaryUrl.trim())
-  const heroKicker = auth.language === 'zh' ? '基督城 · 丰盛生命' : 'Christchurch · Abundant Life'
-  const exploreLabel = auth.language === 'zh' ? '继续探索' : 'Continue exploring'
+  const heroKicker = auth.language === 'zh' ? landingHeroSectionText.christchurchAbundantLife.zh : landingHeroSectionText.christchurchAbundantLife.en
+  const exploreLabel = auth.language === 'zh' ? landingHeroSectionText.continueExploring.zh : landingHeroSectionText.continueExploring.en
   const scrollToNextSection = () => {
     const nextSection = heroRef.current?.nextElementSibling
     if (!(nextSection instanceof HTMLElement)) return
@@ -269,7 +270,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
             as={headingLevel}
             multiline
             value={title}
-            fallback={auth.language === 'zh' ? '在这里写下页面最重要的邀请。' : 'Write the page’s most important invitation here.'}
+            fallback={auth.language === 'zh' ? landingHeroSectionText.writeThePageSMostImportantInvitationHere.zh : landingHeroSectionText.writeThePageSMostImportantInvitationHere.en}
             disabled={!editable}
             className="alife-landing-hero__title whitespace-pre-line"
             onChange={updateHeroTitle}
@@ -289,7 +290,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
             {showPrimaryAction ? renderLink({
               label: primaryLabel,
               url: primaryUrl,
-              fallback: auth.language === 'zh' ? '计划来访' : 'Plan a Visit',
+              fallback: auth.language === 'zh' ? landingHeroSectionText.planAVisit.zh : landingHeroSectionText.planAVisit.en,
               className: 'inline-flex min-h-12 items-center gap-2 rounded-full bg-[#f4e4bf] px-6 py-3 text-sm font-semibold text-home-dark shadow-[0_12px_32px_rgba(0,0,0,0.16)] transition duration-300 hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
               icon: 'arrow',
               onLabelChange: (value) => updateLocalizedContent({ linkLabel: value, linkText: value, ctaLabel: value }),
@@ -297,7 +298,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
             {showSecondaryAction ? renderLink({
               label: secondaryLabel,
               url: secondaryUrl,
-              fallback: auth.language === 'zh' ? '观看主日信息' : 'Watch Sermon',
+              fallback: auth.language === 'zh' ? landingHeroSectionText.watchSermon.zh : landingHeroSectionText.watchSermon.en,
               className: 'inline-flex min-h-12 items-center gap-2 rounded-full border border-white/30 bg-black/10 px-6 py-3 text-sm font-semibold text-white/82 backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-white/55 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
               icon: 'play',
               onLabelChange: (value) => updateLocalizedContent({ secondaryLinkLabel: value, secondaryLabel: value, secondaryCtaLabel: value }),

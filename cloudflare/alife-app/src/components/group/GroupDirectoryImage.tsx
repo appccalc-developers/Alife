@@ -1,3 +1,4 @@
+import { groupDirectoryImageText } from '../../i18n/groupDirectoryImage.ts'
 import { useQuery } from '@tanstack/react-query'
 import { groupService } from '../../services/groupService'
 import { pageService } from '../../services/pageService'
@@ -21,7 +22,7 @@ const GroupDirectoryImage = ({ groupId, groupName }: { groupId: string; groupNam
   })
 
   return <img src={query.data || fallbackImage}
-    alt={auth.language === 'zh' ? `${groupName}展示图片` : `${groupName} display picture`}
+    alt={auth.language === 'zh' ? groupDirectoryImageText.displayPicture.zh(groupName) : groupDirectoryImageText.displayPicture.en(groupName)}
     width={224} height={144} loading="lazy"
     className="h-36 w-56 max-w-full shrink-0 rounded-xl bg-[#e3f0eb] object-cover"
     onError={event => {

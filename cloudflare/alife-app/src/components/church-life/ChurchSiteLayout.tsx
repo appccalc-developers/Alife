@@ -1,3 +1,4 @@
+import { churchSiteLayoutText } from '../../i18n/churchSiteLayout.ts'
 import { createContext, useContext, useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useSearchParams } from 'react-router-dom'
@@ -37,17 +38,17 @@ const ChurchSiteLayout = ({ children }: { children: ReactNode }) => {
     || /^\/church\/groups\/[^/]+\/albums(?:\/[^/]+)?$/.test(location.pathname)
     || /^\/church\/forum\/posts\/[^/]+$/.test(location.pathname)
   const sidebarPageLabel = section === 'sermons'
-    ? (auth.language === 'zh' ? '主日证道' : 'Sunday Sermons')
-    : (auth.language === 'zh' ? '主日周报' : 'Sunday Bulletins')
+    ? (auth.language === 'zh' ? churchSiteLayoutText.sundaySermons.zh : churchSiteLayoutText.sundaySermons.en)
+    : (auth.language === 'zh' ? churchSiteLayoutText.sundayBulletins.zh : churchSiteLayoutText.sundayBulletins.en)
   const filterable = location.pathname === '/church' || location.pathname === '/church/albums' || location.pathname === '/church/forum'
-  const title = localizeText(churchQuery.data?.name, auth.language) || (auth.language === 'zh' ? '教会生活' : 'Church Life')
+  const title = localizeText(churchQuery.data?.name, auth.language) || (auth.language === 'zh' ? churchSiteLayoutText.churchLife.zh : churchSiteLayoutText.churchLife.en)
 
   return (
     <ChurchSiteGroupsContext.Provider value={setGroups}>
       <div className="mx-auto w-full max-w-6xl space-y-5 desktop:space-y-6">
         {!isDetailPage ? <AppPageTitleBar
           title={title}
-          context={auth.language === 'zh' ? '教会生活' : 'Church Life'}
+          context={auth.language === 'zh' ? churchSiteLayoutText.churchLife.zh : churchSiteLayoutText.churchLife.en}
           subtitle={churchSiteDescription(section, auth.language)}
           showSubtitleOnMobile
           status={churchQuery.data ? <AccessTypeBadge accessType={churchQuery.data.accessType} showProtected /> : undefined}
@@ -60,7 +61,7 @@ const ChurchSiteLayout = ({ children }: { children: ReactNode }) => {
           /> : undefined}
           navigation={<ChurchSiteNavigation />}
         /> : null}
-        <div id="church-site-panel" role={isSidebarPage || isDetailPage ? 'region' : 'tabpanel'} aria-labelledby={section && !isSidebarPage && !isDetailPage ? `church-site-tab-${section}` : undefined} aria-label={isDetailPage ? (auth.language === 'zh' ? '教会内容详情' : 'Church content detail') : isSidebarPage ? sidebarPageLabel : undefined} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]">
+        <div id="church-site-panel" role={isSidebarPage || isDetailPage ? 'region' : 'tabpanel'} aria-labelledby={section && !isSidebarPage && !isDetailPage ? `church-site-tab-${section}` : undefined} aria-label={isDetailPage ? (auth.language === 'zh' ? churchSiteLayoutText.churchContentDetail.zh : churchSiteLayoutText.churchContentDetail.en) : isSidebarPage ? sidebarPageLabel : undefined} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]">
           <AppStableTabBody>{children}</AppStableTabBody>
         </div>
       </div>

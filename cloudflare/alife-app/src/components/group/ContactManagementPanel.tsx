@@ -1,3 +1,4 @@
+import { contactManagementPanelText } from '../../i18n/contactManagementPanel.ts'
 import { useCallback, useEffect, useState } from 'react'
 import { Mail, Pencil, Phone, Plus, Trash2, UserRound, X } from 'lucide-react'
 import type { GroupMemberToolRow } from '../../hooks/useGroupScreen'
@@ -107,7 +108,7 @@ const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) 
 
   const save = async () => {
     if (!form.memberId || (!form.name.en?.trim() && !form.name.zh?.trim()) || (!form.role.en?.trim() && !form.role.zh?.trim())) {
-      setError(zh ? '请选择成员，并填写姓名和角色。' : 'Choose a member and enter a name and role.')
+      setError(zh ? contactManagementPanelText.chooseAMemberAndEnterANameAndRole.zh : contactManagementPanelText.chooseAMemberAndEnterANameAndRole.en)
       return
     }
     setSaving(true)
@@ -127,9 +128,9 @@ const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) 
   const remove = async (contact: ContactProfileDto) => {
     const name = localizeText(contact.name, language)
     if (!await requestConfirmation({
-      title: zh ? '要删除联系人吗？' : 'Delete contact?',
-      description: zh ? `联系人“${name}”会从这个小组中删除。` : `“${name}” will be removed from this group’s contacts.`,
-      confirmLabel: zh ? '删除联系人' : 'Delete contact',
+      title: zh ? contactManagementPanelText.deleteContact.zh : contactManagementPanelText.deleteContact.en,
+      description: zh ? contactManagementPanelText.willBeRemovedFromThisGroupSContacts.zh(name) : contactManagementPanelText.willBeRemovedFromThisGroupSContacts.en(name),
+      confirmLabel: zh ? contactManagementPanelText.deleteContactLabel.zh : contactManagementPanelText.deleteContactLabel.en,
       tone: 'danger',
     })) return
     try {
@@ -154,40 +155,40 @@ const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) 
     <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h3 className="font-black text-[#18332d]">{editing ? (zh ? '编辑联系人' : 'Edit contact') : (zh ? '新增联系人' : 'Add contact')}</h3>
-          <p className="mt-1 text-xs text-slate-500">{zh ? '联系人表单与列表保留在同一个管理面板中。' : 'The contact form stays inside the management panel with the list.'}</p>
+          <h3 className="font-black text-[#18332d]">{editing ? (zh ? contactManagementPanelText.editContact.zh : contactManagementPanelText.editContact.en) : (zh ? contactManagementPanelText.addContact.zh : contactManagementPanelText.addContact.en)}</h3>
+          <p className="mt-1 text-xs text-slate-500">{zh ? contactManagementPanelText.theContactFormStaysInsideTheManagementPanelWith.zh : contactManagementPanelText.theContactFormStaysInsideTheManagementPanelWith.en}</p>
         </div>
-        <button type="button" className="rounded-lg p-1.5 text-slate-500 hover:bg-white hover:text-slate-800" onClick={() => setShowForm(false)} aria-label={zh ? '取消' : 'Cancel'}><X className="h-5 w-5" /></button>
+        <button type="button" className="rounded-lg p-1.5 text-slate-500 hover:bg-white hover:text-slate-800" onClick={() => setShowForm(false)} aria-label={zh ? contactManagementPanelText.cancel.zh : contactManagementPanelText.cancel.en}><X className="h-5 w-5" /></button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <label className="md:col-span-2 text-sm font-medium">{zh ? '关联成员' : 'Member'}<select className={inputClass} value={form.memberId} onChange={(e) => setForm({ ...form, memberId: e.target.value })}><option value="">{zh ? '请选择' : 'Choose member'}</option>{approvedMembers.map((member) => <option key={member.memberId} value={member.memberId}>{member.displayName || member.memberId.slice(0, 8)}</option>)}</select></label>
+        <label className="md:col-span-2 text-sm font-medium">{zh ? contactManagementPanelText.member.zh : contactManagementPanelText.member.en}<select className={inputClass} value={form.memberId} onChange={(e) => setForm({ ...form, memberId: e.target.value })}><option value="">{zh ? contactManagementPanelText.chooseMember.zh : contactManagementPanelText.chooseMember.en}</option>{approvedMembers.map((member) => <option key={member.memberId} value={member.memberId}>{member.displayName || member.memberId.slice(0, 8)}</option>)}</select></label>
 
         <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white/80 p-4">
           <div className="grid items-start gap-4 sm:grid-cols-[9rem_minmax(0,1fr)]">
             <ContactPhotoPreview
               url={form.photoUrl}
-              label={zh ? '照片无法预览' : 'Photo preview unavailable'}
-              emptyLabel={zh ? '选择照片后在此预览' : 'Photo preview appears here'}
+              label={zh ? contactManagementPanelText.photoPreviewUnavailable.zh : contactManagementPanelText.photoPreviewUnavailable.en}
+              emptyLabel={zh ? contactManagementPanelText.photoPreviewAppearsHere.zh : contactManagementPanelText.photoPreviewAppearsHere.en}
             />
             <div className="min-w-0">
-              <MediaPickerInput focusKey="contact-photo" label={zh ? '照片' : 'Photo'} value={form.photoUrl ?? ''} groupId={groupId} accept="image" onChange={(value) => setForm({ ...form, photoUrl: value })} />
+              <MediaPickerInput focusKey="contact-photo" label={zh ? contactManagementPanelText.photo.zh : contactManagementPanelText.photo.en} value={form.photoUrl ?? ''} groupId={groupId} accept="image" onChange={(value) => setForm({ ...form, photoUrl: value })} />
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                {zh ? '可从小组或公共媒体库选择，也可以上传新照片。Public 联系人请使用公共图片。' : 'Choose from group or public media, or upload a new photo. Use a public image for Public contacts.'}
+                {zh ? contactManagementPanelText.chooseFromGroupOrPublicMediaOrUploadA.zh : contactManagementPanelText.chooseFromGroupOrPublicMediaOrUploadA.en}
               </p>
-              {form.photoUrl ? <button type="button" className="mt-2 text-xs font-bold text-rose-600 hover:text-rose-700" onClick={() => setForm({ ...form, photoUrl: '' })}>{zh ? '移除照片' : 'Remove photo'}</button> : null}
+              {form.photoUrl ? <button type="button" className="mt-2 text-xs font-bold text-rose-600 hover:text-rose-700" onClick={() => setForm({ ...form, photoUrl: '' })}>{zh ? contactManagementPanelText.removePhoto.zh : contactManagementPanelText.removePhoto.en}</button> : null}
             </div>
           </div>
         </div>
 
         <label className="text-sm font-medium">Name (English)<input className={inputClass} value={form.name.en ?? ''} onChange={(e) => updateLocalized('name', 'en', e.target.value)} /></label>
-        <label className="text-sm font-medium">姓名（中文）<input className={inputClass} value={form.name.zh ?? ''} onChange={(e) => updateLocalized('name', 'zh', e.target.value)} /></label>
+        <label className="text-sm font-medium">{contactManagementPanelText.label}<input className={inputClass} value={form.name.zh ?? ''} onChange={(e) => updateLocalized('name', 'zh', e.target.value)} /></label>
         <label className="text-sm font-medium">Role (English)<input className={inputClass} value={form.role.en ?? ''} onChange={(e) => updateLocalized('role', 'en', e.target.value)} /></label>
-        <label className="text-sm font-medium">角色（中文）<input className={inputClass} value={form.role.zh ?? ''} onChange={(e) => updateLocalized('role', 'zh', e.target.value)} /></label>
-        <label className="text-sm font-medium">{zh ? '电话' : 'Phone'}<input className={inputClass} value={form.phone ?? ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+        <label className="text-sm font-medium">{contactManagementPanelText.label2}<input className={inputClass} value={form.role.zh ?? ''} onChange={(e) => updateLocalized('role', 'zh', e.target.value)} /></label>
+        <label className="text-sm font-medium">{zh ? contactManagementPanelText.phone.zh : contactManagementPanelText.phone.en}<input className={inputClass} value={form.phone ?? ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
         <label className="text-sm font-medium">Email<input type="email" className={inputClass} value={form.email ?? ''} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
         <label className="text-sm font-medium">Notes (English)<textarea rows={3} className={inputClass} value={form.notes?.en ?? ''} onChange={(e) => updateLocalized('notes', 'en', e.target.value)} /></label>
-        <label className="text-sm font-medium">备注（中文）<textarea rows={3} className={inputClass} value={form.notes?.zh ?? ''} onChange={(e) => updateLocalized('notes', 'zh', e.target.value)} /></label>
+        <label className="text-sm font-medium">{contactManagementPanelText.label3}<textarea rows={3} className={inputClass} value={form.notes?.zh ?? ''} onChange={(e) => updateLocalized('notes', 'zh', e.target.value)} /></label>
         <AiLanguageAutofill
           key={editing?.id ?? 'new-contact'}
           className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 md:col-span-2"
@@ -208,12 +209,12 @@ const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) 
             })
           }}
         />
-        <label className="md:col-span-2 text-sm font-medium">{zh ? '可见范围' : 'Visibility'}<select className={inputClass} value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value as ContactProfileInput['visibility'] })}><option value="groupOnly">GroupOnly</option><option value="public">Public</option></select></label>
+        <label className="md:col-span-2 text-sm font-medium">{zh ? contactManagementPanelText.visibility.zh : contactManagementPanelText.visibility.en}<select className={inputClass} value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value as ContactProfileInput['visibility'] })}><option value="groupOnly">GroupOnly</option><option value="public">Public</option></select></label>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <AppActionButton variant="primary" disabled={saving} onClick={() => save().catch(() => undefined)}>{saving ? (zh ? '保存中…' : 'Saving…') : (zh ? '保存' : 'Save')}</AppActionButton>
-        <AppActionButton variant="secondary" onClick={() => setShowForm(false)}>{zh ? '取消' : 'Cancel'}</AppActionButton>
+        <AppActionButton variant="primary" disabled={saving} onClick={() => save().catch(() => undefined)}>{saving ? (zh ? contactManagementPanelText.saving.zh : contactManagementPanelText.saving.en) : (zh ? contactManagementPanelText.save.zh : contactManagementPanelText.save.en)}</AppActionButton>
+        <AppActionButton variant="secondary" onClick={() => setShowForm(false)}>{zh ? contactManagementPanelText.cancel.zh : contactManagementPanelText.cancel.en}</AppActionButton>
       </div>
     </div>
   )
@@ -222,17 +223,17 @@ const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) 
     <section>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-[#2f4b42]/10 pb-4">
         <div>
-          <h2 className="text-lg font-black text-[#18332d]">{zh ? '联系人' : 'Contacts'}</h2>
-          <p className="mt-1 text-sm text-[#66766f]">{zh ? '维护可用于页面展示、活动和留言的联系人资料。' : 'Manage contact profiles used by pages, events, and inquiries.'}</p>
+          <h2 className="text-lg font-black text-[#18332d]">{zh ? contactManagementPanelText.contacts.zh : contactManagementPanelText.contacts.en}</h2>
+          <p className="mt-1 text-sm text-[#66766f]">{zh ? contactManagementPanelText.manageContactProfilesUsedByPagesEventsAndInquiries.zh : contactManagementPanelText.manageContactProfilesUsedByPagesEventsAndInquiries.en}</p>
         </div>
-        <AppActionButton variant="primary" onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />{zh ? '新增联系人' : 'Add contact'}</AppActionButton>
+        <AppActionButton variant="primary" onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />{zh ? contactManagementPanelText.addContact.zh : contactManagementPanelText.addContact.en}</AppActionButton>
       </div>
 
       {error ? <p className="mb-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
       {showForm ? renderForm() : null}
-      {loading ? <p className="text-sm text-slate-500">{zh ? '正在加载联系人…' : 'Loading contacts…'}</p> : null}
+      {loading ? <p className="text-sm text-slate-500">{zh ? contactManagementPanelText.loadingContacts.zh : contactManagementPanelText.loadingContacts.en}</p> : null}
       {!loading && contacts.length === 0 ? (
-        <AppEmptyState title={zh ? '还没有联系人' : 'No contacts yet'} description={zh ? '从已批准成员中创建第一个联系人。' : 'Create the first contact from an approved member.'} actionLabel={zh ? '新增联系人' : 'Add contact'} onAction={openCreate} />
+        <AppEmptyState title={zh ? contactManagementPanelText.noContactsYet.zh : contactManagementPanelText.noContactsYet.en} description={zh ? contactManagementPanelText.createTheFirstContactFromAnApprovedMember.zh : contactManagementPanelText.createTheFirstContactFromAnApprovedMember.en} actionLabel={zh ? contactManagementPanelText.addContact.zh : contactManagementPanelText.addContact.en} onAction={openCreate} />
       ) : null}
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -246,7 +247,7 @@ const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) 
               </div>
               {contact.phone ? <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-600"><Phone className="h-3.5 w-3.5" />{contact.phone}</p> : null}
               {contact.email ? <p className="mt-1 flex items-center gap-1.5 break-all text-xs text-slate-600"><Mail className="h-3.5 w-3.5" />{contact.email}</p> : null}
-              <div className="mt-3 flex gap-2"><AppActionButton size="sm" variant="secondary" onClick={() => openEdit(contact)}><Pencil className="mr-1 h-3.5 w-3.5" />{zh ? '编辑' : 'Edit'}</AppActionButton><AppActionButton size="sm" variant="danger" onClick={() => remove(contact)}><Trash2 className="mr-1 h-3.5 w-3.5" />{zh ? '删除' : 'Delete'}</AppActionButton></div>
+              <div className="mt-3 flex gap-2"><AppActionButton size="sm" variant="secondary" onClick={() => openEdit(contact)}><Pencil className="mr-1 h-3.5 w-3.5" />{zh ? contactManagementPanelText.edit.zh : contactManagementPanelText.edit.en}</AppActionButton><AppActionButton size="sm" variant="danger" onClick={() => remove(contact)}><Trash2 className="mr-1 h-3.5 w-3.5" />{zh ? contactManagementPanelText.delete.zh : contactManagementPanelText.delete.en}</AppActionButton></div>
             </div>
           </article>
         ))}

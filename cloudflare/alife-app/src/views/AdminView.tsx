@@ -1,3 +1,4 @@
+import { adminViewText } from '../i18n/adminView.ts'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight, Loader2, RefreshCw } from 'lucide-react'
@@ -35,210 +36,7 @@ type MessageTranslationDirection = 'zh-en' | 'en-zh'
 type LocalText = { en: string; zh: string }
 type LabelFn = (key: string, values?: Record<string, string | number>) => string
 
-const labels: Record<string, LocalText> = {
-  overview: { en: 'System Management', zh: '系统管理' },
-  users: { en: 'Member management', zh: '成员管理' },
-  roles: { en: 'Role management', zh: '角色管理' },
-  logs: { en: 'Operation logs', zh: '操作日志' },
-  messages: { en: 'Notices', zh: '通知管理' },
-  visitRequests: { en: 'Visitor care', zh: '访客接待' },
-  files: { en: 'Platform files', zh: '平台文件管理' },
-  usersDescription: { en: 'Manage church membership, account state, management roles, and group participation.', zh: '集中管理教会成员资格、账号状态、管理角色和所在小组。' },
-  rolesDescription: { en: 'Create roles, delete unused custom roles, and control which features each role can use.', zh: '创建角色、删除未使用的自定义角色，并控制每个角色可用的功能。' },
-  logsDescription: { en: 'Review platform-level administrative actions.', zh: '查看平台级管理操作记录。' },
-  messagesDescription: { en: 'Send notices to members and check whether they were read or replied to.', zh: '向成员发送通知，并查看是否已读或已回复。' },
-  visitRequestsDescription: { en: 'Review visit interest from the public home page and track follow-up status.', zh: '查看首页收集的参观联系请求，并跟踪接待跟进状态。' },
-  filesDescription: { en: 'Review registered uploads across the platform by visibility, purpose, and related record.', zh: '按可见范围、用途和关联对象查看全平台已登记上传文件。' },
-  memberVisitorCareLink: { en: 'Open visitor care records', zh: '查看访客接待记录' },
-  sermonsDescription: { en: 'Run a manual sync from connected sermon sources.', zh: '从已连接来源手动同步讲道。' },
-  homeDescription: { en: 'Review group page submissions before they become public.', zh: '审核小组提交的页面，确认后再对外发布。' },
-  createDefaultHome: { en: 'Review submitted pages', zh: '审核提交页面' },
-  refresh: { en: 'Refresh', zh: '刷新' },
-  apply: { en: 'Apply', zh: '筛选' },
-  reset: { en: 'Reset', zh: '重置' },
-  search: { en: 'Search', zh: '搜索' },
-  allRoles: { en: 'All roles', zh: '全部角色' },
-  allStatus: { en: 'All status', zh: '全部状态' },
-  allRegistration: { en: 'All registration', zh: '全部注册状态' },
-  registeredOnly: { en: 'Registered only', zh: '仅已注册' },
-  guestsOnly: { en: 'Guests only', zh: '仅访客' },
-  sync: { en: 'Sync sermons', zh: '同步讲道' },
-  syncing: { en: 'Syncing...', zh: '同步中...' },
-  loading: { en: 'Loading...', zh: '加载中...' },
-  refreshed: { en: 'Admin data refreshed.', zh: '管理数据已刷新。' },
-  roleUpdated: { en: 'Platform role updated.', zh: '平台角色已更新。' },
-  memberUpdated: { en: 'Member profile updated.', zh: '成员资料已更新。' },
-  membershipUpdated: { en: 'Church membership updated.', zh: '教会成员资格已更新。' },
-  rolePermissionsUpdated: { en: 'Role permissions updated.', zh: '角色权限已更新。' },
-  roleCreated: { en: 'Role created.', zh: '角色已创建。' },
-  roleDeleted: { en: 'Role deleted.', zh: '角色已删除。' },
-  messageSent: { en: 'Message sent to {count} recipient(s).', zh: '消息已发送给 {count} 位接收人。' },
-  visitRequestUpdated: { en: 'Visitor request updated.', zh: '访客接待状态已更新。' },
-  actionSucceeded: { en: 'Action completed', zh: '操作已完成' },
-  actionFailed: { en: 'Action failed', zh: '操作失败' },
-  loadFailed: { en: 'Unable to load admin data.', zh: '无法加载管理数据。' },
-  networkHint: { en: 'The API did not respond. Check that the backend host and Vite proxy are running.', zh: 'API 没有响应，请确认后端服务和 Vite 代理正在运行。' },
-  roleUpdateFailed: { en: 'Unable to update this role.', zh: '无法更新这个角色。' },
-  memberUpdateFailed: { en: 'Unable to update this member.', zh: '无法更新该成员资料。' },
-  membershipUpdateFailed: { en: 'Unable to update church membership.', zh: '无法更新教会成员资格。' },
-  rolePermissionsUpdateFailed: { en: 'Unable to update role permissions.', zh: '无法更新角色权限。' },
-  roleCreateFailed: { en: 'Unable to create this role.', zh: '无法创建这个角色。' },
-  roleDeleteFailed: { en: 'Unable to delete this role.', zh: '无法删除这个角色。' },
-  sendFailed: { en: 'Unable to send this message.', zh: '无法发送这条消息。' },
-  visitRequestUpdateFailed: { en: 'Unable to update this visitor request.', zh: '无法更新这条访客接待请求。' },
-  superAdminOnly: { en: 'Only a super admin can change platform roles.', zh: '只有超级管理员可以修改平台角色。' },
-  rolePermissions: { en: 'Role permissions', zh: '角色功能权限' },
-  rolePermissionsDescription: { en: 'Choose which admin workspace features each platform role can use.', zh: '选择每个后台角色可以使用的功能。' },
-  expandRolePermissions: { en: 'Expand role permissions summary', zh: '展开角色功能权限概览' },
-  collapseRolePermissions: { en: 'Collapse role permissions summary', zh: '收起角色功能权限概览' },
-  superAdminAlwaysAll: { en: 'System Admin always has every permission.', zh: '系统管理员始终拥有全部权限。' },
-  superAdminHidden: { en: 'System Admin is hidden here because it is immutable and always has full access.', zh: '超级管理员在此处隐藏，因为它不可修改且始终拥有全部权限。' },
-  roleCatalog: { en: 'Managed roles', zh: '可管理角色' },
-  roleCatalogDescription: { en: 'Tune permissions for visible roles. System Admin is protected outside this list.', zh: '调整可见角色的权限。超级管理员在列表外受到保护。' },
-  customRole: { en: 'Custom role', zh: '自定义角色' },
-  enabledPermissions: { en: 'Enabled permissions', zh: '已启用权限' },
-  managedRoleCount: { en: 'Managed roles', zh: '可管理角色' },
-  roleList: { en: 'Role list', zh: '角色列表' },
-  roleListDescription: { en: 'Search and select one role to edit. This layout stays usable when the role list grows.', zh: '搜索并选择一个角色进行编辑。角色变多时，这个布局仍然容易使用。' },
-  searchRoles: { en: 'Search roles', zh: '搜索角色' },
-  permissionModelHint: { en: 'These are platform-wide permissions. Church and group workspace management is controlled separately by leader and co-leader roles.', zh: '这里列出的是平台级权限。教会和小组工作区的管理权限由负责人和协同负责人角色单独控制。' },
-  selectedRole: { en: 'Selected role', zh: '当前角色' },
-  noRolesMatch: { en: 'No roles match this search.', zh: '没有匹配的角色。' },
-  newRole: { en: 'New role', zh: '新角色' },
-  roleCode: { en: 'Role code', zh: '角色代码' },
-  roleCodeHint: { en: 'Use lowercase letters, numbers, dots, underscores, or hyphens.', zh: '使用小写字母、数字、点、下划线或短横线。' },
-  roleCodeRequired: { en: 'Role code is required.', zh: '请填写角色代码。' },
-  roleCodeFormatError: { en: 'Start with a letter. Use 2-50 lowercase letters, numbers, dots, underscores, or hyphens.', zh: '必须以字母开头，2-50 个字符，仅可使用小写字母、数字、点、下划线或短横线。' },
-  roleCodeReserved: { en: 'This is a built-in role code. Choose a custom code.', zh: '这是内置角色代码，请换一个自定义代码。' },
-  roleCodeDuplicate: { en: 'This role code already exists.', zh: '这个角色代码已存在。' },
-  roleCodeValid: { en: 'Looks good. Example style: event.manager or sermon_editor.', zh: '格式正确。示例：event.manager 或 sermon_editor。' },
-  roleNamesRequired: { en: 'English and Chinese role names are required.', zh: '英文和中文名称都需要填写。' },
-  roleNameEn: { en: 'English name', zh: '英文名称' },
-  roleNameZh: { en: 'Chinese name', zh: '中文名称' },
-  createRole: { en: 'Create role', zh: '创建角色' },
-  addRole: { en: 'Add role', zh: '添加角色' },
-  cancel: { en: 'Cancel', zh: '取消' },
-  closeDialog: { en: 'Close dialog', zh: '关闭弹窗' },
-  initialPermissions: { en: 'Initial permissions', zh: '初始权限' },
-  deleteRole: { en: 'Delete role', zh: '删除角色' },
-  assignedMembers: { en: 'Assigned members', zh: '已分配成员' },
-  builtInRole: { en: 'Built-in role', zh: '内置角色' },
-  member: { en: 'Member', zh: '成员' },
-  accountDetails: { en: 'Account details', zh: '账号详情' },
-  editMember: { en: 'Edit member', zh: '修改资料' },
-  editMemberDescription: { en: 'Update this member’s basic account information.', zh: '修改该成员的基本账号资料。' },
-  displayName: { en: 'Display name', zh: '显示名称' },
-  email: { en: 'Email', zh: '邮箱' },
-  phone: { en: 'Phone', zh: '手机号' },
-  phoneE164Hint: { en: 'Choose a region and enter the local number. A leading zero is accepted.', zh: '选择地区后输入本地号码，可以保留开头的 0。' },
-  saveChanges: { en: 'Save changes', zh: '保存修改' },
-  saving: { en: 'Saving...', zh: '保存中...' },
-  createdAt: { en: 'Created at', zh: '创建时间' },
-  updatedAt: { en: 'Last updated', zh: '最后更新' },
-  roleAssignment: { en: 'Role assignment', zh: '角色分配' },
-  selectMemberHint: { en: 'Select a member from the directory to manage roles.', zh: '从成员目录中选择一位成员来管理角色。' },
-  contact: { en: 'Contact', zh: '联系方式' },
-  registration: { en: 'Registration', zh: '注册' },
-  groups: { en: 'Groups', zh: '小组' },
-  role: { en: 'Role', zh: '角色' },
-  registered: { en: 'Registered', zh: '已注册' },
-  guest: { en: 'Guest', zh: '访客' },
-  you: { en: 'You', zh: '你' },
-  cannotAssignSuperAdmin: { en: 'System Admin cannot be assigned from this screen. You can assign Admin instead.', zh: '不能在这里把其他人设为超级管理员，可以任命为管理员。' },
-  cannotChangeOwnRole: { en: 'You cannot change your own platform role here.', zh: '不能在这里修改自己的平台角色。' },
-  approved: { en: 'approved', zh: '已批准' },
-  pending: { en: 'pending', zh: '待审核' },
-  action: { en: 'Action', zh: '操作' },
-  summary: { en: 'Summary', zh: '摘要' },
-  context: { en: 'Context', zh: '上下文' },
-  details: { en: 'Details', zh: '详情' },
-  before: { en: 'Before', zh: '变更前' },
-  after: { en: 'After', zh: '变更后' },
-  metadata: { en: 'Metadata', zh: '元数据' },
-  technicalIds: { en: 'Technical IDs', zh: '技术 ID' },
-  actor: { en: 'Actor', zh: '操作者' },
-  target: { en: 'Target', zh: '对象' },
-  entityType: { en: 'Entity type', zh: '对象类型' },
-  fromDate: { en: 'From date', zh: '开始日期' },
-  toDate: { en: 'To date', zh: '结束日期' },
-  time: { en: 'Time', zh: '时间' },
-  recipient: { en: 'Recipient', zh: '接收人' },
-  sender: { en: 'Sender', zh: '发送人' },
-  status: { en: 'Status', zh: '状态' },
-  unread: { en: 'Unread', zh: '未读' },
-  read: { en: 'Read', zh: '已读' },
-  replied: { en: 'Replied', zh: '已回复' },
-  noMembers: { en: 'No members found.', zh: '没有找到成员。' },
-  noLogs: { en: 'No operation logs found.', zh: '没有找到操作日志。' },
-  noMessages: { en: 'No messages found.', zh: '没有找到消息。' },
-  noVisitRequests: { en: 'No visitor contact requests found.', zh: '没有找到访客联系请求。' },
-  messageComposer: { en: 'New notice', zh: '新建通知' },
-  messageAudience: { en: 'Who should receive it?', zh: '发给谁？' },
-  messageScope: { en: 'Send to', zh: '发送范围' },
-  messageContent: { en: 'What should they see?', zh: '通知内容' },
-  chooseGroup: { en: 'Choose group', zh: '选择小组' },
-  chooseRecipient: { en: 'Choose recipient', zh: '选择成员' },
-  chineseNotice: { en: 'Chinese notice', zh: '中文通知' },
-  englishNotice: { en: 'English translation', zh: '英文翻译' },
-  englishNoticeHint: { en: 'Optional, but useful for bilingual members.', zh: '可选；建议给双语成员保留英文版本。' },
-  aiTranslate: { en: 'AI translate', zh: 'AI 翻译' },
-  translateZhToEn: { en: 'Chinese to English', zh: '中译英' },
-  translateEnToZh: { en: 'English to Chinese', zh: '英译中' },
-  translating: { en: 'Translating...', zh: '翻译中...' },
-  aiTranslationReviewHint: { en: 'AI will fill the other language as a draft. Please review before sending.', zh: 'AI 会把另一种语言补成草稿，发送前请人工确认。' },
-  aiTranslationNeedsSource: { en: 'Please write a title or body in the source language first.', zh: '请先填写来源语言的标题或正文。' },
-  aiTranslationComplete: { en: 'AI translation added. Please review it before sending.', zh: 'AI 翻译已填入，请确认后再发送。' },
-  aiTranslationFailed: { en: 'AI translation failed. Please try again or fill it manually.', zh: 'AI 翻译失败，请重试或手动填写。' },
-  messageHistory: { en: 'Sent notification records', zh: '已发送通知记录' },
-  messagePreview: { en: 'Preview', zh: '预览' },
-  actionType: { en: 'System tag', zh: '系统标签' },
-  actionTypeHint: { en: 'For system routing and audit records. Leave as platform.message for a normal notice.', zh: '用于系统路由和审计记录。普通通知保持 platform.message 即可。' },
-  advancedFields: { en: 'System options', zh: '系统选项' },
-  relatedContext: { en: 'Related group/event', zh: '关联小组/活动' },
-  sentAt: { en: 'Sent', zh: '发送时间' },
-  readAt: { en: 'Read at', zh: '读取时间' },
-  repliedAt: { en: 'Replied at', zh: '回复时间' },
-  notReadYet: { en: 'Not read yet', zh: '尚未读取' },
-  noReplyYet: { en: 'No reply yet', zh: '尚未回复' },
-  messagePayload: { en: 'Message payload', zh: '消息数据' },
-  responsePayload: { en: 'Response payload', zh: '回复数据' },
-  previous: { en: 'Previous', zh: '上一页' },
-  next: { en: 'Next', zh: '下一页' },
-  page: { en: 'Page', zh: '页' },
-  pageSize: { en: 'Per page', zh: '每页' },
-  total: { en: 'Total', zh: '总数' },
-  sendMessage: { en: 'Send notice', zh: '发送通知' },
-  platform: { en: 'Whole platform', zh: '全平台' },
-  group: { en: 'Group', zh: '小组' },
-  platformRoleAudience: { en: 'Role', zh: '角色' },
-  chooseRoles: { en: 'Choose roles', zh: '选择角色' },
-  singleMember: { en: 'Single user', zh: '单个用户' },
-  titleEn: { en: 'English title', zh: '英文标题' },
-  titleZh: { en: 'Chinese title', zh: '中文标题' },
-  bodyEn: { en: 'English body', zh: '英文正文' },
-  bodyZh: { en: 'Chinese body', zh: '中文正文' },
-  unknown: { en: 'Unknown', zh: '未知' },
-  registeredUsers: { en: 'Registered users', zh: '已注册用户' },
-  guestUsers: { en: 'Guest records', zh: '访客记录' },
-  latestActivity: { en: 'Latest activity', zh: '最近动态' },
-  quickOps: { en: 'Workspace actions', zh: '工作区操作' },
-  platformQueue: { en: 'Platform task queue', zh: '平台待办队列' },
-  platformQueueDescription: { en: 'Start with actions that affect access, communication, and public content.', zh: '优先处理影响访问、沟通和公共内容的事项。' },
-  guestReviewTask: { en: 'Review guest records', zh: '查看访客记录' },
-  guestReviewHint: { en: 'Confirm whether guest records should become registered accounts.', zh: '确认访客记录是否需要转为注册账号。' },
-  unreadMessagesTask: { en: 'Follow up unread messages', zh: '跟进未读消息' },
-  unreadMessagesHint: { en: 'Messages may need pastoral or admin response.', zh: '消息可能需要牧养或管理回应。' },
-  noPlatformTasks: { en: 'No urgent platform tasks right now.', zh: '当前没有紧急平台待办。' },
-  visitorName: { en: 'Visitor', zh: '访客' },
-  submittedAt: { en: 'Submitted', zh: '提交时间' },
-  sourcePage: { en: 'Source page', zh: '来源页面' },
-  handledBy: { en: 'Handled by', zh: '处理人' },
-  contactAgain: { en: 'Mark follow-up', zh: '标记待跟进' },
-  markContacted: { en: 'Mark contacted', zh: '标记已联系' },
-  newVisitRequest: { en: 'New request', zh: '新请求' },
-  followUp: { en: 'Follow-up', zh: '待跟进' },
-  contacted: { en: 'Contacted', zh: '已联系' },
-} satisfies Record<string, LocalText>
+const labels: Record<string, LocalText> = adminViewText.labels satisfies Record<string, LocalText>
 
 const emptyPage = <T,>(pageSize = 25): AdminPagedResultDto<T> => ({ items: [], totalCount: 0, page: 1, pageSize, totalPages: 0 })
 const overviewActivityPageSize = 50
@@ -312,24 +110,24 @@ const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) =
     recipientMemberId: '',
     roleCodes: [] as string[],
     actionType: 'platform.message',
-    titleEn: '',
-    titleZh: '',
-    bodyEn: '',
-    bodyZh: '',
+    titleEn: adminViewText.sendFormSetSendForm.en,
+    titleZh: adminViewText.sendFormSetSendForm.zh,
+    bodyEn: adminViewText.sendFormSetSendForm.en,
+    bodyZh: adminViewText.sendFormSetSendForm.zh,
   })
   const [roleForm, setRoleForm] = useState({
     code: '',
-    nameEn: '',
-    nameZh: '',
+    nameEn: adminViewText.sendFormSetSendForm.en,
+    nameZh: adminViewText.sendFormSetSendForm.zh,
     permissionCodes: [] as string[],
   })
 
   const isSuperAdmin = me?.platformRole === 'superadmin'
   const roleOptions = useMemo(() => {
     const seeded = roles.length ? roles : [
-      { id: 0, code: 'user', name: { en: 'User', zh: '普通用户' }, level: 0, permissions: [], availablePermissions: [], canEditPermissions: false, isSystem: true, canDelete: false, assignedMemberCount: 0 },
-      { id: 10, code: 'admin', name: { en: 'Admin', zh: '管理员' }, level: 10, permissions: [], availablePermissions: [], canEditPermissions: false, isSystem: true, canDelete: false, assignedMemberCount: 0 },
-      { id: 100, code: 'superadmin', name: { en: 'System Admin', zh: '系统管理员' }, level: 100, permissions: [], availablePermissions: [], canEditPermissions: false, isSystem: true, canDelete: false, assignedMemberCount: 0 },
+      { id: 0, code: 'user', name: { ...adminViewText.userName }, level: 0, permissions: [], availablePermissions: [], canEditPermissions: false, isSystem: true, canDelete: false, assignedMemberCount: 0 },
+      { id: 10, code: 'admin', name: { ...adminViewText.adminName }, level: 10, permissions: [], availablePermissions: [], canEditPermissions: false, isSystem: true, canDelete: false, assignedMemberCount: 0 },
+      { id: 100, code: 'superadmin', name: { ...adminViewText.superadminName }, level: 100, permissions: [], availablePermissions: [], canEditPermissions: false, isSystem: true, canDelete: false, assignedMemberCount: 0 },
     ]
     return seeded.slice().sort((a, b) => a.level - b.level)
   }, [roles])
@@ -504,7 +302,7 @@ const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) =
   }
 
   const updateChurchMembership = async (member: AdminMemberDto, action: 'approve' | 'reject' | 'deactivate' | 'invite') => {
-    if (!church) throw new Error(language === 'zh' ? '找不到教会资料。' : 'Church data is unavailable.')
+    if (!church) throw new Error(language === 'zh' ? adminViewText.churchDataIsUnavailable.zh : adminViewText.churchDataIsUnavailable.en)
     setUpdatingMembershipId(member.id)
     setError('')
     setMessage('')
@@ -553,7 +351,7 @@ const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) =
     try {
       const role = await groupService.createPlatformRole(roleForm)
       setRoles((current) => [...current, role].sort((a, b) => a.level - b.level || a.code.localeCompare(b.code)))
-      setRoleForm({ code: '', nameEn: '', nameZh: '', permissionCodes: [] })
+      setRoleForm({ code: '', nameEn: adminViewText.sendFormSetSendForm.en, nameZh: adminViewText.sendFormSetSendForm.zh, permissionCodes: [] })
       setMessage(l('roleCreated'))
       await runQuietly(loadLogs(1, section === 'overview' ? overviewActivityPageSize : 25))
       return true
@@ -614,7 +412,7 @@ const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) =
         roleCodes: sendForm.scope === 'role' ? sendForm.roleCodes : null,
       })
       setMessage(l('messageSent', { count: result.createdCount }))
-      setSendForm((current) => ({ ...current, titleEn: '', titleZh: '', bodyEn: '', bodyZh: '' }))
+      setSendForm((current) => ({ ...current, titleEn: adminViewText.sendFormSetSendForm.en, titleZh: adminViewText.sendFormSetSendForm.zh, bodyEn: adminViewText.sendFormSetSendForm.en, bodyZh: adminViewText.sendFormSetSendForm.zh }))
       await runQuietly(loadMessages(1), loadLogs(1, section === 'overview' ? overviewActivityPageSize : 25))
     } catch (reason) {
       setError(formatActionError(reason, l('sendFailed')))
@@ -736,7 +534,7 @@ const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) =
       {section === 'visitRequests' ? (
         <AppPageShell
           title={l('visitRequests')}
-          context={language === 'zh' ? '教会生活 / 访客接待' : 'Church Life / Visitor Care'}
+          context={language === 'zh' ? adminViewText.churchLifeVisitorCare.zh : adminViewText.churchLifeVisitorCare.en}
           subtitle={l('visitRequestsDescription')}
         >
           <div className="overflow-hidden rounded-[var(--alife-radius-card)] border border-[var(--alife-line)]">
@@ -782,27 +580,27 @@ const SystemManagementDashboard = ({ messages, syncing, loading, syncSermons, re
   const showMessageMetric = auth.hasAdminPermission('admin.messages.manage')
   const showSermonSync = auth.hasAdminPermission('admin.sermons.sync')
   const sections: SystemManagementAreaConfig[] = [
-    ...(auth.hasAdminPermission('admin.roles.managePermissions') ? [{ key: 'roles', label: isChinese ? '角色管理' : 'Role management', description: isChinese ? '平台角色、权限范围与功能访问' : 'Platform roles, permissions, and feature access', iconKey: 'roles' as const, to: '/admin/roles' }] : []),
-    ...(auth.hasAdminPermission('admin.events.managePackagePolicies') ? [{ key: 'event-package-policies', label: isChinese ? '活动方案政策' : 'Event Package policies', description: isChinese ? '管理审批等级、有效期、委派和渐进启用' : 'Manage approval tiers, validity, delegation, and rollout', iconKey: 'eventPackagePolicies' as const, to: '/admin/event-package-policies' }] : []),
-    ...(auth.hasAdminPermission('admin.events.manageRamPolicies') ? [{ key: 'ram-policies', label: isChinese ? 'RAM 政策与题库' : 'RAM policies and questions', description: isChinese ? '管理教会评分矩阵、风险题库及政策版本' : 'Manage church risk matrices, questions and policy versions', iconKey: 'ramPolicies' as const, to: '/admin/ram-policies' }] : []),
-    ...(auth.hasAdminPermission('admin.events.manageTemplates') ? [{ key: 'event-templates', label: isChinese ? '活动模板' : 'Event templates', description: isChinese ? '管理四个固定活动分类下的创建模板' : 'Manage creation templates within the four fixed event categories', iconKey: 'eventTemplates' as const, to: '/admin/event-templates' }] : []),
-    ...(showMessageMetric ? [{ key: 'notices', label: isChinese ? '通知管理' : 'Notification management', description: isChinese ? '发送通知并查看阅读与回复状态' : 'Send notifications and review read and reply status', iconKey: 'messages' as const, to: '/admin/messages' }] : []),
-    ...(auth.hasAdminPermission('admin.files.view') ? [{ key: 'files', label: isChinese ? '文件管理' : 'File management', description: isChinese ? '查看上传文件、可见范围和归属' : 'Review uploads, visibility, and ownership', iconKey: 'files' as const, to: '/admin/files' }] : []),
-    ...(auth.hasAdminPermission('admin.auditLogs.view') ? [{ key: 'logs', label: isChinese ? '操作日志' : 'Audit logs', description: isChinese ? '查看敏感平台操作记录' : 'Review sensitive platform actions', iconKey: 'logs' as const, to: '/admin/logs' }] : []),
+    ...(auth.hasAdminPermission('admin.roles.managePermissions') ? [{ key: 'roles', label: isChinese ? adminViewText.roleManagement.zh : adminViewText.roleManagement.en, description: isChinese ? adminViewText.platformRolesPermissionsAndFeatureAccess.zh : adminViewText.platformRolesPermissionsAndFeatureAccess.en, iconKey: 'roles' as const, to: '/admin/roles' }] : []),
+    ...(auth.hasAdminPermission('admin.events.managePackagePolicies') ? [{ key: 'event-package-policies', label: isChinese ? adminViewText.eventPackagePolicies.zh : adminViewText.eventPackagePolicies.en, description: isChinese ? adminViewText.manageApprovalTiersValidityDelegationAndRollout.zh : adminViewText.manageApprovalTiersValidityDelegationAndRollout.en, iconKey: 'eventPackagePolicies' as const, to: '/admin/event-package-policies' }] : []),
+    ...(auth.hasAdminPermission('admin.events.manageRamPolicies') ? [{ key: 'ram-policies', label: isChinese ? adminViewText.ramPoliciesAndQuestions.zh : adminViewText.ramPoliciesAndQuestions.en, description: isChinese ? adminViewText.manageChurchRiskMatricesQuestionsAndPolicyVersions.zh : adminViewText.manageChurchRiskMatricesQuestionsAndPolicyVersions.en, iconKey: 'ramPolicies' as const, to: '/admin/ram-policies' }] : []),
+    ...(auth.hasAdminPermission('admin.events.manageTemplates') ? [{ key: 'event-templates', label: isChinese ? adminViewText.eventTemplates.zh : adminViewText.eventTemplates.en, description: isChinese ? adminViewText.manageCreationTemplatesWithinTheFourFixedEventCategories.zh : adminViewText.manageCreationTemplatesWithinTheFourFixedEventCategories.en, iconKey: 'eventTemplates' as const, to: '/admin/event-templates' }] : []),
+    ...(showMessageMetric ? [{ key: 'notices', label: isChinese ? adminViewText.notificationManagement.zh : adminViewText.notificationManagement.en, description: isChinese ? adminViewText.sendNotificationsAndReviewReadAndReplyStatus.zh : adminViewText.sendNotificationsAndReviewReadAndReplyStatus.en, iconKey: 'messages' as const, to: '/admin/messages' }] : []),
+    ...(auth.hasAdminPermission('admin.files.view') ? [{ key: 'files', label: isChinese ? adminViewText.fileManagement.zh : adminViewText.fileManagement.en, description: isChinese ? adminViewText.reviewUploadsVisibilityAndOwnership.zh : adminViewText.reviewUploadsVisibilityAndOwnership.en, iconKey: 'files' as const, to: '/admin/files' }] : []),
+    ...(auth.hasAdminPermission('admin.auditLogs.view') ? [{ key: 'logs', label: isChinese ? adminViewText.auditLogs.zh : adminViewText.auditLogs.en, description: isChinese ? adminViewText.reviewSensitivePlatformActions.zh : adminViewText.reviewSensitivePlatformActions.en, iconKey: 'logs' as const, to: '/admin/logs' }] : []),
   ]
 
   return (
     <SystemManagementFrame
-      title={isChinese ? '系统管理' : 'System Management'}
-      subtitle={isChinese ? '集中管理平台权限、内容运营与审计功能。' : 'Manage platform permissions, content operations, and oversight in one place.'}
+      title={isChinese ? adminViewText.systemManagement.zh : adminViewText.systemManagement.en}
+      subtitle={isChinese ? adminViewText.managePlatformPermissionsContentOperationsAndOversightInOne.zh : adminViewText.managePlatformPermissionsContentOperationsAndOversightInOne.en}
       language={language}
       iconKey="overview"
       showBackLink={false}
-      actions={<>{showMessageMetric ? <div><p className="text-2xl font-black tabular-nums">{unreadCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '未读通知' : 'Unread'}</p></div> : null}<button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 disabled:opacity-60" type="button" disabled={loading} onClick={() => refresh().catch(() => undefined)} aria-label={isChinese ? '刷新系统管理' : 'Refresh system management'}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button></>}
+      actions={<>{showMessageMetric ? <div><p className="text-2xl font-black tabular-nums">{unreadCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? adminViewText.unread.zh : adminViewText.unread.en}</p></div> : null}<button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 disabled:opacity-60" type="button" disabled={loading} onClick={() => refresh().catch(() => undefined)} aria-label={isChinese ? adminViewText.refreshSystemManagement.zh : adminViewText.refreshSystemManagement.en}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button></>}
     >
       <div className={showSermonSync ? 'grid xl:grid-cols-[minmax(0,1fr)_19rem]' : 'grid'}>
         <div className="min-w-0">
-          <div className="px-6 pb-3 pt-5 sm:px-8"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#176b5a]">{isChinese ? '系统功能' : 'System areas'}</p><h2 className="mt-1 text-xl font-black tracking-[-0.025em] text-[#18332d]">{isChinese ? '选择要处理的内容' : 'Choose what to manage'}</h2></div>
+          <div className="px-6 pb-3 pt-5 sm:px-8"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#176b5a]">{isChinese ? adminViewText.systemAreas.zh : adminViewText.systemAreas.en}</p><h2 className="mt-1 text-xl font-black tracking-[-0.025em] text-[#18332d]">{isChinese ? adminViewText.chooseWhatToManage.zh : adminViewText.chooseWhatToManage.en}</h2></div>
           <div className="grid border-t border-[#e3e8e5] md:grid-cols-2">
           {sections.map((section, index) => {
             const Icon = systemManagementIcons[section.iconKey]
@@ -818,11 +616,11 @@ const SystemManagementDashboard = ({ messages, syncing, loading, syncSermons, re
         </div>
 
         {showSermonSync ? <aside className="border-t border-[#e3e8e5] bg-[#f7f4ed] px-6 py-5 xl:border-l xl:border-t-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#7b8882]">{isChinese ? '快捷操作' : 'Quick actions'}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#7b8882]">{isChinese ? adminViewText.quickActions.zh : adminViewText.quickActions.en}</p>
           <div className="mt-3 divide-y divide-[#dfe5e1] border-y border-[#dfe5e1]">
-            <button type="button" disabled={syncing} onClick={() => syncSermons().catch(() => undefined)} className="group flex w-full items-center gap-3 py-4 text-left text-[#31544b] transition hover:text-[#176b5a] disabled:opacity-60">{syncing ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" /> : <RefreshCw className="h-5 w-5 shrink-0" />}<span className="min-w-0 flex-1"><span className="block text-sm font-black">{syncing ? (isChinese ? '正在同步…' : 'Syncing…') : (isChinese ? '同步讲道' : 'Sync sermons')}</span><span className="mt-0.5 block text-xs font-semibold text-[#7a8782]">{isChinese ? '更新讲道来源' : 'Refresh sermon sources'}</span></span><ChevronRight className="h-4 w-4 transition group-hover:translate-x-1" /></button>
+            <button type="button" disabled={syncing} onClick={() => syncSermons().catch(() => undefined)} className="group flex w-full items-center gap-3 py-4 text-left text-[#31544b] transition hover:text-[#176b5a] disabled:opacity-60">{syncing ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" /> : <RefreshCw className="h-5 w-5 shrink-0" />}<span className="min-w-0 flex-1"><span className="block text-sm font-black">{syncing ? (isChinese ? adminViewText.syncing.zh : adminViewText.syncing.en) : (isChinese ? adminViewText.syncSermons.zh : adminViewText.syncSermons.en)}</span><span className="mt-0.5 block text-xs font-semibold text-[#7a8782]">{isChinese ? adminViewText.refreshSermonSources.zh : adminViewText.refreshSermonSources.en}</span></span><ChevronRight className="h-4 w-4 transition group-hover:translate-x-1" /></button>
           </div>
-          <p className="mt-5 text-xs font-semibold leading-5 text-[#7a8782]">{isChinese ? `共 ${sections.length} 个系统功能，所有入口集中在当前页面。` : `${sections.length} system areas, all available from this page.`}</p>
+          <p className="mt-5 text-xs font-semibold leading-5 text-[#7a8782]">{isChinese ? adminViewText.systemAreasAllAvailableFromThisPage.zh(sections.length) : adminViewText.systemAreasAllAvailableFromThisPage.en(sections.length)}</p>
         </aside> : null}
       </div>
     </SystemManagementFrame>

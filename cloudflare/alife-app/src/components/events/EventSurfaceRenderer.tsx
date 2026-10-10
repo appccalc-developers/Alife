@@ -1,3 +1,4 @@
+import { eventSurfaceRendererText } from '../../i18n/eventSurfaceRenderer.ts'
 import type { ComponentType } from 'react'
 import EventRegistrationWorkspace from './EventRegistrationWorkspace'
 import type { Language } from '../../i18n/locale'
@@ -38,13 +39,13 @@ const GenericSurface = ({ item, language, eventBasePath }: EventSurfaceProps) =>
     <AppSectionCard
       title={title}
       subtitle={zh
-        ? '请核对当前已提供的能力及未完成事项。'
-        : 'Review available capabilities and outstanding work.'}
-      action={<AppBadge variant="warning">{capability ? capabilityStatusText(capability.status, zh) : (zh ? '准备情况' : 'Preparation')}</AppBadge>}
+        ? eventSurfaceRendererText.reviewAvailableCapabilitiesAndOutstandingWork.zh
+        : eventSurfaceRendererText.reviewAvailableCapabilitiesAndOutstandingWork.en}
+      action={<AppBadge variant="warning">{capability ? capabilityStatusText(capability.status, zh) : (zh ? eventSurfaceRendererText.preparation.zh : eventSurfaceRendererText.preparation.en)}</AppBadge>}
     >
       <EventCapabilityNotice code={item.moduleCode || ''} zh={zh} />
       {item.blockers.length ? (
-        <ul className="space-y-2 text-sm text-amber-900" aria-label={zh ? '阻塞项' : 'Blockers'}>
+        <ul className="space-y-2 text-sm text-amber-900" aria-label={zh ? eventSurfaceRendererText.blockers.zh : eventSurfaceRendererText.blockers.en}>
           {item.blockers.map((blocker, index) => (
             <li key={`${blocker.en}-${index}`} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
               {blocker[language] || blocker.en || blocker.zh}
@@ -52,7 +53,7 @@ const GenericSurface = ({ item, language, eventBasePath }: EventSurfaceProps) =>
           ))}
         </ul>
       ) : null}
-      {item.moduleCode === 'COMMS.FOLLOWUP' ? <p className="mt-3 text-sm"><Link className="inline-flex min-h-11 items-center text-[#176b5a] underline" to={`${eventBasePath}/workspace?flow=setup&stage=poster`}>{zh ? '前往海报准备（批准后）' : 'Poster preparation (after approval)'}</Link><br /><Link className="inline-flex min-h-11 items-center text-[#176b5a] underline" to={`${eventBasePath}/workspace?flow=setup&stage=publish`}>{zh ? '前往发布检查' : 'Publication checks'}</Link></p> : null}
+      {item.moduleCode === 'COMMS.FOLLOWUP' ? <p className="mt-3 text-sm"><Link className="inline-flex min-h-11 items-center text-[#176b5a] underline" to={`${eventBasePath}/workspace?flow=setup&stage=poster`}>{zh ? eventSurfaceRendererText.posterPreparationAfterApproval.zh : eventSurfaceRendererText.posterPreparationAfterApproval.en}</Link><br /><Link className="inline-flex min-h-11 items-center text-[#176b5a] underline" to={`${eventBasePath}/workspace?flow=setup&stage=publish`}>{zh ? eventSurfaceRendererText.publicationChecks.zh : eventSurfaceRendererText.publicationChecks.en}</Link></p> : null}
     </AppSectionCard>
   )
 }

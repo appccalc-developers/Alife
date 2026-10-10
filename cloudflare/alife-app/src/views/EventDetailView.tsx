@@ -1,3 +1,4 @@
+import { eventDetailViewText } from '../i18n/eventDetailView.ts'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { LayoutDashboard, Pencil } from 'lucide-react'
@@ -140,7 +141,7 @@ const EventNoticePanel = ({ event, eventDto, language, contacts, currentGroupRou
       ) : null}
 
       {contacts.length ? (
-        <AppSectionCard dense title={language === 'zh' ? '活动联系人' : 'Event contacts'}>
+        <AppSectionCard dense title={language === 'zh' ? eventDetailViewText.eventContacts.zh : eventDetailViewText.eventContacts.en}>
           <div className="grid gap-3 sm:grid-cols-2">
             {contacts.map((contact) => (
               <Link key={contact.id} to={currentGroupRoute ? `/contacts/${encodeURIComponent(contact.id)}` : `/groups/${encodeURIComponent(contact.ownerGroupId)}/contacts/${encodeURIComponent(contact.id)}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-emerald-300 hover:bg-emerald-50/50">
@@ -407,20 +408,20 @@ const EventDetailView = () => {
     ? [formatDateTime(eventDto.startDate, language), eventLocation].filter(Boolean).join(' · ')
     : undefined
   const lifecycleLabel = lifecycle === 'planning'
-    ? (language === 'zh' ? '筹备中' : 'Planning')
+    ? (language === 'zh' ? eventDetailViewText.planning.zh : eventDetailViewText.planning.en)
     : lifecycle === 'past'
-      ? (language === 'zh' ? '已结束' : 'Past')
+      ? (language === 'zh' ? eventDetailViewText.past.zh : eventDetailViewText.past.en)
       : lifecycle === 'upcoming'
-        ? (language === 'zh' ? '即将举行' : 'Upcoming')
+        ? (language === 'zh' ? eventDetailViewText.upcoming.zh : eventDetailViewText.upcoming.en)
         : ''
   const sectionContext = activeSection === 'enrollments'
-      ? (language === 'zh' ? '报名' : 'Enrollment')
+      ? (language === 'zh' ? eventDetailViewText.enrollment.zh : eventDetailViewText.enrollment.en)
       : activeSection === 'memories'
-        ? (language === 'zh' ? '回顾' : 'Memories')
-        : (language === 'zh' ? '活动通知' : 'Event notice')
+        ? (language === 'zh' ? eventDetailViewText.memories.zh : eventDetailViewText.memories.en)
+        : (language === 'zh' ? eventDetailViewText.eventNotice.zh : eventDetailViewText.eventNotice.en)
   const eventScopeContext = routeGroupId
-    ? (language === 'zh' ? '教会生活 / 活动' : 'Church Life / Events')
-    : (language === 'zh' ? '小组生活 / 活动' : 'Group Life / Events')
+    ? (language === 'zh' ? eventDetailViewText.churchLifeEvents.zh : eventDetailViewText.churchLifeEvents.en)
+    : (language === 'zh' ? eventDetailViewText.groupLifeEvents.zh : eventDetailViewText.groupLifeEvents.en)
   const eventContext = (
     <>
       <span className="desktop:hidden">{eventScopeContext}</span>
@@ -447,23 +448,23 @@ const EventDetailView = () => {
 
   return (
     <AppPageShell
-      title={eventTitle || (language === 'zh' ? '活动' : 'Events')}
+      title={eventTitle || (language === 'zh' ? eventDetailViewText.events.zh : eventDetailViewText.events.en)}
       context={eventContext}
       subtitle={eventSubtitle}
       backLink={searchParams.get('flow') === 'setup'
-        ? { to: `${eventBasePath}/workspace?flow=setup&stage=arrangements&module=people.registration`, label: language === 'zh' ? '返回活动筹备' : 'Back to event preparation' }
+        ? { to: `${eventBasePath}/workspace?flow=setup&stage=arrangements&module=people.registration`, label: language === 'zh' ? eventDetailViewText.backToEventPreparation.zh : eventDetailViewText.backToEventPreparation.en }
         : { to: backToEventsPath, label: text.backToEvents }}
       status={lifecycle ? <AppBadge variant={lifecycle === 'upcoming' ? 'success' : lifecycle === 'planning' ? 'warning' : 'neutral'}>{lifecycleLabel}</AppBadge> : undefined}
       primaryAction={!isGuest && event ? (
         <AppTitleBarAction
-          label={canEditPlan ? (language === 'zh' ? '继续筹备' : 'Continue preparation') : (language === 'zh' ? '活动工作台' : 'Event workspace')}
+          label={canEditPlan ? (language === 'zh' ? eventDetailViewText.continuePreparation.zh : eventDetailViewText.continuePreparation.en) : (language === 'zh' ? eventDetailViewText.eventWorkspace.zh : eventDetailViewText.eventWorkspace.en)}
           icon={<LayoutDashboard className="h-4 w-4" />}
           to={`${eventBasePath}/workspace${canEditPlan ? '?flow=setup&stage=arrangements' : ''}`}
         />
       ) : undefined}
-      overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
+      overflowLabel={language === 'zh' ? eventDetailViewText.moreActions.zh : eventDetailViewText.moreActions.en}
       overflowActions={event ? [...((canManage || canAuditRam) ? [{
-        label: language === 'zh' ? (canAuditRam ? 'RAM 独立审核' : '活动工作区') : (canAuditRam ? 'Independent RAM review' : 'Event workspace'),
+        label: language === 'zh' ? (canAuditRam ? eventDetailViewText.eventDetailViewLabel : eventDetailViewText.eventDetailViewLabel2) : (canAuditRam ? 'Independent RAM review' : 'Event workspace'),
         icon: <Pencil className="h-4 w-4" />,
         to: `${eventBasePath}/workspace${canAuditRam ? '/ram' : ''}`,
         onSelect: () => activeEntityService.setEvent(eventId),

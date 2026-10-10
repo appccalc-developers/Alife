@@ -1,3 +1,4 @@
+import { eventWorkspaceViewText } from '../i18n/eventWorkspaceView.ts'
 import { dutyReturnPath } from '../utils/eventDutyNavigation'
 import EventSetupPipeline from '../components/events/EventSetupPipeline'
 import EventCapabilityNotice, { capabilityFallback } from '../components/events/EventCapabilityNotice'
@@ -26,88 +27,7 @@ import {
 } from '../utils/eventWorkspaceState'
 
 type LoadState = 'loading' | 'ready' | 'error' | 'permission-denied'
-const copy = {
-  en: {
-    title: 'Event workspace',
-    subtitle: 'Review readiness, enabled capabilities and the next accountable action.',
-    loading: 'Loading event workspace…',
-    retry: 'Try again',
-    unavailable: 'Workspace unavailable',
-    permissionTitle: 'Workspace access required',
-    permissionDescription: 'You need approved group membership or an event-team role to view this workspace.',
-    back: 'Back to event',
-    readiness: 'Readiness',
-    nextSteps: 'Next steps',
-    enabledPages: 'Enabled workspaces',
-    noPages: 'No independent module workspaces are enabled.',
-    planTitle: 'Compose event plan',
-    planSubtitle: 'Confirmed facts drive policy. Unknown values are never treated as false.',
-    archetype: 'Composition preset',
-    unknown: 'Unknown',
-    yes: 'Yes',
-    no: 'No',
-    compose: 'Build proposal',
-    recomposing: 'Building proposal…',
-    review: 'Plan review',
-    activeModules: 'Active modules',
-    proposedChanges: 'Proposed changes',
-    accept: 'Accept this plan',
-    accepting: 'Accepting…',
-    accepted: 'Plan accepted. The workspace now uses the new immutable snapshot.',
-    stale: 'This proposal is stale. Refresh the workspace and review a new proposal.',
-    conflict: 'The plan conflicts with existing operational data. Resolve the listed retirements before accepting.',
-    proposalFailed: 'The proposal could not be completed.',
-    secureRegistry: 'Unknown surface keys are ignored; API data never selects executable UI code.',
-    currentPlan: 'Current plan',
-    noPlan: 'No accepted plan yet',
-    sponsorship: 'Sponsorship',
-    reviewLegacy: 'This event uses a legacy backfill snapshot. Confirm its facts before relying on readiness.',
-    independentPage: 'Independent workspace',
-    backWorkspace: 'Back to event workspace',
-    unknownSurface: 'Workspace not available',
-    unknownSurfaceDescription: 'This surface is not in the local registry or is not enabled for your role.',
-  },
-  zh: {
-    title: '活动工作区',
-    subtitle: '查看准备度、已启用能力与下一项负责人行动。',
-    loading: '正在加载活动工作区…',
-    retry: '重试',
-    unavailable: '无法使用工作区',
-    permissionTitle: '需要工作区权限',
-    permissionDescription: '你必须是获批小组成员或活动团队成员，才能查看此工作区。',
-    back: '返回活动',
-    readiness: '准备度',
-    nextSteps: '下一步',
-    enabledPages: '已启用工作区',
-    noPages: '目前没有启用独立模块工作区。',
-    planTitle: '组合活动方案',
-    planSubtitle: '已确认事实驱动政策；未知值绝不会被当作否定。',
-    archetype: '组合预设',
-    unknown: '未知',
-    yes: '是',
-    no: '否',
-    compose: '生成 proposal',
-    recomposing: '正在生成 proposal…',
-    review: '方案审查',
-    activeModules: '启用模块',
-    proposedChanges: '建议变更',
-    accept: '接受此方案',
-    accepting: '正在接受…',
-    accepted: '方案已接受；工作区现在使用新的不可变快照。',
-    stale: '此 proposal 已过期。请刷新工作区并审查新的 proposal。',
-    conflict: '方案与既有运营资料冲突；接受前请先处理列出的停用项。',
-    proposalFailed: '无法完成 proposal。',
-    secureRegistry: '未知 surface key 会被忽略；API 数据绝不会选择可执行的 UI 代码。',
-    currentPlan: '当前方案',
-    noPlan: '尚无已接受方案',
-    sponsorship: '教会身份批准',
-    reviewLegacy: '此活动使用旧资料回填快照；依赖准备度前请先确认事实。',
-    independentPage: '独立工作区',
-    backWorkspace: '返回活动工作区',
-    unknownSurface: '工作区不可用',
-    unknownSurfaceDescription: '此 surface 不在本地注册表中，或未对你的角色启用。',
-  },
-} as const
+const copy = eventWorkspaceViewText.copy
 
 const localize = (value: LocalizedText, language: 'en' | 'zh') =>
   value[language] || value.en || value.zh
@@ -182,10 +102,10 @@ const EventWorkspaceView = () => {
     ? `${workspaceBasePath}?flow=setup&stage=arrangements&module=safety.ram`
     : workspaceBasePath
   const workspaceReturnLabel = returnToRamSetup
-    ? (language === 'zh' ? '返回活动筹备' : 'Back to event preparation')
+    ? (language === 'zh' ? eventWorkspaceViewText.backToEventPreparation.zh : eventWorkspaceViewText.backToEventPreparation.en)
     : text.backWorkspace
   const currentTaskBackLink = searchParams.has('returnTo')
-    ? { to: dutyReturnPath(searchParams.get('returnTo')), label: language === 'zh' ? '返回当前事务' : 'Back to current tasks' }
+    ? { to: dutyReturnPath(searchParams.get('returnTo')), label: language === 'zh' ? eventWorkspaceViewText.backToCurrentTasks.zh : eventWorkspaceViewText.backToCurrentTasks.en }
     : undefined
 
   if (!groupId || !eventId) return <Navigate to="/" replace />
@@ -221,7 +141,7 @@ const EventWorkspaceView = () => {
         backLink={currentTaskBackLink ?? { to: workspaceReturnPath, label: workspaceReturnLabel }}
         title={localize(selectedPageItem.label, language)}
         subtitle={text.independentPage}
-        actions={surfacePath === 'roster' ? <div className="flex flex-wrap gap-4 text-sm font-bold text-[#176b5a]"><Link to={eventBasePath}>{language === 'zh' ? '查看活动' : 'View event'}</Link><Link to={`/events/${eventId}/work`}>{language === 'zh' ? '查看活动阶段' : 'View event stages'}</Link></div> : undefined}
+        actions={surfacePath === 'roster' ? <div className="flex flex-wrap gap-4 text-sm font-bold text-[#176b5a]"><Link to={eventBasePath}>{language === 'zh' ? eventWorkspaceViewText.viewEvent.zh : eventWorkspaceViewText.viewEvent.en}</Link><Link to={`/events/${eventId}/work`}>{language === 'zh' ? eventWorkspaceViewText.viewEventStages.zh : eventWorkspaceViewText.viewEventStages.en}</Link></div> : undefined}
       >
         <EventSurfaceRenderer item={selectedPageItem} language={language} eventBasePath={eventBasePath} eventId={eventId} groupId={groupId} canManage={workspace.canManage} />
       </AppPageShell>
@@ -234,7 +154,7 @@ const EventWorkspaceView = () => {
       title={`${text.title} · ${localize(workspace.title, language)}`}
       subtitle={text.subtitle}
     >
-      <Link className="text-sm font-semibold text-[#176b5a]" to={`/events/${eventId}/work`}>{language === 'zh' ? '我的活动工作与阶段 →' : 'My event work and stages →'}</Link>
+      <Link className="text-sm font-semibold text-[#176b5a]" to={`/events/${eventId}/work`}>{language === 'zh' ? eventWorkspaceViewText.myEventWorkAndStages.zh : eventWorkspaceViewText.myEventWorkAndStages.en}</Link>
 
       <div className="flex gap-2 overflow-x-auto border-b border-[#2f4b42]/10 pb-2" role="tablist" aria-label={text.title}>
         {tabItems.map((item) => (
@@ -265,13 +185,13 @@ const EventWorkspaceView = () => {
             </AppSectionCard>
           </div>
 
-          {workspace.canManage ? <AppSectionCard title={language === 'zh' ? '活动筹备' : 'Event preparation'}>
+          {workspace.canManage ? <AppSectionCard title={language === 'zh' ? eventWorkspaceViewText.eventPreparation.zh : eventWorkspaceViewText.eventPreparation.en}>
             <Link className="inline-flex min-h-11 items-center rounded-xl bg-[#176b5a] px-4 text-sm font-bold text-white" to={`${workspaceBasePath}?flow=setup&stage=arrangements`}>
-              {language === 'zh' ? '继续筹备' : 'Continue preparation'}
+              {language === 'zh' ? eventWorkspaceViewText.continuePreparation.zh : eventWorkspaceViewText.continuePreparation.en}
             </Link>
           </AppSectionCard> : null}
 
-          {tabItems.some(item => capabilityFallback.some(capability => capability.moduleCode === item.moduleCode)) ? <AppSectionCard title={language === 'zh' ? '功能提供状态' : 'Capability availability'}>
+          {tabItems.some(item => capabilityFallback.some(capability => capability.moduleCode === item.moduleCode)) ? <AppSectionCard title={language === 'zh' ? eventWorkspaceViewText.capabilityAvailability.zh : eventWorkspaceViewText.capabilityAvailability.en}>
             {tabItems.filter(item => capabilityFallback.some(capability => capability.moduleCode === item.moduleCode)).map(item => <div key={item.surfaceKey}>
               <h3 className="font-semibold">{localize(item.label, language)}</h3>
               <EventCapabilityNotice code={item.moduleCode!} zh={language === 'zh'} />

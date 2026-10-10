@@ -1,3 +1,4 @@
+import { cinematicEventGalleryText } from '../i18n/cinematicEventGallery.ts'
 import { useEffect, useState, type FocusEvent, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, ArrowUpRight } from 'lucide-react'
@@ -64,8 +65,8 @@ const CinematicEventGallery = ({
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false)
   }
   const imageUrl = activeItem.imageUrl?.trim() || reviewedPageFallbackImages[activeIndex % reviewedPageFallbackImages.length]
-  const previousLabel = language === 'zh' ? `上一项${ariaLabel}` : `Previous ${ariaLabel}`
-  const nextLabel = language === 'zh' ? `下一项${ariaLabel}` : `Next ${ariaLabel}`
+  const previousLabel = language === 'zh' ? cinematicEventGalleryText.previous.zh(ariaLabel) : cinematicEventGalleryText.previous.en(ariaLabel)
+  const nextLabel = language === 'zh' ? cinematicEventGalleryText.next.zh(ariaLabel) : cinematicEventGalleryText.next.en(ariaLabel)
 
   return (
     <div
@@ -123,7 +124,7 @@ const CinematicEventGallery = ({
       {items.length > 1 ? (
         <div className="alife-cinematic-events__rail">
           <div className="alife-cinematic-events__rail-heading">
-            <span>{language === 'zh' ? '正在发生' : 'Now showing'}</span>
+            <span>{language === 'zh' ? cinematicEventGalleryText.nowShowing.zh : cinematicEventGalleryText.nowShowing.en}</span>
             <strong>{String(activeIndex + 1).padStart(2, '0')}</strong>
           </div>
           <div className="alife-cinematic-events__nav" aria-label={ariaLabel}>

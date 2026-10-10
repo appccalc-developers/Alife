@@ -1,3 +1,4 @@
+import { pageContentRendererText } from '../../i18n/pageContentRenderer.ts'
 import SectionBlock from '../page-sections/SectionBlock'
 import { Fragment } from 'react'
 import type { GroupPageDto } from '../../types/group'
@@ -78,10 +79,10 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
     return { order: 0, type: 'Album', contentJson: { spacing: 'normal', albumId: '' }, styleJson: { layout: 'grid' } }
   }
   if (type === 'LandingHero') {
-    const title = localized('A spiritual home in the light of the South Island.', '在南岛的光里，找到一个属灵的家。')
+    const title = localized(pageContentRendererText.aSpiritualHomeInTheLightOfTheSouth.en, pageContentRendererText.aSpiritualHomeInTheLightOfTheSouth.zh)
     const body = localized(
-      'Welcome visitors, seekers, and members with a warm video opening and clear next steps.',
-      '用温暖的视频开场欢迎访客、慕道朋友和成员，并提供清楚的下一步。',
+      pageContentRendererText.welcomeVisitorsSeekersAndMembersWithAWarmVideo.en,
+      pageContentRendererText.welcomeVisitorsSeekersAndMembersWithAWarmVideo.zh,
     )
 
     return {
@@ -111,15 +112,15 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
         body,
         subtitle: body,
         subheadline: body,
-        linkLabel: localized('Plan a Visit', '计划来访'),
-        linkText: localized('Plan a Visit', '计划来访'),
-        ctaLabel: localized('Plan a Visit', '计划来访'),
+        linkLabel: localized(pageContentRendererText.planAVisit.en, pageContentRendererText.planAVisit.zh),
+        linkText: localized(pageContentRendererText.planAVisit.en, pageContentRendererText.planAVisit.zh),
+        ctaLabel: localized(pageContentRendererText.planAVisit.en, pageContentRendererText.planAVisit.zh),
         linkUrl: '#visit',
         ctaUrl: '#visit',
         href: '#visit',
-        secondaryLinkLabel: localized('Watch Sermon', '观看主日信息'),
-        secondaryLabel: localized('Watch Sermon', '观看主日信息'),
-        secondaryCtaLabel: localized('Watch Sermon', '观看主日信息'),
+        secondaryLinkLabel: localized(pageContentRendererText.watchSermon.en, pageContentRendererText.watchSermon.zh),
+        secondaryLabel: localized(pageContentRendererText.watchSermon.en, pageContentRendererText.watchSermon.zh),
+        secondaryCtaLabel: localized(pageContentRendererText.watchSermon.en, pageContentRendererText.watchSermon.zh),
         secondaryLinkUrl: '/sermons',
         secondaryUrl: '/sermons',
         secondaryCtaUrl: '/sermons',
@@ -138,15 +139,15 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
   }
 
   if (type === 'Countdown') {
-    const headerTitle = localized('Prepare for the next gathering.', '为下一次相聚预备。')
+    const headerTitle = localized(pageContentRendererText.prepareForTheNextGathering.en, pageContentRendererText.prepareForTheNextGathering.zh)
     const headerSubtitle = localized(
-      'Use a focused countdown to help people remember the date and take the next step.',
-      '用清楚的倒数提醒大家记得时间，并回应下一步。',
+      pageContentRendererText.useAFocusedCountdownToHelpPeopleRememberThe.en,
+      pageContentRendererText.useAFocusedCountdownToHelpPeopleRememberThe.zh,
     )
-    const cardTitle = localized('Next gathering', '下一次相聚')
+    const cardTitle = localized(pageContentRendererText.nextGathering.en, pageContentRendererText.nextGathering.zh)
     const cardBody = localized(
-      'Add event details, registration timing, or a ministry invitation here.',
-      '在这里加入活动详情、报名时间或服事邀请。',
+      pageContentRendererText.addEventDetailsRegistrationTimingOrAMinistryInvitation.en,
+      pageContentRendererText.addEventDetailsRegistrationTimingOrAMinistryInvitation.zh,
     )
 
     return {
@@ -169,23 +170,23 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
           targetField: 'startDate',
           eventId: '',
         },
-        eyebrow: localized('Countdown', '倒数计时'),
+        eyebrow: localized(pageContentRendererText.countdown.en, pageContentRendererText.countdown.zh),
         title: cardTitle,
         headline: cardTitle,
         body: cardBody,
         centerText: cardBody,
         text: cardBody,
-        cardEyebrow: localized('Save the date', '请预留时间'),
-        countdownLabel: localized('Until it begins', '距离开始'),
-        currentLabel: localized('Happening now', '正在进行'),
-        completeLabel: localized('Countdown complete', '倒数已结束'),
-        metaLabel: localized('Target time', '目标时间'),
-        metaValue: localized('To be confirmed', '时间待确认'),
-        footerText: localized('Confirm details before publishing.', '发布前请确认详情。'),
+        cardEyebrow: localized(pageContentRendererText.saveTheDate.en, pageContentRendererText.saveTheDate.zh),
+        countdownLabel: localized(pageContentRendererText.untilItBegins.en, pageContentRendererText.untilItBegins.zh),
+        currentLabel: localized(pageContentRendererText.happeningNow.en, pageContentRendererText.happeningNow.zh),
+        completeLabel: localized(pageContentRendererText.countdownComplete.en, pageContentRendererText.countdownComplete.zh),
+        metaLabel: localized(pageContentRendererText.targetTime.en, pageContentRendererText.targetTime.zh),
+        metaValue: localized(pageContentRendererText.toBeConfirmed.en, pageContentRendererText.toBeConfirmed.zh),
+        footerText: localized(pageContentRendererText.confirmDetailsBeforePublishing.en, pageContentRendererText.confirmDetailsBeforePublishing.zh),
         items: [
-          { text: localized('Clarify who should respond and what the next step is.', '说明谁需要回应，以及下一步是什么。') },
-          { text: localized('Keep the message short enough for mobile readers.', '让信息足够简短，方便手机阅读。') },
-          { text: localized('Use the button to send people to details, enrollment, or contact.', '用按钮带大家前往详情、报名或联系入口。') },
+          { text: localized(pageContentRendererText.clarifyWhoShouldRespondAndWhatTheNextStep.en, pageContentRendererText.clarifyWhoShouldRespondAndWhatTheNextStep.zh) },
+          { text: localized(pageContentRendererText.keepTheMessageShortEnoughForMobileReaders.en, pageContentRendererText.keepTheMessageShortEnoughForMobileReaders.zh) },
+          { text: localized(pageContentRendererText.useTheButtonToSendPeopleToDetailsEnrollment.en, pageContentRendererText.useTheButtonToSendPeopleToDetailsEnrollment.zh) },
         ],
         targetDateTime: '',
         countdownTarget: '',
@@ -193,9 +194,9 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
         imageUrl: '/media/alife-message-poster.jpg',
         backgroundImage: '/media/alife-message-poster.jpg',
         backgroundImageUrl: '/media/alife-message-poster.jpg',
-        linkLabel: localized('Learn more', '了解更多'),
-        linkText: localized('Learn more', '了解更多'),
-        ctaLabel: localized('Learn more', '了解更多'),
+        linkLabel: localized(pageContentRendererText.learnMore.en, pageContentRendererText.learnMore.zh),
+        linkText: localized(pageContentRendererText.learnMore.en, pageContentRendererText.learnMore.zh),
+        ctaLabel: localized(pageContentRendererText.learnMore.en, pageContentRendererText.learnMore.zh),
         linkUrl: '',
         ctaUrl: '',
         href: '',
@@ -208,13 +209,13 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
   }
 
   if (type === 'ContactLocation') {
-    const locationName = localized('Chinese Abundant Life Church', '基督城华人丰盛生命教会')
+    const locationName = localized(pageContentRendererText.chineseAbundantLifeChurch.en, pageContentRendererText.chineseAbundantLifeChurch.zh)
     const address = localized(defaultContactLocationStreetAddress, defaultContactLocationStreetAddress)
     const addressNote = localized('Christchurch, New Zealand', 'Christchurch, New Zealand')
     const contactName = localized(defaultLocationInquiryContactName, defaultLocationInquiryContactName)
-    const contactNameLabel = localized('Inquiry contact', '问询联系人')
-    const contactPhoneLabel = localized('Phone', '联系电话')
-    const openMapLabel = localized('Open in Google Maps', '在 Google Maps 打开')
+    const contactNameLabel = localized(pageContentRendererText.inquiryContact.en, pageContentRendererText.inquiryContact.zh)
+    const contactPhoneLabel = localized(pageContentRendererText.phone.en, pageContentRendererText.phone.zh)
+    const openMapLabel = localized(pageContentRendererText.openInGoogleMaps.en, pageContentRendererText.openInGoogleMaps.zh)
 
     return {
       order: 0,
@@ -234,7 +235,7 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
           mode: 'custom',
         },
         spacing: 'large',
-        locationTitle: localized('Church Location', '教会地点'),
+        locationTitle: localized(pageContentRendererText.churchLocation.en, pageContentRendererText.churchLocation.zh),
         locationName,
         title: locationName,
         streetAddress: address,
@@ -317,10 +318,10 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
         sectionKind: 'reviewedPageCarousel',
         header: {
           ...createDefaultSectionHeader(),
-          title: localized('Explore our community', '探索我们的群体'),
+          title: localized(pageContentRendererText.exploreOurCommunity.en, pageContentRendererText.exploreOurCommunity.zh),
           subtitle: localized(
-            'Discover more through the pages in this menu.',
-            '通过这个菜单下的页面进一步了解我们。',
+            pageContentRendererText.discoverMoreThroughThePagesInThisMenu.en,
+            pageContentRendererText.discoverMoreThroughThePagesInThisMenu.zh,
           ),
           align: 'left',
           tone: 'fresh',
@@ -368,13 +369,13 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
       ...section,
       contentJson: {
         ...section.contentJson,
-        title: localized('Meet Christ here. Grow through real community.', '在基督里相遇，在真实关系中成长。'),
-        headline: localized('Meet Christ here. Grow through real community.', '在基督里相遇，在真实关系中成长。'),
-        centerText: localized('A welcoming first screen for visitors, seekers, and members.', '为访客、慕道朋友和成员准备的首页主视觉。'),
-        body: localized('A welcoming first screen for visitors, seekers, and members.', '为访客、慕道朋友和成员准备的首页主视觉。'),
-        linkLabel: localized('Plan your visit', '计划来访'),
-        linkText: localized('Plan your visit', '计划来访'),
-        ctaLabel: localized('Plan your visit', '计划来访'),
+        title: localized(pageContentRendererText.meetChristHereGrowThroughRealCommunity.en, pageContentRendererText.meetChristHereGrowThroughRealCommunity.zh),
+        headline: localized(pageContentRendererText.meetChristHereGrowThroughRealCommunity.en, pageContentRendererText.meetChristHereGrowThroughRealCommunity.zh),
+        centerText: localized(pageContentRendererText.aWelcomingFirstScreenForVisitorsSeekersAndMembers.en, pageContentRendererText.aWelcomingFirstScreenForVisitorsSeekersAndMembers.zh),
+        body: localized(pageContentRendererText.aWelcomingFirstScreenForVisitorsSeekersAndMembers.en, pageContentRendererText.aWelcomingFirstScreenForVisitorsSeekersAndMembers.zh),
+        linkLabel: localized(pageContentRendererText.planYourVisit.en, pageContentRendererText.planYourVisit.zh),
+        linkText: localized(pageContentRendererText.planYourVisit.en, pageContentRendererText.planYourVisit.zh),
+        ctaLabel: localized(pageContentRendererText.planYourVisit.en, pageContentRendererText.planYourVisit.zh),
         backgroundImage: HOME_HERO_VIDEO,
         backgroundImageUrl: HOME_HERO_VIDEO,
         backgroundVideo: HOME_HERO_VIDEO,
@@ -391,15 +392,15 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
 
   if (preset === 'rich-welcome' || preset === 'rich-faq' || preset === 'rich-steps') {
     const title = preset === 'rich-faq'
-      ? localized('Common questions', '常见问题')
+      ? localized(pageContentRendererText.commonQuestions.en, pageContentRendererText.commonQuestions.zh)
       : preset === 'rich-steps'
-        ? localized('What to expect', '你可以期待什么')
-        : localized('Welcome', '欢迎你')
+        ? localized(pageContentRendererText.whatToExpect.en, pageContentRendererText.whatToExpect.zh)
+        : localized(pageContentRendererText.welcome.en, pageContentRendererText.welcome.zh)
     const text = preset === 'rich-faq'
-      ? localized('Add answers about language, children, parking, service time, and how to connect.', '可以补充语言、儿童、停车、聚会时间和如何连接等问题。')
+      ? localized(pageContentRendererText.addAnswersAboutLanguageChildrenParkingServiceTimeAnd.en, pageContentRendererText.addAnswersAboutLanguageChildrenParkingServiceTimeAnd.zh)
       : preset === 'rich-steps'
-        ? localized('Share the simple path: arrive, worship, meet people, and find a group.', '说明简单路径：抵达、敬拜、认识朋友、加入小组。')
-        : localized('Write a warm introduction for people visiting this page for the first time.', '为第一次来到这个页面的人写一段温暖介绍。')
+        ? localized(pageContentRendererText.shareTheSimplePathArriveWorshipMeetPeopleAnd.en, pageContentRendererText.shareTheSimplePathArriveWorshipMeetPeopleAnd.zh)
+        : localized(pageContentRendererText.writeAWarmIntroductionForPeopleVisitingThisPage.en, pageContentRendererText.writeAWarmIntroductionForPeopleVisitingThisPage.zh)
     return {
       ...section,
       contentJson: {
@@ -415,15 +416,15 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
     const groups = preset === 'spotlight-groups'
     const sermons = preset === 'spotlight-sermons'
     const title = groups
-      ? localized('Faith grows in groups.', '信仰在小组里成长。')
+      ? localized(pageContentRendererText.faithGrowsInGroups.en, pageContentRendererText.faithGrowsInGroups.zh)
       : sermons
-        ? localized('Keep reflecting through sermons.', '透过讲道继续思想。')
-        : localized('Ministry spotlight', '事工重点')
+        ? localized(pageContentRendererText.keepReflectingThroughSermons.en, pageContentRendererText.keepReflectingThroughSermons.zh)
+        : localized(pageContentRendererText.ministrySpotlight.en, pageContentRendererText.ministrySpotlight.zh)
     const body = groups
-      ? localized('Highlight how people can find belonging and care.', '强调人如何找到归属与关怀。')
+      ? localized(pageContentRendererText.highlightHowPeopleCanFindBelongingAndCare.en, pageContentRendererText.highlightHowPeopleCanFindBelongingAndCare.zh)
       : sermons
-        ? localized('Feature a message, series, or teaching theme.', '展示一篇讲道、系列或教导主题。')
-        : localized('Tell one focused story with text, media, and a clear action.', '用文字、媒体和行动按钮讲述一个重点故事。')
+        ? localized(pageContentRendererText.featureAMessageSeriesOrTeachingTheme.en, pageContentRendererText.featureAMessageSeriesOrTeachingTheme.zh)
+        : localized(pageContentRendererText.tellOneFocusedStoryWithTextMediaAndA.en, pageContentRendererText.tellOneFocusedStoryWithTextMediaAndA.zh)
     const spotlightSource = groups ? 'groups' : sermons ? 'sermons' : 'events'
     const spotlightPreset = groups ? 'featured' : sermons ? 'latest' : 'upcoming'
     return {
@@ -450,9 +451,9 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
         centerText: body,
         body,
         text: body,
-        linkLabel: localized('Learn more', '了解更多'),
-        linkText: localized('Learn more', '了解更多'),
-        ctaLabel: localized('Learn more', '了解更多'),
+        linkLabel: localized(pageContentRendererText.learnMore.en, pageContentRendererText.learnMore.zh),
+        linkText: localized(pageContentRendererText.learnMore.en, pageContentRendererText.learnMore.zh),
+        ctaLabel: localized(pageContentRendererText.learnMore.en, pageContentRendererText.learnMore.zh),
       },
       styleJson: {
         ...section.styleJson,

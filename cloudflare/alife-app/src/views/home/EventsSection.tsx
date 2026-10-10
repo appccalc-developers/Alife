@@ -1,3 +1,4 @@
+import { homeEventsText } from '../../i18n/homeEvents.ts'
 import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
@@ -119,17 +120,11 @@ const buildPreviewEvents = (): GroupEventRecord[] => {
       id: 'preview-family-picnic',
       groupId: 'preview-church',
       createdByMemberId: 'preview',
-      titleEn: 'Family Picnic & Prayer Walk',
-      titleZh: '家庭野餐与祷告同行',
+      titleEn: homeEventsText.previewFamilyPicnic.en,
+      titleZh: homeEventsText.previewFamilyPicnic.zh,
       startDate: first.toISOString(),
       endDate: new Date(first.getTime() + 3 * 60 * 60 * 1000).toISOString(),
-      eventDataJson: JSON.stringify({
-        description: {
-          en: 'A relaxed afternoon for families, newcomers, and small groups to share food and pray for the city.',
-          zh: '给家庭、新朋友和小组预备的轻松下午，一起分享食物，也为城市祷告。',
-        },
-        locationName: { en: 'Church lawn and nearby walk', zh: '教会草地与附近步道' },
-      }),
+      eventDataJson: JSON.stringify(homeEventsText.previewFamilyPicnicEventDataJson),
       createdUtc: now,
       updatedUtc: now,
     },
@@ -137,17 +132,11 @@ const buildPreviewEvents = (): GroupEventRecord[] => {
       id: 'preview-new-friends-lunch',
       groupId: 'preview-church',
       createdByMemberId: 'preview',
-      titleEn: 'New Friends Lunch',
-      titleZh: '新朋友午餐',
+      titleEn: homeEventsText.previewNewFriendsLunch.en,
+      titleZh: homeEventsText.previewNewFriendsLunch.zh,
       startDate: second.toISOString(),
       endDate: new Date(second.getTime() + 2 * 60 * 60 * 1000).toISOString(),
-      eventDataJson: JSON.stringify({
-        description: {
-          en: 'A simple table after worship for visitors to meet leaders, ask questions, and feel at home.',
-          zh: '主日后为新朋友预备的餐桌，可以认识同工、提问，也自然地融入教会。',
-        },
-        locationName: { en: 'Fellowship hall', zh: '团契厅' },
-      }),
+      eventDataJson: JSON.stringify(homeEventsText.previewNewFriendsLunchEventDataJson),
       createdUtc: now,
       updatedUtc: now,
     },
@@ -155,17 +144,11 @@ const buildPreviewEvents = (): GroupEventRecord[] => {
       id: 'preview-worship-night',
       groupId: 'preview-church',
       createdByMemberId: 'preview',
-      titleEn: 'Worship & Testimony Night',
-      titleZh: '敬拜与见证之夜',
+      titleEn: homeEventsText.previewWorshipNight.en,
+      titleZh: homeEventsText.previewWorshipNight.zh,
       startDate: third.toISOString(),
       endDate: new Date(third.getTime() + 2 * 60 * 60 * 1000).toISOString(),
-      eventDataJson: JSON.stringify({
-        description: {
-          en: 'An evening of songs, stories, and prayer across generations.',
-          zh: '一个跨世代一起敬拜、分享见证和祷告的晚上。',
-        },
-        locationName: { en: 'Main sanctuary', zh: '主堂' },
-      }),
+      eventDataJson: JSON.stringify(homeEventsText.previewWorshipNightEventDataJson),
       createdUtc: now,
       updatedUtc: now,
     },
@@ -173,17 +156,11 @@ const buildPreviewEvents = (): GroupEventRecord[] => {
       id: 'preview-evening-table',
       groupId: 'preview-church',
       createdByMemberId: 'preview',
-      titleEn: 'Evening Table Gathering',
-      titleZh: '晚间餐桌相聚',
+      titleEn: homeEventsText.previewEveningTable.en,
+      titleZh: homeEventsText.previewEveningTable.zh,
       startDate: fourth.toISOString(),
       endDate: new Date(fourth.getTime() + 2 * 60 * 60 * 1000).toISOString(),
-      eventDataJson: JSON.stringify({
-        description: {
-          en: 'A smaller evening gathering with dinner, conversation, and prayer for people exploring community.',
-          zh: '较小型的晚间聚会，有晚餐、交流和祷告，适合正在认识社区的人。',
-        },
-        locationName: { en: 'Community room', zh: '社区活动室' },
-      }),
+      eventDataJson: JSON.stringify(homeEventsText.previewEveningTableEventDataJson),
       createdUtc: now,
       updatedUtc: now,
     },

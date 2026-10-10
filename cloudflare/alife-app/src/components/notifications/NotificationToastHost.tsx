@@ -1,3 +1,4 @@
+import { notificationToastHostText } from '../../i18n/notificationToastHost.ts'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -121,7 +122,7 @@ const NotificationToastHost = () => {
               <button
                 type="button"
                 className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                aria-label={auth.language === 'zh' ? '关闭消息' : 'Close notifications'}
+                aria-label={auth.language === 'zh' ? notificationToastHostText.closeNotifications.zh : notificationToastHostText.closeNotifications.en}
                 onClick={() => setOpen(false)}
               >
                 <X aria-hidden="true" className="h-4 w-4" />
@@ -135,7 +136,7 @@ const NotificationToastHost = () => {
 
               {notifications.length === 0 ? (
                 <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
-                  {auth.language === 'zh' ? '目前没有未读消息。' : 'No unread messages right now.'}
+                  {auth.language === 'zh' ? notificationToastHostText.noUnreadMessagesRightNow.zh : notificationToastHostText.noUnreadMessagesRightNow.en}
                 </p>
               ) : (
                 <ul className="space-y-2">

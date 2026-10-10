@@ -97,6 +97,15 @@ Preserve established bilingual shapes such as:
 - Keep translation helpers stable.
 - Avoid refetching or remounting for a language-only UI switch unless underlying data changes.
 
+### Fixed UI copy in AI-generated code
+
+AI agents generating or modifying frontend code must keep fixed display text in the existing feature-scoped `cloudflare/alife-app/src/i18n/` resources.
+
+- This includes labels, buttons, placeholders, accessibility text, loading/error/empty/success messages, default display text, and preview/demo copy. Do not embed fixed copy in components, views, hooks, services, or utilities as `{ en: '...', zh: '...' }`, language-dependent string literals, JSX text, or arguments to local translation helpers. Single-language fixed UI text belongs in i18n too.
+- Reuse suitable existing resources and translation helpers. Use stable, descriptive keys; keep interpolated messages in resources with explicit parameters rather than assembling translated fragments in callers. Preserve the established language selection and fallback behavior without adding a localization library.
+- Keep user-authored content, editable form values, API/DTO fields, persisted `{ en, zh }` business data, domain identifiers, enum codes, and protocol values in their owning modules. Moving UI copy into i18n must not change payload shapes, saved JSON, permissions, cache identity, or business meaning.
+- When adding or changing fixed copy, review both English and Chinese and run `npm --prefix cloudflare/alife-app run test:locale`. Verify language switching when presentation behavior changes.
+
 ## Frontend and content builders
 
 Changes under `cloudflare/alife-app/` must also follow `cloudflare/alife-app/AGENTS.md`.

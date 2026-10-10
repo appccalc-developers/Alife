@@ -1,3 +1,4 @@
+import { churchAlbumsViewText } from '../i18n/churchAlbumsView.ts'
 import { useEffect, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Images, Settings2 } from 'lucide-react'
@@ -37,14 +38,14 @@ const ChurchAlbumsView = () => {
 
   return (
     <AppPageShell
-      title={language === 'zh' ? '教会相册' : 'Church albums'}
-      context={language === 'zh' ? '教会生活 / 相册' : 'Church Life / Albums'}
-      subtitle={language === 'zh' ? '浏览教会与事工相册，一起回顾相聚的时光。' : 'Explore church and ministry albums and revisit moments shared together.'}
+      title={language === 'zh' ? churchAlbumsViewText.churchAlbums.zh : churchAlbumsViewText.churchAlbums.en}
+      context={language === 'zh' ? churchAlbumsViewText.churchLifeAlbums.zh : churchAlbumsViewText.churchLifeAlbums.en}
+      subtitle={language === 'zh' ? churchAlbumsViewText.exploreChurchAndMinistryAlbumsAndRevisitMomentsShared.zh : churchAlbumsViewText.exploreChurchAndMinistryAlbumsAndRevisitMomentsShared.en}
     >
       <ChurchLifeResultsRegion busy={albumsQuery.isFetching && !albumsQuery.isPending} language={language}>
         {albumsQuery.isPending ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-72 animate-pulse rounded-2xl border border-[#dfe7e3] bg-white" />)}</div> : null}
-        {albumsQuery.error ? <AppEmptyState title={language === 'zh' ? '无法加载相册' : 'Albums could not be loaded'} description={normalizeApiError(albumsQuery.error).message} actionLabel={language === 'zh' ? '重试' : 'Retry'} onAction={() => void albumsQuery.refetch()} /> : null}
-        {!albumsQuery.isPending && !albumsQuery.error && albumsQuery.data?.items.length === 0 ? <AppEmptyState title={language === 'zh' ? '没有符合条件的相册' : 'No matching albums'} description={language === 'zh' ? '更换所属组筛选，或稍后再来查看。' : 'Choose another owning group or check again later.'} /> : null}
+        {albumsQuery.error ? <AppEmptyState title={language === 'zh' ? churchAlbumsViewText.albumsCouldNotBeLoaded.zh : churchAlbumsViewText.albumsCouldNotBeLoaded.en} description={normalizeApiError(albumsQuery.error).message} actionLabel={language === 'zh' ? churchAlbumsViewText.retry.zh : churchAlbumsViewText.retry.en} onAction={() => void albumsQuery.refetch()} /> : null}
+        {!albumsQuery.isPending && !albumsQuery.error && albumsQuery.data?.items.length === 0 ? <AppEmptyState title={language === 'zh' ? churchAlbumsViewText.noMatchingAlbums.zh : churchAlbumsViewText.noMatchingAlbums.en} description={language === 'zh' ? churchAlbumsViewText.chooseAnotherOwningGroupOrCheckAgainLater.zh : churchAlbumsViewText.chooseAnotherOwningGroupOrCheckAgainLater.en} /> : null}
         {!albumsQuery.isPending && !albumsQuery.error && albumsQuery.data?.items.length ? (
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {albumsQuery.data.items.map((album) => {
@@ -58,15 +59,15 @@ const ChurchAlbumsView = () => {
                     <div className="p-4">
                       <span className="inline-flex max-w-full rounded-full bg-[#e7f2ed] px-2.5 py-1 text-[0.65rem] font-black text-[#176b5a]"><span className="truncate">{churchGroupPath(album.groupId, groups, language)}</span></span>
                       <h2 className="mt-3 font-black text-[#18332d] group-hover:text-[#176b5a]">{localizeText(album.name, language)}</h2>
-                      <p className="mt-1 text-xs text-[#66766f]">{language === 'zh' ? `${album.childCount} 个子相册 · ${album.photoCount} 张图片` : `${album.childCount} subalbums · ${album.photoCount} photos`}</p>
+                      <p className="mt-1 text-xs text-[#66766f]">{language === 'zh' ? churchAlbumsViewText.subalbumsPhotos.zh(album.childCount, album.photoCount) : churchAlbumsViewText.subalbumsPhotos.en(album.childCount, album.photoCount)}</p>
                     </div>
                   </Link>
                   {owner?.canManage ? (
                     <div className="flex justify-end border-t border-[#e5ebe8] px-3 py-2">
                       <AppOverflowMenu
-                        label={language === 'zh' ? '更多操作' : 'More actions'}
+                        label={language === 'zh' ? churchAlbumsViewText.moreActions.zh : churchAlbumsViewText.moreActions.en}
                         actions={[{
-                          label: language === 'zh' ? '在所属组管理' : 'Manage in owning group',
+                          label: language === 'zh' ? churchAlbumsViewText.manageInOwningGroup.zh : churchAlbumsViewText.manageInOwningGroup.en,
                           to: `/groups/${encodeURIComponent(album.groupId)}/manage?section=albums`,
                           icon: <Settings2 className="h-4 w-4" />,
                         }]}

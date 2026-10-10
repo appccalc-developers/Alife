@@ -1,0 +1,23 @@
+// Fixed bilingual copy for components/events/EventPublishStep.tsx.
+export const eventPublishStepText = {
+    publishThisEvent: { en: 'Publish this event?', zh: '确认发布活动' } as const,
+    publish: { en: 'Publish', zh: '确认发布' } as const,
+    theRiskAssessmentHasNotPassedIndependentRamReview: { en: 'The risk assessment has not passed independent RAM review.', zh: '风险评估尚未通过，请先完成 RAM 独立审核。' } as const,
+    churchSponsorshipIsNotApprovedYet: { en: 'Church sponsorship is not approved yet.', zh: '教会身份尚未批准，请先完成身份审批。' } as const,
+    approvalOrEventDetailsChangedRefreshAndReviewApproval: { en: 'Approval or event details changed. Refresh and review approval before publishing.', zh: '审批或活动资料已变化，请刷新并检查审批状态后再发布。' } as const,
+    publishEvent: { en: 'Publish event', zh: '发布活动' } as const,
+    afterFormalApprovalAndPublicationChecksPublishToThe: { en: 'After formal approval and publication checks, publish to the configured audience.', zh: '正式审批通过并满足发布条件后，按已设置的可见范围发布。' } as const,
+    checkingApprovalAndPublication: { en: 'Checking approval and publication…', zh: '正在检查审批与发布状态……' } as const,
+    audience: { en: 'Audience', zh: '发布范围' } as const,
+    eventPublishedEligibleVisitorsOrMembersCanNowView: { en: 'Event published. Eligible visitors or members can now view it.', zh: '活动已发布，符合可见性规则的访客或成员可以查看。' } as const,
+    approvalAndPublicationChecksAreSatisfiedConfirmPublicationWhen: { en: 'Approval and publication checks are satisfied. Confirm publication when ready.', zh: '审批和发布条件已满足，请确认发布。' } as const,
+    publicationIsNotReadyCompleteFormalApprovalRequiredConditions: { en: 'Publication is not ready. Complete formal approval, required conditions and applicable safety approvals.', zh: '尚未满足发布条件，请先完成正式审批、所需条件与相关安全审批。' } as const,
+    publishing: { en: 'Publishing…', zh: '正在发布……' } as const,
+    confirmAndPublishEvent: { en: 'Confirm and publish event', zh: '确认并发布活动' } as const,
+    backToApproval: { en: 'Back to approval', zh: '返回正式审批' } as const,
+    riskAssessmentAndManagement: { en: 'Risk assessment and management', zh: '查看风险评估与管理' } as const,
+    viewEvent: { en: 'View event', zh: '查看活动' } as const,
+    registrationStillNeedsAnExplicitOpeningActionInGovernance: { en: 'Registration still needs an explicit opening action in governance.', zh: '发布后仍需在审批治理中确认开放报名。' } as const,
+    registrationControls: { en: 'Registration controls', zh: '开放报名设置' } as const,
+    refreshApprovalAndPublication: { en: 'Refresh approval and publication', zh: '刷新审批与发布状态' } as const,
+};

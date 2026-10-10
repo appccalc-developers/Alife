@@ -1,3 +1,4 @@
+import { groupSiteNavigationText } from '../../i18n/groupSiteNavigation.ts'
 export type GroupSiteSection = 'home' | 'announcements' | 'albums' | 'forum' | 'events'
 
 export const getLegacyGroupEntryPath = (search: string, savedGroupId: string) => {
@@ -26,10 +27,10 @@ export const getGroupSiteRoute = (pathname: string, search = ''): { section: Gro
 export const getGroupSiteMenu = (language: string, access: { canManage: boolean; canRead: boolean }, groupId?: string) => {
   const zh = language === 'zh'
   const base = groupId ? `/groups/${encodeURIComponent(groupId)}` : '/groups'
-  const items: { key: GroupSiteSection; label: string; to: string }[] = [{ key: 'home', label: zh ? '首页' : 'Home', to: `${base}?view=overview` }]
-  if (access.canManage) items.push({ key: 'announcements', label: zh ? '公告' : 'Announcements', to: `${base}?section=announcements` })
-  if (access.canRead) items.push({ key: 'albums', label: zh ? '相册' : 'Albums', to: groupId ? `${base}/albums` : '/albums' })
-  if (access.canRead) items.push({ key: 'forum', label: zh ? '论坛' : 'Forum', to: `${base}/forum` })
-  if (access.canManage) items.push({ key: 'events', label: zh ? '活动' : 'Events', to: `${base}?section=events` })
+  const items: { key: GroupSiteSection; label: string; to: string }[] = [{ key: 'home', label: zh ? groupSiteNavigationText.home.zh : groupSiteNavigationText.home.en, to: `${base}?view=overview` }]
+  if (access.canManage) items.push({ key: 'announcements', label: zh ? groupSiteNavigationText.announcements.zh : groupSiteNavigationText.announcements.en, to: `${base}?section=announcements` })
+  if (access.canRead) items.push({ key: 'albums', label: zh ? groupSiteNavigationText.albums.zh : groupSiteNavigationText.albums.en, to: groupId ? `${base}/albums` : '/albums' })
+  if (access.canRead) items.push({ key: 'forum', label: zh ? groupSiteNavigationText.forum.zh : groupSiteNavigationText.forum.en, to: `${base}/forum` })
+  if (access.canManage) items.push({ key: 'events', label: zh ? groupSiteNavigationText.events.zh : groupSiteNavigationText.events.en, to: `${base}?section=events` })
   return items
 }

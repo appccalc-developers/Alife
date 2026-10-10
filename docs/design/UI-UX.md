@@ -34,4 +34,6 @@ Management row secondary details may expand in place; a substantial managed obje
 
 Current language preference is coordinated by AuthProvider and `src/i18n/locale.ts`; a language-only change does not change permissions or data identity. Do not claim server synchronization, theme, typography or other settings exist without inspecting their implementation. New settings specify supported values, default, storage scope, reset, accessibility and viewer isolation.
 
+Fixed interface labels, messages, preview copy and default display text belong to feature-scoped resources under `src/i18n/`. This does not change editable or API `{en, zh}` content. The locale checks guard against inline bilingual copy and mismatched English/Chinese catalogue fields.
+
 Before a visual change classify its surface, identify existing tokens and the relevant accepted reference, and state its functional purpose. After implementation inspect rendered screens and interactions. Screenshots alone do not prove a functioning flow; automated geometry/semantic checks alone do not establish visual acceptance. Record user-approved design directions with their scope. New references must name source and fixture/live-data limitations.

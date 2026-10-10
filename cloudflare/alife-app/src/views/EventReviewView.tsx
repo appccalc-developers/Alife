@@ -1,3 +1,4 @@
+import { eventReviewViewText } from '../i18n/eventReviewView.ts'
 import { useEffect, useState } from 'react'
 import { Navigate, useParams, useSearchParams } from 'react-router-dom'
 import AppBadge from '../components/layout/AppBadge'
@@ -116,10 +117,10 @@ const EventReviewView = () => {
 
   return (
     <AppPageShell
-      title={eventTitle || (language === 'zh' ? '活动回顾' : 'Event review')}
-      context={language === 'zh' ? '小组生活 / 活动 / 回顾' : 'Group Life / Event / Review'}
-      status={event ? <AppBadge variant="neutral">{language === 'zh' ? '已结束' : 'Past event'}</AppBadge> : undefined}
-      backLink={{ label: language === 'zh' ? '返回活动回顾' : 'Back to event memories', to: `${eventBasePath}?section=memories` }}
+      title={eventTitle || (language === 'zh' ? eventReviewViewText.eventReview.zh : eventReviewViewText.eventReview.en)}
+      context={language === 'zh' ? eventReviewViewText.groupLifeEventReview.zh : eventReviewViewText.groupLifeEventReview.en}
+      status={event ? <AppBadge variant="neutral">{language === 'zh' ? eventReviewViewText.pastEvent.zh : eventReviewViewText.pastEvent.en}</AppBadge> : undefined}
+      backLink={{ label: language === 'zh' ? eventReviewViewText.backToEventMemories.zh : eventReviewViewText.backToEventMemories.en, to: `${eventBasePath}?section=memories` }}
     >
 
       {loading ? (

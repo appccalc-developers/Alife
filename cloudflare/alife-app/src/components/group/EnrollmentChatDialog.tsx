@@ -1,3 +1,4 @@
+import { enrollmentChatDialogText } from '../../i18n/enrollmentChatDialog.ts'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { translateUi, type UiTextKey } from '../../i18n/uiText'
@@ -77,7 +78,7 @@ const EnrollmentChatDialog = ({
   }
   let registrationVersion = 0
   try { registrationVersion = JSON.parse(event.eventDataJson).registrationRulesVersion || 0 } catch { /* Legacy event. */ }
-  if (registrationVersion > 0) return <div className="space-y-3 rounded-2xl bg-white p-5"><p className="text-sm">{language === 'zh' ? '请在报名空间办理每位参加者的同意、材料和费用，并查看名额状态。' : 'Use the registration workspace for each participant’s consent, materials, fees and place status.'}</p><Link className="inline-flex min-h-11 items-center font-semibold text-[#176b5a]" to={`/events/${event.id}/registration-work`}>{language === 'zh' ? '进入报名办理' : 'Open registration'}</Link>{onClose ? <button type="button" className="ml-4 min-h-11" onClick={onClose}>{language === 'zh' ? '关闭' : 'Close'}</button> : null}</div>
+  if (registrationVersion > 0) return <div className="space-y-3 rounded-2xl bg-white p-5"><p className="text-sm">{language === 'zh' ? enrollmentChatDialogText.useTheRegistrationWorkspaceForEachParticipantSConsent.zh : enrollmentChatDialogText.useTheRegistrationWorkspaceForEachParticipantSConsent.en}</p><Link className="inline-flex min-h-11 items-center font-semibold text-[#176b5a]" to={`/events/${event.id}/registration-work`}>{language === 'zh' ? enrollmentChatDialogText.openRegistration.zh : enrollmentChatDialogText.openRegistration.en}</Link>{onClose ? <button type="button" className="ml-4 min-h-11" onClick={onClose}>{language === 'zh' ? enrollmentChatDialogText.close.zh : enrollmentChatDialogText.close.en}</button> : null}</div>
 
   const title = language === 'zh'
     ? event.titleZh || event.titleEn || translateUi(language, 'untitled')
@@ -122,7 +123,7 @@ const EnrollmentChatDialog = ({
       setCommitStatus('saved')
       setSavedWaitlistPosition(result.enrollment.status === 'waitlisted' ? result.enrollment.waitlistPosition ?? 0 : null)
       onSuccess(result.enrollment.status === 'waitlisted'
-        ? (language === 'zh' ? `已加入候补，当前位置：${result.enrollment.waitlistPosition ?? '—'}。获得名额后会收到站内通知。` : `Joined the waitlist at position ${result.enrollment.waitlistPosition ?? '—'}. You will receive an in-app notification when a place is confirmed.`)
+        ? (language === 'zh' ? enrollmentChatDialogText.joinedTheWaitlistAtPositionYouWillReceiveAn.zh(result.enrollment.waitlistPosition ?? '—') : enrollmentChatDialogText.joinedTheWaitlistAtPositionYouWillReceiveAn.en(result.enrollment.waitlistPosition ?? '—'))
         : t('registeredSuccessfully'))
     } catch (reason) {
       const apiError = normalizeApiError(reason)
@@ -219,8 +220,8 @@ const EnrollmentChatDialog = ({
           </fieldset>
 
           <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <label className="flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" checked={acceptWaitlist} disabled={commitStatus === 'saving'} onChange={e => setAcceptWaitlist(e.target.checked)} className="mt-1" /><span>{language === 'zh' ? '如果名额已满，我同意加入候补并按顺序等待递补。' : 'If the event is full, I agree to join the waitlist and wait for a place in queue order.'}</span></label>
-              {capacity && capacity.confirmed >= capacity.capacity ? <p role="status" className="text-sm text-amber-800">{language === 'zh' ? '正式名额已满。勾选上方选项后可加入候补。' : 'All places are filled. Select the option above to join the waitlist.'}</p> : null}
+              <label className="flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" checked={acceptWaitlist} disabled={commitStatus === 'saving'} onChange={e => setAcceptWaitlist(e.target.checked)} className="mt-1" /><span>{language === 'zh' ? enrollmentChatDialogText.ifTheEventIsFullIAgreeToJoin.zh : enrollmentChatDialogText.ifTheEventIsFullIAgreeToJoin.en}</span></label>
+              {capacity && capacity.confirmed >= capacity.capacity ? <p role="status" className="text-sm text-amber-800">{language === 'zh' ? enrollmentChatDialogText.allPlacesAreFilledSelectTheOptionAboveTo.zh : enrollmentChatDialogText.allPlacesAreFilledSelectTheOptionAboveTo.en}</p> : null}
           </div>
 
           <div className="space-y-3">
@@ -273,7 +274,7 @@ const EnrollmentChatDialog = ({
           {commitStatus === 'saved' ? (
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               {savedWaitlistPosition !== null
-                ? (language === 'zh' ? `已加入候补，第 ${savedWaitlistPosition || '—'} 位；尚未获得正式名额。` : `Joined the waitlist at position ${savedWaitlistPosition || '—'}; a place is not yet confirmed.`)
+                ? (language === 'zh' ? enrollmentChatDialogText.joinedTheWaitlistAtPositionAPlaceIsNot.zh(savedWaitlistPosition || '—') : enrollmentChatDialogText.joinedTheWaitlistAtPositionAPlaceIsNot.en(savedWaitlistPosition || '—'))
                 : t('registeredSuccessfully')}
             </p>
           ) : null}

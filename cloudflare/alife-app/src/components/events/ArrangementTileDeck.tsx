@@ -1,3 +1,4 @@
+import { arrangementTileDeckText } from '../../i18n/arrangementTileDeck.ts'
 import { Children, isValidElement, createContext, useCallback, useContext, useEffect, useId, useState, type ComponentProps, type CSSProperties, type ReactNode } from 'react'
 import { ChevronDown, CheckCircle2, Circle, CircleDashed, LayoutGrid, Pencil, Power } from 'lucide-react'
 import AppSectionCard from '../layout/AppSectionCard'
@@ -6,9 +7,9 @@ import AppBadge from '../layout/AppBadge'
 export type ArrangementTile = { id: string; title: string; shortTitle?: string; icon?: ReactNode; color?: string; accent?: string; ink?: string; enabled?: boolean; capability?: string; status?: string; confirmed?: boolean; dirty?: boolean; faded?: boolean }
 export function TileButtons({ items, active, onSelect, label, compact = false, zh = false }: { items: ArrangementTile[]; active: string | null; onSelect: (id: string) => void; label: string; compact?: boolean; zh?: boolean }) {
   if (compact) return <div className="event-module-grid" role="group" aria-label={label}>{items.map(item => {
-    const enabled = item.enabled ? (zh ? '已启用' : 'Enabled') : (zh ? '未启用' : 'Off')
-    const confirmed = item.confirmed ? (zh ? '填写已确认' : 'Details confirmed') : (zh ? '待确认' : 'Pending')
-    const dirty = item.dirty ? (zh ? '未保存' : 'Unsaved') : ''
+    const enabled = item.enabled ? (zh ? arrangementTileDeckText.enabled.zh : arrangementTileDeckText.enabled.en) : (zh ? arrangementTileDeckText.off.zh : arrangementTileDeckText.off.en)
+    const confirmed = item.confirmed ? (zh ? arrangementTileDeckText.detailsConfirmed.zh : arrangementTileDeckText.detailsConfirmed.en) : (zh ? arrangementTileDeckText.pending.zh : arrangementTileDeckText.pending.en)
+    const dirty = item.dirty ? (zh ? arrangementTileDeckText.unsaved.zh : arrangementTileDeckText.unsaved.en) : ''
     return <button key={item.id} type="button" data-arrangement-tile={item.id} aria-label={[item.title, enabled, confirmed, dirty, item.capability].filter(Boolean).join(' · ')} aria-expanded={active === item.id} aria-controls={`tile-panel-${item.id}`} onClick={() => onSelect(item.id)} className="event-module-card" data-selected={active === item.id} data-inactive={item.faded || undefined} style={{ '--event-domain-surface': item.color, '--event-domain-accent': item.accent, '--event-domain-ink': item.ink } as CSSProperties}>
       <span className="event-module-identity"><span className="event-module-graphic" aria-hidden="true">{item.icon || <LayoutGrid size={20} />}</span><strong>{item.shortTitle || item.title}</strong></span>
       <span className="event-module-signals"><span><Power size={13} aria-hidden="true" />{enabled}</span><span>{item.confirmed ? <CheckCircle2 size={14} aria-hidden="true" /> : <Circle size={14} aria-hidden="true" />}{confirmed}</span></span>
@@ -17,9 +18,9 @@ export function TileButtons({ items, active, onSelect, label, compact = false, z
     </button>
   })}</div>
   return <div className="arrangement-tile-grid" role="group" aria-label={label}>{items.map(item => <button key={item.id} type="button" data-arrangement-tile={item.id} aria-label={item.title} aria-expanded={active === item.id} aria-controls={`tile-panel-${item.id}`} onClick={() => onSelect(item.id)} className={`arrangement-tile ${active === item.id ? 'is-active' : ''} ${item.faded ? 'is-faded' : ''}`} style={{ backgroundColor: item.color || '#e3f0eb' }}>
-    <span className="arrangement-tile-icon">{item.dirty ? <span className="arrangement-tile-dirty"><Pencil size={12} aria-hidden="true" />{label.includes('模块') ? '未保存' : 'Unsaved'}</span> : <span aria-hidden="true">{item.icon || <LayoutGrid size={19} />}</span>}</span><strong>{item.shortTitle || item.title}</strong>
+    <span className="arrangement-tile-icon">{item.dirty ? <span className="arrangement-tile-dirty"><Pencil size={12} aria-hidden="true" />{label.includes('模块') ? arrangementTileDeckText.unsaved.zh : arrangementTileDeckText.unsaved.en}</span> : <span aria-hidden="true">{item.icon || <LayoutGrid size={19} />}</span>}</span><strong>{item.shortTitle || item.title}</strong>
     {item.status ? <span className="arrangement-tile-status">{item.status}</span> : null}
-    {item.confirmed !== undefined ? <span className="arrangement-tile-status">{item.confirmed ? <CheckCircle2 size={12} /> : <Circle size={12} />}{item.confirmed ? (label.includes('模块') ? '已确认' : 'Confirmed') : (label.includes('模块') ? '待确认' : 'Pending')}</span> : null}
+    {item.confirmed !== undefined ? <span className="arrangement-tile-status">{item.confirmed ? <CheckCircle2 size={12} /> : <Circle size={12} />}{item.confirmed ? (label.includes('模块') ? arrangementTileDeckText.confirmed.zh : arrangementTileDeckText.confirmed.en) : (label.includes('模块') ? arrangementTileDeckText.pending.zh : arrangementTileDeckText.pending.en)}</span> : null}
 
   </button>)}</div>
 }
@@ -79,8 +80,8 @@ export function EventToolSection({ summary, defaultOpen = false, headerAction, .
   const [open, setOpen] = useState(defaultOpen)
   if (zh === null || !props.title) return <AppSectionCard {...props} />
   const badge = badgeSummary(props.action)
-  const readinessLabels: Record<string, string> = zh ? { ready: '已就绪', notReady: '待准备', incomplete: '待补充', notApplicable: '不适用', blocked: '有待处理事项' } : { ready: 'Ready', notReady: 'Not ready', incomplete: 'Incomplete', notApplicable: 'Not applicable', blocked: 'Blocked' }
-  const status = summary ?? (badge ? readinessLabels[badge] || badge : (zh ? '查看与配置' : 'Review and configure'))
+  const readinessLabels: Record<string, string> = zh ? { ...arrangementTileDeckText.localizedCopy.zh } : { ...arrangementTileDeckText.localizedCopy.en }
+  const status = summary ?? (badge ? readinessLabels[badge] || badge : (zh ? arrangementTileDeckText.reviewAndConfigure.zh : arrangementTileDeckText.reviewAndConfigure.en))
   return <details open={open} onToggle={event => { if (event.target === event.currentTarget) setOpen(event.currentTarget.open) }} data-tool-panel className="arrangement-tool-card" onInvalidCapture={event => revealArrangementControl(event.target as HTMLElement)}>
     <summary aria-controls={id} className="arrangement-tool-summary">
       <span className="min-w-0 flex-1"><span className="block font-bold text-[#18332d]">{props.title}</span><span className="mt-1 block text-sm font-normal text-[#66766f]" data-tool-summary>{status}</span></span>
