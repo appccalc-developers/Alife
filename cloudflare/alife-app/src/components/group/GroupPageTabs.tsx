@@ -65,7 +65,7 @@ const toEditModel = (page: GroupPageDto): PageEditModel => ({
   sections: [],
 })
 
-const GroupPageTabs = ({
+const GroupPageTabsContent = ({
   pages,
   subgroups,
   selectedPageId = '',
@@ -78,7 +78,7 @@ const GroupPageTabs = ({
   flatSections = false,
 }: Props) => {
   const t = useUiText()
-  const { language } = useAuthStore()
+  const { language, me } = useAuthStore()
   const [sectionsByPageId, setSectionsByPageId] = useState<Record<string, SectionEditModel[]>>({})
   const [modelsByPageId, setModelsByPageId] = useState<Record<string, PageEditModel>>({})
   const [sourceByPageId, setSourceByPageId] = useState<Record<string, 'working' | 'published'>>({})
@@ -138,9 +138,11 @@ const GroupPageTabs = ({
     setLoadingPageId(activePage.id)
     setError('')
 
-    const loadDetail = canViewWorkingCopy ? ensureFreshPageDetail : ensureFreshPublicPageDetail
-    loadDetail(activePage.id)
+    let cancelled = false
+    const loadDetail = canViewWorkingCopy ? ensureFreshPageDetail(activePage.id, me?.id ?? '') : ensureFreshPublicPageDetail(activePage.id)
+    loadDetail
       .then((detail) => {
+        if (cancelled) return
         if (!detail) {
           throw new Error('Published page not found.')
         }
@@ -162,12 +164,13 @@ const GroupPageTabs = ({
         }))
       })
       .catch(() => {
-        setError(t('loadPageSectionsFailed'))
+        if (!cancelled) setError(t('loadPageSectionsFailed'))
       })
       .finally(() => {
-        setLoadingPageId((current) => (current === activePage.id ? '' : current))
+        if (!cancelled) setLoadingPageId((current) => (current === activePage.id ? '' : current))
       })
-  }, [activePage, canViewWorkingCopy, sectionsByPageId, sourceByPageId, t])
+    return () => { cancelled = true }
+  }, [activePage, canViewWorkingCopy, me?.id, sectionsByPageId, sourceByPageId, t])
 
   useEffect(() => {
     if (!activePage || !sectionsByPageId[activePage.id]) {
@@ -373,6 +376,11 @@ const GroupPageTabs = ({
         ) : null}
       </div>
   )
+}
+
+const GroupPageTabs = (props: Props) => {
+  const { me } = useAuthStore()
+  return <GroupPageTabsContent key={`${me?.id ?? 'anonymous'}:${props.canViewWorkingCopy ? 'working' : 'published'}`} {...props} />
 }
 
 export default GroupPageTabs

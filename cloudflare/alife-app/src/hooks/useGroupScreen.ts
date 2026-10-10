@@ -310,8 +310,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
 
   const deletePage = useCallback(
     async (pageId: string) => {
-      await pageService.deletePage(pageId)
-      await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId] })
+      await pageService.deletePage(pageId, groupId)
       setStatusMessage(t('pageDeleted'))
     },
     [queryClient, groupId, t],

@@ -75,6 +75,7 @@ export default defineConfig(({ command, mode }) => {
         clientsClaim: true,
         navigateFallback: null,
         skipWaiting: true,
+        importScripts: ['/sw-runtime-cache-migration.js'],
         globPatterns: ['**/*.{js,css,html,json,png,svg,ico,webp,woff2}'],
         // Historical article covers are numerous and load lazily. Keep them out
         // of the install-time precache and let the image runtime cache retain
@@ -83,8 +84,9 @@ export default defineConfig(({ command, mode }) => {
         globIgnores: ['article-covers/generated/**', 'project/**'],
         runtimeCaching: [
           {
-            // Bulletin PDF navigations must never enter the document/offline cache.
-            urlPattern: ({ url }) => /^\/(?:images\/)?api\/(?:church-life\/bulletins(?:\/|$)|private-files\/private\/sunday-bulletins\/)/.test(url.pathname),
+            // API requests must win before resource/document rules, including
+            // private files reached through the image proxy or another origin.
+            urlPattern: ({ url }) => /^\/(?:images\/)?api(?:\/|$)/i.test(url.pathname),
             handler: 'NetworkOnly',
           },
           {
@@ -92,10 +94,11 @@ export default defineConfig(({ command, mode }) => {
             // Cache that response once and synthesize byte-range responses for
             // reliable repeat playback, including after auth-state navigation.
             urlPattern: ({ request, url }) =>
+              !/^\/(?:images\/)?api(?:\/|$)/i.test(url.pathname) &&
               url.origin === self.location.origin && request.destination === 'video',
             handler: 'CacheFirst',
             options: {
-              cacheName: 'alife-video-cache',
+              cacheName: 'alife-video-cache-v2',
               rangeRequests: true,
               expiration: {
                 maxEntries: 6,
@@ -108,6 +111,7 @@ export default defineConfig(({ command, mode }) => {
           },
           {
             urlPattern: ({ request, url }) =>
+              !/^\/(?:images\/)?api(?:\/|$)/i.test(url.pathname) &&
               url.origin === self.location.origin &&
               (request.mode === 'navigate' ||
                 request.destination === 'document' ||
@@ -115,7 +119,7 @@ export default defineConfig(({ command, mode }) => {
                 request.destination === 'style'),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'alife-app-cache',
+              cacheName: 'alife-app-cache-v2',
               expiration: {
                 maxEntries: 80,
                 maxAgeSeconds: ONE_WEEK_IN_SECONDS,
@@ -126,11 +130,12 @@ export default defineConfig(({ command, mode }) => {
             // Cover images and thumbnails - StaleWhileRevalidate for instant secondary loads
             // Serve cached instantly, update in background
             urlPattern: ({ request, url }) =>
+              !/^\/(?:images\/)?api(?:\/|$)/i.test(url.pathname) &&
               url.origin === self.location.origin &&
               (request.destination === 'image' || request.destination === 'font'),
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'alife-image-cache',
+              cacheName: 'alife-image-cache-v2',
               expiration: {
                 maxEntries: 120,
                 maxAgeSeconds: THIRTY_DAYS_IN_SECONDS,
@@ -147,11 +152,12 @@ export default defineConfig(({ command, mode }) => {
           {
             // External images (from Cloudflare Image Service) - StaleWhileRevalidate
             urlPattern: ({ url }) =>
+              !/^\/(?:images\/)?api(?:\/|$)/i.test(url.pathname) &&
               url.origin !== self.location.origin &&
               (url.pathname.match(/\/images\//) || url.pathname.match(/\/covers\//)),
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'alife-external-image-cache',
+              cacheName: 'alife-external-image-cache-v2',
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: THIRTY_DAYS_IN_SECONDS,
@@ -164,10 +170,10 @@ export default defineConfig(({ command, mode }) => {
           {
             // API responses are managed by HTTP validators/IndexedDB and must not
             // be replayed from the PWA runtime cache after auth or permission changes.
-            urlPattern: ({ url }) => url.origin === self.location.origin && !url.pathname.startsWith('/api/'),
+            urlPattern: ({ url }) => url.origin === self.location.origin && !/^\/(?:images\/)?api(?:\/|$)/i.test(url.pathname),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'alife-runtime-cache',
+              cacheName: 'alife-runtime-cache-v2',
               expiration: {
                 maxEntries: 80,
                 maxAgeSeconds: ONE_WEEK_IN_SECONDS,

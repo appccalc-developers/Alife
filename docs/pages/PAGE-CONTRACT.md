@@ -48,6 +48,10 @@ Existing update handling can resubmit a public working page. Its `preservePublic
 
 Public snapshot routes are eligible for public-page edge caching. Working copies are excluded from shared cache. The current origin working-copy controller applies private/no-cache headers while the edge architecture documents private/no-store for working copies. Treat these as different hop policies; verify origin/edge/client behavior together when changing this path rather than asserting identical headers everywhere.
 
+The app keeps working and publication-review copies in viewer-scoped memory only; it never persists these copies in IndexedDB or provides an offline fallback. Viewer changes and logout cancel private reads, discard private Query entries and clear legacy persisted copies. Editor and tab-preview state follows viewer identity, while a language-only switch retains the same data and editor instance.
+
+Successful deletion cancels reads and removes every viewer's working/review cache, the public detail and legacy persisted records. Mounted observers stop displaying the deleted copy, late reads cannot refill it, and affected lists and the current page selection are refreshed. Failed deletion preserves existing data. Public snapshot validators and persistent caching remain separate from private-copy handling.
+
 Follow [cross-layer cache coordination](../cache-coordination.md). A content change and a publication change affect different copies; invalidation must preserve that distinction. Public menu/card metadata comes from controlled publication data, not unreviewed working edits.
 
 ## Delivery and limitations

@@ -1,9 +1,17 @@
 import { HttpStatusError } from './httpError'
 import { cacheDiagnosticStore } from '../stores/cacheDiagnosticStore'
-import { clear, createStore, get, set } from 'idb-keyval'
+import { clear, createStore, delMany, get, keys, set } from 'idb-keyval'
 
 const idbStore = createStore('alife-cache-db', 'http-cache')
-const inFlightGets = new Map<string, Promise<unknown>>()
+const inFlightGets = new Map<string, { request: Promise<unknown>; controller: AbortController }>()
+// Serialize writes and removals so an already-started IDB write cannot finish
+// after an invalidation and resurrect the removed response.
+let cacheWrites: Promise<unknown> = Promise.resolve()
+const queueCacheWrite = <T>(operation: () => Promise<T>): Promise<T> => {
+  const next = cacheWrites.then(operation)
+  cacheWrites = next.catch(() => undefined)
+  return next
+}
 
 export type CachedHttpResponse<TData> = {
   etag: string
@@ -15,6 +23,7 @@ export type ConditionalGetOptions<TData> = {
   queryKey: readonly unknown[]
   path: string
   parser?: (data: unknown) => TData
+  signal?: AbortSignal
 }
 
 const buildStorageKey = (queryKey: readonly unknown[]) => {
@@ -30,10 +39,14 @@ const readRecord = async <TData>(queryKey: readonly unknown[]): Promise<CachedHt
   }
 }
 
-const writeRecord = async <TData>(queryKey: readonly unknown[], record: CachedHttpResponse<TData>): Promise<void> => {
+const writeRecord = async <TData>(queryKey: readonly unknown[], record: CachedHttpResponse<TData>, signal: AbortSignal): Promise<void> => {
   try {
-    await set(buildStorageKey(queryKey), record, idbStore)
+    await queueCacheWrite(async () => {
+      signal.throwIfAborted()
+      await set(buildStorageKey(queryKey), record, idbStore)
+    })
   } catch (error) {
+    signal.throwIfAborted()
     console.warn('[httpCache] Failed to write to IndexedDB:', error)
   }
 }
@@ -43,17 +56,39 @@ export const getCachedRecord = async <TData>(queryKey: readonly unknown[]): Prom
 }
 
 export const removeCachedRecord = async (queryKey: readonly unknown[]): Promise<void> => {
+  await removeCachedRecords(queryKey, true)
+}
+
+const matchesKey = (key: unknown, prefix: readonly unknown[], exact: boolean) => {
+  if (typeof key !== 'string') return false
   try {
-    const { del } = await import('idb-keyval')
-    await del(buildStorageKey(queryKey), idbStore)
+    const parsed: unknown = JSON.parse(key)
+    return Array.isArray(parsed) && (!exact || parsed.length === prefix.length) &&
+      prefix.every((part, index) => JSON.stringify(part) === JSON.stringify(parsed[index]))
+  } catch { return false }
+}
+
+export const removeCachedRecords = async (prefix: readonly unknown[], exact = false): Promise<void> => {
+  for (const [key, entry] of inFlightGets) {
+    if (!matchesKey(key, prefix, exact)) continue
+    entry.controller.abort()
+    inFlightGets.delete(key)
+  }
+  try {
+    await queueCacheWrite(async () => {
+      const matchingKeys = (await keys(idbStore)).filter(key => matchesKey(key, prefix, exact))
+      await delMany(matchingKeys, idbStore)
+    })
   } catch (error) {
-    console.warn('[httpCache] Failed to remove record from IndexedDB:', error)
+    console.warn('[httpCache] Failed to remove records from IndexedDB:', error)
   }
 }
 
 export const clearHttpCacheStore = async (): Promise<void> => {
+  for (const entry of inFlightGets.values()) entry.controller.abort()
+  inFlightGets.clear()
   try {
-    await clear(idbStore)
+    await queueCacheWrite(() => clear(idbStore))
   } catch (error) {
     console.warn('[httpCache] Failed to clear IndexedDB:', error)
   }
@@ -80,22 +115,30 @@ export const conditionalGet = async <TData>(options: ConditionalGetOptions<TData
   const inFlightKey = buildStorageKey(options.queryKey)
 
   if (inFlightGets.has(inFlightKey)) {
-    return (await inFlightGets.get(inFlightKey)) as TData
+    const data = await inFlightGets.get(inFlightKey)!.request
+    options.signal?.throwIfAborted()
+    return data as TData
   }
 
-  const request = executeConditionalGet(options)
-  inFlightGets.set(inFlightKey, request)
+  const controller = new AbortController()
+  const abort = () => controller.abort()
+  options.signal?.throwIfAborted()
+  options.signal?.addEventListener('abort', abort, { once: true })
+  const request = executeConditionalGet({ ...options, signal: controller.signal })
+  inFlightGets.set(inFlightKey, { request, controller })
 
   try {
     return await request
   } finally {
-    inFlightGets.delete(inFlightKey)
+    options.signal?.removeEventListener('abort', abort)
+    if (inFlightGets.get(inFlightKey)?.request === request) inFlightGets.delete(inFlightKey)
   }
 }
 
-const executeConditionalGet = async <TData>({ queryKey, path, parser }: ConditionalGetOptions<TData>): Promise<TData> => {
+const executeConditionalGet = async <TData>({ queryKey, path, parser, signal }: ConditionalGetOptions<TData> & { signal: AbortSignal }): Promise<TData> => {
   const idbStart = performance.now()
   const previous = await readRecord<TData>(queryKey)
+  signal.throwIfAborted()
   const idbMs = Math.max(1, Math.round(performance.now() - idbStart))
 
   // 0. Handle Simulated Offline Mode
@@ -149,6 +192,7 @@ const executeConditionalGet = async <TData>({ queryKey, path, parser }: Conditio
       headers,
       credentials: 'include',
       cache: 'no-store',
+      signal,
     })
   } catch (error) {
     const networkMs = Math.round(performance.now() - networkStart)
@@ -167,6 +211,7 @@ const executeConditionalGet = async <TData>({ queryKey, path, parser }: Conditio
   }
 
   const networkMs = Math.round(performance.now() - networkStart)
+  signal.throwIfAborted()
   const totalRtt = idbMs + networkMs
   const edgeCache = response.headers.get('x-alife-cache') ?? 'UNKNOWN'
   const backendCache = response.headers.get('x-alife-backend-cache') ?? 'UNKNOWN'
@@ -178,7 +223,7 @@ const executeConditionalGet = async <TData>({ queryKey, path, parser }: Conditio
       etag: previous.etag,
       data: previous.data,
       storedAt: Date.now(),
-    })
+    }, signal)
 
     const estimatedBytes = JSON.stringify(previous.data).length
 
@@ -196,6 +241,7 @@ const executeConditionalGet = async <TData>({ queryKey, path, parser }: Conditio
       bytesSaved: estimatedBytes,
     })
 
+    signal.throwIfAborted()
     return previous.data
   }
 
@@ -217,10 +263,11 @@ const executeConditionalGet = async <TData>({ queryKey, path, parser }: Conditio
   // Extract ETag from response headers
   const etag = response.headers.get('ETag') ?? undefined
   const rawData = (await response.json()) as unknown
+  signal.throwIfAborted()
   const data = parser ? parser(rawData) : (rawData as TData)
 
   if (etag) {
-    await writeRecord<TData>(queryKey, { etag, data, storedAt: Date.now() })
+    await writeRecord<TData>(queryKey, { etag, data, storedAt: Date.now() }, signal)
   }
 
   cacheDiagnosticStore.recordDiagnostic({
@@ -236,5 +283,6 @@ const executeConditionalGet = async <TData>({ queryKey, path, parser }: Conditio
     sqlSkipped,
   })
 
+  signal.throwIfAborted()
   return data
 }

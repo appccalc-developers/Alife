@@ -1,13 +1,14 @@
 import { http } from './http'
 import { groupPagesQueryKey } from '../db/collections/groupCollection'
-import { pageDetailQueryKey, publicPageDetailQueryKey, setPageDetailCache } from '../db/collections/pageCollection'
+import { fetchPageDetail, fetchPageReviewCopy, getPrivatePageCacheGeneration, pageDetailQueryKey, publicPageDetailQueryKey, removeDeletedPageCaches, setPageDetailCache } from '../db/collections/pageCollection'
+import { activeEntityService } from './activeEntityService'
 import { conditionalGet, getCachedRecord, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
 import type { LocalizedText, PageDetailDto, PageEditModel, PageSummaryDto, PageVisibility, SectionEditModel } from '../types'
 import { normalizePageSummary } from '../utils/apiEnums'
 import { normalizePageDetail } from '../utils/pageDetail'
 import { toLocalizedText } from '../utils/localizedText'
-import { invalidateChurchLifeQueries } from './churchLifeService'
+import { invalidateChurchLifeQueries, type ChurchLifeList } from './churchLifeService'
 
 export type CreateGroupPagePayload = {
   title: LocalizedText
@@ -155,9 +156,9 @@ const invalidatePageListCache = async (page: PageSummaryDto | PageDetailDto) => 
   await invalidateChurchLifeQueries()
 }
 
-const cachePageDetail = (page: PageDetailDto & { tagsJson?: string }) => {
+const cachePageDetail = (page: PageDetailDto & { tagsJson?: string }, viewerId: string, generation: number) => {
   const normalized = normalizePageDetail(page)
-  setPageDetailCache(normalized)
+  setPageDetailCache(normalized, viewerId, generation)
   return normalized
 }
 
@@ -171,32 +172,36 @@ export const pageService = {
   },
 
   async getPageById(pageId: string): Promise<PageDetailDto> {
-    const { data } = await http.get<PageDetailDto>(`/api/pages/${pageId}/working-copy`)
-    return cachePageDetail(data as PageDetailDto & { tagsJson?: string })
+    const viewerId = activeEntityService.getViewerId()
+    const generation = getPrivatePageCacheGeneration()
+    return cachePageDetail(await fetchPageDetail(pageId, viewerId), viewerId, generation)
   },
 
-  async getPublicationReviewCopy(pageId: string): Promise<PageDetailDto> {
-    const { data } = await http.get<PageDetailDto>(`/api/admin/pages/${pageId}/publication-review/copy`)
-    return normalizePageDetail(data as PageDetailDto & { tagsJson?: string })
+  async getPublicationReviewCopy(pageId: string, viewerId = activeEntityService.getViewerId(), signal?: AbortSignal): Promise<PageDetailDto> {
+    return fetchPageReviewCopy(pageId, viewerId, signal)
   },
 
   async createGroupPage(groupId: string, payload: CreateGroupPagePayload) {
+    const viewerId = activeEntityService.getViewerId()
+    const generation = getPrivatePageCacheGeneration()
     const { data } = await http.post<PageDetailDto>(`/api/groups/${groupId}/pages`, {
       ...payload,
       sections: toSectionPublishPayload(payload.sections),
     })
-    const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string })
+    const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string }, viewerId, generation)
     await invalidatePageListCache(normalized)
     await invalidatePublicPagesCache()
     return normalized
   },
 
   async updatePage(pageId: string, payload: UpdatePagePayload) {
+    const viewerId = activeEntityService.getViewerId()
+    const generation = getPrivatePageCacheGeneration()
     const { data } = await http.put<PageDetailDto>(`/api/pages/${pageId}`, {
       ...payload,
       sections: toSectionPublishPayload(payload.sections),
     })
-    const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string })
+    const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string }, viewerId, generation)
     await invalidatePageListCache(normalized)
     await invalidatePublicPagesCache()
     await invalidatePublicPageDetailCache(pageId)
@@ -216,9 +221,11 @@ export const pageService = {
   },
 
   async publishPage(pageId: string, payload: PublishPagePayload) {
+    const viewerId = activeEntityService.getViewerId()
+    const generation = getPrivatePageCacheGeneration()
     const { data } = await http.post<PageSummaryDto>(`/api/pages/${pageId}/publish`, payload)
     const normalized = normalizePageSummary(data)
-    const existingDetail = queryClient.getQueryData<PageDetailDto>(pageDetailQueryKey(pageId))
+    const existingDetail = queryClient.getQueryData<PageDetailDto>(pageDetailQueryKey(pageId, viewerId))
     if (existingDetail) {
       setPageDetailCache({
         ...existingDetail,
@@ -227,7 +234,7 @@ export const pageService = {
         description: normalized.description ?? existingDetail.description,
         titleDisplayStyle: normalized.titleDisplayStyle ?? existingDetail.titleDisplayStyle,
         ownerGroupId: normalized.ownerGroupId,
-      })
+      }, viewerId, generation)
     }
     await invalidatePageListCache(normalized)
     await invalidatePublicPagesCache()
@@ -236,23 +243,35 @@ export const pageService = {
   },
 
   async publishPageOptimized(pageId: string, payload: PublishPageOptimizedPayload) {
+    const viewerId = activeEntityService.getViewerId()
+    const generation = getPrivatePageCacheGeneration()
     const { data } = await http.put<PageDetailDto>(`/api/pages/${pageId}`, {
       ...payload.page,
       sections: payload.sections,
     })
-    const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string })
+    const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string }, viewerId, generation)
     await pageService.publishPage(pageId, { visibility: payload.visibility })
     const published = { ...normalized, visibility: payload.visibility }
-    setPageDetailCache(published)
+    setPageDetailCache(published, viewerId, generation)
     await invalidatePublicPagesCache()
     return published
   },
 
-  async deletePage(pageId: string) {
+  async deletePage(pageId: string, ownerGroupId: string) {
     await http.delete(`/api/pages/${pageId}`)
+    await removeDeletedPageCaches(pageId)
+    // Remove list rows immediately, including inactive viewer variants, while
+    // normal invalidation refreshes their authoritative server projection.
+    for (const queryKey of [['groupPages'], ['publicPages']]) {
+      queryClient.setQueriesData<PageSummaryDto[]>({ queryKey }, pages => pages?.filter(page => page.id !== pageId))
+    }
+    queryClient.setQueriesData<ChurchLifeList<PageSummaryDto>>({ predicate: query =>
+      query.queryKey[0] === 'church-life' && query.queryKey[2] === 'pages' }, list =>
+      list ? { ...list, items: list.items.filter(page => page.id !== pageId) } : list)
+    if (activeEntityService.getAll().pageId === pageId) activeEntityService.setPage('')
+    await invalidateQueryCache(groupPagesQueryKey(ownerGroupId))
     await invalidateChurchLifeQueries()
     await invalidatePublicPagesCache()
-    await invalidatePublicPageDetailCache(pageId)
   },
 
   toSectionPublishPayload,
