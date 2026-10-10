@@ -1,3 +1,4 @@
+import { eventSavedPreparationText } from '../i18n/eventSavedPreparation.ts'
 import { initialCreationDraft, creationFacts, type CreationDraft } from './eventCreationDraft.ts'
 import { parseUtcInstant } from './eventOperationsState.ts'
 import type { EventDto, GroupEventRecord } from '../types/event'
@@ -36,7 +37,7 @@ export function savedCreationDraft(record: GroupEventRecord, plan: EventPlanSnap
 }
 export function savedTemplate(draft: CreationDraft, template?: EventActivityType): EventActivityType {
   return template ?? { code: draft.activityTypeCode, archetypeCode: draft.archetypeCode, version: 1,
-    name: { en: draft.activityTypeCode || 'Existing event', zh: draft.activityTypeCode || '已有活动' }, description: { en: '', zh: '' }, iconKey: 'event',
+    name: { en: draft.activityTypeCode || 'Existing event', zh: draft.activityTypeCode || eventSavedPreparationText.savedTemplateNameZh }, description: { en: '', zh: '' }, iconKey: 'event',
     defaults: { visibility: draft.overrides.visibility || 'groupVisible', registrationMode: draft.overrides.registrationMode || 'none', capacityUnit: 'People' }, preselectedModules: [], presetServiceSlots: [] }
 }
 export function savedArrangementDraft(data: SavedArrangements, timeZone: string): CreationArrangements {

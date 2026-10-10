@@ -1,3 +1,4 @@
+import { reviewedPageCarouselSectionText } from '../../i18n/reviewedPageCarouselSection.ts'
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import ReviewedPageCarousel from '../ReviewedPageCarousel'
@@ -115,13 +116,13 @@ const ReviewedPageCarouselSection = ({
     })
   const presentationOptions = auth.language === 'zh'
     ? [
-      { value: 'auto', label: '自动匹配内容（推荐）' },
-      { value: 'floatingLoop', label: '浮动社区' },
+      { value: 'auto', label: reviewedPageCarouselSectionText.presentationOptionsLabel },
+      { value: 'floatingLoop', label: reviewedPageCarouselSectionText.presentationOptionsLabel2 },
       { value: 'carousel', label: t('carousel') },
-      { value: 'editorialEvents', label: '活动编辑画册' },
-      { value: 'cinematicEvents', label: '沉浸活动画廊' },
-      { value: 'eventStage', label: '分栏活动舞台' },
-      { value: 'editorialIndex', label: '编辑目录' },
+      { value: 'editorialEvents', label: reviewedPageCarouselSectionText.presentationOptionsLabel3 },
+      { value: 'cinematicEvents', label: reviewedPageCarouselSectionText.presentationOptionsLabel4 },
+      { value: 'eventStage', label: reviewedPageCarouselSectionText.presentationOptionsLabel5 },
+      { value: 'editorialIndex', label: reviewedPageCarouselSectionText.presentationOptionsLabel6 },
     ]
     : [
       { value: 'auto', label: 'Auto-match content (recommended)' },
@@ -145,7 +146,7 @@ const ReviewedPageCarouselSection = ({
       />
       <SelectInput
         focusKey="reviewed-carousel-presentation"
-        label={auth.language === 'zh' ? '展示方式' : 'Presentation'}
+        label={auth.language === 'zh' ? reviewedPageCarouselSectionText.presentation.zh : reviewedPageCarouselSectionText.presentation.en}
         value={isReviewedPagePresentation(configuredPresentation) ? configuredPresentation : 'auto'}
         disabled={disabled}
         options={presentationOptions}
@@ -153,18 +154,12 @@ const ReviewedPageCarouselSection = ({
       />
       <SelectInput
         focusKey="reviewed-carousel-content-width"
-        label={auth.language === 'zh' ? '内容宽度' : 'Content width'}
+        label={auth.language === 'zh' ? reviewedPageCarouselSectionText.contentWidth.zh : reviewedPageCarouselSectionText.contentWidth.en}
         value={contentWidth}
         disabled={disabled}
         options={auth.language === 'zh'
-          ? [
-            { value: 'contained', label: '特色宽度' },
-            { value: 'full', label: '全宽' },
-          ]
-          : [
-            { value: 'contained', label: 'Featured Width' },
-            { value: 'full', label: 'Full width' },
-          ]}
+          ? [...reviewedPageCarouselSectionText.localizedCopy.zh]
+          : [...reviewedPageCarouselSectionText.localizedCopy.en]}
         onChange={updateContentWidth}
       />
       <p className="self-end text-xs leading-5 text-slate-500 md:col-span-2">

@@ -1,3 +1,4 @@
+import { ramGovernanceText } from '../i18n/ramGovernance.ts'
 import type { EventRamAssessmentRecord, MultilingualString } from './event'
 import type { EventPlanSnapshot } from './eventComposition'
 export type RamText = MultilingualString
@@ -36,23 +37,21 @@ export type RamEventPlanContext = { activityPlan?: {data:import('./eventActivity
 export type RamWorkspace = { assessment: RamAssessment | null; policy: RamPolicy | null; latestPolicy?: RamPolicy | null; history: RamRevision[]; actions: RamAction[]; onsiteCandidates: { memberId: string; name: string }[]; canEdit: boolean; canAudit: boolean; currentMemberId: string; isRequired: boolean; eventPlanContext?: RamEventPlanContext | null }
 export type RamPrint = { revision: RamRevision; ramDataJson: string; policy: RamPolicy | null; actions: RamAction[]; isCurrent: boolean; validity: string; isDraft: boolean }
 export const ramActivityTypes = ['generic', 'hiking', 'water', 'sport', 'transport', 'camp', 'meal', 'outdoor', 'other'] as const
-export const ramActivityLabels: Record<string, RamText> = {
-  generic: { en: 'General activity', zh: '通用活动' }, hiking: { en: 'Hiking', zh: '徒步' }, water: { en: 'Water activity', zh: '水上活动' }, sport: { en: 'Sport', zh: '运动' }, transport: { en: 'Transport', zh: '交通' }, camp: { en: 'Camp / overnight', zh: '营会／过夜' }, meal: { en: 'Shared meal', zh: '聚餐' }, outdoor: { en: 'Other outdoor activity', zh: '其他户外活动' }, other: { en: 'Other', zh: '其他' },
-}
+export const ramActivityLabels: Record<string, RamText> = ramGovernanceText.ramActivityLabels
 export const ramDefaultScales: Pick<RamPolicyData, 'likelihood' | 'impact'> = {
   likelihood: [
-    { value: 1, label: { en: 'Rare', zh: '极少' }, description: { en: 'Less than 5% chance of occurring.', zh: '发生机会低于 5%。' } },
-    { value: 2, label: { en: 'Unlikely', zh: '不太可能' }, description: { en: '5–29% chance of occurring.', zh: '发生机会为 5–29%。' } },
-    { value: 3, label: { en: 'Moderate', zh: '中等' }, description: { en: '30–59% chance of occurring.', zh: '发生机会为 30–59%。' } },
-    { value: 4, label: { en: 'Likely', zh: '很可能' }, description: { en: '60–79% chance of occurring.', zh: '发生机会为 60–79%。' } },
-    { value: 5, label: { en: 'Almost certain', zh: '几乎肯定' }, description: { en: '80% or greater chance of occurring.', zh: '发生机会为 80% 或以上。' } },
+    { value: 1, label: { ...ramGovernanceText.likelihoodLabel }, description: { ...ramGovernanceText.likelihoodDescription } },
+    { value: 2, label: { ...ramGovernanceText.likelihoodLabelUnlikely }, description: { ...ramGovernanceText.likelihoodDescriptionText529ChanceOfOccurring } },
+    { value: 3, label: { ...ramGovernanceText.likelihoodLabelModerate }, description: { ...ramGovernanceText.likelihoodDescriptionText3059ChanceOfOccurring } },
+    { value: 4, label: { ...ramGovernanceText.likelihoodLabelLikely }, description: { ...ramGovernanceText.likelihoodDescriptionText6079ChanceOfOccurring } },
+    { value: 5, label: { ...ramGovernanceText.likelihoodLabelAlmostCertain }, description: { ...ramGovernanceText.likelihoodDescriptionText80OrGreaterChanceOfOccurring } },
   ],
   impact: [
-    { value: 1, label: { en: 'Negligible', zh: '可忽略' }, description: { en: 'Minor discomfort or negligible injury.', zh: '轻微不适或可忽略的伤害。' } },
-    { value: 2, label: { en: 'Minor', zh: '轻微' }, description: { en: 'Basic first aid; recovery in less than one week.', zh: '基本急救；恢复时间少于一周。' } },
-    { value: 3, label: { en: 'Moderate', zh: '中等' }, description: { en: 'Advanced first aid or medical visit; recovery in 1–6 weeks.', zh: '进阶急救或就医；恢复时间为 1–6 周。' } },
-    { value: 4, label: { en: 'Major', zh: '严重' }, description: { en: 'Hospital or emergency treatment; recovery longer than six weeks.', zh: '医院或急诊治疗；恢复时间超过六周。' } },
-    { value: 5, label: { en: 'Catastrophic', zh: '灾难性' }, description: { en: 'Immediate emergency response; permanent disability or death, or hospitalisation longer than six weeks.', zh: '需立即紧急救援；永久残疾、死亡或住院超过六周。' } },
+    { value: 1, label: { ...ramGovernanceText.impactLabel }, description: { ...ramGovernanceText.impactDescription } },
+    { value: 2, label: { ...ramGovernanceText.impactLabelMinor }, description: { ...ramGovernanceText.impactDescriptionBasicFirstAidRecoveryInLessThanOneWeek } },
+    { value: 3, label: { ...ramGovernanceText.likelihoodLabelModerate }, description: { ...ramGovernanceText.impactDescriptionAdvancedFirstAidOrMedicalVisitRecoveryIn16Weeks } },
+    { value: 4, label: { ...ramGovernanceText.impactLabelMajor }, description: { ...ramGovernanceText.impactDescriptionHospitalOrEmergencyTreatmentRecoveryLongerThanSixWeeks } },
+    { value: 5, label: { ...ramGovernanceText.impactLabelCatastrophic }, description: { ...ramGovernanceText.impactDescriptionImmediateEmergencyResponsePermanentDisabilityOrDeathOrHospitalisationLongerThanSixWeeks } },
   ],
 }
 export const ramAlphaDemoLevel = (likelihood: number, impact: number): Exclude<RamLevel, 'Incomplete'> => {
@@ -77,15 +76,5 @@ export function upgradeRam(raw: string | undefined): RamDraft {
   }
 }
 
-export const ramActionLabels: Record<string, RamText> = {
-  'snapshot-draft': { en: 'Draft snapshot saved', zh: '已保存草稿快照' }, 'request-confirmation': { en: 'Personal confirmation requested', zh: '已请求本人确认' },
-  confirm: { en: 'Personally confirmed', zh: '本人已确认' }, submit: { en: 'Submitted for independent RAM review', zh: '已提交 RAM 独立审核' }, approve: { en: 'Independent RAM review approved', zh: 'RAM 独立审核已通过' },
-  return: { en: 'Returned for changes', zh: '退回修改' }, 'request-review': { en: 'Re-review requested', zh: '已请求重审' },
-  'legacy-submitted': { en: 'Historical submission', zh: '历史提交' }, 'legacy-approved': { en: 'Historical approval', zh: '历史批准' },
-}
-export const ramValidityLabels: Record<string, RamText> = {
-  Legacy: { en: 'Legacy record', zh: '旧版记录' }, Draft: { en: 'Draft', zh: '草稿' }, ReviewRequired: { en: 'Re-review required', zh: '需重审' },
-  AwaitingConfirmation: { en: 'Awaiting personal confirmation', zh: '等待本人确认' }, Confirmed: { en: 'Personally confirmed', zh: '本人已确认' },
-  AwaitingReview: { en: 'Awaiting independent RAM review', zh: '等待 RAM 独立审核' }, Valid: { en: 'Independently reviewed and valid', zh: '已通过独立审核且有效' },
-  Returned: { en: 'Returned for changes', zh: '退回修改' }, Historical: { en: 'Historical evidence', zh: '历史记录' },
-}
+export const ramActionLabels: Record<string, RamText> = ramGovernanceText.ramActionLabels
+export const ramValidityLabels: Record<string, RamText> = ramGovernanceText.ramValidityLabels

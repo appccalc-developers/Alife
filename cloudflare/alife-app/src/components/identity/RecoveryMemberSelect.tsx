@@ -1,3 +1,4 @@
+import { recoveryMemberSelectText } from '../../i18n/recoveryMemberSelect.ts'
 import { useEffect, useState } from 'react'
 import { groupService } from '../../services/groupService'
 
@@ -15,7 +16,7 @@ export default function RecoveryMemberSelect({ groupId, value, onChange, zh }: {
     return () => { active = false }
   }, [groupId])
   return <><select className="alife-input mt-1" disabled={state !== 'ready'} value={value} onChange={event => onChange(event.target.value)}>
-    <option value="">{state === 'loading' ? (zh ? '正在加载成员…' : 'Loading members…') : (zh ? '选择已核实的原成员' : 'Select the verified original member')}</option>
+    <option value="">{state === 'loading' ? (zh ? recoveryMemberSelectText.loadingMembers.zh : recoveryMemberSelectText.loadingMembers.en) : (zh ? recoveryMemberSelectText.selectTheVerifiedOriginalMember.zh : recoveryMemberSelectText.selectTheVerifiedOriginalMember.en)}</option>
     {members.filter(member => member.memberId && member.status === 'approved').map(member => <option key={member.memberId} value={member.memberId}>{member.displayName} · {member.memberId}</option>)}
-  </select>{state === 'error' ? <span role="alert">{zh ? '无法读取成员，请刷新后重试。' : 'Unable to load members. Refresh and try again.'}</span> : null}</>
+  </select>{state === 'error' ? <span role="alert">{zh ? recoveryMemberSelectText.unableToLoadMembersRefreshAndTryAgain.zh : recoveryMemberSelectText.unableToLoadMembersRefreshAndTryAgain.en}</span> : null}</>
 }

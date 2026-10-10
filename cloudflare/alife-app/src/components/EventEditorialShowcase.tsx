@@ -1,3 +1,4 @@
+import { eventEditorialShowcaseText } from '../i18n/eventEditorialShowcase.ts'
 import { useEffect, useState, type FocusEvent, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, ArrowUpRight } from 'lucide-react'
@@ -64,8 +65,8 @@ const EventEditorialShowcase = ({
   }
   const fallbackImage = reviewedPageFallbackImages[activeIndex % reviewedPageFallbackImages.length]
   const imageUrl = activeItem.imageUrl?.trim() || fallbackImage
-  const previousLabel = language === 'zh' ? `上一项${ariaLabel}` : `Previous ${ariaLabel}`
-  const nextLabel = language === 'zh' ? `下一项${ariaLabel}` : `Next ${ariaLabel}`
+  const previousLabel = language === 'zh' ? eventEditorialShowcaseText.previous.zh(ariaLabel) : eventEditorialShowcaseText.previous.en(ariaLabel)
+  const nextLabel = language === 'zh' ? eventEditorialShowcaseText.next.zh(ariaLabel) : eventEditorialShowcaseText.next.en(ariaLabel)
 
   return (
     <div
@@ -106,7 +107,7 @@ const EventEditorialShowcase = ({
 
             <div className="alife-event-editorial__copy">
               <p className="alife-event-editorial__meta">
-                <span>{language === 'zh' ? '本期活动' : 'Featured gathering'}</span>
+                <span>{language === 'zh' ? eventEditorialShowcaseText.featuredGathering.zh : eventEditorialShowcaseText.featuredGathering.en}</span>
                 <span>{String(activeIndex + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}</span>
               </p>
               <h3>{activeItem.title}</h3>

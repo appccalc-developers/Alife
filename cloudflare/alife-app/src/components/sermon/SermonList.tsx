@@ -1,3 +1,4 @@
+import { sermonListText } from '../../i18n/sermonList.ts'
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
@@ -120,7 +121,7 @@ const SermonList = () => {
     <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${compact ? 'text-xs' : 'text-sm'} text-slate-600`}>
       <span className="inline-flex items-center gap-1.5">
         <MicVocal className="h-3.5 w-3.5 text-emerald-700" />
-        {sermon.speakerName || (isZh ? '讲员未注明' : 'Speaker not specified')}
+        {sermon.speakerName || (isZh ? sermonListText.speakerNotSpecified.zh : sermonListText.speakerNotSpecified.en)}
       </span>
       <span className="inline-flex items-center gap-1.5">
         <CalendarDays className="h-3.5 w-3.5 text-emerald-700" />
@@ -133,7 +134,7 @@ const SermonList = () => {
     return (
       <AppPageShell
         title={t('latestSermons')}
-        context={isZh ? '教会生活 / 主日证道' : 'Church Life / Sunday Sermons'}
+        context={isZh ? sermonListText.churchLifeSundaySermons.zh : sermonListText.churchLifeSundaySermons.en}
         subtitle={t('latestSermonsDescription')}
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -148,9 +149,9 @@ const SermonList = () => {
   return (
     <AppPageShell
       title={t('latestSermons')}
-      context={isZh ? '教会生活 / 主日证道' : 'Church Life / Sunday Sermons'}
+      context={isZh ? sermonListText.churchLifeSundaySermons.zh : sermonListText.churchLifeSundaySermons.en}
       subtitle={t('latestSermonsDescription')}
-      overflowLabel={isZh ? '更多操作' : 'More actions'}
+      overflowLabel={isZh ? sermonListText.moreActions.zh : sermonListText.moreActions.en}
       overflowActions={[{
         label: isRefreshing ? t('refreshing') : t('refresh'),
         icon: <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />,

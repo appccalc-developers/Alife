@@ -1,3 +1,4 @@
+import { forumViewText } from '../i18n/forumView.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -135,13 +136,13 @@ const ForumComposer = ({
             {editorLanguages.map((editorLanguage) => (
               <div key={editorLanguage} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
                 <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-                  {editorLanguage === 'zh' ? '中文' : 'English'}
+                  {editorLanguage === 'zh' ? forumViewText.english.zh : forumViewText.english.en}
                 </p>
                 <input
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base font-black text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:ring-4 focus:ring-[#176b5a]/10"
                   value={title[editorLanguage]}
                   aria-label={`${text.title} (${editorLanguage})`}
-                  placeholder={editorLanguage === 'zh' ? '话题标题' : 'Topic title'}
+                  placeholder={editorLanguage === 'zh' ? forumViewText.topicTitle.zh : forumViewText.topicTitle.en}
                   onChange={(event) => setTitle((current) => ({ ...current, [editorLanguage]: event.target.value }))}
                   maxLength={180}
                 />
@@ -149,7 +150,7 @@ const ForumComposer = ({
                   className="mt-3 min-h-32 w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:ring-4 focus:ring-[#176b5a]/10"
                   value={body[editorLanguage]}
                   aria-label={`${text.body} (${editorLanguage})`}
-                  placeholder={editorLanguage === 'zh' ? '写下话题正文…' : 'Write the topic body…'}
+                  placeholder={editorLanguage === 'zh' ? forumViewText.writeTheTopicBody.zh : forumViewText.writeTheTopicBody.en}
                   onChange={(event) => setBody((current) => ({ ...current, [editorLanguage]: event.target.value }))}
                 />
               </div>
@@ -303,10 +304,10 @@ const ForumView = () => {
   const pageTitle = groupScopedForum ? text.groupForum : churchForum ? text.churchForum : text.forum
   const pageSubtitle = groupScopedForum ? text.groupForumSubtitle : churchForum ? text.churchForumSubtitle : text.forumSubtitle
   const pageContext = groupScopedForum
-    ? (language === 'zh' ? '小组生活 / 论坛' : 'Group Life / Forum')
+    ? (language === 'zh' ? forumViewText.groupLifeForum.zh : forumViewText.groupLifeForum.en)
     : churchForum
-      ? (language === 'zh' ? '教会生活 / 论坛' : 'Church Life / Forum')
-      : (language === 'zh' ? '公开内容 / 论坛' : 'Public Content / Forum')
+      ? (language === 'zh' ? forumViewText.churchLifeForum.zh : forumViewText.churchLifeForum.en)
+      : (language === 'zh' ? forumViewText.publicContentForum.zh : forumViewText.publicContentForum.en)
 
   return (
     <AppPageShell
@@ -316,7 +317,7 @@ const ForumView = () => {
       primaryAction={!siteForum && canPost && !composerOpen ? (
         <AppTitleBarAction label={text.newPost} icon={<Plus className="h-4 w-4" />} onClick={() => setComposerOpen(true)} />
       ) : undefined}
-      overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
+      overflowLabel={language === 'zh' ? forumViewText.moreActions.zh : forumViewText.moreActions.en}
       overflowActions={siteForum ? [] : [{
         label: text.refresh,
         icon: <RefreshCcw className={['h-4 w-4', postsQuery.isFetching ? 'animate-spin' : ''].join(' ')} />,
@@ -447,10 +448,10 @@ const ForumView = () => {
                     })}
                   </div>
                   {(postsQuery.data?.totalCount ?? 0) > pageSize ? (
-                    <nav className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-7" aria-label={language === 'zh' ? '论坛分页' : 'Forum pagination'}>
-                      <button type="button" className="min-h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-40" disabled={page <= 1} onClick={() => selectPage(page - 1)}>{language === 'zh' ? '上一页' : 'Previous'}</button>
-                      <span className="text-sm font-black text-slate-500">{language === 'zh' ? `第 ${page} 页` : `Page ${page}`}</span>
-                      <button type="button" className="min-h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-40" disabled={page * pageSize >= (postsQuery.data?.totalCount ?? 0)} onClick={() => selectPage(page + 1)}>{language === 'zh' ? '下一页' : 'Next'}</button>
+                    <nav className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-7" aria-label={language === 'zh' ? forumViewText.forumPagination.zh : forumViewText.forumPagination.en}>
+                      <button type="button" className="min-h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-40" disabled={page <= 1} onClick={() => selectPage(page - 1)}>{language === 'zh' ? forumViewText.previous.zh : forumViewText.previous.en}</button>
+                      <span className="text-sm font-black text-slate-500">{language === 'zh' ? forumViewText.page.zh(page) : forumViewText.page.en(page)}</span>
+                      <button type="button" className="min-h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-40" disabled={page * pageSize >= (postsQuery.data?.totalCount ?? 0)} onClick={() => selectPage(page + 1)}>{language === 'zh' ? forumViewText.next.zh : forumViewText.next.en}</button>
                     </nav>
                   ) : null}
                 </ChurchLifeResultsRegion>

@@ -1,3 +1,4 @@
+import { tasksViewText } from '../i18n/tasksView.ts'
 import { AlertCircle, ArrowRight, BellRing, Check, ChevronDown, LoaderCircle, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -49,54 +50,8 @@ const TasksView = () => {
   const zh = auth.language === 'zh'
 
   const copy = zh
-    ? {
-      title: '当前事务',
-      subtitle: '集中查看需要你处理的职能事务和作为组员收到的通知。',
-      chooser: '事务类型',
-      chooserHint: '先处理紧要事务，再查看一般通知。',
-      urgent: '紧要事务',
-      general: '一般事务',
-      urgentEmpty: '目前没有需要你处理的职能事务。',
-      generalEmpty: '目前没有未读的一般通知。',
-      emptyHint: '新的事务出现后，会自动显示在这里。',
-      loading: '正在整理当前事务…',
-      loadFailed: '暂时无法加载当前事务。请检查网络后重试。',
-      retry: '重新加载',
-      open: '前往处理',
-      markRead: '标为已读',
-      acknowledge: '确认已阅',
-      workflowHint: '完成对应处理流程后，这项事务会自动移除。',
-      received: '收到时间',
-      actionFailed: '暂时无法更新这项事务，请重试。',
-      details: {
-        displayName: '姓名', email: 'Email', phone: '电话', preferredLanguage: '首选语言', message: '留言', sourcePage: '来源页面',
-      },
-      applicationTitle: '申请进度', applicationId: '申请编号', supplement: '补充资料', sendSupplement: '提交补充资料', applicationUpdated: '资料已提交，申请已重新进入审核。',
-    }
-    : {
-      title: 'Current tasks',
-      subtitle: 'See duty-related work and notifications you received as a group member in one place.',
-      chooser: 'Task type',
-      chooserHint: 'Handle urgent duties first, then review general notifications.',
-      urgent: 'Urgent tasks',
-      general: 'General tasks',
-      urgentEmpty: 'There are no duty-related tasks waiting for you.',
-      generalEmpty: 'There are no unread general notifications.',
-      emptyHint: 'New tasks will appear here automatically.',
-      loading: 'Preparing your current tasks…',
-      loadFailed: 'Current tasks could not be loaded. Check your connection and try again.',
-      retry: 'Reload',
-      open: 'Open task',
-      markRead: 'Mark as read',
-      acknowledge: 'Acknowledge',
-      workflowHint: 'This task will clear automatically after the related workflow is completed.',
-      received: 'Received',
-      actionFailed: 'This task could not be updated. Try again.',
-      details: {
-        displayName: 'Name', email: 'Email', phone: 'Phone', preferredLanguage: 'Preferred language', message: 'Message', sourcePage: 'Source page',
-      },
-      applicationTitle: 'Application progress', applicationId: 'Application ID', supplement: 'Additional information', sendSupplement: 'Send information', applicationUpdated: 'Information sent. The application is back in review.',
-    }
+    ? { ...tasksViewText.localizedCopy.zh }
+    : { ...tasksViewText.localizedCopy.en }
 
   useEffect(() => {
     identityAccessService.personalApplications().then(setApplications).catch(() => undefined)
@@ -154,7 +109,7 @@ const TasksView = () => {
   return (
     <AppPageShell
       title={copy.title}
-      context={zh ? '个人中心 / 当前事务' : 'Personal Center / Current tasks'}
+      context={zh ? tasksViewText.personalCenterCurrentTasks.zh : tasksViewText.personalCenterCurrentTasks.en}
       subtitle={copy.subtitle}
       controls={(
         <div className="flex rounded-xl border border-[#173f36] bg-[#173f36] p-1" role="tablist" aria-label={copy.chooser}>
@@ -182,18 +137,18 @@ const TasksView = () => {
           })}
         </div>
       )}
-      overflowLabel={zh ? '更多操作' : 'More actions'}
+      overflowLabel={zh ? tasksViewText.moreActions.zh : tasksViewText.moreActions.en}
       overflowActions={[{
-        label: tasksQuery.isFetching ? (zh ? '正在刷新' : 'Refreshing') : (zh ? '刷新事务' : 'Refresh tasks'),
+        label: tasksQuery.isFetching ? (zh ? tasksViewText.refreshing.zh : tasksViewText.refreshing.en) : (zh ? tasksViewText.refreshTasks.zh : tasksViewText.refreshTasks.en),
         icon: <RefreshCw className={tasksQuery.isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />,
         onSelect: () => void tasksQuery.refetch(),
         disabled: tasksQuery.isFetching,
       }]}
     >
       <div className="grid gap-3 sm:grid-cols-3">
-        <label className="grid min-w-0 gap-1 text-xs font-bold">{zh ? '活动' : 'Event'}<select className="alife-input min-h-11 w-full" value={selectedEvent} onChange={e => updateFilter('event', e.target.value)}><option value="">{zh ? '全部活动' : 'All Events'}</option>{eventOptions.map(t => <option key={t.eventId} value={t.eventId}>{localizeNotificationText(t.eventTitle, auth.language) || t.eventId}</option>)}</select></label>
-        <label className="grid min-w-0 gap-1 text-xs font-bold">{zh ? '事项类型' : 'Responsibility'}<select className="alife-input min-h-11 w-full" value={selectedSource} onChange={e => updateFilter('source', e.target.value)}><option value="">{zh ? '全部类型' : 'All types'}</option>{sourceOptions.map(source => <option key={source} value={source}>{taskSourceLabel(source, zh)}</option>)}</select></label>
-        <label className="grid min-w-0 gap-1 text-xs font-bold">{zh ? '排序' : 'Sort'}<select className="alife-input min-h-11 w-full" value={sort} onChange={e => updateFilter('sort', e.target.value)}><option value="due">{zh ? '最早期限优先' : 'Due soonest'}</option><option value="newest">{zh ? '最近更新优先' : 'Newest first'}</option><option value="oldest">{zh ? '最早收到优先' : 'Oldest first'}</option></select></label>
+        <label className="grid min-w-0 gap-1 text-xs font-bold">{zh ? tasksViewText.event.zh : tasksViewText.event.en}<select className="alife-input min-h-11 w-full" value={selectedEvent} onChange={e => updateFilter('event', e.target.value)}><option value="">{zh ? tasksViewText.allEvents.zh : tasksViewText.allEvents.en}</option>{eventOptions.map(t => <option key={t.eventId} value={t.eventId}>{localizeNotificationText(t.eventTitle, auth.language) || t.eventId}</option>)}</select></label>
+        <label className="grid min-w-0 gap-1 text-xs font-bold">{zh ? tasksViewText.responsibility.zh : tasksViewText.responsibility.en}<select className="alife-input min-h-11 w-full" value={selectedSource} onChange={e => updateFilter('source', e.target.value)}><option value="">{zh ? tasksViewText.allTypes.zh : tasksViewText.allTypes.en}</option>{sourceOptions.map(source => <option key={source} value={source}>{taskSourceLabel(source, zh)}</option>)}</select></label>
+        <label className="grid min-w-0 gap-1 text-xs font-bold">{zh ? tasksViewText.sort.zh : tasksViewText.sort.en}<select className="alife-input min-h-11 w-full" value={sort} onChange={e => updateFilter('sort', e.target.value)}><option value="due">{zh ? tasksViewText.dueSoonest.zh : tasksViewText.dueSoonest.en}</option><option value="newest">{zh ? tasksViewText.newestFirst.zh : tasksViewText.newestFirst.en}</option><option value="oldest">{zh ? tasksViewText.oldestFirst.zh : tasksViewText.oldestFirst.en}</option></select></label>
       </div>
       {selectedApplication ? (
         <section className="rounded-[1.5rem] border border-[#b9cec5] bg-white p-4 shadow-[0_16px_38px_rgba(30,54,48,0.07)] sm:p-5" aria-labelledby="selected-application-heading">
@@ -240,8 +195,8 @@ const TasksView = () => {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-black leading-5 text-[#18332d]">{title}</span>
-                    {task.occurrenceId ? <span className="mt-1 block break-all text-xs text-[#60716a]">{zh ? '场次' : 'Occurrence'} · {task.occurrenceId.slice(0, 8)}</span> : null}
-                    {task.dueUtc ? <span className={`mt-1 block text-xs font-semibold ${new Date(task.dueUtc).getTime() < Date.now() ? 'text-red-700' : 'text-[#60716a]'}`}>{new Date(task.dueUtc).getTime() < Date.now() ? (zh ? '已逾期 · ' : 'Overdue · ') : (zh ? '期限 · ' : 'Due · ')}{formatNotificationDate(task.dueUtc, auth.language)}</span> : null}
+                    {task.occurrenceId ? <span className="mt-1 block break-all text-xs text-[#60716a]">{zh ? tasksViewText.occurrence.zh : tasksViewText.occurrence.en} · {task.occurrenceId.slice(0, 8)}</span> : null}
+                    {task.dueUtc ? <span className={`mt-1 block text-xs font-semibold ${new Date(task.dueUtc).getTime() < Date.now() ? 'text-red-700' : 'text-[#60716a]'}`}>{new Date(task.dueUtc).getTime() < Date.now() ? (zh ? tasksViewText.overdue.zh : tasksViewText.overdue.en) : (zh ? tasksViewText.due.zh : tasksViewText.due.en)}{formatNotificationDate(task.dueUtc, auth.language)}</span> : null}
                     {dateLabel ? <span className="mt-1 block text-xs font-semibold text-[#7a8983]">{dateLabel}</span> : null}
                   </span>
                   <ChevronDown className="mt-2 h-4 w-4 shrink-0 text-[#718079] transition group-open:rotate-180 sm:mt-0" aria-hidden="true" />
@@ -272,7 +227,7 @@ const TasksView = () => {
           })}
         </div>
       )}
-      {!tasksQuery.isLoading && !tasksQuery.isError && total > 0 ? <nav aria-label={zh ? '事务分页' : 'Task pagination'} className="flex flex-wrap items-center justify-between gap-3 text-sm"><button className="min-h-11 rounded-xl border bg-white px-4 disabled:opacity-40" disabled={page <= 1} onClick={() => updateFilter('page', String(page - 1))}>{zh ? '上一页' : 'Previous'}</button><span>{zh ? `第 ${page} / ${pages} 页 · ${total} 项` : `Page ${page} / ${pages} · ${total} tasks`}</span><button className="min-h-11 rounded-xl border bg-white px-4 disabled:opacity-40" disabled={page >= pages} onClick={() => updateFilter('page', String(page + 1))}>{zh ? '下一页' : 'Next'}</button></nav> : null}
+      {!tasksQuery.isLoading && !tasksQuery.isError && total > 0 ? <nav aria-label={zh ? tasksViewText.taskPagination.zh : tasksViewText.taskPagination.en} className="flex flex-wrap items-center justify-between gap-3 text-sm"><button className="min-h-11 rounded-xl border bg-white px-4 disabled:opacity-40" disabled={page <= 1} onClick={() => updateFilter('page', String(page - 1))}>{zh ? tasksViewText.previous.zh : tasksViewText.previous.en}</button><span>{zh ? tasksViewText.pageTasks.zh(page, pages, total) : tasksViewText.pageTasks.en(page, pages, total)}</span><button className="min-h-11 rounded-xl border bg-white px-4 disabled:opacity-40" disabled={page >= pages} onClick={() => updateFilter('page', String(page + 1))}>{zh ? tasksViewText.next.zh : tasksViewText.next.en}</button></nav> : null}
     </AppPageShell>
   )
 }

@@ -1,16 +1,12 @@
 import { Check, ChevronDown, Globe2 } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Language } from '../../i18n/locale'
+import { languageNames, languageSelectorText } from '../../i18n/languageSelector'
 
 type Props = {
   language: Language
   onChange: (language: Language) => void | Promise<void>
   variant?: 'app' | 'home'
-}
-
-const languageNames: Record<Language, string> = {
-  en: 'English',
-  zh: '中文',
 }
 
 const LanguageSelector = ({ language, onChange, variant = 'app' }: Props) => {
@@ -20,8 +16,8 @@ const LanguageSelector = ({ language, onChange, variant = 'app' }: Props) => {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const accessibleLabel = language === 'zh'
-    ? `选择语言，当前语言：${languageNames[language]}`
-    : `Select language, current language: ${languageNames[language]}`
+    ? languageSelectorText.current.zh(languageNames[language])
+    : languageSelectorText.current.en(languageNames[language])
 
   useEffect(() => {
     if (!open) return
@@ -109,7 +105,7 @@ const LanguageSelector = ({ language, onChange, variant = 'app' }: Props) => {
         <div
           ref={menuRef}
           role="menu"
-          aria-label={language === 'zh' ? '选择语言' : 'Select language'}
+          aria-label={languageSelectorText.select[language]}
           className={[
             'absolute right-0 top-full z-50 mt-2 min-w-40 rounded-xl border p-2 shadow-[0_22px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl',
             isHome ? 'border-[#c8b89d] bg-[#eee3d1]/98' : 'border-[#2f4b42]/10 bg-white/95',

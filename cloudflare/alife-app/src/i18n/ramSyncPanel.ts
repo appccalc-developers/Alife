@@ -1,0 +1,20 @@
+// Fixed bilingual copy for components/events/RamSyncPanel.tsx.
+export const ramSyncPanelText = {
+    defineAndSaveActivitiesInTasksAndHandoffsFirst: { en: 'Define and save activities in Tasks and handoffs first.', zh: '请先在任务与交接中定义并保存活动项目。' } as const,
+    upgradeAndSaveTheLegacyAssessmentInTheRam: { en: 'Upgrade and save the legacy assessment in the RAM editor before synchronizing.', zh: '请先在 RAM 编辑器中升级并保存旧版资料，再重新同步。' } as const,
+    synchronizationFailedExistingContentIsPreservedRetryWhenReady: { en: 'Synchronization failed. Existing content is preserved. Retry when ready.', zh: '同步失败，原有内容已保留。可重试。' } as const,
+    aiSyncing: { en: 'AI syncing', zh: 'AI 同步中' } as const,
+    upToDate: { en: 'Up to date', zh: '已更新并核对' } as const,
+    needsReview: { en: 'Needs review', zh: '需要核对' } as const,
+    aiUpdated: { en: '· AI updated', zh: '· AI 已更新' } as const,
+    ramBackgroundSynchronization: { en: 'RAM background synchronization', zh: 'RAM 后台同步' } as const,
+    ramFinalRiskReview: { en: 'RAM · Final risk review', zh: 'RAM · 汇总风险核对' } as const,
+    ramNotRequired: { en: 'RAM not required', zh: '当前无需 RAM' } as const,
+    aggregatesSavedModulePlansReviewAiSuggestionsBeforeCompleting: { en: 'Aggregates saved module plans. Review AI suggestions before completing independent safety approval.', zh: '汇总已保存的各模块安排。AI 建议须由人核对，正式安全审批另行完成。' } as const,
+    lastEvaluated: { en: 'Last evaluated: ', zh: '最近评估：' } as const,
+    loadingSyncStatus: { en: 'Loading sync status…', zh: '正在读取同步状态…' } as const,
+    refreshStatus: { en: 'Refresh status', zh: '刷新状态' } as const,
+    reassessRisksWithAi: { en: 'Reassess risks with AI', zh: 'AI 重新评估风险' } as const,
+    reassessTheLatestActivityPlansAndKeepHumanEdits: { en: 'Reassess the latest activity plans and keep human edits. Existing confirmation and approval will be invalidated and require review and signing again. AI does not supply ratings.', zh: '将按最新活动资料重新列出风险，保留人工修改。已有确认及审批将失效，需要重新核对和签署。AI 不填写评分。' } as const,
+    saveCurrentChangesBeforeReassessing: { en: 'Save current changes before reassessing.', zh: '请先保存当前修改，再重新评估。' } as const,
+};

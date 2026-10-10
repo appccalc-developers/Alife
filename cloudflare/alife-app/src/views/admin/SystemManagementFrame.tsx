@@ -1,3 +1,4 @@
+import { systemManagementFrameText } from '../../i18n/systemManagementFrame.ts'
 import type { ReactNode } from 'react'
 import { Activity, ArrowLeft, Bell, CalendarRange, FileImage, Globe2, Handshake, ShieldCheck, UserCog } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -57,7 +58,7 @@ const SystemManagementFrame = ({
               className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-black text-emerald-100 transition hover:bg-white/10 hover:text-white"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              {isZh ? '返回系统管理' : 'Back to System Management'}
+              {isZh ? systemManagementFrameText.backToSystemManagement.zh : systemManagementFrameText.backToSystemManagement.en}
             </Link>
           ) : null}
 
@@ -69,8 +70,8 @@ const SystemManagementFrame = ({
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">
                   {showBackLink
-                    ? (isZh ? '系统管理' : 'System Management')
-                    : (isZh ? '平台治理' : 'Platform administration')}
+                    ? (isZh ? systemManagementFrameText.systemManagement.zh : systemManagementFrameText.systemManagement.en)
+                    : (isZh ? systemManagementFrameText.platformAdministration.zh : systemManagementFrameText.platformAdministration.en)}
                 </p>
                 <h1 className="mt-1.5 text-2xl font-black leading-tight tracking-[-0.04em] sm:text-3xl">{title}</h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">{subtitle}</p>

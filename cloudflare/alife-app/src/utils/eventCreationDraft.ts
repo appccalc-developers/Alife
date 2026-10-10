@@ -1,3 +1,4 @@
+import { eventCreationDraftText } from '../i18n/eventCreationDraft.ts'
 import { detailFields, isTimeZone, localTimeToUtc, type DetailField, type DetailSources } from '../../../shared/eventDetails.ts'
 import type { EventDto, EventVisibility, MultilingualString } from '../types/event'
 import type { EventActivityType, EventArchetype, EventFactInput, EventPlanComposeRequest, EventSeriesSetup, ModuleDecision } from '../types/eventComposition'
@@ -7,13 +8,13 @@ import { validStoredActivityPlan } from '../types/eventActivityPlan.ts'
 
 export type FactAnswer = 'unknown' | 'yes' | 'no'
 export const arrangementGroups = [
-  { key: 'people', en: 'People and volunteers', zh: '人员与同工', modules: ['TEAM.WORK', 'PEOPLE.REGISTRATION', 'SERVICE.ROSTER'], facts: [['people.volunteersRequired', 'Will volunteers be needed?', '需要志愿同工吗？']] },
-  { key: 'safety', en: 'Safety', zh: '安全', modules: ['SAFETY.RAM', 'SAFEGUARDING.CHILD'], facts: [['people.childrenPresent', 'Will children participate?', '有未成年人参与吗？'], ['safety.requiresRam', 'Is a RAM review required?', '需要 RAM 风险检视吗？']] },
-  { key: 'programme', en: 'Programme and venue', zh: '节目与场地', modules: ['PROGRAM.PRODUCTION', 'PLACE.RESOURCE', 'FESTIVAL.OPERATIONS'], facts: [['programme.productionRequired', 'Does the programme need coordination?', '需要统筹节目流程吗？'], ['place.resourcesRequired', 'Do venues or resources need managing?', '需要管理场地或资源吗？'], ['scale.multiZone', 'Will multiple areas operate at the same time?', '需要同时管理多个现场区域吗？']] },
-  { key: 'travel', en: 'Travel and accommodation', zh: '交通与住宿', modules: ['MOVE.STAY'], facts: [['move.transportRequired', 'Will transport be arranged?', '本次安排交通吗？'], ['move.accommodationRequired', 'Will accommodation be arranged?', '本次安排住宿吗？']] },
-  { key: 'food', en: 'Food', zh: '餐饮', modules: ['FOOD.HOSPITALITY'], facts: [['food.serviceRequired', 'Will food service be arranged?', '需要安排餐饮服务吗？']] },
-  { key: 'money', en: 'Money', zh: '费用', modules: ['MONEY.FINANCE'], facts: [['money.hasMoneyFlow', 'Will money be collected or spent?', '本次有收费或支出吗？']] },
-  { key: 'followup', en: 'Follow-up', zh: '跟进', modules: ['COMMS.FOLLOWUP'], facts: [['comms.followupRequired', 'Will organised follow-up be needed?', '需要安排活动后的跟进吗？']] },
+  { key: 'people', en: eventCreationDraftText.people.en, zh: eventCreationDraftText.people.zh, modules: ['TEAM.WORK', 'PEOPLE.REGISTRATION', 'SERVICE.ROSTER'], facts: [['people.volunteersRequired', eventCreationDraftText.peopleVolunteersRequired.en, eventCreationDraftText.peopleVolunteersRequired.zh]] },
+  { key: 'safety', en: eventCreationDraftText.safety.en, zh: eventCreationDraftText.safety.zh, modules: ['SAFETY.RAM', 'SAFEGUARDING.CHILD'], facts: [['people.childrenPresent', eventCreationDraftText.peopleChildrenPresent.en, eventCreationDraftText.peopleChildrenPresent.zh], ['safety.requiresRam', eventCreationDraftText.safetyRequiresRam.en, eventCreationDraftText.safetyRequiresRam.zh]] },
+  { key: 'programme', en: eventCreationDraftText.programme.en, zh: eventCreationDraftText.programme.zh, modules: ['PROGRAM.PRODUCTION', 'PLACE.RESOURCE', 'FESTIVAL.OPERATIONS'], facts: [['programme.productionRequired', eventCreationDraftText.programmeProductionRequired.en, eventCreationDraftText.programmeProductionRequired.zh], ['place.resourcesRequired', eventCreationDraftText.placeResourcesRequired.en, eventCreationDraftText.placeResourcesRequired.zh], ['scale.multiZone', eventCreationDraftText.scaleMultiZone.en, eventCreationDraftText.scaleMultiZone.zh]] },
+  { key: 'travel', en: eventCreationDraftText.travel.en, zh: eventCreationDraftText.travel.zh, modules: ['MOVE.STAY'], facts: [['move.transportRequired', eventCreationDraftText.moveTransportRequired.en, eventCreationDraftText.moveTransportRequired.zh], ['move.accommodationRequired', eventCreationDraftText.moveAccommodationRequired.en, eventCreationDraftText.moveAccommodationRequired.zh]] },
+  { key: 'food', en: eventCreationDraftText.food.en, zh: eventCreationDraftText.food.zh, modules: ['FOOD.HOSPITALITY'], facts: [['food.serviceRequired', eventCreationDraftText.foodServiceRequired.en, eventCreationDraftText.foodServiceRequired.zh]] },
+  { key: 'money', en: eventCreationDraftText.money.en, zh: eventCreationDraftText.money.zh, modules: ['MONEY.FINANCE'], facts: [['money.hasMoneyFlow', eventCreationDraftText.moneyHasMoneyFlow.en, eventCreationDraftText.moneyHasMoneyFlow.zh]] },
+  { key: 'followup', en: eventCreationDraftText.followup.en, zh: eventCreationDraftText.followup.zh, modules: ['COMMS.FOLLOWUP'], facts: [['comms.followupRequired', eventCreationDraftText.commsFollowupRequired.en, eventCreationDraftText.commsFollowupRequired.zh]] },
 ] as const
 export const creationFacts = arrangementGroups.flatMap(group => [...group.facts])
 export const creationModuleCodes = arrangementGroups.flatMap(group => [...group.modules])
@@ -95,19 +96,19 @@ export const changeOptionalModule = (draft: CreationDraft, decision: ModuleDecis
   decision.status === 'required' ? draft : { ...draft, moduleOverrides: { ...draft.moduleOverrides, [decision.moduleCode]: selected } }
 
 export const creationDraftIssue = (draft: CreationDraft, type: EventActivityType, archetype: EventArchetype, zh: boolean): { field: DetailField; message: string } | null => {
-  if (!draft.title.en.trim() && !draft.title.zh.trim()) return { field: 'title', message: zh ? '请填写活动名称。' : 'Enter an event title.' }
-  if (!draft.description.en.trim() && !draft.description.zh.trim()) return { field: 'description', message: zh ? '请填写活动说明。' : 'Enter an event description.' }
+  if (!draft.title.en.trim() && !draft.title.zh.trim()) return { field: 'title', message: zh ? eventCreationDraftText.enterAnEventTitle.zh : eventCreationDraftText.enterAnEventTitle.en }
+  if (!draft.description.en.trim() && !draft.description.zh.trim()) return { field: 'description', message: zh ? eventCreationDraftText.enterAnEventDescription.zh : eventCreationDraftText.enterAnEventDescription.en }
   let start: number, end: number
   let timeField: DetailField = isTimeZone(draft.timeZone) ? 'startLocal' : 'timeZone'
   try { start = Date.parse(localTimeToUtc(draft.startLocal, draft.timeZone)); timeField = 'endLocal'; end = Date.parse(localTimeToUtc(draft.endLocal, draft.timeZone)) }
-  catch { return { field: timeField, message: zh ? '请检查活动时区和日期时间；夏令时跳过或重复的时间须重新选择。' : 'Check the event time zone and dates; choose a different time for a daylight-saving gap or overlap.' } }
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return { field: 'endLocal', message: zh ? '请输入有效时间，结束时间须晚于开始时间。' : 'Enter valid dates with the end after the start.' }
-  if (creationSettings(draft, type).registrationMode === 'required' && (!Number.isInteger(Number(draft.maxCapacity)) || Number(draft.maxCapacity) < 1)) return { field: 'maxCapacity', message: zh ? '请填写大于零的整数容量。' : 'Enter a whole-number capacity greater than zero.' }
+  catch { return { field: timeField, message: zh ? eventCreationDraftText.checkTheEventTimeZoneAndDatesChooseA.zh : eventCreationDraftText.checkTheEventTimeZoneAndDatesChooseA.en } }
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return { field: 'endLocal', message: zh ? eventCreationDraftText.enterValidDatesWithTheEndAfterTheStart.zh : eventCreationDraftText.enterValidDatesWithTheEndAfterTheStart.en }
+  if (creationSettings(draft, type).registrationMode === 'required' && (!Number.isInteger(Number(draft.maxCapacity)) || Number(draft.maxCapacity) < 1)) return { field: 'maxCapacity', message: zh ? eventCreationDraftText.enterAWholeNumberCapacityGreaterThanZero.zh : eventCreationDraftText.enterAWholeNumberCapacityGreaterThanZero.en }
   if (archetype.isSeries) {
-    if (!Number.isInteger(Number(draft.intervalWeeks ?? '1')) || Number(draft.intervalWeeks ?? '1') < 1 || Number(draft.intervalWeeks ?? '1') > 52) return { field: 'intervalWeeks', message: zh ? '重复间隔须为 1–52 周。' : 'Repeat interval must be 1–52 weeks.' }
+    if (!Number.isInteger(Number(draft.intervalWeeks ?? '1')) || Number(draft.intervalWeeks ?? '1') < 1 || Number(draft.intervalWeeks ?? '1') > 52) return { field: 'intervalWeeks', message: zh ? eventCreationDraftText.repeatIntervalMustBe152Weeks.zh : eventCreationDraftText.repeatIntervalMustBe152Weeks.en }
     try { new Intl.DateTimeFormat('en', { timeZone: draft.timeZone }).format() }
-    catch { return { field: 'timeZone', message: zh ? '请选择有效的时区。' : 'Enter a valid time zone.' } }
-    if (!draft.timeZone.trim()) return { field: 'timeZone', message: zh ? '请填写时区。' : 'Enter a time zone.' }
+    catch { return { field: 'timeZone', message: zh ? eventCreationDraftText.enterAValidTimeZone.zh : eventCreationDraftText.enterAValidTimeZone.en } }
+    if (!draft.timeZone.trim()) return { field: 'timeZone', message: zh ? eventCreationDraftText.enterATimeZone.zh : eventCreationDraftText.enterATimeZone.en }
   }
   return null
 }

@@ -1,3 +1,4 @@
+import { eventDetailsAssistantText } from '../../../i18n/eventDetailsAssistant.ts'
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import AssistantFeedback from './AssistantFeedback'
 import AppBadge from '../../layout/AppBadge'
@@ -34,11 +35,11 @@ export default function EventDetailsAssistant({ draft, setDraft, type, isSeries,
     started.current = true
     const sentSignature = signature, sentRevision = snapshot.revision
     const response = await service.sendMessage(sessionId.current, submitted, { inputMode: 'text', appContext: { language: zh ? 'zh' : 'en', knownFacts: { snapshot } } })
-    if (!alive.current || !editable.current) throw new Error(zh ? '当前资料只读，未采用回复。' : 'These details are now read-only; the reply was not adopted.')
+    if (!alive.current || !editable.current) throw new Error(zh ? eventDetailsAssistantText.theseDetailsAreNowReadOnlyTheReplyWas.zh : eventDetailsAssistantText.theseDetailsAreNowReadOnlyTheReplyWas.en)
     if (latest.current !== sentSignature || response.result?.revision !== sentRevision) {
-      throw new Error(zh ? '资料已修改，未采用旧回复。请按最新资料重新发送。' : 'Details changed; the old reply was not adopted. Send again using the latest form.')
+      throw new Error(zh ? eventDetailsAssistantText.detailsChangedTheOldReplyWasNotAdoptedSend.zh : eventDetailsAssistantText.detailsChangedTheOldReplyWasNotAdoptedSend.en)
     }
-    if (!response.result) throw new Error(zh ? 'AI 未返回资料草稿。' : 'AI returned no details draft.')
+    if (!response.result) throw new Error(zh ? eventDetailsAssistantText.aiReturnedNoDetailsDraft.zh : eventDetailsAssistantText.aiReturnedNoDetailsDraft.en)
     const next = response.result
     const nextDraft = invalidateArrangementConfirmation(applyDetailsResult(draft, next, submitted))
     setDraft(current => JSON.stringify({ draft: current, type: type.code, isSeries }) === sentSignature ? nextDraft : current)
@@ -56,15 +57,15 @@ export default function EventDetailsAssistant({ draft, setDraft, type, isSeries,
   const currentResult = resultSignature === signature ? result : null
   const defaultsPending = completion.pending.filter(field => (snapshot.sources[field] ?? 'default') === 'default' && validDetail(field, snapshot.form))
   return <EventAssistantChat zh={zh} active={active} readOnly={readOnly} onSend={send} onBusy={value => { setBusy(value); onBusy(value) }}
-    heading={<div className="event-assistant-heading"><h3>{zh ? 'AI 资料助手' : 'AI details assistant'}</h3><AppBadge className="max-w-full break-words align-middle">{zh ? '已选模板：' : 'Selected template: '}{localText(type.name, zh)}</AppBadge></div>}
-    intro={zh ? '先说说这是什么活动、何时在哪里举行。也可以补充可见范围、报名方式和最多参加人数，我们一起把资料整理好。' : 'Tell me about the event, when it happens and where. You can also add visibility, registration and maximum capacity. We’ll organise the details together.'}
+    heading={<div className="event-assistant-heading"><h3>{zh ? eventDetailsAssistantText.aiDetailsAssistant.zh : eventDetailsAssistantText.aiDetailsAssistant.en}</h3><AppBadge className="max-w-full break-words align-middle">{zh ? eventDetailsAssistantText.selectedTemplate.zh : eventDetailsAssistantText.selectedTemplate.en}{localText(type.name, zh)}</AppBadge></div>}
+    intro={zh ? eventDetailsAssistantText.tellMeAboutTheEventWhenItHappensAnd.zh : eventDetailsAssistantText.tellMeAboutTheEventWhenItHappensAnd.en}
     footer={<>
     <AssistantFeedback zh={zh} completion={completion} labels={detailLabels} revealField={revealField} defaults={defaultsPending} onConfirm={confirmDefaults} disabled={readOnly || busy} />
     {currentResult ? <div className="event-assistant-assessment" aria-live="polite">
-      {currentResult.adoptedFields.length ? <p>{zh ? '本轮更新：' : 'Updated: '}{currentResult.adoptedFields.map(field => text(detailLabels[field])).join(' · ')}</p> : null}
+      {currentResult.adoptedFields.length ? <p>{zh ? eventDetailsAssistantText.updated.zh : eventDetailsAssistantText.updated.en}{currentResult.adoptedFields.map(field => text(detailLabels[field])).join(' · ')}</p> : null}
       {currentResult.issues.length ? <ul>{currentResult.issues.slice(0, 2).map((issue, index) => <li key={index}><button type="button" onClick={() => revealField(issue.field)}>{text(detailLabels[issue.field])} ↗</button> {text(issue.question)}</li>)}</ul> : null}
-      <details><summary>{zh ? '查看 AI 充分性评估' : 'View AI sufficiency assessment'}</summary><p>{currentResult.assessment.sufficiencyScore}/100 · {text(currentResult.assessment.summary)}</p></details>
-    </div> : result ? <p className="event-assistant-review">{zh ? '表单已更新；上轮 AI 评估已过期，请继续补充。' : 'The form changed; the previous AI assessment is out of date. Continue with the latest details.'}</p> : null}
+      <details><summary>{zh ? eventDetailsAssistantText.viewAiSufficiencyAssessment.zh : eventDetailsAssistantText.viewAiSufficiencyAssessment.en}</summary><p>{currentResult.assessment.sufficiencyScore}/100 · {text(currentResult.assessment.summary)}</p></details>
+    </div> : result ? <p className="event-assistant-review">{zh ? eventDetailsAssistantText.theFormChangedThePreviousAiAssessmentIsOut.zh : eventDetailsAssistantText.theFormChangedThePreviousAiAssessmentIsOut.en}</p> : null}
 
     </>} />
 }

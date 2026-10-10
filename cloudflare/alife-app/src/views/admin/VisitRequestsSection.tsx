@@ -1,3 +1,4 @@
+import { visitRequestsSectionText } from '../../i18n/visitRequestsSection.ts'
 import type { Dispatch, SetStateAction } from 'react'
 import { CheckCircle2, Clock3, Globe2, Handshake, Loader2, Mail, Phone } from 'lucide-react'
 import type { AdminPagedResultDto, VisitContactRequestDto, VisitContactRequestStatus } from '../../services/groupService'
@@ -6,9 +7,9 @@ import type { LabelFn } from './AdminUi'
 import { formatDate } from './adminUtils'
 
 const visitRequestStatusLabel = (status: string, language: string) => {
-  if (status === 'contacted') return language === 'zh' ? '已联系' : 'Contacted'
-  if (status === 'followUp') return language === 'zh' ? '待跟进' : 'Follow-up'
-  return language === 'zh' ? '新请求' : 'New request'
+  if (status === 'contacted') return language === 'zh' ? visitRequestsSectionText.contacted.zh : visitRequestsSectionText.contacted.en
+  if (status === 'followUp') return language === 'zh' ? visitRequestsSectionText.followUp.zh : visitRequestsSectionText.followUp.en
+  return language === 'zh' ? visitRequestsSectionText.newRequest.zh : visitRequestsSectionText.newRequest.en
 }
 
 const visitRequestStatusTone = (status: string) =>
@@ -19,9 +20,9 @@ const visitRequestStatusTone = (status: string) =>
       : 'border-sky-200 bg-sky-50 text-sky-700'
 
 const visitRequestLanguageLabel = (language: string, uiLanguage: string) => {
-  if (language === 'zh') return uiLanguage === 'zh' ? '中文' : 'Chinese'
-  if (language === 'en') return uiLanguage === 'zh' ? '英文' : 'English'
-  if (language === 'bilingual') return uiLanguage === 'zh' ? '中英双语' : 'Bilingual'
+  if (language === 'zh') return uiLanguage === 'zh' ? visitRequestsSectionText.chinese.zh : visitRequestsSectionText.chinese.en
+  if (language === 'en') return uiLanguage === 'zh' ? visitRequestsSectionText.english.zh : visitRequestsSectionText.english.en
+  if (language === 'bilingual') return uiLanguage === 'zh' ? visitRequestsSectionText.bilingual.zh : visitRequestsSectionText.bilingual.en
   return language
 }
 
@@ -82,7 +83,7 @@ export const VisitRequestsSection = ({ l, loading, page, filters, setFilters, ap
                   <h3 className="mt-3 break-words text-base font-bold text-slate-950">{item.displayName || l('visitorName')}</h3>
                   {item.salutation ? (
                     <p className="mt-1 text-sm font-medium text-slate-500">
-                      {language === 'zh' ? '称谓' : 'Preferred address'}: <span className="text-slate-700">{item.salutation}</span>
+                      {language === 'zh' ? visitRequestsSectionText.preferredAddress.zh : visitRequestsSectionText.preferredAddress.en}: <span className="text-slate-700">{item.salutation}</span>
                     </p>
                   ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">

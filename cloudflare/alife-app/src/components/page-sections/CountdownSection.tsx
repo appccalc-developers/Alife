@@ -1,3 +1,4 @@
+import { countdownSectionText } from '../../i18n/countdownSection.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ExternalLink } from 'lucide-react'
 import { useListSourceResolver } from '../../hooks/useListSourceResolver'
@@ -210,11 +211,11 @@ const readManualItems = (content: Record<string, unknown>, language: string) => 
 const eventItems = (details: EventDetails | undefined, binding: CountdownBinding, language: string) => {
   if (!details) return []
   const items = [
-    `${label(language, 'Time', '时间')}: ${formatDateTime(details.dto.startDate || details.record.startDate, language) || label(language, 'To be confirmed', '时间待确认')}`,
+    `${label(language, countdownSectionText.time.en, countdownSectionText.time.zh)}: ${formatDateTime(details.dto.startDate || details.record.startDate, language) || label(language, countdownSectionText.toBeConfirmed.en, countdownSectionText.toBeConfirmed.zh)}`,
   ]
 
   if (details.location) {
-    items.push(`${label(language, 'Location', '地点')}: ${details.location}`)
+    items.push(`${label(language, countdownSectionText.location.en, countdownSectionText.location.zh)}: ${details.location}`)
   }
 
   const target = readEventTarget(details, binding.targetField)
@@ -227,22 +228,22 @@ const eventItems = (details: EventDetails | undefined, binding: CountdownBinding
 
 const targetLabel = (targetField: CountdownTargetField, language: string) => {
   if (targetField === 'registrationDeadline') {
-    return label(language, 'Registration deadline', '报名截止')
+    return label(language, countdownSectionText.registrationDeadline.en, countdownSectionText.registrationDeadline.zh)
   }
   if (targetField === 'endDate') {
-    return label(language, 'Event ends', '活动结束')
+    return label(language, countdownSectionText.eventEnds.en, countdownSectionText.eventEnds.zh)
   }
-  return label(language, 'Event starts', '活动开始')
+  return label(language, countdownSectionText.eventStarts.en, countdownSectionText.eventStarts.zh)
 }
 
 const countdownLabel = (targetField: CountdownTargetField, language: string) => {
   if (targetField === 'registrationDeadline') {
-    return label(language, 'Until registration closes', '距离报名截止')
+    return label(language, countdownSectionText.untilRegistrationCloses.en, countdownSectionText.untilRegistrationCloses.zh)
   }
   if (targetField === 'endDate') {
-    return label(language, 'Until event ends', '距离活动结束')
+    return label(language, countdownSectionText.untilEventEnds.en, countdownSectionText.untilEventEnds.zh)
   }
-  return label(language, 'Until event starts', '距离活动开始')
+  return label(language, countdownSectionText.untilEventStarts.en, countdownSectionText.untilEventStarts.zh)
 }
 
 const optionLabelForEvent = (record: GroupEventRecord, language: string) => {
@@ -379,58 +380,58 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
     : readText(section.contentJson, 'imageUrl', 'backgroundImage', 'backgroundImageUrl')
   const imageUrl = customImageUrl || eventDetails?.posterImageUrl || DEFAULT_COUNTDOWN_IMAGE
   const leftEyebrow = isEventBound
-    ? label(language, 'Upcoming event', '近期活动')
-    : readLocalizedText(section.contentJson, language, 'eyebrow', 'kicker') || label(language, 'Countdown', '倒数计时')
+    ? label(language, countdownSectionText.upcomingEvent.en, countdownSectionText.upcomingEvent.zh)
+    : readLocalizedText(section.contentJson, language, 'eyebrow', 'kicker') || label(language, countdownSectionText.countdown.en, countdownSectionText.countdown.zh)
   const manualLeftTitle = readHeaderText(section.contentJson, language, 'title')
   const leftTitle = (isEventBound ? eventDetails?.title : manualLeftTitle) ||
     manualLeftTitle ||
-    label(language, 'Prepare for what is coming next.', '为即将来到的相聚预备。')
+    label(language, countdownSectionText.prepareForWhatIsComingNext.en, countdownSectionText.prepareForWhatIsComingNext.zh)
   const manualLeftBody = readHeaderText(section.contentJson, language, 'subtitle')
   const leftBody = (isEventBound ? eventDetails?.description || eventDetails?.location : manualLeftBody) ||
     manualLeftBody ||
-    label(language, 'Use this section to focus attention on a date, gathering, registration deadline, or ministry moment.', '用这个区块提醒大家关注一个日期、聚会、报名截止或服事重点。')
+    label(language, countdownSectionText.useThisSectionToFocusAttentionOnADate.en, countdownSectionText.useThisSectionToFocusAttentionOnADate.zh)
   const manualItems = readManualItems(section.contentJson, language)
   const items = isEventBound
     ? eventItems(eventDetails, binding, language)
     : manualItems.length
       ? manualItems
       : [
-        label(language, 'Clarify who should respond and what the next step is.', '说明谁需要回应，以及下一步是什么。'),
-        label(language, 'Keep the message short enough for mobile readers.', '让信息足够简短，方便手机阅读。'),
-        label(language, 'Use the button to send people to details, enrollment, or contact.', '用按钮带大家前往详情、报名或联系入口。'),
+        label(language, countdownSectionText.clarifyWhoShouldRespondAndWhatTheNextStep.en, countdownSectionText.clarifyWhoShouldRespondAndWhatTheNextStep.zh),
+        label(language, countdownSectionText.keepTheMessageShortEnoughForMobileReaders.en, countdownSectionText.keepTheMessageShortEnoughForMobileReaders.zh),
+        label(language, countdownSectionText.useTheButtonToSendPeopleToDetailsEnrollment.en, countdownSectionText.useTheButtonToSendPeopleToDetailsEnrollment.zh),
       ]
   const cardEyebrow = isEventBound
-    ? label(language, 'Upcoming event', '近期活动')
-    : readLocalizedText(section.contentJson, language, 'cardEyebrow') || label(language, 'Save the date', '请预留时间')
+    ? label(language, countdownSectionText.upcomingEvent2.en, countdownSectionText.upcomingEvent2.zh)
+    : readLocalizedText(section.contentJson, language, 'cardEyebrow') || label(language, countdownSectionText.saveTheDate.en, countdownSectionText.saveTheDate.zh)
   const manualCardTitle = readLocalizedText(section.contentJson, language, 'title', 'headline')
   const cardTitle = (isEventBound ? eventDetails?.title : manualCardTitle) ||
     manualCardTitle ||
-    label(language, 'Next gathering', '下一次相聚')
+    label(language, countdownSectionText.nextGathering.en, countdownSectionText.nextGathering.zh)
   const manualCardBody = readLocalizedText(section.contentJson, language, 'body', 'centerText', 'text')
   const cardBody = (isEventBound ? eventDetails?.description || eventDetails?.location : manualCardBody) ||
     manualCardBody ||
-    label(language, 'Add a short invitation and let the timer create urgency without overwhelming the page.', '加入一段简短邀请，让倒数提醒带出行动感。')
+    label(language, countdownSectionText.addAShortInvitationAndLetTheTimerCreate.en, countdownSectionText.addAShortInvitationAndLetTheTimerCreate.zh)
   const statusLabel = !countdown.hasTarget
-    ? label(language, 'Set a target time', '请设置目标时间')
+    ? label(language, countdownSectionText.setATargetTime.en, countdownSectionText.setATargetTime.zh)
     : countdown.isCurrent
-      ? readLocalizedText(section.contentJson, language, 'currentLabel') || label(language, 'Happening now', '正在进行')
+      ? readLocalizedText(section.contentJson, language, 'currentLabel') || label(language, countdownSectionText.happeningNow.en, countdownSectionText.happeningNow.zh)
       : countdown.isComplete
-        ? readLocalizedText(section.contentJson, language, 'completeLabel') || label(language, 'Countdown complete', '倒数已结束')
+        ? readLocalizedText(section.contentJson, language, 'completeLabel') || label(language, countdownSectionText.countdownComplete.en, countdownSectionText.countdownComplete.zh)
         : readLocalizedText(section.contentJson, language, 'countdownLabel') || countdownLabel(binding.targetField, language)
   const metaLabel = readLocalizedText(section.contentJson, language, 'metaLabel') ||
-    (isEventBound ? targetLabel(binding.targetField, language) : label(language, 'Target date and time', '目标日期时间'))
+    (isEventBound ? targetLabel(binding.targetField, language) : label(language, countdownSectionText.targetDateAndTime.en, countdownSectionText.targetDateAndTime.zh))
   const metaValue = formatCountdownTargetDateTime(targetDateTime, language) ||
     (isEventBound ? '' : readLocalizedText(section.contentJson, language, 'metaValue')) ||
-    label(language, 'To be confirmed', '时间待确认')
+    label(language, countdownSectionText.toBeConfirmed2.en, countdownSectionText.toBeConfirmed2.zh)
   const targetDateTimeAttribute = readDateTime(targetDateTime)
     ? new Date(targetDateTime).toISOString()
     : undefined
   const footerText = (isEventBound ? eventDetails?.location : readLocalizedText(section.contentJson, language, 'footerText')) ||
     readLocalizedText(section.contentJson, language, 'footerText') ||
-    label(language, 'Confirm details before publishing so leaders and members see the right time.', '发布前请确认详情，让带领人与成员看到正确时间。')
+    label(language, countdownSectionText.confirmDetailsBeforePublishingSoLeadersAndMembersSee.en, countdownSectionText.confirmDetailsBeforePublishingSoLeadersAndMembersSee.zh)
   const linkLabel = isEventBound
-    ? label(language, 'View event details', '查看活动详情')
-    : readLocalizedText(section.contentJson, language, 'linkLabel', 'linkText', 'ctaLabel') || label(language, 'Learn more', '了解更多')
+    ? label(language, countdownSectionText.viewEventDetails.en, countdownSectionText.viewEventDetails.zh)
+    : readLocalizedText(section.contentJson, language, 'linkLabel', 'linkText', 'ctaLabel') || label(language, countdownSectionText.learnMore.en, countdownSectionText.learnMore.zh)
   const configuredLinkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
   const linkUrl = isEventBound && eventDetails
     ? resolveEventBoundActionUrl(configuredLinkUrl, eventDetails.record.groupId, eventDetails.record.id)
@@ -459,12 +460,12 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
     <PropertyPanel>
       <SelectInput
         focusKey="countdown-source-mode"
-        label={label(language, 'Datasource', '数据来源')}
+        label={label(language, countdownSectionText.datasource.en, countdownSectionText.datasource.zh)}
         value={binding.mode}
         disabled={disabled}
         options={[
-          { value: 'custom', label: label(language, 'Customized', '自定义') },
-          { value: 'event', label: label(language, 'Event', '活动') },
+          { value: 'custom', label: label(language, countdownSectionText.customized.en, countdownSectionText.customized.zh) },
+          { value: 'event', label: label(language, countdownSectionText.event.en, countdownSectionText.event.zh) },
         ]}
         onChange={(value) => updateCountdown({ mode: value as CountdownMode })}
       />
@@ -472,15 +473,15 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
         <>
           <SelectInput
             focusKey="countdown-event-id"
-            label={label(language, 'Event', '活动')}
+            label={label(language, countdownSectionText.event2.en, countdownSectionText.event2.zh)}
             value={binding.eventId}
             disabled={disabled}
             options={[
               {
                 value: '',
                 label: eventsLoading
-                  ? label(language, 'Loading events...', '正在加载活动...')
-                  : label(language, 'Next upcoming event', '下一个近期活动'),
+                  ? label(language, countdownSectionText.loadingEvents.en, countdownSectionText.loadingEvents.zh)
+                  : label(language, countdownSectionText.nextUpcomingEvent.en, countdownSectionText.nextUpcomingEvent.zh),
               },
               ...eventRecords.map((record) => ({
                 value: record.id,
@@ -491,31 +492,31 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
           />
           <SelectInput
             focusKey="countdown-preset"
-            label={label(language, 'Event preset', '活动预设')}
+            label={label(language, countdownSectionText.eventPreset.en, countdownSectionText.eventPreset.zh)}
             value={binding.preset}
             disabled={disabled}
             options={[
-              { value: 'upcoming', label: label(language, 'Upcoming', '即将开始') },
-              { value: 'recent', label: label(language, 'Recent', '最近') },
-              { value: 'all', label: label(language, 'All', '全部') },
+              { value: 'upcoming', label: label(language, countdownSectionText.upcoming.en, countdownSectionText.upcoming.zh) },
+              { value: 'recent', label: label(language, countdownSectionText.recent.en, countdownSectionText.recent.zh) },
+              { value: 'all', label: label(language, countdownSectionText.all.en, countdownSectionText.all.zh) },
             ]}
             onChange={(value) => updateCountdown({ preset: value, eventId: '' })}
           />
           <SelectInput
             focusKey="countdown-target-field"
-            label={label(language, 'Countdown target', '倒数目标')}
+            label={label(language, countdownSectionText.countdownTarget.en, countdownSectionText.countdownTarget.zh)}
             value={binding.targetField}
             disabled={disabled}
             options={[
-              { value: 'startDate', label: label(language, 'Event start time', '活动开始时间') },
-              { value: 'registrationDeadline', label: label(language, 'Registration deadline', '报名截止时间') },
-              { value: 'endDate', label: label(language, 'Event end time', '活动结束时间') },
+              { value: 'startDate', label: label(language, countdownSectionText.eventStartTime.en, countdownSectionText.eventStartTime.zh) },
+              { value: 'registrationDeadline', label: label(language, countdownSectionText.registrationDeadline2.en, countdownSectionText.registrationDeadline2.zh) },
+              { value: 'endDate', label: label(language, countdownSectionText.eventEndTime.en, countdownSectionText.eventEndTime.zh) },
             ]}
             onChange={(value) => updateCountdown({ targetField: value as CountdownTargetField })}
           />
           <MediaPickerInput
             focusKey="countdown-image-override"
-            label={label(language, 'Image/video override URL', '图片/视频覆盖链接')}
+            label={label(language, countdownSectionText.imageVideoOverrideUrl.en, countdownSectionText.imageVideoOverrideUrl.zh)}
             value={readText(section.contentJson, 'imageOverrideUrl')}
             disabled={disabled}
             groupId={groupId}
@@ -527,7 +528,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
         <>
           <TextInput
             focusKey="countdown-target-date"
-            label={label(language, 'Countdown target date/time', '倒数目标日期时间')}
+            label={label(language, countdownSectionText.countdownTargetDateTime.en, countdownSectionText.countdownTargetDateTime.zh)}
             value={manualTarget}
             disabled={disabled}
             placeholder="2026-12-25T10:00:00"
@@ -535,7 +536,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
           />
           <MediaPickerInput
             focusKey="countdown-image"
-            label={label(language, 'Image/video URL', '图片/视频链接')}
+            label={label(language, countdownSectionText.imageVideoUrl.en, countdownSectionText.imageVideoUrl.zh)}
             value={readText(section.contentJson, 'imageUrl', 'backgroundImage', 'backgroundImageUrl')}
             disabled={disabled}
             groupId={groupId}
@@ -546,14 +547,14 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
       )}
       <TextInput
         focusKey="countdown-action-url"
-        label={label(language, 'Button link URL', '按钮链接地址')}
+        label={label(language, countdownSectionText.buttonLinkUrl.en, countdownSectionText.buttonLinkUrl.zh)}
         value={readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')}
         disabled={disabled}
         onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })}
       />
       {eventsError ? (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 md:col-span-2">
-          {label(language, 'Unable to load events for this section.', '无法为此区块加载活动。')}
+          {label(language, countdownSectionText.unableToLoadEventsForThisSection.en, countdownSectionText.unableToLoadEventsForThisSection.zh)}
         </p>
       ) : null}
     </PropertyPanel>
@@ -572,7 +573,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
             as="h2"
             multiline
             value={leftTitle}
-            fallback={label(language, 'Countdown title', '倒数标题')}
+            fallback={label(language, countdownSectionText.countdownTitle.en, countdownSectionText.countdownTitle.zh)}
             disabled={!editable || isEventBound}
             className="mt-5 block text-4xl font-semibold leading-[1.06] tracking-[-0.035em] [text-wrap:balance] sm:text-5xl"
             onChange={updateLeftTitle}
@@ -581,7 +582,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
             as="p"
             multiline
             value={leftBody}
-            fallback={label(language, 'Add a short introduction.', '添加一段简短介绍。')}
+            fallback={label(language, countdownSectionText.addAShortIntroduction.en, countdownSectionText.addAShortIntroduction.zh)}
             disabled={!editable || isEventBound}
             className="mt-4 block max-w-[50ch] text-[0.94rem] leading-7 text-home-muted"
             onChange={updateLeftBody}
@@ -594,7 +595,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                   as="p"
                   multiline
                   value={item}
-                  fallback={label(language, 'Detail', '详情')}
+                  fallback={label(language, countdownSectionText.detail.en, countdownSectionText.detail.zh)}
                   disabled={!editable || isEventBound}
                   className="block text-sm leading-6 text-home-muted"
                   onChange={(value) => updateItem(index, value)}
@@ -622,7 +623,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                     as="h3"
                     multiline
                     value={cardTitle}
-                    fallback={label(language, 'Countdown title', '倒数标题')}
+                    fallback={label(language, countdownSectionText.countdownTitle2.en, countdownSectionText.countdownTitle2.zh)}
                     disabled={!editable || isEventBound}
                     className="mt-3 block text-2xl font-bold leading-tight"
                     onChange={(value) => updateLocalizedContent({ title: value, headline: value })}
@@ -631,7 +632,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                     as="p"
                     multiline
                     value={cardBody}
-                    fallback={label(language, 'Add a short invitation.', '添加一段简短邀请。')}
+                    fallback={label(language, countdownSectionText.addAShortInvitation.en, countdownSectionText.addAShortInvitation.zh)}
                     disabled={!editable || isEventBound}
                     className="mt-4 block text-sm font-semibold leading-7 text-white/72"
                     onChange={(value) => updateLocalizedContent({ body: value, centerText: value, text: value })}
@@ -642,10 +643,10 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                   <p className="text-xs font-medium uppercase tracking-[0.15em] text-home-gold">{statusLabel}</p>
                   <div className="mt-4 grid grid-cols-4 gap-2 text-center">
                     {[
-                      { label: label(language, 'D', '天'), value: countdown.days },
-                      { label: label(language, 'H', '时'), value: countdown.hours },
-                      { label: label(language, 'M', '分'), value: countdown.minutes },
-                      { label: label(language, 'S', '秒'), value: countdown.seconds },
+                      { label: label(language, countdownSectionText.d.en, countdownSectionText.d.zh), value: countdown.days },
+                      { label: label(language, countdownSectionText.h.en, countdownSectionText.h.zh), value: countdown.hours },
+                      { label: label(language, countdownSectionText.m.en, countdownSectionText.m.zh), value: countdown.minutes },
+                      { label: label(language, countdownSectionText.s.en, countdownSectionText.s.zh), value: countdown.seconds },
                     ].map((item) => (
                       <div key={item.label} className="rounded-xl bg-black/15 px-2 py-3">
                         <span className="block text-2xl font-bold tabular-nums">
@@ -678,7 +679,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                     >
                       <EditableText
                         value={linkLabel}
-                        fallback={label(language, 'Learn more', '了解更多')}
+                        fallback={label(language, countdownSectionText.learnMore2.en, countdownSectionText.learnMore2.zh)}
                         disabled={!editable || isEventBound}
                         className="text-sm"
                         onChange={(value) => updateLocalizedContent({ linkLabel: value, linkText: value, ctaLabel: value })}

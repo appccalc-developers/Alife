@@ -1,3 +1,4 @@
+import { groupListSectionText } from '../../i18n/groupListSection.ts'
 import React, { useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarDays, ChevronRight, ContactRound, FileText, MicVocal, UserRound, Users } from 'lucide-react'
@@ -106,9 +107,9 @@ export function eventToCardItem(event: GroupEventRecord, language = 'en'): Unive
   const locale = language === 'zh' ? 'zh-CN' : 'en-NZ'
   const dateDisplay = dateStr ? new Date(dateStr).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' }) : ''
   const visibilityLabel = event.visibility === 'public'
-    ? (language === 'zh' ? '公开活动' : 'Public event')
+    ? (language === 'zh' ? groupListSectionText.publicEvent.zh : groupListSectionText.publicEvent.en)
     : event.visibility === 'churchVisible'
-      ? (language === 'zh' ? '教会内可见' : 'Church members')
+      ? (language === 'zh' ? groupListSectionText.churchMembers.zh : groupListSectionText.churchMembers.en)
       : ''
   return {
     id: event.id,
@@ -359,8 +360,8 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
       <FeaturedCarousel
         items={carouselItems}
         ariaLabel={badge}
-        previousLabel={language === 'zh' ? `上一项${badge}` : `Previous ${badge}`}
-        nextLabel={language === 'zh' ? `下一项${badge}` : `Next ${badge}`}
+        previousLabel={language === 'zh' ? groupListSectionText.previous.zh(badge) : groupListSectionText.previous.en(badge)}
+        nextLabel={language === 'zh' ? groupListSectionText.next.zh(badge) : groupListSectionText.next.en(badge)}
         compact={compact}
       />
     )

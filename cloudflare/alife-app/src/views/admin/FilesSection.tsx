@@ -1,3 +1,4 @@
+import { filesSectionText } from '../../i18n/filesSection.ts'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { fileAssetService, resolveFileAssetAccessUrl, type FileAsset, type FileAssetPurpose, type FileAssetSortBy, type FileAssetVisibility, type PagedResult, type SortDirection } from '../../services/fileAssetService'
@@ -12,11 +13,11 @@ const fileRelatedEntityOptions = ['', 'event', 'enrollment', 'review', 'page', '
 const fileSortOptions: FileAssetSortBy[] = ['uploadedUtc', 'createdUtc', 'sizeBytes', 'originalFileName', 'purpose', 'visibility']
 
 const fileVisibilityLabel = (visibility: FileAssetVisibility | '', language: string) => {
-  if (!visibility) return language === 'zh' ? '全部可见范围' : 'All visibility'
+  if (!visibility) return language === 'zh' ? filesSectionText.allVisibility.zh : filesSectionText.allVisibility.en
   if (language === 'zh') {
-    if (visibility === 'public') return '公开'
-    if (visibility === 'groupVisible') return '小组可见'
-    return '成员私有'
+    if (visibility === 'public') return filesSectionText.fileVisibilityLabel
+    if (visibility === 'groupVisible') return filesSectionText.fileVisibilityLabel2
+    return filesSectionText.fileVisibilityLabel3
   }
   if (visibility === 'public') return 'Public'
   if (visibility === 'groupVisible') return 'Group-visible'
@@ -24,31 +25,13 @@ const fileVisibilityLabel = (visibility: FileAssetVisibility | '', language: str
 }
 
 const filePurposeLabel = (purpose: FileAssetPurpose | '', language: string) => {
-  if (!purpose) return language === 'zh' ? '全部用途' : 'All purposes'
-  const labels: Record<FileAssetPurpose, { en: string; zh: string }> = {
-    general: { en: 'General', zh: '通用' },
-    pageMedia: { en: 'Page media', zh: '页面媒体' },
-    eventPoster: { en: 'Event poster', zh: '活动海报' },
-    eventGallery: { en: 'Event gallery', zh: '活动相册' },
-    enrollmentPaymentProof: { en: 'Payment proof', zh: '付款凭证' },
-    reviewPhoto: { en: 'Review photo', zh: '回顾照片' },
-    groupCover: { en: 'Group cover', zh: '小组封面' },
-    memberAvatar: { en: 'Member avatar', zh: '成员头像' },
-    albumPhoto: { en: 'Album photo', zh: '相册图片' },
-    sundayBulletin: { en: 'Sunday bulletin', zh: '主日周报' },
-  }
+  if (!purpose) return language === 'zh' ? filesSectionText.allPurposes.zh : filesSectionText.allPurposes.en
+  const labels: Record<FileAssetPurpose, { en: string; zh: string }> = filesSectionText.labels
   return labels[purpose][language === 'zh' ? 'zh' : 'en']
 }
 
 const fileSortLabel = (sortBy: FileAssetSortBy, language: string) => {
-  const labels: Record<FileAssetSortBy, { en: string; zh: string }> = {
-    uploadedUtc: { en: 'Uploaded time', zh: '上传时间' },
-    createdUtc: { en: 'Registered time', zh: '登记时间' },
-    sizeBytes: { en: 'File size', zh: '文件大小' },
-    originalFileName: { en: 'File name', zh: '文件名' },
-    purpose: { en: 'Purpose', zh: '用途' },
-    visibility: { en: 'Visibility', zh: '可见范围' },
-  }
+  const labels: Record<FileAssetSortBy, { en: string; zh: string }> = filesSectionText.labelsAlternative
   return labels[sortBy][language === 'zh' ? 'zh' : 'en']
 }
 
@@ -78,29 +61,29 @@ export const PlatformFilesSection = ({ l, language, groups, connected = false }:
   })
 
   const copy = {
-    allGroups: language === 'zh' ? '全部小组' : 'All groups',
-    unassignedOnly: language === 'zh' ? '只看无归属文件' : 'Unassigned only',
-    unassignedHelp: language === 'zh' ? '筛选 groupId 为空的文件。选择小组时会自动关闭。' : 'Shows files whose groupId is empty. Selecting a group turns this off.',
-    allRelated: language === 'zh' ? '全部关联对象' : 'All related records',
-    visibility: language === 'zh' ? '可见范围' : 'Visibility',
-    purpose: language === 'zh' ? '用途' : 'Purpose',
-    related: language === 'zh' ? '关联对象' : 'Related record',
-    groupFilter: language === 'zh' ? '小组归属' : 'Group',
-    sortBy: language === 'zh' ? '排序字段' : 'Sort by',
-    direction: language === 'zh' ? '方向' : 'Direction',
-    descending: language === 'zh' ? '降序' : 'Descending',
-    ascending: language === 'zh' ? '升序' : 'Ascending',
-    perPage: language === 'zh' ? '每页' : 'Per page',
-    file: language === 'zh' ? '文件' : 'File',
-    open: language === 'zh' ? '打开' : 'Open',
-    group: language === 'zh' ? '小组' : 'Group',
-    owner: language === 'zh' ? '上传者' : 'Owner',
-    uploaded: language === 'zh' ? '上传时间' : 'Uploaded',
-    size: language === 'zh' ? '大小' : 'Size',
-    storage: language === 'zh' ? '存储路径' : 'Storage key',
-    provider: language === 'zh' ? '存储服务' : 'Storage provider',
-    noFiles: language === 'zh' ? '还没有登记的上传文件。' : 'No registered uploads yet.',
-    failed: language === 'zh' ? '文件列表加载失败。' : 'Unable to load files.',
+    allGroups: language === 'zh' ? filesSectionText.allGroups.zh : filesSectionText.allGroups.en,
+    unassignedOnly: language === 'zh' ? filesSectionText.unassignedOnly.zh : filesSectionText.unassignedOnly.en,
+    unassignedHelp: language === 'zh' ? filesSectionText.showsFilesWhoseGroupIdIsEmptySelectingA.zh : filesSectionText.showsFilesWhoseGroupIdIsEmptySelectingA.en,
+    allRelated: language === 'zh' ? filesSectionText.allRelatedRecords.zh : filesSectionText.allRelatedRecords.en,
+    visibility: language === 'zh' ? filesSectionText.visibility.zh : filesSectionText.visibility.en,
+    purpose: language === 'zh' ? filesSectionText.purpose.zh : filesSectionText.purpose.en,
+    related: language === 'zh' ? filesSectionText.relatedRecord.zh : filesSectionText.relatedRecord.en,
+    groupFilter: language === 'zh' ? filesSectionText.group.zh : filesSectionText.group.en,
+    sortBy: language === 'zh' ? filesSectionText.sortBy.zh : filesSectionText.sortBy.en,
+    direction: language === 'zh' ? filesSectionText.direction.zh : filesSectionText.direction.en,
+    descending: language === 'zh' ? filesSectionText.descending.zh : filesSectionText.descending.en,
+    ascending: language === 'zh' ? filesSectionText.ascending.zh : filesSectionText.ascending.en,
+    perPage: language === 'zh' ? filesSectionText.perPage.zh : filesSectionText.perPage.en,
+    file: language === 'zh' ? filesSectionText.file.zh : filesSectionText.file.en,
+    open: language === 'zh' ? filesSectionText.open.zh : filesSectionText.open.en,
+    group: language === 'zh' ? filesSectionText.groupLabel.zh : filesSectionText.groupLabel.en,
+    owner: language === 'zh' ? filesSectionText.owner.zh : filesSectionText.owner.en,
+    uploaded: language === 'zh' ? filesSectionText.uploaded.zh : filesSectionText.uploaded.en,
+    size: language === 'zh' ? filesSectionText.size.zh : filesSectionText.size.en,
+    storage: language === 'zh' ? filesSectionText.storageKey.zh : filesSectionText.storageKey.en,
+    provider: language === 'zh' ? filesSectionText.storageProvider.zh : filesSectionText.storageProvider.en,
+    noFiles: language === 'zh' ? filesSectionText.noRegisteredUploadsYet.zh : filesSectionText.noRegisteredUploadsYet.en,
+    failed: language === 'zh' ? filesSectionText.unableToLoadFiles.zh : filesSectionText.unableToLoadFiles.en,
   }
 
   const groupById = useMemo(() => new Map(groups.map((group) => [group.id, group])), [groups])

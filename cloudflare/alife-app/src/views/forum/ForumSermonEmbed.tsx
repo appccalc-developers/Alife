@@ -1,3 +1,4 @@
+import { forumSermonEmbedText } from '../../i18n/forumSermonEmbed.ts'
 import { CalendarDays, MessageCircle, MicVocal, PlayCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -17,9 +18,9 @@ type Props = {
 
 const ForumSermonEmbed = ({ sermon, mode = 'detail' }: Props) => {
   const { language } = useAuthStore()
-  const label = language === 'zh' ? '讲道' : 'Sermon'
-  const sourceLabel = language === 'zh' ? '讲道讨论帖' : 'Sermon discussion'
-  const watchLabel = language === 'zh' ? '打开讲道页面' : 'Open sermon page'
+  const label = language === 'zh' ? forumSermonEmbedText.sermon.zh : forumSermonEmbedText.sermon.en
+  const sourceLabel = language === 'zh' ? forumSermonEmbedText.sermonDiscussion.zh : forumSermonEmbedText.sermonDiscussion.en
+  const watchLabel = language === 'zh' ? forumSermonEmbedText.openSermonPage.zh : forumSermonEmbedText.openSermonPage.en
   const videoId = extractYouTubeVideoId(sermon.videoUrl)
   const embedUrl = toYouTubeEmbedUrl(videoId)
   const sermonPath = buildSermonVideoPath(sermon.id, videoId)

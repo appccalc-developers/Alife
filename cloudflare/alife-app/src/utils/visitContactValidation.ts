@@ -1,10 +1,11 @@
+import { visitContactValidationText } from '../i18n/visitContactValidation.ts'
 export const VISIT_CONTACT_COUNTRY_CODES = [
-  { value: '+86', en: 'Mainland China', zh: '中国大陆' },
-  { value: '+852', en: 'Hong Kong', zh: '香港' },
-  { value: '+853', en: 'Macau', zh: '澳门' },
-  { value: '+886', en: 'Taiwan', zh: '台湾' },
-  { value: '+64', en: 'New Zealand', zh: '新西兰' },
-  { value: '+61', en: 'Australia', zh: '澳洲' },
+  { value: '+86', en: visitContactValidationText.visitContactCountryCodes.en, zh: visitContactValidationText.visitContactCountryCodes.zh },
+  { value: '+852', en: visitContactValidationText.visitContactCountryCodesHongKong.en, zh: visitContactValidationText.visitContactCountryCodesHongKong.zh },
+  { value: '+853', en: visitContactValidationText.visitContactCountryCodesMacau.en, zh: visitContactValidationText.visitContactCountryCodesMacau.zh },
+  { value: '+886', en: visitContactValidationText.visitContactCountryCodesTaiwan.en, zh: visitContactValidationText.visitContactCountryCodesTaiwan.zh },
+  { value: '+64', en: visitContactValidationText.visitContactCountryCodesNewZealand.en, zh: visitContactValidationText.visitContactCountryCodesNewZealand.zh },
+  { value: '+61', en: visitContactValidationText.visitContactCountryCodesAustralia.en, zh: visitContactValidationText.visitContactCountryCodesAustralia.zh },
 ] as const
 
 export type VisitContactCountryCode = (typeof VISIT_CONTACT_COUNTRY_CODES)[number]['value']

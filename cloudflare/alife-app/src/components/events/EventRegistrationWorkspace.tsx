@@ -1,3 +1,4 @@
+import { eventRegistrationWorkspaceText } from '../../i18n/eventRegistrationWorkspace.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import EventEnrollmentPanel from './EventEnrollmentPanel'
 import AppActionButton from '../layout/AppActionButton'
@@ -24,15 +25,15 @@ export default function EventRegistrationWorkspace({ eventId, groupId, language 
       const [events, rows] = await Promise.all([eventService.getGroupEvents(groupId, memberId), enrollmentSessionService.listEventEnrollments(eventId)])
       if (request !== sequence.current) return
       const saved = events.find(item => item.id === eventId)
-      if (!saved) throw new Error('Event unavailable. / 活动不可用。')
+      if (!saved) throw new Error(eventRegistrationWorkspaceText.load)
       setEvent(saved); setEnrollments(rows)
     } catch (reason) { if (request === sequence.current) { setEvent(null); setEnrollments([]); setError(normalizeApiError(reason).message) } }
     finally { if (request === sequence.current) setLoading(false) }
   }, [eventId, groupId, memberId])
   useEffect(() => { void load(); return () => { sequence.current++ } }, [load])
   return <div className="space-y-3">
-    {loading ? <p role="status">{zh ? '正在读取报名资料……' : 'Loading enrollment…'}</p> : null}
-    {error ? <AppSectionCard summary={zh ? '读取失败，请展开重试' : 'Loading failed; expand to retry'} title={zh ? '无法读取报名资料' : 'Unable to load enrollment'}><p role="alert">{error}</p><AppActionButton onClick={() => void load()}>{zh ? '重试' : 'Retry'}</AppActionButton></AppSectionCard> : null}
+    {loading ? <p role="status">{zh ? eventRegistrationWorkspaceText.loadingEnrollment.zh : eventRegistrationWorkspaceText.loadingEnrollment.en}</p> : null}
+    {error ? <AppSectionCard summary={zh ? eventRegistrationWorkspaceText.loadingFailedExpandToRetry.zh : eventRegistrationWorkspaceText.loadingFailedExpandToRetry.en} title={zh ? eventRegistrationWorkspaceText.unableToLoadEnrollment.zh : eventRegistrationWorkspaceText.unableToLoadEnrollment.en}><p role="alert">{error}</p><AppActionButton onClick={() => void load()}>{zh ? eventRegistrationWorkspaceText.retry.zh : eventRegistrationWorkspaceText.retry.en}</AppActionButton></AppSectionCard> : null}
     {event ? <EventEnrollmentPanel event={event} eventDto={parseEventDto(event)} enrollments={enrollments} language={language} memberId={memberId} isGuest={viewer?.isGuest ?? true} loading={loading} onRefresh={load} /> : null}
   </div>
 }

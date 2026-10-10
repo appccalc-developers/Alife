@@ -1,3 +1,4 @@
+import { eventEnrollmentViewText } from '../i18n/eventEnrollmentView.ts'
 import { useEffect, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import AppBadge from '../components/layout/AppBadge'
@@ -67,10 +68,10 @@ const EventEnrollmentView = () => {
 
   return (
     <AppPageShell
-      title={eventTitle || (language === 'zh' ? '活动报名' : 'Event enrollment')}
-      context={language === 'zh' ? '小组生活 / 活动 / 报名' : 'Group Life / Event / Enrollment'}
-      status={event ? <AppBadge variant="success">{language === 'zh' ? '开放报名' : 'Enrollment open'}</AppBadge> : undefined}
-      backLink={{ label: language === 'zh' ? '返回活动' : 'Back to event', to: eventBasePath }}
+      title={eventTitle || (language === 'zh' ? eventEnrollmentViewText.eventEnrollment.zh : eventEnrollmentViewText.eventEnrollment.en)}
+      context={language === 'zh' ? eventEnrollmentViewText.groupLifeEventEnrollment.zh : eventEnrollmentViewText.groupLifeEventEnrollment.en}
+      status={event ? <AppBadge variant="success">{language === 'zh' ? eventEnrollmentViewText.enrollmentOpen.zh : eventEnrollmentViewText.enrollmentOpen.en}</AppBadge> : undefined}
+      backLink={{ label: language === 'zh' ? eventEnrollmentViewText.backToEvent.zh : eventEnrollmentViewText.backToEvent.en, to: eventBasePath }}
     >
 
       {loading ? (

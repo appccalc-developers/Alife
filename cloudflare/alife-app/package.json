@@ -12,7 +12,7 @@
     "generate:public-home-bootstrap": "node scripts/generate-public-home-bootstrap.mjs",
     "test:group-hierarchy": "node --test --experimental-strip-types tests/groupHierarchy.test.ts",
     "test:church-life": "node --test --experimental-strip-types tests/churchLife.test.ts",
-    "test:locale": "node --test --experimental-strip-types tests/locale.test.ts",
+    "test:locale": "node --test --experimental-strip-types tests/locale.test.ts tests/i18nResources.test.cjs",
     "test:bilingual": "node --test --experimental-strip-types tests/bilingualValidation.test.ts",
     "test:page-bilingual": "node --test --experimental-strip-types tests/pageBilingualCompletion.test.ts",
     "test:article-covers": "node --test --experimental-strip-types tests/articleCover.test.ts",

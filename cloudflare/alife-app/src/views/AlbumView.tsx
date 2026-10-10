@@ -1,3 +1,4 @@
+import { albumViewText } from '../i18n/albumView.ts'
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, ChevronUp, FolderPlus, Images, Pencil, Plus, Trash2, Upload } from 'lucide-react'
@@ -42,7 +43,7 @@ const AlbumCard = ({ album, language, basePath }: { album: AlbumSummary; languag
     </div>
     <div className="p-4">
       <h3 className="font-black text-[#18332d]">{localizeText(album.name, language)}</h3>
-      <p className="mt-1 text-xs text-[#66766f]">{language === 'zh' ? `${album.childCount} 个子相册 · ${album.photoCount} 张图片` : `${album.childCount} subalbums · ${album.photoCount} photos`}</p>
+      <p className="mt-1 text-xs text-[#66766f]">{language === 'zh' ? albumViewText.subalbumsPhotos.zh(album.childCount, album.photoCount) : albumViewText.subalbumsPhotos.en(album.childCount, album.photoCount)}</p>
     </div>
   </Link>
 )
@@ -84,7 +85,7 @@ const AlbumView = () => {
         setDetail(null); setRoots(await albumService.list(groupId))
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : (isZh ? '无法加载相册。' : 'Unable to load albums.'))
+      setError(cause instanceof Error ? cause.message : (isZh ? albumViewText.unableToLoadAlbums.zh : albumViewText.unableToLoadAlbums.en))
     } finally { setLoading(false) }
   }
 
@@ -125,14 +126,14 @@ const AlbumView = () => {
         setEditorMode(null)
         navigate(`${albumBasePath}/${encodeURIComponent(created.album.id)}`)
       }
-    } catch (cause) { setError(cause instanceof Error ? cause.message : (isZh ? '无法保存相册。' : 'Unable to save album.')) }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : (isZh ? albumViewText.unableToSaveAlbum.zh : albumViewText.unableToSaveAlbum.en)) }
     finally { setBusy(false) }
   }
 
   const uploadFiles = async (files: FileList | null) => {
     if (!detail || !files?.length) return
     const images = Array.from(files).filter(isImageFile)
-    if (!images.length) { setError(isZh ? '请选择支持的图片文件。' : 'Choose supported image files.'); return }
+    if (!images.length) { setError(isZh ? albumViewText.chooseSupportedImageFiles.zh : albumViewText.chooseSupportedImageFiles.en); return }
     setBusy(true); setError('')
     try {
       let next = detail
@@ -162,9 +163,9 @@ const AlbumView = () => {
 
   const removePhoto = async (photoId: string, objectKey: string) => {
     if (!detail || !await requestConfirmation({
-      title: isZh ? '要删除图片吗？' : 'Delete photo?',
-      description: isZh ? '这张图片会被永久删除，此操作无法撤销。' : 'This photo will be deleted permanently. This cannot be undone.',
-      confirmLabel: isZh ? '删除图片' : 'Delete photo',
+      title: isZh ? albumViewText.deletePhoto.zh : albumViewText.deletePhoto.en,
+      description: isZh ? albumViewText.thisPhotoWillBeDeletedPermanentlyThisCannotBe.zh : albumViewText.thisPhotoWillBeDeletedPermanentlyThisCannotBe.en,
+      confirmLabel: isZh ? albumViewText.deletePhotoLabel.zh : albumViewText.deletePhotoLabel.en,
       tone: 'danger',
     })) return
     setBusy(true)
@@ -176,14 +177,14 @@ const AlbumView = () => {
   }
 
   const albums = detail?.children ?? roots
-  const pageTitle = detail ? localizeText(detail.album.name, auth.language) : (isZh ? '相册' : 'Albums')
+  const pageTitle = detail ? localizeText(detail.album.name, auth.language) : (isZh ? albumViewText.albums.zh : albumViewText.albums.en)
   const ownerGroupName = localizeText(ownerGroupQuery.data?.name, auth.language)
-  const albumContext = churchSite ? (isZh ? '教会生活 / 相册' : 'Church Life / Albums') : ownerGroupName ? (
+  const albumContext = churchSite ? (isZh ? albumViewText.churchLifeAlbums.zh : albumViewText.churchLifeAlbums.en) : ownerGroupName ? (
     <>
-      <span className="desktop:hidden">{ownerGroupName} / {isZh ? '相册' : 'Albums'}</span>
-      <span className="hidden desktop:inline">{ownerGroupQuery.data?.isChurch ? (isZh ? '教会生活' : 'Church Life') : (isZh ? '小组生活' : 'Group Life')} / {ownerGroupName} / {isZh ? '相册' : 'Albums'}</span>
+      <span className="desktop:hidden">{ownerGroupName} / {isZh ? albumViewText.albums.zh : albumViewText.albums.en}</span>
+      <span className="hidden desktop:inline">{ownerGroupQuery.data?.isChurch ? (isZh ? albumViewText.churchLife.zh : albumViewText.churchLife.en) : (isZh ? albumViewText.groupLife.zh : albumViewText.groupLife.en)} / {ownerGroupName} / {isZh ? albumViewText.albums.zh : albumViewText.albums.en}</span>
     </>
-  ) : (isZh ? '小组内容 / 相册' : 'Group Content / Albums')
+  ) : (isZh ? albumViewText.groupContentAlbums.zh : albumViewText.groupContentAlbums.en)
   const missingAlbumTranslations = validateRequiredBilingualFields(
     { name: albumForm.name, description: albumForm.description },
     [
@@ -200,37 +201,37 @@ const AlbumView = () => {
       title={pageTitle}
       context={albumContext}
       backLink={churchSite
-        ? { to: '/church/albums', label: isZh ? '返回教会相册' : 'Back to church albums' }
-        : albumId ? { to: albumBasePath, label: isZh ? '返回相册' : 'Back to albums' } : undefined}
-      subtitle={detail ? localizeText(detail.album.description, auth.language) : (isZh ? '用相册和子相册整理小组图片。' : 'Organize group images with albums and subalbums.')}
-      status={detail ? <AppBadge variant={detail.album.visibility === 'public' ? 'info' : 'neutral'}>{detail.album.visibility === 'public' ? (isZh ? '公开' : 'Public') : (isZh ? '小组可见' : 'Group visible')}</AppBadge> : undefined}
+        ? { to: '/church/albums', label: isZh ? albumViewText.backToChurchAlbums.zh : albumViewText.backToChurchAlbums.en }
+        : albumId ? { to: albumBasePath, label: isZh ? albumViewText.backToAlbums.zh : albumViewText.backToAlbums.en } : undefined}
+      subtitle={detail ? localizeText(detail.album.description, auth.language) : (isZh ? albumViewText.organizeGroupImagesWithAlbumsAndSubalbums.zh : albumViewText.organizeGroupImagesWithAlbumsAndSubalbums.en)}
+      status={detail ? <AppBadge variant={detail.album.visibility === 'public' ? 'info' : 'neutral'}>{detail.album.visibility === 'public' ? (isZh ? albumViewText.public.zh : albumViewText.public.en) : (isZh ? albumViewText.groupVisible.zh : albumViewText.groupVisible.en)}</AppBadge> : undefined}
       primaryAction={canManage && !editorMode ? (
         detail ? (
           <AppTitleBarAction
-            label={busy ? (isZh ? '处理中…' : 'Working…') : (isZh ? '上传图片' : 'Upload images')}
+            label={busy ? (isZh ? albumViewText.working.zh : albumViewText.working.en) : (isZh ? albumViewText.uploadImages.zh : albumViewText.uploadImages.en)}
             icon={<Upload className="h-4 w-4" />}
             disabled={busy}
             onClick={() => fileInputRef.current?.click()}
           />
         ) : (
-          <AppTitleBarAction label={isZh ? '新建相册' : 'New album'} icon={<FolderPlus className="h-4 w-4" />} onClick={openCreate} />
+          <AppTitleBarAction label={isZh ? albumViewText.newAlbum.zh : albumViewText.newAlbum.en} icon={<FolderPlus className="h-4 w-4" />} onClick={openCreate} />
         )
       ) : undefined}
-      overflowLabel={isZh ? '更多操作' : 'More actions'}
+      overflowLabel={isZh ? albumViewText.moreActions.zh : albumViewText.moreActions.en}
       overflowActions={detail && canManage && !editorMode ? [{
-        label: isZh ? '编辑相册' : 'Edit album',
+        label: isZh ? albumViewText.editAlbum.zh : albumViewText.editAlbum.en,
         icon: <Pencil className="h-4 w-4" />,
         onSelect: openEdit,
       }, {
-        label: isZh ? '新建子相册' : 'New subalbum',
+        label: isZh ? albumViewText.newSubalbum.zh : albumViewText.newSubalbum.en,
         icon: <FolderPlus className="h-4 w-4" />,
         onSelect: openCreate,
       }] : []}
     >
       <input ref={fileInputRef} className="hidden" type="file" accept="image/*" multiple onChange={event => uploadFiles(event.target.files)} />
       {detail ? (
-        <nav className="flex flex-wrap items-center gap-1 text-sm text-[#66766f]" aria-label={isZh ? '相册路径' : 'Album breadcrumbs'}>
-          <Link className="rounded-lg px-2 py-1 hover:bg-[#e3f0eb]" to={albumBasePath}>{isZh ? '相册' : 'Albums'}</Link>
+        <nav className="flex flex-wrap items-center gap-1 text-sm text-[#66766f]" aria-label={isZh ? albumViewText.albumBreadcrumbs.zh : albumViewText.albumBreadcrumbs.en}>
+          <Link className="rounded-lg px-2 py-1 hover:bg-[#e3f0eb]" to={albumBasePath}>{isZh ? albumViewText.albums.zh : albumViewText.albums.en}</Link>
           {detail.breadcrumbs.map(item => <span key={item.id} className="flex items-center gap-1"><ChevronRight className="h-4 w-4" /><Link className="rounded-lg px-2 py-1 hover:bg-[#e3f0eb]" to={`${albumBasePath}/${encodeURIComponent(item.id)}`}>{localizeText(item.name, auth.language)}</Link></span>)}
         </nav>
       ) : null}
@@ -239,15 +240,15 @@ const AlbumView = () => {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-black text-[#18332d]">
               {editorMode === 'edit'
-                ? (isZh ? '编辑相册' : 'Edit album')
-                : (isZh ? (detail ? '新建子相册' : '新建相册') : (detail ? 'New subalbum' : 'New album'))}
+                ? (isZh ? albumViewText.editAlbum.zh : albumViewText.editAlbum.en)
+                : (isZh ? (detail ? albumViewText.albumView : albumViewText.albumView2) : (detail ? 'New subalbum' : 'New album'))}
             </h2>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <label className="text-sm font-bold text-[#40554e]">English name<input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.name.en} onChange={event => setAlbumForm((current) => ({ ...current, name: { ...current.name, en: event.target.value } }))} /></label>
-            <label className="text-sm font-bold text-[#40554e]">中文名称<input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.name.zh} onChange={event => setAlbumForm((current) => ({ ...current, name: { ...current.name, zh: event.target.value } }))} /></label>
+            <label className="text-sm font-bold text-[#40554e]">{albumViewText.label}<input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.name.zh} onChange={event => setAlbumForm((current) => ({ ...current, name: { ...current.name, zh: event.target.value } }))} /></label>
             <label className="text-sm font-bold text-[#40554e]">English description <span className="font-normal text-slate-400">(optional)</span><textarea rows={3} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.description.en} onChange={event => setAlbumForm((current) => ({ ...current, description: { ...current.description, en: event.target.value } }))} /></label>
-            <label className="text-sm font-bold text-[#40554e]">中文描述 <span className="font-normal text-slate-400">（可选）</span><textarea rows={3} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.description.zh} onChange={event => setAlbumForm((current) => ({ ...current, description: { ...current.description, zh: event.target.value } }))} /></label>
+            <label className="text-sm font-bold text-[#40554e]">{albumViewText.label2}<span className="font-normal text-slate-400">{albumViewText.label3}</span><textarea rows={3} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.description.zh} onChange={event => setAlbumForm((current) => ({ ...current, description: { ...current.description, zh: event.target.value } }))} /></label>
             <AiLanguageAutofill
               key={`${editorMode}-${detail?.album.id ?? 'root'}`}
               className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 md:col-span-2"
@@ -266,15 +267,15 @@ const AlbumView = () => {
                 })
               }}
             />
-            <label className="text-sm font-bold text-[#40554e]">{isZh ? '可见范围' : 'Visibility'}<select className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.visibility} onChange={event => setAlbumForm((current) => ({ ...current, visibility: event.target.value as AlbumVisibility }))}><option value="groupVisible">{isZh ? '小组成员' : 'Group members'}</option><option value="public">{isZh ? '公开' : 'Public'}</option></select></label>
-            <div className="flex items-end gap-2"><AppActionButton variant="primary" disabled={busy || (!albumForm.name.en.trim() && !albumForm.name.zh.trim())} onClick={saveAlbum}><Plus className="mr-2 h-4 w-4" />{editorMode === 'edit' ? (isZh ? '保存更改' : 'Save changes') : (isZh ? '创建' : 'Create')}</AppActionButton><AppActionButton onClick={() => setEditorMode(null)}>{isZh ? '取消' : 'Cancel'}</AppActionButton></div>
+            <label className="text-sm font-bold text-[#40554e]">{isZh ? albumViewText.visibility.zh : albumViewText.visibility.en}<select className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.visibility} onChange={event => setAlbumForm((current) => ({ ...current, visibility: event.target.value as AlbumVisibility }))}><option value="groupVisible">{isZh ? albumViewText.groupMembers.zh : albumViewText.groupMembers.en}</option><option value="public">{isZh ? albumViewText.public.zh : albumViewText.public.en}</option></select></label>
+            <div className="flex items-end gap-2"><AppActionButton variant="primary" disabled={busy || (!albumForm.name.en.trim() && !albumForm.name.zh.trim())} onClick={saveAlbum}><Plus className="mr-2 h-4 w-4" />{editorMode === 'edit' ? (isZh ? albumViewText.saveChanges.zh : albumViewText.saveChanges.en) : (isZh ? albumViewText.create.zh : albumViewText.create.en)}</AppActionButton><AppActionButton onClick={() => setEditorMode(null)}>{isZh ? albumViewText.cancel.zh : albumViewText.cancel.en}</AppActionButton></div>
           </div>
         </section>
       ) : null}
       {error ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
-      {loading ? <p className="rounded-xl bg-white p-5 text-sm text-[#66766f]">{isZh ? '正在加载…' : 'Loading…'}</p> : null}
+      {loading ? <p className="rounded-xl bg-white p-5 text-sm text-[#66766f]">{isZh ? albumViewText.loading.zh : albumViewText.loading.en}</p> : null}
       {!loading && albums.length ? <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{albums.map(album => <AlbumCard key={album.id} album={album} language={auth.language} basePath={albumBasePath} />)}</section> : null}
-      {!loading && !albums.length && !detail?.photos.length ? <AppEmptyState title={isZh ? '这里还是空的' : 'Nothing here yet'} description={isZh ? '创建相册或上传第一张图片。' : 'Create an album or upload the first image.'} /> : null}
+      {!loading && !albums.length && !detail?.photos.length ? <AppEmptyState title={isZh ? albumViewText.nothingHereYet.zh : albumViewText.nothingHereYet.en} description={isZh ? albumViewText.createAnAlbumOrUploadTheFirstImage.zh : albumViewText.createAnAlbumOrUploadTheFirstImage.en} /> : null}
       {detail ? (
         <section className="space-y-4">
           {detail.photos.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{detail.photos.map((photo, index) => (
@@ -284,19 +285,19 @@ const AlbumView = () => {
                 <figcaption className="flex items-center justify-between gap-2 p-2">
                   <span className="truncate px-1 text-xs text-[#66766f]">{photo.originalFileName}</span>
                   <AppOverflowMenu
-                    label={isZh ? '图片操作' : 'Photo actions'}
+                    label={isZh ? albumViewText.photoActions.zh : albumViewText.photoActions.en}
                     actions={[{
-                      label: isZh ? '前移' : 'Move earlier',
+                      label: isZh ? albumViewText.moveEarlier.zh : albumViewText.moveEarlier.en,
                       icon: <ChevronUp className="h-4 w-4" />,
                       disabled: busy || index === 0,
                       onSelect: () => { void movePhoto(index, -1) },
                     }, {
-                      label: isZh ? '后移' : 'Move later',
+                      label: isZh ? albumViewText.moveLater.zh : albumViewText.moveLater.en,
                       icon: <ChevronDown className="h-4 w-4" />,
                       disabled: busy || index === detail.photos.length - 1,
                       onSelect: () => { void movePhoto(index, 1) },
                     }, {
-                      label: isZh ? '删除图片' : 'Delete photo',
+                      label: isZh ? albumViewText.deletePhotoLabel.zh : albumViewText.deletePhotoLabel.en,
                       icon: <Trash2 className="h-4 w-4" />,
                       tone: 'danger',
                       disabled: busy,

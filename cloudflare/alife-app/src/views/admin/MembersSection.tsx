@@ -1,3 +1,4 @@
+import { membersSectionText } from '../../i18n/membersSection.ts'
 import { identityWorkflowError } from '../../services/identityWorkflowError'
 import PersonalPasskeyRecovery from '../../components/identity/PersonalPasskeyRecovery'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -106,143 +107,143 @@ const MembersSection = ({
   const isChinese = language === 'zh'
   const { requestConfirmation, confirmationModal } = useConfirmation()
   const copy = isChinese ? {
-    title: '成员管理',
-    description: '集中查看成员资格、注册账号、管理职能、账号状态和所在小组。',
-    search: '按姓名搜索',
-    filters: '筛选成员',
-    management: '管理人员',
-    leader: '组长',
-    pending: '待审批',
-    active: '活跃',
-    inactive: '不活跃',
-    groups: '所在组',
-    allGroups: '全部小组',
-    selectedGroups: (count: number) => `已选 ${count} 个小组`,
-    clear: '重置筛选',
-    member: '成员',
-    membership: '成员资格',
-    managementRole: '管理角色',
-    account: '账号状态',
-    groupColumn: '所在组（不含教会）',
-    registered: '已注册',
-    guest: '未注册账号',
-    noManagementRole: '无管理职能',
-    noGroups: '未加入其他小组',
-    personalInfo: '个人信息',
-    name: '姓名',
-    salutation: '称谓',
-    gender: '性别',
-    activeQuestion: '是否活跃',
-    yes: '是',
-    no: '否',
-    notProvided: '未填写',
-    male: '男',
-    female: '女',
-    other: '其他',
-    groupLeader: '组长',
-    assistantLeader: '副组长',
-    memberRole: '成员',
-    roleAssignment: '管理权限',
-    roleAssignmentHint: '更改该成员在系统管理中的职能。',
-    accountDetails: '账号',
-    createdAt: '建立时间',
-    updatedAt: '最近更新',
-    membershipActions: '成员资格',
-    membershipActionsHint: '成员资格以教会组中的状态为准。',
-    approve: '批准为活跃成员',
-    reject: '拒绝申请',
-    deactivate: '设为不活跃',
-    invite: '邀请加入教会',
-    edit: '修改个人信息',
-    editDescription: '这里只修改姓名、称谓和性别；联系方式不会显示在成员管理中。',
-    save: '保存修改',
-    saving: '保存中…',
-    cancel: '取消',
-    close: '关闭',
-    required: '请填写姓名。',
-    loadFailed: '无法读取成员列表。',
-    noResults: '没有符合当前条件的成员。',
-    loadingResults: '正在更新成员结果…',
-    results: (count: number) => `${count} 位成员`,
-    previous: '上一页',
-    next: '下一页',
-    page: (current: number, total: number) => `第 ${current} / ${total || 1} 页`,
-    confirmDeactivate: (name: string) => `确定要把 ${name} 设为不活跃吗？这也会移除其子组成员资格。`,
-    confirmReject: (name: string) => `确定拒绝 ${name} 的成员申请吗？`,
-    generateActivation: '生成帐号激活短消息',
-    generateNewActivation: '生成新消息',
-    activationReady: '一次性激活消息已生成；请在窗口关闭前复制并人工发送。',
-    passkeyReady: '手机 Passkey 已建立',
-    missingPhone: '需先补充手机号',
+    title: membersSectionText.copyTitle,
+    description: membersSectionText.copyDescription,
+    search: membersSectionText.copySearch,
+    filters: membersSectionText.copyFilters,
+    management: membersSectionText.copyManagement,
+    leader: membersSectionText.copyLeader,
+    pending: membersSectionText.copyPending,
+    active: membersSectionText.copyActive,
+    inactive: membersSectionText.copyInactive,
+    groups: membersSectionText.copyGroups,
+    allGroups: membersSectionText.copyAllGroups,
+    selectedGroups: (count: number) => membersSectionText.copySelectedGroups(count),
+    clear: membersSectionText.copyClear,
+    member: membersSectionText.copyMember,
+    membership: membersSectionText.copyMembership,
+    managementRole: membersSectionText.copyManagementRole,
+    account: membersSectionText.copyAccount,
+    groupColumn: membersSectionText.copyGroupColumn,
+    registered: membersSectionText.copyRegistered,
+    guest: membersSectionText.copyGuest,
+    noManagementRole: membersSectionText.copyNoManagementRole,
+    noGroups: membersSectionText.copyNoGroups,
+    personalInfo: membersSectionText.copyPersonalInfo,
+    name: membersSectionText.copyName,
+    salutation: membersSectionText.copySalutation,
+    gender: membersSectionText.copyGender,
+    activeQuestion: membersSectionText.copyActiveQuestion,
+    yes: membersSectionText.copyYes,
+    no: membersSectionText.copyNo,
+    notProvided: membersSectionText.copyNotProvided,
+    male: membersSectionText.copyMale,
+    female: membersSectionText.copyFemale,
+    other: membersSectionText.copyOther,
+    groupLeader: membersSectionText.copyGroupLeader,
+    assistantLeader: membersSectionText.copyAssistantLeader,
+    memberRole: membersSectionText.copyMemberRole,
+    roleAssignment: membersSectionText.copyRoleAssignment,
+    roleAssignmentHint: membersSectionText.copyRoleAssignmentHint,
+    accountDetails: membersSectionText.copyAccountDetails,
+    createdAt: membersSectionText.copyCreatedAt,
+    updatedAt: membersSectionText.copyUpdatedAt,
+    membershipActions: membersSectionText.copyMembershipActions,
+    membershipActionsHint: membersSectionText.copyMembershipActionsHint,
+    approve: membersSectionText.copyApprove,
+    reject: membersSectionText.copyReject,
+    deactivate: membersSectionText.copyDeactivate,
+    invite: membersSectionText.copyInvite,
+    edit: membersSectionText.copyEdit,
+    editDescription: membersSectionText.copyEditDescription,
+    save: membersSectionText.copySave,
+    saving: membersSectionText.copySaving,
+    cancel: membersSectionText.copyCancel,
+    close: membersSectionText.copyClose,
+    required: membersSectionText.copyRequired,
+    loadFailed: membersSectionText.copyLoadFailed,
+    noResults: membersSectionText.copyNoResults,
+    loadingResults: membersSectionText.copyLoadingResults,
+    results: (count: number) => membersSectionText.copyResults(count),
+    previous: membersSectionText.copyPrevious,
+    next: membersSectionText.copyNext,
+    page: (current: number, total: number) => membersSectionText.copyPage(current, total || 1),
+    confirmDeactivate: (name: string) => membersSectionText.copyConfirmDeactivate(name),
+    confirmReject: (name: string) => membersSectionText.copyConfirmReject(name),
+    generateActivation: membersSectionText.copyGenerateActivation,
+    generateNewActivation: membersSectionText.copyGenerateNewActivation,
+    activationReady: membersSectionText.copyActivationReady,
+    passkeyReady: membersSectionText.copyPasskeyReady,
+    missingPhone: membersSectionText.copyMissingPhone,
   } : {
-    title: 'Member management',
-    description: 'Review membership, registered accounts, management duties, account state, and group participation in one place.',
-    search: 'Search by name',
-    filters: 'Filter members',
-    management: 'Management staff',
-    leader: 'Group leaders',
-    pending: 'Pending approval',
-    active: 'Active',
-    inactive: 'Inactive',
-    groups: 'Groups',
-    allGroups: 'All groups',
-    selectedGroups: (count: number) => `${count} groups selected`,
-    clear: 'Reset filters',
-    member: 'Member',
-    membership: 'Membership',
-    managementRole: 'Management roles',
-    account: 'Account state',
-    groupColumn: 'Groups (church excluded)',
-    registered: 'Registered',
-    guest: 'Unregistered account',
-    noManagementRole: 'No management duties',
-    noGroups: 'No other groups',
-    personalInfo: 'Personal information',
-    name: 'Name',
-    salutation: 'Preferred address',
-    gender: 'Gender',
-    activeQuestion: 'Active',
-    yes: 'Yes',
-    no: 'No',
-    notProvided: 'Not provided',
-    male: 'Male',
-    female: 'Female',
-    other: 'Other',
-    groupLeader: 'Group leader',
-    assistantLeader: 'Assistant leader',
-    memberRole: 'Member',
-    roleAssignment: 'Management permissions',
-    roleAssignmentHint: 'Change this member’s duties in system management.',
-    accountDetails: 'Account',
-    createdAt: 'Created',
-    updatedAt: 'Last updated',
-    membershipActions: 'Membership',
-    membershipActionsHint: 'Membership state is based on the church group record.',
-    approve: 'Approve as active',
-    reject: 'Reject request',
-    deactivate: 'Set inactive',
-    invite: 'Invite to church',
-    edit: 'Edit personal information',
-    editDescription: 'Only name, preferred address, and gender are edited here. Contact details are not shown in member management.',
-    save: 'Save changes',
-    saving: 'Saving…',
-    cancel: 'Cancel',
-    close: 'Close',
-    required: 'Name is required.',
-    loadFailed: 'Unable to load members.',
-    noResults: 'No members match these filters.',
-    loadingResults: 'Updating member results…',
-    results: (count: number) => `${count} members`,
-    previous: 'Previous',
-    next: 'Next',
-    page: (current: number, total: number) => `Page ${current} of ${total || 1}`,
-    confirmDeactivate: (name: string) => `Set ${name} as inactive? This also removes their subgroup memberships.`,
-    confirmReject: (name: string) => `Reject ${name}’s membership request?`,
-    generateActivation: 'Generate account activation message',
-    generateNewActivation: 'Generate new message',
-    activationReady: 'A one-time activation message was generated. Copy it and send it manually before closing the dialog.',
-    passkeyReady: 'Mobile Passkey is ready',
-    missingPhone: 'Add a phone number first',
+    title: membersSectionText.copyTitleEn,
+    description: membersSectionText.copyDescriptionEn,
+    search: membersSectionText.copySearchEn,
+    filters: membersSectionText.copyFiltersEn,
+    management: membersSectionText.copyManagementEn,
+    leader: membersSectionText.copyLeaderEn,
+    pending: membersSectionText.copyPendingEn,
+    active: membersSectionText.copyActiveEn,
+    inactive: membersSectionText.copyInactiveEn,
+    groups: membersSectionText.copyGroupsEn,
+    allGroups: membersSectionText.copyAllGroupsEn,
+    selectedGroups: (count: number) => membersSectionText.copySelectedGroupsEn(count),
+    clear: membersSectionText.copyClearEn,
+    member: membersSectionText.copyMemberEn,
+    membership: membersSectionText.copyMembershipEn,
+    managementRole: membersSectionText.copyManagementRoleEn,
+    account: membersSectionText.copyAccountEn,
+    groupColumn: membersSectionText.copyGroupColumnEn,
+    registered: membersSectionText.copyRegisteredEn,
+    guest: membersSectionText.copyGuestEn,
+    noManagementRole: membersSectionText.copyNoManagementRoleEn,
+    noGroups: membersSectionText.copyNoGroupsEn,
+    personalInfo: membersSectionText.copyPersonalInfoEn,
+    name: membersSectionText.copyNameEn,
+    salutation: membersSectionText.copySalutationEn,
+    gender: membersSectionText.copyGenderEn,
+    activeQuestion: membersSectionText.copyActiveQuestionEn,
+    yes: membersSectionText.copyYesEn,
+    no: membersSectionText.copyNoEn,
+    notProvided: membersSectionText.copyNotProvidedEn,
+    male: membersSectionText.copyMaleEn,
+    female: membersSectionText.copyFemaleEn,
+    other: membersSectionText.copyOtherEn,
+    groupLeader: membersSectionText.copyGroupLeaderEn,
+    assistantLeader: membersSectionText.copyAssistantLeaderEn,
+    memberRole: membersSectionText.copyMemberRoleEn,
+    roleAssignment: membersSectionText.copyRoleAssignmentEn,
+    roleAssignmentHint: membersSectionText.copyRoleAssignmentHintEn,
+    accountDetails: membersSectionText.copyAccountDetailsEn,
+    createdAt: membersSectionText.copyCreatedAtEn,
+    updatedAt: membersSectionText.copyUpdatedAtEn,
+    membershipActions: membersSectionText.copyMembershipActionsEn,
+    membershipActionsHint: membersSectionText.copyMembershipActionsHintEn,
+    approve: membersSectionText.copyApproveEn,
+    reject: membersSectionText.copyRejectEn,
+    deactivate: membersSectionText.copyDeactivateEn,
+    invite: membersSectionText.copyInviteEn,
+    edit: membersSectionText.copyEditEn,
+    editDescription: membersSectionText.copyEditDescriptionEn,
+    save: membersSectionText.copySaveEn,
+    saving: membersSectionText.copySavingEn,
+    cancel: membersSectionText.copyCancelEn,
+    close: membersSectionText.copyCloseEn,
+    required: membersSectionText.copyRequiredEn,
+    loadFailed: membersSectionText.copyLoadFailedEn,
+    noResults: membersSectionText.copyNoResultsEn,
+    loadingResults: membersSectionText.copyLoadingResultsEn,
+    results: (count: number) => membersSectionText.copyResultsEn(count),
+    previous: membersSectionText.copyPreviousEn,
+    next: membersSectionText.copyNextEn,
+    page: (current: number, total: number) => membersSectionText.copyPageEn(current, total),
+    confirmDeactivate: (name: string) => membersSectionText.copyConfirmDeactivateEn(name),
+    confirmReject: (name: string) => membersSectionText.copyConfirmRejectEn(name),
+    generateActivation: membersSectionText.copyGenerateActivationEn,
+    generateNewActivation: membersSectionText.copyGenerateNewActivationEn,
+    activationReady: membersSectionText.copyActivationReadyEn,
+    passkeyReady: membersSectionText.copyPasskeyReadyEn,
+    missingPhone: membersSectionText.copyMissingPhoneEn,
   }
 
   const [filters, setFilters] = useState<AdminMemberFilters>(initialFilters)
@@ -387,20 +388,20 @@ const MembersSection = ({
   }
 
   const confirmRecoveryIdentity = () => requestConfirmation({
-    title: isChinese ? '恢复 Passkey' : 'Recover Passkey',
-    description: isChinese ? '请确认已现场核实本人。新 Passkey 建立后撤销全部旧凭证；其他设备现有登录不会退出。' : 'Confirm you verified this person in person. Creating the new Passkey revokes all old credentials; existing device sessions remain active.',
-    confirmLabel: isChinese ? '已核实本人，继续' : 'Identity verified, continue',
+    title: isChinese ? membersSectionText.recoverPasskey.zh : membersSectionText.recoverPasskey.en,
+    description: isChinese ? membersSectionText.confirmYouVerifiedThisPersonInPersonCreatingThe.zh : membersSectionText.confirmYouVerifiedThisPersonInPersonCreatingThe.en,
+    confirmLabel: isChinese ? membersSectionText.identityVerifiedContinue.zh : membersSectionText.identityVerifiedContinue.en,
     tone: 'danger',
   })
 
   const invitationAction = async (activation: ActivationInvitation, action: 'approve' | 'email') => {
-    if (action === 'approve' && !await requestConfirmation({ title: isChinese ? '批准邀请' : 'Approve invitation', description: isChinese ? '确认已核实本人及此邀请指定的帐号，并批准加入。' : 'Confirm that you verified the person and the account named in this invitation, and approve their membership.', confirmLabel: isChinese ? '已核实，批准' : 'Verified, approve' })) return
+    if (action === 'approve' && !await requestConfirmation({ title: isChinese ? membersSectionText.approveInvitation.zh : membersSectionText.approveInvitation.en, description: isChinese ? membersSectionText.confirmThatYouVerifiedThePersonAndTheAccount.zh : membersSectionText.confirmThatYouVerifiedThePersonAndTheAccount.en, confirmLabel: isChinese ? membersSectionText.verifiedApprove.zh : membersSectionText.verifiedApprove.en })) return
     setActivationBusy(activation.id)
     setActivationError('')
     try {
       const result = action === 'approve' ? await identityAccessService.approveInvitation(activation.id) : await identityAccessService.emailInvitation(activation.id)
       setActivations(await identityAccessService.listActivations())
-      setActivationStatus(action === 'email' ? (result.deliveryStatus === 'sent' ? (isChinese ? '邮件服务已接收，等待投递。' : 'The mail service accepted the message for delivery.') : (isChinese ? '邮件未确认发送，请检查服务配置。' : 'Email sending was not confirmed. Check the mail configuration.')) : (isChinese ? '邀请已批准。' : 'Invitation approved.'))
+      setActivationStatus(action === 'email' ? (result.deliveryStatus === 'sent' ? (isChinese ? membersSectionText.theMailServiceAcceptedTheMessageForDelivery.zh : membersSectionText.theMailServiceAcceptedTheMessageForDelivery.en) : (isChinese ? membersSectionText.emailSendingWasNotConfirmedCheckTheMailConfiguration.zh : membersSectionText.emailSendingWasNotConfirmedCheckTheMailConfiguration.en)) : (isChinese ? membersSectionText.invitationApproved.zh : membersSectionText.invitationApproved.en))
     } catch (reason) { setActivationError(identityWorkflowError(reason, language)) }
     finally { setActivationBusy('') }
   }
@@ -499,7 +500,7 @@ const MembersSection = ({
       <header className="border-b border-[#dce7e2] bg-white px-5 py-5 sm:px-7">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#21705f]">{isChinese ? '教会名册' : 'Church directory'}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#21705f]">{isChinese ? membersSectionText.churchDirectory.zh : membersSectionText.churchDirectory.en}</p>
             <Heading className="mt-1.5 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{copy.title}</Heading>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-[#687770]">{copy.description}</p>
           </div>
@@ -509,19 +510,19 @@ const MembersSection = ({
 
       {canManageMembership ? (
         <details className="border-b border-[#dce7e2] bg-[#fffaf4] px-4 py-4 sm:px-6">
-          <summary className="cursor-pointer list-none text-sm font-black text-[#18332d] marker:hidden">{isChinese ? '预登记与激活邀请' : 'Pre-registration and activation invitations'}</summary>
-          <p className="mt-2 text-xs leading-5 text-[#687770]">{isChinese ? '预登记不会自动授予权限。系统会生成一次性双语短消息，请复制后通过 Phone Link 人工发送。' : 'Pre-registration never grants permissions automatically. ALIFE creates a one-time bilingual message for you to copy and send manually through Phone Link.'}</p>
+          <summary className="cursor-pointer list-none text-sm font-black text-[#18332d] marker:hidden">{isChinese ? membersSectionText.preRegistrationAndActivationInvitations.zh : membersSectionText.preRegistrationAndActivationInvitations.en}</summary>
+          <p className="mt-2 text-xs leading-5 text-[#687770]">{isChinese ? membersSectionText.preRegistrationNeverGrantsPermissionsAutomaticallyAlifeCreatesA.zh : membersSectionText.preRegistrationNeverGrantsPermissionsAutomaticallyAlifeCreatesA.en}</p>
           <div className="mt-4 grid gap-3 lg:grid-cols-4">
             <label className="block text-xs font-bold text-[#62736c]">Email<input className="alife-input mt-1" type="email" maxLength={254} value={activationForm.email} onChange={event => setActivationForm(current => ({ ...current, email: event.target.value }))} /></label>
-            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '审核状态' : 'Approval status'}<select className="alife-input mt-1" value={activationForm.approvalRequired ? 'pending' : 'approved'} onChange={event => setActivationForm(current => ({ ...current, approvalRequired: event.target.value === 'pending' }))}><option value="pending">{isChinese ? '仅录入名单，仍需审核' : 'Pre-registered; approval required'}</option><option value="approved">{isChinese ? '已核实并批准，等待本人激活' : 'Verified and approved; awaiting activation'}</option></select></label>
+            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? membersSectionText.approvalStatus.zh : membersSectionText.approvalStatus.en}<select className="alife-input mt-1" value={activationForm.approvalRequired ? 'pending' : 'approved'} onChange={event => setActivationForm(current => ({ ...current, approvalRequired: event.target.value === 'pending' }))}><option value="pending">{isChinese ? membersSectionText.preRegisteredApprovalRequired.zh : membersSectionText.preRegisteredApprovalRequired.en}</option><option value="approved">{isChinese ? membersSectionText.verifiedAndApprovedAwaitingActivation.zh : membersSectionText.verifiedAndApprovedAwaitingActivation.en}</option></select></label>
             <label className="block text-xs font-bold text-[#62736c]">{copy.name}<input className="alife-input mt-1" maxLength={150} value={activationForm.displayName} onChange={(event) => setActivationForm((current) => ({ ...current, displayName: event.target.value }))} /></label>
-            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '规范化手机号' : 'Phone number'}<input className="alife-input mt-1" type="tel" placeholder="+64…" value={activationForm.phoneE164} onChange={(event) => setActivationForm((current) => ({ ...current, phoneE164: event.target.value }))} /></label>
-            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '邀请用途' : 'Invitation purpose'}<select className="alife-input mt-1" value={activationForm.purpose} onChange={(event) => setActivationForm((current) => ({ ...current, purpose: event.target.value }))}><option value="firstActivation">{isChinese ? '首次激活' : 'First activation'}</option><option value="passkeyRecovery">{isChinese ? 'Passkey 恢复' : 'Passkey recovery'}</option></select></label>
-            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '可选小组授权' : 'Optional group grant'}<select className="alife-input mt-1" value={activationForm.groupId} onChange={(event) => setActivationForm((current) => ({ ...current, groupId: event.target.value }))}><option value="">{isChinese ? '仅教会成员' : 'Church member only'}</option>{groupOptions.map((group) => <option key={group.id} value={group.id}>{groupNameLabel(group, language)}</option>)}</select></label>
-            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '暂存角色' : 'Staged role'}<select className="alife-input mt-1" disabled={!activationForm.groupId} value={activationForm.role} onChange={(event) => setActivationForm((current) => ({ ...current, role: event.target.value }))}><option value="member">{copy.memberRole}</option><option value="coLeader">{copy.assistantLeader}</option><option value="leader">{copy.groupLeader}</option></select></label>
+            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? membersSectionText.phoneNumber.zh : membersSectionText.phoneNumber.en}<input className="alife-input mt-1" type="tel" placeholder="+64…" value={activationForm.phoneE164} onChange={(event) => setActivationForm((current) => ({ ...current, phoneE164: event.target.value }))} /></label>
+            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? membersSectionText.invitationPurpose.zh : membersSectionText.invitationPurpose.en}<select className="alife-input mt-1" value={activationForm.purpose} onChange={(event) => setActivationForm((current) => ({ ...current, purpose: event.target.value }))}><option value="firstActivation">{isChinese ? membersSectionText.firstActivation.zh : membersSectionText.firstActivation.en}</option><option value="passkeyRecovery">{isChinese ? membersSectionText.passkeyRecovery.zh : membersSectionText.passkeyRecovery.en}</option></select></label>
+            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? membersSectionText.optionalGroupGrant.zh : membersSectionText.optionalGroupGrant.en}<select className="alife-input mt-1" value={activationForm.groupId} onChange={(event) => setActivationForm((current) => ({ ...current, groupId: event.target.value }))}><option value="">{isChinese ? membersSectionText.churchMemberOnly.zh : membersSectionText.churchMemberOnly.en}</option>{groupOptions.map((group) => <option key={group.id} value={group.id}>{groupNameLabel(group, language)}</option>)}</select></label>
+            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? membersSectionText.stagedRole.zh : membersSectionText.stagedRole.en}<select className="alife-input mt-1" disabled={!activationForm.groupId} value={activationForm.role} onChange={(event) => setActivationForm((current) => ({ ...current, role: event.target.value }))}><option value="member">{copy.memberRole}</option><option value="coLeader">{copy.assistantLeader}</option><option value="leader">{copy.groupLeader}</option></select></label>
           </div>
           <button className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 py-2 text-sm font-black text-white disabled:opacity-50" type="button" disabled={activationBusy === 'create' || !activationForm.displayName.trim() || (!activationForm.phoneE164.trim() && !activationForm.email.trim())} onClick={() => void createActivation()}><Send className="mr-2 h-4 w-4" />{copy.generateActivation}</button>
-          {activations.length ? <div className="mt-4 space-y-2">{activations.slice(0, 10).map((activation) => <div key={activation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e3d8ca] bg-white p-3"><div><p className="text-sm font-bold text-[#18332d]">{activation.displayName} · {activation.maskedPhone}</p><p className="mt-1 text-xs text-[#687770]">{activation.approvalRequired ? (isChinese ? '待审核' : 'Awaiting approval') : (isChinese ? '已批准' : 'Approved')} · {activation.accepted ? (isChinese ? '本人已接受' : 'Accepted by recipient') : (isChinese ? '本人尚未接受' : 'Not yet accepted')} · {activation.status} · {activation.deliveryStatus} · {new Date(activation.expiresUtc).toLocaleString()}</p></div><div className="flex flex-wrap gap-2">{activation.approvalRequired && activation.status === 'active' ? <button className="alife-secondary-button" disabled={Boolean(activationBusy)} onClick={() => void invitationAction(activation, 'approve')}>{isChinese ? '核实并批准邀请' : 'Verify and approve invitation'}</button> : null}{activation.hasEmail && activation.purpose === 'firstActivation' && activation.status === 'active' ? <button className="alife-secondary-button" disabled={Boolean(activationBusy)} onClick={() => void invitationAction(activation, 'email')}>{isChinese ? '发送新邮件链接' : 'Email a new link'}</button> : null}{activation.purpose === 'passkeyRecovery' ? <PersonalPasskeyRecovery groupId={groups.find(group => group.isChurch)?.id ?? ''} memberId={activation.memberId} displayName={activation.displayName} /> : <button className="min-h-9 rounded-lg border border-[#cbdad4] px-3 text-xs font-bold" type="button" disabled={Boolean(activationBusy)} onClick={() => void changeActivation(activation, 'resend')}>{copy.generateNewActivation}</button>}<button className="min-h-9 rounded-lg border border-rose-200 px-3 text-xs font-bold text-rose-700" type="button" disabled={Boolean(activationBusy) || activation.status === 'used' || activation.status === 'revoked'} onClick={() => void changeActivation(activation, 'revoke')}>{isChinese ? '撤销' : 'Revoke'}</button></div></div>)}</div> : null}
+          {activations.length ? <div className="mt-4 space-y-2">{activations.slice(0, 10).map((activation) => <div key={activation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e3d8ca] bg-white p-3"><div><p className="text-sm font-bold text-[#18332d]">{activation.displayName} · {activation.maskedPhone}</p><p className="mt-1 text-xs text-[#687770]">{activation.approvalRequired ? (isChinese ? membersSectionText.awaitingApproval.zh : membersSectionText.awaitingApproval.en) : (isChinese ? membersSectionText.approved.zh : membersSectionText.approved.en)} · {activation.accepted ? (isChinese ? membersSectionText.acceptedByRecipient.zh : membersSectionText.acceptedByRecipient.en) : (isChinese ? membersSectionText.notYetAccepted.zh : membersSectionText.notYetAccepted.en)} · {activation.status} · {activation.deliveryStatus} · {new Date(activation.expiresUtc).toLocaleString()}</p></div><div className="flex flex-wrap gap-2">{activation.approvalRequired && activation.status === 'active' ? <button className="alife-secondary-button" disabled={Boolean(activationBusy)} onClick={() => void invitationAction(activation, 'approve')}>{isChinese ? membersSectionText.verifyAndApproveInvitation.zh : membersSectionText.verifyAndApproveInvitation.en}</button> : null}{activation.hasEmail && activation.purpose === 'firstActivation' && activation.status === 'active' ? <button className="alife-secondary-button" disabled={Boolean(activationBusy)} onClick={() => void invitationAction(activation, 'email')}>{isChinese ? membersSectionText.emailANewLink.zh : membersSectionText.emailANewLink.en}</button> : null}{activation.purpose === 'passkeyRecovery' ? <PersonalPasskeyRecovery groupId={groups.find(group => group.isChurch)?.id ?? ''} memberId={activation.memberId} displayName={activation.displayName} /> : <button className="min-h-9 rounded-lg border border-[#cbdad4] px-3 text-xs font-bold" type="button" disabled={Boolean(activationBusy)} onClick={() => void changeActivation(activation, 'resend')}>{copy.generateNewActivation}</button>}<button className="min-h-9 rounded-lg border border-rose-200 px-3 text-xs font-bold text-rose-700" type="button" disabled={Boolean(activationBusy) || activation.status === 'used' || activation.status === 'revoked'} onClick={() => void changeActivation(activation, 'revoke')}>{isChinese ? membersSectionText.revoke.zh : membersSectionText.revoke.en}</button></div></div>)}</div> : null}
         </details>
       ) : null}
 
@@ -592,7 +593,7 @@ const MembersSection = ({
                   <span className="flex min-w-0 items-center gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#173f36] text-xs font-black text-white">{name.trim().slice(0, 2).toUpperCase()}</span>
                     <span className="min-w-0">
-                      <span className="flex flex-wrap items-center gap-2"><span className="truncate text-sm font-black text-[#18332d]">{name}</span>{member.id === currentMemberId ? <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-black text-sky-700">{isChinese ? '你' : 'You'}</span> : null}</span>
+                      <span className="flex flex-wrap items-center gap-2"><span className="truncate text-sm font-black text-[#18332d]">{name}</span>{member.id === currentMemberId ? <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-black text-sky-700">{isChinese ? membersSectionText.you.zh : membersSectionText.you.en}</span> : null}</span>
                       <span className="mt-1 block truncate text-xs font-semibold text-[#718079]">{member.salutation || displayGender(member.sex)}</span>
                     </span>
                   </span>

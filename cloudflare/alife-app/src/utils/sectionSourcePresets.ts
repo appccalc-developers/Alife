@@ -1,3 +1,4 @@
+import { sectionSourcePresetsText } from '../i18n/sectionSourcePresets.ts'
 import type { ListSourceScope, ListSourceType, ListViewSource } from '../types/page-editor'
 import type { LocalizedText, SectionHeader, SectionIconKey, SpotlightDataSource } from '../types'
 
@@ -15,8 +16,6 @@ type ListSourcePreset = HeaderPreset & {
   preset: string
   limit: number
 }
-
-const localized = (en: string, zh: string): LocalizedText => ({ en, zh })
 
 const readHeader = (value: unknown): SectionHeader =>
   value && typeof value === 'object' && !Array.isArray(value)
@@ -42,8 +41,8 @@ export const LIST_VIEW_SOURCES: ListViewSource[] = ['events', 'sermons', 'groups
 const listSourcePresets: Record<ListViewSource, ListSourcePreset> = {
   events: {
     icon: 'calendar',
-    title: localized('Upcoming events', '近期活动'),
-    subtitle: localized('Help people find the next gathering and respond in time.', '帮助大家看见接下来的活动，并及时回应。'),
+    title: { ...sectionSourcePresetsText.eventsTitle },
+    subtitle: { ...sectionSourcePresetsText.eventsSubtitle },
     sourceType: 'events',
     sourceScope: 'group',
     preset: 'upcoming',
@@ -52,8 +51,8 @@ const listSourcePresets: Record<ListViewSource, ListSourcePreset> = {
   },
   sermons: {
     icon: 'mic',
-    title: localized('Latest sermons', '最新讲道'),
-    subtitle: localized('Share recent teaching and messages from the community.', '分享群体近期的教导与信息。'),
+    title: { ...sectionSourcePresetsText.sermonsTitle },
+    subtitle: { ...sectionSourcePresetsText.sermonsSubtitle },
     sourceType: 'sermons',
     sourceScope: 'global',
     preset: 'latest',
@@ -62,8 +61,8 @@ const listSourcePresets: Record<ListViewSource, ListSourcePreset> = {
   },
   groups: {
     icon: 'people',
-    title: localized('Find a group', '寻找小组'),
-    subtitle: localized('Show groups where people can belong, serve, and grow.', '展示可以建立关系、服事和成长的小组。'),
+    title: { ...sectionSourcePresetsText.groupsTitle },
+    subtitle: { ...sectionSourcePresetsText.groupsSubtitle },
     sourceType: 'groups',
     sourceScope: 'group',
     preset: 'featured',
@@ -72,8 +71,8 @@ const listSourcePresets: Record<ListViewSource, ListSourcePreset> = {
   },
   pages: {
     icon: 'book',
-    title: localized('Explore pages', '浏览页面'),
-    subtitle: localized('Guide people to related pages, updates, and resources.', '引导大家阅读相关页面、更新和资源。'),
+    title: { ...sectionSourcePresetsText.pagesTitle },
+    subtitle: { ...sectionSourcePresetsText.pagesSubtitle },
     sourceType: 'pages',
     sourceScope: 'group',
     preset: 'latest',
@@ -81,8 +80,8 @@ const listSourcePresets: Record<ListViewSource, ListSourcePreset> = {
   },
   members: {
     icon: 'handshake',
-    title: localized('Meet members', '认识成员'),
-    subtitle: localized('Introduce approved group members when the viewer has access.', '在有权限时介绍已批准的小组成员。'),
+    title: { ...sectionSourcePresetsText.membersTitle },
+    subtitle: { ...sectionSourcePresetsText.membersSubtitle },
     sourceType: 'members',
     sourceScope: 'group',
     preset: 'latest',
@@ -91,8 +90,8 @@ const listSourcePresets: Record<ListViewSource, ListSourcePreset> = {
   },
   contacts: {
     icon: 'handshake',
-    title: localized('Contact our team', '联系我们的团队'),
-    subtitle: localized('Show the right people for questions, care, and next steps.', '展示可回应问题、关怀与下一步的联系人。'),
+    title: { ...sectionSourcePresetsText.contactsTitle },
+    subtitle: { ...sectionSourcePresetsText.contactsSubtitle },
     sourceType: 'contacts',
     sourceScope: 'group',
     preset: 'latest',
@@ -101,8 +100,8 @@ const listSourcePresets: Record<ListViewSource, ListSourcePreset> = {
   },
   media: {
     icon: 'image',
-    title: localized('Latest media', '最新媒体'),
-    subtitle: localized('Collect recent photos, videos, and visual memories.', '整理近期照片、视频和视觉记录。'),
+    title: { ...sectionSourcePresetsText.mediaTitle },
+    subtitle: { ...sectionSourcePresetsText.mediaSubtitle },
     sourceType: 'media',
     sourceScope: 'global',
     preset: 'latest',
@@ -110,8 +109,8 @@ const listSourcePresets: Record<ListViewSource, ListSourcePreset> = {
   },
   posts: {
     icon: 'book',
-    title: localized('Latest posts', '最新文章'),
-    subtitle: localized('Reserve space for future posts and written updates.', '为之后的文章和文字更新预留空间。'),
+    title: { ...sectionSourcePresetsText.postsTitle },
+    subtitle: { ...sectionSourcePresetsText.postsSubtitle },
     sourceType: 'posts',
     sourceScope: 'global',
     preset: 'latest',
@@ -145,44 +144,44 @@ export const listViewPresetForSource = (source: ListViewSource) => listSourcePre
 const spotlightSourcePresets: Record<SpotlightDataSource, HeaderPreset> = {
   announcements: {
     icon: 'church',
-    title: localized('Latest announcement', '最新公告'),
-    subtitle: localized('Highlight timely information for the right audience.', '向合适的对象突出显示及时信息。'),
+    title: { ...sectionSourcePresetsText.announcementsTitle },
+    subtitle: { ...sectionSourcePresetsText.announcementsSubtitle },
     tone: 'primary',
   },
   events: {
     icon: 'calendar',
-    title: localized('Featured event', '精选活动'),
-    subtitle: localized('Highlight one gathering with details and a clear next step.', '突出一个活动，并提供清楚的下一步。'),
+    title: { ...sectionSourcePresetsText.eventsTitleFeaturedEvent },
+    subtitle: { ...sectionSourcePresetsText.eventsSubtitleHighlightOneGatheringWithDetailsAndAClearNextStep },
     tone: 'warm',
   },
   sermons: {
     icon: 'mic',
-    title: localized('Featured sermon', '精选讲道'),
-    subtitle: localized('Feature one message, speaker, or teaching theme.', '突出一篇信息、讲员或教导主题。'),
+    title: { ...sectionSourcePresetsText.sermonsTitleFeaturedSermon },
+    subtitle: { ...sectionSourcePresetsText.sermonsSubtitleFeatureOneMessageSpeakerOrTeachingTheme },
     tone: 'primary',
   },
   groups: {
     icon: 'people',
-    title: localized('Featured group', '精选小组'),
-    subtitle: localized('Invite people into belonging, care, and shared growth.', '邀请大家进入归属、关怀和共同成长。'),
+    title: { ...sectionSourcePresetsText.groupsTitleFeaturedGroup },
+    subtitle: { ...sectionSourcePresetsText.groupsSubtitleInvitePeopleIntoBelongingCareAndSharedGrowth },
     tone: 'fresh',
   },
   members: {
     icon: 'handshake',
-    title: localized('Featured member', '精选成员'),
-    subtitle: localized('Introduce a member story or ministry connection.', '介绍成员故事或服事连接。'),
+    title: { ...sectionSourcePresetsText.membersTitleFeaturedMember },
+    subtitle: { ...sectionSourcePresetsText.membersSubtitleIntroduceAMemberStoryOrMinistryConnection },
     tone: 'rose',
   },
   contacts: {
     icon: 'handshake',
-    title: localized('Featured contact', '推荐联系人'),
-    subtitle: localized('Connect people with the right ministry contact.', '帮助大家联系合适的服事联系人。'),
+    title: { ...sectionSourcePresetsText.contactsTitleFeaturedContact },
+    subtitle: { ...sectionSourcePresetsText.contactsSubtitleConnectPeopleWithTheRightMinistryContact },
     tone: 'fresh',
   },
   contactUs: {
     icon: 'handshake',
-    title: localized('Contact us', '联系我们'),
-    subtitle: localized('Leave a message and our visitor care team will respond.', '留下信息，访客接待团队会尽快回应。'),
+    title: { ...sectionSourcePresetsText.contactUsTitle },
+    subtitle: { ...sectionSourcePresetsText.contactUsSubtitle },
     tone: 'fresh',
   },
 }

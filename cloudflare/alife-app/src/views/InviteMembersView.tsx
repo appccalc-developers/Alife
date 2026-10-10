@@ -1,3 +1,4 @@
+import { inviteMembersViewText } from '../i18n/inviteMembersView.ts'
 import { useEffect, useState } from 'react'
 import { Send } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
@@ -107,10 +108,10 @@ const InviteMembersView = () => {
     <AppPageShell
       title={t('inviteMembersTitle')}
       context={language === 'zh'
-        ? `${group ? localizeText(group.name, language) : t('group')} / 成员管理`
-        : `${group ? localizeText(group.name, language) : t('group')} / Member management`}
+        ? inviteMembersViewText.memberManagement.zh(group ? localizeText(group.name, language) : t('group'))
+        : inviteMembersViewText.memberManagement.en(group ? localizeText(group.name, language) : t('group'))}
       subtitle={t('inviteMembersSubtitle')}
-      status={<AppBadge variant={selected.size ? 'info' : 'neutral'}>{language === 'zh' ? `已选 ${selected.size} 人` : `${selected.size} selected`}</AppBadge>}
+      status={<AppBadge variant={selected.size ? 'info' : 'neutral'}>{language === 'zh' ? inviteMembersViewText.selected.zh(selected.size) : inviteMembersViewText.selected.en(selected.size)}</AppBadge>}
       backLink={{ label: t('backToGroup'), to: manageMembersPath }}
       primaryAction={(
         <AppTitleBarAction

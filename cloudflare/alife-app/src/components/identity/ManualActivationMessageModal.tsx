@@ -1,3 +1,4 @@
+import { manualActivationMessageModalText } from '../../i18n/manualActivationMessageModal.ts'
 import { useEffect, useRef, useState } from 'react'
 import { Check, Copy, KeyRound, ShieldAlert } from 'lucide-react'
 import type { ManualActivationMessage } from '../../services/identityAccessService'
@@ -40,17 +41,17 @@ const ManualActivationMessageModal = ({ value, language, onClose }: Props) => {
   return (
     <AppModal
       open={value !== null}
-      title={zh ? '复制激活短消息' : 'Copy activation message'}
+      title={zh ? manualActivationMessageModalText.copyActivationMessage.zh : manualActivationMessageModalText.copyActivationMessage.en}
       description={zh
-        ? '请把这条消息发送给刚刚核对过身份的成员。'
-        : 'Send this message only to the member whose identity you just verified.'}
-      closeLabel={zh ? '关闭激活消息窗口' : 'Close activation message dialog'}
+        ? manualActivationMessageModalText.sendThisMessageOnlyToTheMemberWhoseIdentity.zh
+        : manualActivationMessageModalText.sendThisMessageOnlyToTheMemberWhoseIdentity.en}
+      closeLabel={zh ? manualActivationMessageModalText.closeActivationMessageDialog.zh : manualActivationMessageModalText.closeActivationMessageDialog.en}
       onClose={onClose}
       closeOnBackdrop={false}
       initialFocusRef={messageButtonRef}
       footer={(
         <AppActionButton variant="secondary" onClick={onClose}>
-          {zh ? '关闭' : 'Close'}
+          {zh ? manualActivationMessageModalText.close.zh : manualActivationMessageModalText.close.en}
         </AppActionButton>
       )}
     >
@@ -59,13 +60,13 @@ const ManualActivationMessageModal = ({ value, language, onClose }: Props) => {
           <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <p className="text-xs font-semibold leading-5">
             {zh
-              ? '此消息只显示一次。关闭后只能生成新链接，旧链接会被撤销。链接代表该成员身份、会过期，请勿发送给其他人。'
-              : 'This message is shown once. After closing it, you must generate a new link and the old one will be revoked. The link represents this member’s identity, expires, and must not be sent to anyone else.'}
+              ? manualActivationMessageModalText.thisMessageIsShownOnceAfterClosingItYou.zh
+              : manualActivationMessageModalText.thisMessageIsShownOnceAfterClosingItYou.en}
           </p>
         </div>
 
         <label className="block text-sm font-bold text-[#40554e]">
-          {useEmail ? (zh ? '收件人 email' : 'Recipient email') : (zh ? '收件人手机号' : 'Recipient phone')}
+          {useEmail ? (zh ? manualActivationMessageModalText.recipientEmail.zh : manualActivationMessageModalText.recipientEmail.en) : (zh ? manualActivationMessageModalText.recipientPhone.zh : manualActivationMessageModalText.recipientPhone.en)}
           <input
             ref={phoneRef}
             className="mt-1.5 min-h-11 w-full rounded-xl border border-[#cbdad4] bg-[#f7faf8] px-3 font-mono text-sm text-[#18332d] outline-none focus:border-[#21705f] focus:ring-4 focus:ring-[#dcece6]"
@@ -76,11 +77,11 @@ const ManualActivationMessageModal = ({ value, language, onClose }: Props) => {
         </label>
         <AppActionButton block onClick={() => void copyValue('phone', recipient)}>
           {copyState === 'phone' ? <Check className="mr-2 h-4 w-4" aria-hidden="true" /> : <Copy className="mr-2 h-4 w-4" aria-hidden="true" />}
-          {copyState === 'phone' ? (zh ? '收件人已复制' : 'Recipient copied') : (zh ? '复制收件人' : 'Copy recipient')}
+          {copyState === 'phone' ? (zh ? manualActivationMessageModalText.recipientCopied.zh : manualActivationMessageModalText.recipientCopied.en) : (zh ? manualActivationMessageModalText.copyRecipient.zh : manualActivationMessageModalText.copyRecipient.en)}
         </AppActionButton>
 
         <label className="block text-sm font-bold text-[#40554e]">
-          {zh ? '激活短消息' : 'Activation message'}
+          {zh ? manualActivationMessageModalText.activationMessage.zh : manualActivationMessageModalText.activationMessage.en}
           <textarea
             ref={messageRef}
             className="mt-1.5 min-h-40 w-full resize-y rounded-xl border border-[#cbdad4] bg-[#f7faf8] px-3 py-3 text-sm leading-6 text-[#18332d] outline-none focus:border-[#21705f] focus:ring-4 focus:ring-[#dcece6]"
@@ -92,11 +93,11 @@ const ManualActivationMessageModal = ({ value, language, onClose }: Props) => {
         </label>
         <AppActionButton ref={messageButtonRef} block variant="primary" onClick={() => void copyValue('message', value.message)}>
           {copyState === 'message' ? <Check className="mr-2 h-4 w-4" aria-hidden="true" /> : <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />}
-          {copyState === 'message' ? (zh ? '消息已复制' : 'Message copied') : (zh ? '复制激活消息' : 'Copy activation message')}
+          {copyState === 'message' ? (zh ? manualActivationMessageModalText.messageCopied.zh : manualActivationMessageModalText.messageCopied.en) : (zh ? manualActivationMessageModalText.copyActivationMessageLabel.zh : manualActivationMessageModalText.copyActivationMessageLabel.en)}
         </AppActionButton>
 
         {copyState === 'error' ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm leading-6 text-rose-700" role="alert">
-          {zh ? '浏览器无法写入剪贴板。内容已选中，请使用系统复制命令。' : 'The browser could not write to the clipboard. The content is selected; use your system copy command.'}
+          {zh ? manualActivationMessageModalText.theBrowserCouldNotWriteToTheClipboardThe.zh : manualActivationMessageModalText.theBrowserCouldNotWriteToTheClipboardThe.en}
         </p> : null}
       </div> : null}
     </AppModal>

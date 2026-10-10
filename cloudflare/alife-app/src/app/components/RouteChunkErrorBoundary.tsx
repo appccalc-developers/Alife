@@ -1,3 +1,4 @@
+import { routeChunkErrorBoundaryText } from '../../i18n/routeChunkErrorBoundary.ts'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { isRouteChunkLoadError, refreshFailedRouteModule } from '../routing/routeChunkRecovery'
 
@@ -62,7 +63,7 @@ class RouteChunkErrorBoundary extends Component<Props, State> {
           role="alert"
         >
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">
-            {isChunkError ? 'Update required / 需要更新' : 'Page unavailable / 页面暂时不可用'}
+            {isChunkError ? routeChunkErrorBoundaryText.message : routeChunkErrorBoundaryText.message2}
           </p>
           <h1 className="mt-3 text-2xl font-semibold text-stone-950">
             {isChunkError
@@ -71,13 +72,11 @@ class RouteChunkErrorBoundary extends Component<Props, State> {
           </h1>
           <p className="mt-2 text-sm leading-6 text-stone-700">
             {isChunkError
-              ? 'Alife 无法加载最新页面文件。请刷新模块缓存后重试。'
-              : '页面加载时发生错误，请刷新后重试。'}
+              ? routeChunkErrorBoundaryText.message3
+              : routeChunkErrorBoundaryText.message4}
           </p>
           {this.state.recoveryFailed && (
-            <p className="mt-3 text-sm font-medium text-red-700">
-              The updated file is not available yet. Please try again shortly. / 更新文件暂时不可用，请稍后重试。
-            </p>
+            <p className="mt-3 text-sm font-medium text-red-700">{routeChunkErrorBoundaryText.label}</p>
           )}
           <div className="mt-6 flex flex-wrap gap-3">
             <button
@@ -86,14 +85,12 @@ class RouteChunkErrorBoundary extends Component<Props, State> {
               onClick={() => void this.handleRefresh()}
               type="button"
             >
-              {this.state.recovering ? 'Refreshing… / 正在刷新…' : 'Refresh / 刷新'}
+              {this.state.recovering ? routeChunkErrorBoundaryText.message5 : routeChunkErrorBoundaryText.message6}
             </button>
             <a
               className="rounded-full border border-stone-300 bg-white px-5 py-2.5 text-sm font-semibold text-stone-800 transition hover:border-stone-400 hover:bg-stone-50"
               href="/"
-            >
-              Home / 首页
-            </a>
+            >{routeChunkErrorBoundaryText.label2}</a>
           </div>
         </section>
       </main>

@@ -1,3 +1,4 @@
+import { churchSiteNavigationText } from '../../i18n/churchSiteNavigation.ts'
 export type ChurchSiteSection = 'home' | 'sermons' | 'bulletins' | 'announcements' | 'albums' | 'forum' | 'events' | 'ram-reviews'
 
 export const withChurchSiteOwnerFilter = (to: string, search: string) => {
@@ -22,17 +23,17 @@ export const getChurchSiteSection = (pathname: string, search = ''): ChurchSiteS
 export const getChurchSiteMenu = (language: string, access: { isMember: boolean; canReviewRam?: boolean }) => {
   const zh = language === 'zh'
   const items: { key: ChurchSiteSection; label: string; to: string }[] = [
-    { key: 'sermons', label: zh ? '主日证道' : 'Sunday Sermons', to: '/sermons' },
+    { key: 'sermons', label: zh ? churchSiteNavigationText.sundaySermons.zh : churchSiteNavigationText.sundaySermons.en, to: '/sermons' },
   ]
   if (!access.isMember) return items
   items.push(
-    { key: 'announcements', label: zh ? '公告' : 'Announcements', to: '/church?section=announcements' },
-    { key: 'albums', label: zh ? '相册' : 'Albums', to: '/church/albums' },
-    { key: 'forum', label: zh ? '论坛' : 'Forum', to: '/church/forum' },
-    { key: 'events', label: zh ? '活动' : 'Events', to: '/church?section=events' },
+    { key: 'announcements', label: zh ? churchSiteNavigationText.announcements.zh : churchSiteNavigationText.announcements.en, to: '/church?section=announcements' },
+    { key: 'albums', label: zh ? churchSiteNavigationText.albums.zh : churchSiteNavigationText.albums.en, to: '/church/albums' },
+    { key: 'forum', label: zh ? churchSiteNavigationText.forum.zh : churchSiteNavigationText.forum.en, to: '/church/forum' },
+    { key: 'events', label: zh ? churchSiteNavigationText.events.zh : churchSiteNavigationText.events.en, to: '/church?section=events' },
   )
   if (access.canReviewRam) {
-    items.push({ key: 'ram-reviews', label: zh ? 'RAM 独立审核' : 'Independent RAM review', to: '/church?section=ram-reviews' })
+    items.push({ key: 'ram-reviews', label: zh ? churchSiteNavigationText.independentRamReview.zh : churchSiteNavigationText.independentRamReview.en, to: '/church?section=ram-reviews' })
   }
   return items
 }

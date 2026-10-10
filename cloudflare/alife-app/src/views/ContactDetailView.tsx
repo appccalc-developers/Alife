@@ -1,3 +1,4 @@
+import { contactDetailViewText } from '../i18n/contactDetailView.ts'
 import { useEffect, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { Mail, Phone, Send, UserRound } from 'lucide-react'
@@ -53,17 +54,17 @@ const ContactDetailView = () => {
 
   if (!groupId) return <Navigate to="/groups/select" replace />
 
-  if (loading) return <AppPageShell title={zh ? '联系人' : 'Contact'} context={zh ? '小组生活 / 联系人' : 'Group Life / Contact'}><p className="text-sm text-slate-500">{zh ? '正在加载联系人…' : 'Loading contact…'}</p></AppPageShell>
-  if (!contact) return <AppPageShell title={zh ? '联系人' : 'Contact'} context={zh ? '小组生活 / 联系人' : 'Group Life / Contact'}><AppEmptyState title={zh ? '未找到联系人' : 'Contact not found'} description={error || (zh ? '此联系人不可见或已被删除。' : 'This contact is unavailable or has been removed.')} /></AppPageShell>
+  if (loading) return <AppPageShell title={zh ? contactDetailViewText.contact.zh : contactDetailViewText.contact.en} context={zh ? contactDetailViewText.groupLifeContact.zh : contactDetailViewText.groupLifeContact.en}><p className="text-sm text-slate-500">{zh ? contactDetailViewText.loadingContact.zh : contactDetailViewText.loadingContact.en}</p></AppPageShell>
+  if (!contact) return <AppPageShell title={zh ? contactDetailViewText.contact.zh : contactDetailViewText.contact.en} context={zh ? contactDetailViewText.groupLifeContact.zh : contactDetailViewText.groupLifeContact.en}><AppEmptyState title={zh ? contactDetailViewText.contactNotFound.zh : contactDetailViewText.contactNotFound.en} description={error || (zh ? contactDetailViewText.thisContactIsUnavailableOrHasBeenRemoved.zh : contactDetailViewText.thisContactIsUnavailableOrHasBeenRemoved.en)} /></AppPageShell>
 
   const name = localizeText(contact.name, auth.language)
   return (
     <AppPageShell
       title={name}
-      context={zh ? '小组生活 / 联系人' : 'Group Life / Contact'}
+      context={zh ? contactDetailViewText.groupLifeContact.zh : contactDetailViewText.groupLifeContact.en}
       subtitle={localizeText(contact.role, auth.language)}
-      status={<AppBadge variant={contact.visibility === 'public' ? 'success' : 'info'}>{contact.visibility === 'public' ? (zh ? '公开' : 'Public') : (zh ? '小组可见' : 'Group only')}</AppBadge>}
-      backLink={{ label: zh ? '返回小组' : 'Back to group', to: routeGroupId ? `/groups/${encodeURIComponent(routeGroupId)}?view=overview` : '/groups?view=overview' }}
+      status={<AppBadge variant={contact.visibility === 'public' ? 'success' : 'info'}>{contact.visibility === 'public' ? (zh ? contactDetailViewText.public.zh : contactDetailViewText.public.en) : (zh ? contactDetailViewText.groupOnly.zh : contactDetailViewText.groupOnly.en)}</AppBadge>}
+      backLink={{ label: zh ? contactDetailViewText.backToGroup.zh : contactDetailViewText.backToGroup.en, to: routeGroupId ? `/groups/${encodeURIComponent(routeGroupId)}?view=overview` : '/groups?view=overview' }}
     >
       <div className="mx-auto max-w-3xl space-y-5">
         <section className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
@@ -80,17 +81,17 @@ const ContactDetailView = () => {
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-black text-slate-950">{zh ? '给联系人留言' : 'Send an inquiry'}</h2>
-          <p className="mt-1 text-sm text-slate-500">{zh ? '留言会通过 Alife 通知发送给此联系人。' : 'Your message will be delivered through Alife notifications.'}</p>
-          {sent ? <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{zh ? '留言已发送。' : 'Your inquiry has been sent.'}</p> : null}
+          <h2 className="text-xl font-black text-slate-950">{zh ? contactDetailViewText.sendAnInquiry.zh : contactDetailViewText.sendAnInquiry.en}</h2>
+          <p className="mt-1 text-sm text-slate-500">{zh ? contactDetailViewText.yourMessageWillBeDeliveredThroughAlifeNotifications.zh : contactDetailViewText.yourMessageWillBeDeliveredThroughAlifeNotifications.en}</p>
+          {sent ? <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{zh ? contactDetailViewText.yourInquiryHasBeenSent.zh : contactDetailViewText.yourInquiryHasBeenSent.en}</p> : null}
           {error ? <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium">{zh ? '姓名' : 'Name'}<input className={inputClass} value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} /></label>
+            <label className="text-sm font-medium">{zh ? contactDetailViewText.name.zh : contactDetailViewText.name.en}<input className={inputClass} value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} /></label>
             <label className="text-sm font-medium">Email<input type="email" className={inputClass} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-            <label className="text-sm font-medium sm:col-span-2">{zh ? '电话' : 'Phone'}<input className={inputClass} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
-            <label className="text-sm font-medium sm:col-span-2">{zh ? '留言' : 'Message'}<textarea rows={5} className={inputClass} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} /></label>
+            <label className="text-sm font-medium sm:col-span-2">{zh ? contactDetailViewText.phone.zh : contactDetailViewText.phone.en}<input className={inputClass} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+            <label className="text-sm font-medium sm:col-span-2">{zh ? contactDetailViewText.message.zh : contactDetailViewText.message.en}<textarea rows={5} className={inputClass} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} /></label>
           </div>
-          <div className="mt-5 flex justify-end"><AppActionButton variant="primary" disabled={sending || !form.displayName.trim() || !form.message.trim() || (!form.email.trim() && !form.phone.trim())} onClick={() => submit().catch(() => undefined)}><Send className="mr-1.5 h-4 w-4" />{sending ? (zh ? '发送中…' : 'Sending…') : (zh ? '发送留言' : 'Send inquiry')}</AppActionButton></div>
+          <div className="mt-5 flex justify-end"><AppActionButton variant="primary" disabled={sending || !form.displayName.trim() || !form.message.trim() || (!form.email.trim() && !form.phone.trim())} onClick={() => submit().catch(() => undefined)}><Send className="mr-1.5 h-4 w-4" />{sending ? (zh ? contactDetailViewText.sending.zh : contactDetailViewText.sending.en) : (zh ? contactDetailViewText.sendInquiry.zh : contactDetailViewText.sendInquiry.en)}</AppActionButton></div>
         </section>
       </div>
     </AppPageShell>

@@ -1,0 +1,21 @@
+// Fixed bilingual copy for components/media/MediaPickerInput.tsx.
+export const mediaPickerInputText = {
+    choose: { en: 'Choose', zh: '选择' } as const,
+    close: { en: 'Close', zh: '关闭' } as const,
+    public: { en: 'Public', zh: '公共' } as const,
+    group: { en: 'Group', zh: '本小组' } as const,
+    currentFolder: { en: 'Current folder', zh: '当前文件夹' } as const,
+    parent: { en: 'Parent', zh: '上一级' } as const,
+    refresh: { en: 'Refresh', zh: '刷新' } as const,
+    uploading: { en: 'Uploading...', zh: '上传中...' } as const,
+    upload: { en: 'Upload', zh: '上传' } as const,
+    noSelectableMediaInThisFolder: { en: 'No selectable media in this folder.', zh: '此文件夹没有可选媒体。' } as const,
+    folders: { en: 'Folders', zh: '文件夹' } as const,
+    media: { en: 'Media', zh: '媒体' } as const,
+    use: { en: 'Use', zh: '使用' } as const,
+    pleaseChooseAnImageFile: { en: 'Please choose an image file.', zh: '请选择图片文件。' } as const,
+    pleaseChooseAnImageOrVideoFile: { en: 'Please choose an image or video file.', zh: '请选择图片或视频文件。' } as const,
+    unableToLoadMediaFolder: { en: 'Unable to load media folder.', zh: '无法加载媒体文件夹。' } as const,
+    uploadFailed: { en: 'Upload failed.', zh: '上传失败。' } as const,
+    loading: { en: 'Loading...', zh: '正在加载...' } as const,
+};
