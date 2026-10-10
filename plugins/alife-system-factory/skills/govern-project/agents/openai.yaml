@@ -1,0 +1,4 @@
+interface:
+  display_name: "Alife Delivery Governance"
+  short_description: "Track requirements, priorities and delivery evidence"
+  default_prompt: "Use $govern-project to reconcile this project's requirements and select the next authorized delivery task."

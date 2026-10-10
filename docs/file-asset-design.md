@@ -1,5 +1,7 @@
 # File Asset Registration Design
 
+> Retained design reference, pending reconciliation with current implementation. The “Current State” section below is an early snapshot: `FileAsset`, `FileAssetsController`, private signed access and backfill now have source implementations. Use current handlers/DTOs and [private-file backfill](member-private-file-backfill.md) for actual behavior; this proposal must not reintroduce its old public-only assumptions. See DOCS-RECONCILE in the [work register](governance/work-register.json) before treating unverified target sections as implementation requirements.
+
 ## Purpose
 
 Alife currently uploads images directly from the React app to the Cloudflare R2-backed image Worker. The Worker stores objects and returns object metadata, while business records store returned URLs inside page, event, enrollment, or review JSON.

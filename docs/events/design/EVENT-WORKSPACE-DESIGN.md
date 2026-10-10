@@ -10,6 +10,7 @@ Use the [task reading matrix](../AGENTS.md#task-reading-matrix): read only the d
 
 Supporting documents:
 
+- [Creation-card DESIGN.md](event-creation-cards/DESIGN.md): the 2026-10-10 user-requested lively card expansion/contraction target for creation; Refero recommendation and pending pilot acceptance are separate from implementation.
 - [Visual tokens](EVENT-UI-VISUAL-TOKENS.md): the authoritative palette, six depth levels and visual state grammar.
 - [Reference pages](EVENT-UI-REFERENCE-PAGES.md): pilot selection and page acceptance criteria; these are specifications until rendered examples exist.
 - [Cheatsheet](EVENT-UI-CHEATSHEET.md): a short execution reminder; it does not redefine tokens or business rules.

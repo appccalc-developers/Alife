@@ -4,6 +4,8 @@
 
 ## Start with one part
 
+**Creation-card target, 2026-10-10:** [DESIGN.md](event-creation-cards/DESIGN.md) records the user-requested card-to-content-area expansion and reverse return. Its recommended Refero basis is LottieFiles; the reference does not prove that morph exists on the source website. Implement and inspect one available creation capability first against ECARD-01–06, including transition observations and both-language mobile/desktop states. This is a new proposed pilot, not a completed rollout or acceptance of its visual reference. Saved editorial preparation remains outside this slice.
+
 The user-authorized [2026-09-22 editorial refinement](EVENT-PREPARATION-EDITORIAL.md) is the current saved-preparation candidate and includes its four-stage entry rail. The older Prism screenshots below remain historical references for creation/details, not evidence of the current saved overview. The new slice reuses existing specialist and approval editors.
 
 Choose one bounded Event area, implement and inspect it, then refine before expanding to the rest of the workspace. The following are candidates, not authorization to build them all. The Event preparation overview is a useful first candidate because it can exercise domain colour, state graphics, depth and nonlinear selection together. The user selected the preparation overview and shared details/AI workspace on 2026-09-15. Other module interiors and the global stage rail remain outside this pilot.

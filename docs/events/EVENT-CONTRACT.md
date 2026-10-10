@@ -8,7 +8,7 @@
 
 Repository [security, privacy, compatibility and publishing rules](../../AGENTS.md) remain in force. This core delegates detailed business meaning to the topics and modules below; [event-contract.json](event-contract.json) remains co-authoritative for exact codes, enums, references and API contracts. Explicitly versioned exceptions apply only in their stated scope. A later dated implementation note or convenient implementation cannot silently replace a normative rule. Stop affected implementation and report unresolved normative conflicts unless the task authorizes the required product decision.
 
-[Current status](IMPLEMENTATION-STATUS.md) describes delivery, not product authority. [Historical evidence](IMPLEMENTATION-HISTORY.md), old proposals and generated presentations are not current contracts or evidence of a freshly verified build.
+[Current status](IMPLEMENTATION-STATUS.md) describes delivery, not product authority. [Historical evidence](../../archive/pending-docs-review/2026-10-10/docs/events/IMPLEMENTATION-HISTORY.md), old proposals and generated presentations are not current contracts or evidence of a freshly verified build.
 
 ## Topic ownership and reading map
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Alife System Factory"
+  short_description: "Plan and build independent Alife-equivalent systems"
+  default_prompt: "Use $create-system to ask my new system's name and deployment profile, then plan and implement it against an available pinned Alife source."

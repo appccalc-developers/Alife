@@ -139,10 +139,14 @@ Use semantic names such as `--event-shadow-selected`. A stronger shadow must ref
 | `--event-duration-immediate` | `100ms`: press, hover, icon feedback |
 | `--event-duration-quick` | `180ms`: selection, status transition, short disclosure |
 | `--event-duration-context` | `260ms`: inspector or larger context change |
+| `--event-duration-card-expand` | `320ms`: creation card to full content-area work surface; 2026-10-10 target pilot default |
+| `--event-duration-card-contract` | `260ms`: creation work surface back to its source card; target pilot default |
 | `--event-ease-standard` | `cubic-bezier(0.2, 0, 0, 1)` |
 | `--event-ease-exit` | `cubic-bezier(0.4, 0, 1, 1)` |
 
 Use one coherent movement vocabulary: a small lift confirms interactivity, an outline and elevation confirm selection, an inspector's entrance connects detail to its source, and a settled marker confirms a successful state transition. Keep controls usable while motion runs; avoid layout jumps, repeated bounce and decorative ambient movement. Exact values are pilot defaults, not values claimed to be copied from Material or Fluent.
+
+The [2026-10-10 creation-card target](event-creation-cards/DESIGN.md) adds an interruptible spatial expansion/contraction using the standard/exit curves above. It retains the six depth levels and Prism Glass object identity, with opaque reading/input surfaces when expanded. These scoped tokens are specified, not yet implemented; they do not change saved editorial preparation or other surfaces. Reduced motion still removes geometry movement entirely.
 
 Pending feedback starts immediately. Saved/approved/published graphics follow server confirmation. Preserve draft and recovery on error. Under `prefers-reduced-motion`, remove translation, scaling, elastic and layout movement; show the final visual state directly and retain a static pending indication and accessible status updates.
 
