@@ -60,7 +60,6 @@ jobs:
     timeout-minutes: 180
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      EVIDENCE_DIR: ${{ runner.temp }}/event-reset
       ConnectionStrings__Default: ${{ secrets.DB_CONNECTION_STRING }}
       Events__PurgeEnvironment: Production
       Events__ExpectedServer: ${{ vars.EVENT_RESET_SQL_SERVER }}
@@ -73,14 +72,19 @@ jobs:
       Events__VerifiedBackupConnectionString: ${{ secrets.EVENT_RESET_RECOVERY_DB_CONNECTION_STRING }}
       Events__WriteFreezeConfirmed: 'true'
       Events__BackupVerified: 'true'
-      Events__ProtectedEvidenceRoot: ${{ runner.temp }}
-      Events__OutputDirectory: ${{ runner.temp }}/event-reset
       EVENT_RESET_FUNCTION_APP_NAME: ${{ vars.EVENT_RESET_FUNCTION_APP_NAME }}
       EVENT_RESET_FUNCTION_RESOURCE_GROUP: ${{ vars.EVENT_RESET_FUNCTION_RESOURCE_GROUP }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
     steps:
+      - name: Set runner-local evidence paths
+        shell: bash
+        run: |
+          printf 'EVIDENCE_DIR=%s/event-reset\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'Events__ProtectedEvidenceRoot=%s\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'Events__OutputDirectory=%s/event-reset\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+
       - name: Validate protected inputs
         shell: bash
         env:
@@ -100,7 +104,7 @@ jobs:
           FREEZE_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
           FREEZE_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
         run: |
           set -euo pipefail
@@ -236,7 +240,7 @@ jobs:
           test "$(az functionapp show \
             --name "$EVENT_RESET_FUNCTION_APP_NAME" \
             --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
-            --query state --output tsv)" = Running
+            --query properties.state --output tsv)" = Running
           app_connection="$(az functionapp config appsettings list \
             --name "$EVENT_RESET_FUNCTION_APP_NAME" \
             --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
@@ -267,22 +271,43 @@ jobs:
           test "$app_hash" = "$protected_hash"
           printf 'target_identity_hash=%s\n' "$app_hash" >> "$GITHUB_OUTPUT"
 
-      - name: Verify named recovery database copy
+      - name: Validate exact proposed SQL recovery destination
         shell: bash
         env:
           BACKUP_REFERENCE: ${{ inputs.backup_reference }}
-          RESET_EPOCH: ${{ inputs.freeze_epoch }}
+          EXPECTED_TARGET_IDENTITY_HASH: ${{ steps.target_binding.outputs.target_identity_hash }}
         run: |
           set -euo pipefail
-          case "$BACKUP_REFERENCE" in
-            /subscriptions/*/resourceGroups/*/providers/Microsoft.Sql/servers/*/databases/*) ;;
-            *) echo 'backup_reference must be a full Azure SQL database resource id.'; exit 1 ;;
-          esac
-          state="$(az resource show --ids "$BACKUP_REFERENCE" --query properties.status -o tsv)"
-          test "$state" = Online
-          source_id="${Events__TargetResource,,}"
-          backup_id="${BACKUP_REFERENCE,,}"
-          test "$source_id" != "$backup_id"
+          if ! [[ "$BACKUP_REFERENCE" =~ ^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._-]+/providers/Microsoft.Sql/servers/[A-Za-z0-9-]+/databases/[A-Za-z0-9._-]+$ ]]; then
+            echo 'backup_reference must be an exact Azure SQL database resource ID.'
+            exit 1
+          fi
+          IFS=/ read -r _ subscriptions backup_subscription resource_groups backup_group providers provider servers backup_server databases backup_database extra <<<"$BACKUP_REFERENCE"
+          test -z "$extra"
+          test "$subscriptions" = subscriptions
+          test "$resource_groups" = resourceGroups
+          test "$providers" = providers
+          test "$provider" = Microsoft.Sql
+          test "$servers" = servers
+          test "$databases" = databases
+          test "${backup_subscription,,}" = "$(az account show --query id -o tsv | tr '[:upper:]' '[:lower:]')"
+          source_subscription="${Events__TargetResource#/subscriptions/}"
+          source_subscription="${source_subscription%%/*}"
+          test "${source_subscription,,}" = "${backup_subscription,,}"
+          test "${BACKUP_REFERENCE,,}" != "${Events__TargetResource,,}"
+          test "${Events__TargetResource,,}" = "$(az resource show --ids "$Events__TargetResource" --query id -o tsv | tr '[:upper:]' '[:lower:]')"
+          mkdir -p "$RUNNER_TEMP/event-reset-backup-destination"
+          ConnectionStrings__Default="$Events__VerifiedBackupConnectionString" \
+            Events__ExpectedServer="$backup_server.database.windows.net" \
+            Events__ExpectedDatabase="$backup_database" \
+            Events__TargetResource="$BACKUP_REFERENCE" \
+            dotnet run --project backend/src/Alife.DbMigrator/Alife.DbMigrator.csproj \
+              --configuration Release --no-build -- \
+              --Events:TargetIdentity=inspect \
+              --Events:OutputDirectory="$RUNNER_TEMP/event-reset-backup-destination"
+          backup_hash="$(jq -er '.targetIdentityHash | strings | select(test("^[0-9a-f]{64}$"))' "$RUNNER_TEMP/event-reset-backup-destination/event-reset-target-identity.json")"
+          test "$backup_hash" != "$EXPECTED_TARGET_IDENTITY_HASH"
+          printf 'EVENT_RESET_BACKUP_RESOURCE_GROUP=%s\nEVENT_RESET_BACKUP_SERVER=%s\nEVENT_RESET_BACKUP_DATABASE=%s\n' "$backup_group" "$backup_server" "$backup_database" >> "$GITHUB_ENV"
 
       - name: Freeze backend Event writes at the reviewed epoch
         shell: bash
@@ -342,7 +367,7 @@ jobs:
         shell: bash
         env:
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
           RESET_EPOCH: ${{ inputs.freeze_epoch }}
         run: |
@@ -406,7 +431,7 @@ jobs:
           BACKEND_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
           BACKEND_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           IMAGES_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
           IMAGES_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
           RESET_EPOCH: ${{ inputs.freeze_epoch }}
@@ -443,7 +468,7 @@ jobs:
           az functionapp stop --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --only-show-errors
           stopped_checks=0
           for attempt in {1..36}; do
-            state="$(az functionapp show --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --query state -o tsv)"
+            state="$(az functionapp show --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --query properties.state -o tsv)"
             if [ "$state" = Stopped ]; then
               stopped_checks=$((stopped_checks + 1))
               if [ "$stopped_checks" -ge 3 ]; then break; fi
@@ -494,6 +519,84 @@ jobs:
             --start-ip-address "${{ steps.sqlfw.outputs.runner_ip }}" \
             --end-ip-address "${{ steps.sqlfw.outputs.runner_ip }}" \
             --only-show-errors --output none
+          source_sql_scope="${{ vars.EVENT_RESET_SQL_RESOURCE_GROUP }}/${{ steps.sqlfw.outputs.server_name }}"
+          backup_sql_scope="$EVENT_RESET_BACKUP_RESOURCE_GROUP/$EVENT_RESET_BACKUP_SERVER"
+          if [ "${backup_sql_scope,,}" != "${source_sql_scope,,}" ]; then
+            az sql server firewall-rule create \
+              --resource-group "$EVENT_RESET_BACKUP_RESOURCE_GROUP" \
+              --server "$EVENT_RESET_BACKUP_SERVER" \
+              --name "${{ steps.sqlfw.outputs.rule_name }}" \
+              --start-ip-address "${{ steps.sqlfw.outputs.runner_ip }}" \
+              --end-ip-address "${{ steps.sqlfw.outputs.runner_ip }}" \
+              --only-show-errors --output none
+          fi
+
+      - name: Create preview SQL recovery copy after every Event writer stops
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          RESET_EPOCH: ${{ inputs.freeze_epoch }}
+          CODE_SHA: ${{ inputs.code_sha }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          SOURCE_TARGET_IDENTITY_HASH: ${{ steps.target_binding.outputs.target_identity_hash }}
+        run: |
+          set -euo pipefail
+          test "$(az functionapp show --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --query properties.state -o tsv)" = Stopped
+          test -f "$EVIDENCE_DIR/backend-stop-receipt.json"
+          jq -e --arg epoch "$RESET_EPOCH" --arg hash "$SOURCE_TARGET_IDENTITY_HASH" '.state == "Stopped" and .consecutiveStoppedProbes == 3 and .resetEpoch == $epoch and .targetIdentityHash == $hash' "$EVIDENCE_DIR/backend-stop-receipt.json" > /dev/null
+          expected_preview_run_id="$EVIDENCE_RUN_ID"
+          if [ "$OPERATION" = preview ]; then expected_preview_run_id="$GITHUB_RUN_ID"; fi
+          [[ "$expected_preview_run_id" =~ ^[0-9]+$ ]]
+          databases="$(az sql db list --resource-group "$EVENT_RESET_BACKUP_RESOURCE_GROUP" --server "$EVENT_RESET_BACKUP_SERVER" --only-show-errors --output json)"
+          jq -e 'type == "array"' <<<"$databases" > /dev/null
+          if jq -e --arg name "$EVENT_RESET_BACKUP_DATABASE" 'any(.[]; (.name | ascii_downcase) == ($name | ascii_downcase))' <<<"$databases" > /dev/null; then
+            echo 'Inspecting existing named SQL recovery copy for exact preview-run identity.'
+          else
+            if [ "$OPERATION" != preview ]; then
+              echo 'Apply and verify require the named recovery copy created by the approved preview.'
+              exit 1
+            fi
+            az sql db copy \
+              --resource-group "${{ vars.EVENT_RESET_SQL_RESOURCE_GROUP }}" \
+              --server "${{ steps.sqlfw.outputs.server_name }}" \
+              --name "$Events__ExpectedDatabase" \
+              --dest-resource-group "$EVENT_RESET_BACKUP_RESOURCE_GROUP" \
+              --dest-server "$EVENT_RESET_BACKUP_SERVER" \
+              --dest-name "$EVENT_RESET_BACKUP_DATABASE" \
+              --tags \
+                "alifeEventResetRunId=$RESET_RUN_ID" \
+                "alifeEventResetFreezeEpoch=$RESET_EPOCH" \
+                "alifeEventResetCodeSha=$CODE_SHA" \
+                "alifeEventResetSourceHash=$SOURCE_TARGET_IDENTITY_HASH" \
+                "alifeEventResetPreviewRunId=$expected_preview_run_id" \
+              --only-show-errors --output none
+          fi
+          for attempt in {1..120}; do
+            status="$(az sql db show --resource-group "$EVENT_RESET_BACKUP_RESOURCE_GROUP" --server "$EVENT_RESET_BACKUP_SERVER" --name "$EVENT_RESET_BACKUP_DATABASE" --query status --only-show-errors -o tsv 2>/dev/null || true)"
+            [ "$status" = Online ] && break
+            if [ "$status" = Error ] || [ "$status" = Failed ]; then
+              echo 'Named SQL recovery copy entered a failed state.'
+              exit 1
+            fi
+            sleep 15
+          done
+          copy="$(az sql db show --resource-group "$EVENT_RESET_BACKUP_RESOURCE_GROUP" --server "$EVENT_RESET_BACKUP_SERVER" --name "$EVENT_RESET_BACKUP_DATABASE" --only-show-errors -o json)"
+          jq -e \
+            --arg resource "$BACKUP_REFERENCE" \
+            --arg runId "$RESET_RUN_ID" \
+            --arg epoch "$RESET_EPOCH" \
+            --arg codeSha "$CODE_SHA" \
+            --arg sourceHash "$SOURCE_TARGET_IDENTITY_HASH" \
+            --arg previewRunId "$expected_preview_run_id" \
+            '(.id | ascii_downcase) == ($resource | ascii_downcase) and
+             .status == "Online" and
+             .tags.alifeEventResetRunId == $runId and
+             .tags.alifeEventResetFreezeEpoch == $epoch and
+             .tags.alifeEventResetCodeSha == $codeSha and
+             .tags.alifeEventResetSourceHash == $sourceHash and
+             .tags.alifeEventResetPreviewRunId == $previewRunId' <<<"$copy" > /dev/null
 
       - name: Restore approved evidence for apply or standalone verify
         if: inputs.operation == 'apply' || inputs.operation == 'verify'
@@ -636,7 +739,7 @@ jobs:
         shell: bash
         env:
           EVENT_RESET_SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          EVENT_RESET_SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          EVENT_RESET_SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
           EVENT_RESET_RUN_ID: ${{ inputs.reset_run_id }}
           EVENT_RESET_FREEZE_EPOCH: ${{ inputs.freeze_epoch }}
@@ -696,7 +799,7 @@ jobs:
           BACKEND_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
           BACKEND_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           IMAGES_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
           IMAGES_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
           RESET_EPOCH: ${{ inputs.freeze_epoch }}
@@ -707,7 +810,7 @@ jobs:
             -H "Authorization: Bearer $SPEED_TOKEN" "$SPEED_URL/api/internal/event-reset/status")"
           images="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
             -H "Authorization: Bearer $IMAGES_TOKEN" "$IMAGES_URL/api/admin/event-reset/status")"
-          test "$(az functionapp show --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --query state -o tsv)" = Stopped
+          test "$(az functionapp show --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --query properties.state -o tsv)" = Stopped
           for payload in "$speed" "$images"; do
             test "$(jq -r '.ready' <<<"$payload")" = true
             test "$(jq -r '.frozen' <<<"$payload")" = true
@@ -747,14 +850,14 @@ jobs:
           test "$(az functionapp show \
             --name "$EVENT_RESET_FUNCTION_APP_NAME" \
             --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
-            --query state --output tsv)" = Stopped
+            --query properties.state --output tsv)" = Stopped
 
       - name: Purge exact reviewed Event Durable Object storage
         if: inputs.operation == 'apply'
         shell: bash
         env:
           EVENT_RESET_SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          EVENT_RESET_SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          EVENT_RESET_SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
           EVENT_RESET_RUN_ID: ${{ inputs.reset_run_id }}
           EVENT_RESET_FREEZE_EPOCH: ${{ inputs.freeze_epoch }}
@@ -815,7 +918,7 @@ jobs:
         shell: bash
         env:
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           RESET_RUN_ID: ${{ inputs.reset_run_id }}
           RESET_EPOCH: ${{ inputs.freeze_epoch }}
         run: |
@@ -849,7 +952,7 @@ jobs:
         shell: bash
         env:
           EVENT_RESET_SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          EVENT_RESET_SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          EVENT_RESET_SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
           EVENT_RESET_RUN_ID: ${{ inputs.reset_run_id }}
           EVENT_RESET_FREEZE_EPOCH: ${{ inputs.freeze_epoch }}
@@ -872,7 +975,7 @@ jobs:
           set -euo pipefail
           az functionapp start --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --only-show-errors
           for attempt in {1..30}; do
-            state="$(az functionapp show --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --query state -o tsv)"
+            state="$(az functionapp show --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --query properties.state -o tsv)"
             backend="$(curl --silent --show-error -H "Authorization: Bearer $BACKEND_STATUS_TOKEN" "$BACKEND_STATUS_URL" || true)"
             if [ "$state" = Running ] && \
                [ "$(jq -r '.ready // false' <<<"$backend" 2>/dev/null || true)" = true ] && \
@@ -907,7 +1010,7 @@ jobs:
           BACKEND_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
           BACKEND_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           IMAGES_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
           IMAGES_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
           RESET_EPOCH: ${{ inputs.freeze_epoch }}
@@ -1034,6 +1137,15 @@ jobs:
         if: always() && steps.sqlfw.outputs.rule_name != ''
         shell: bash
         run: |
+          source_sql_scope="${{ vars.EVENT_RESET_SQL_RESOURCE_GROUP }}/${{ steps.sqlfw.outputs.server_name }}"
+          backup_sql_scope="${EVENT_RESET_BACKUP_RESOURCE_GROUP:-}/${EVENT_RESET_BACKUP_SERVER:-}"
+          if [ -n "${EVENT_RESET_BACKUP_RESOURCE_GROUP:-}" ] && [ -n "${EVENT_RESET_BACKUP_SERVER:-}" ] && [ "${backup_sql_scope,,}" != "${source_sql_scope,,}" ]; then
+            az sql server firewall-rule delete \
+              --resource-group "$EVENT_RESET_BACKUP_RESOURCE_GROUP" \
+              --server "$EVENT_RESET_BACKUP_SERVER" \
+              --name "${{ steps.sqlfw.outputs.rule_name }}" \
+              --only-show-errors --output none || true
+          fi
           az sql server firewall-rule delete \
             --resource-group "${{ vars.EVENT_RESET_SQL_RESOURCE_GROUP }}" \
             --server "${{ steps.sqlfw.outputs.server_name }}" \

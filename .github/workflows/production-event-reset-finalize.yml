@@ -226,7 +226,7 @@ jobs:
             --only-show-errors --output json)"
           setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
           state="$(setting EVENT_RESET_FINALIZE_STATE)"
-          test "$(az functionapp show --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --query state -o tsv)" = Running
+          test "$(az functionapp show --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --query properties.state -o tsv)" = Running
           test "$(setting EVENT_RESET_FINAL_RELEASE_STATE)" = complete
           test "$(setting EVENT_RESET_FINAL_RELEASE_SHA)" = "$(setting EVENT_RESET_LAST_VERIFIED_CODE_SHA)"
           test "$(setting EVENT_WRITE_MODE)" = open

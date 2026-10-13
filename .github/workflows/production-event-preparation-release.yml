@@ -1,0 +1,410 @@
+name: Production Event Reset Preparation
+
+on:
+  workflow_dispatch:
+    inputs:
+      preparation_sha:
+        description: Exact reviewed legacy-preserving preparation commit SHA
+        type: string
+        required: true
+      confirmation:
+        description: Type DEPLOY LEGACY EVENT RESET PREPARATION
+        type: string
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-event-reset
+  cancel-in-progress: false
+
+jobs:
+  prepare-backend:
+    runs-on: ubuntu-latest
+    environment: production-event-preparation
+    timeout-minutes: 90
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      AZURE_FUNCTIONAPP_NAME: ${{ vars.EVENT_RESET_FUNCTION_APP_NAME }}
+      AZURE_RESOURCE_GROUP: ${{ vars.EVENT_RESET_FUNCTION_RESOURCE_GROUP }}
+      TARGET_SQL_SERVER: ${{ vars.EVENT_RESET_SQL_SERVER }}
+      TARGET_SQL_DATABASE: ${{ vars.EVENT_RESET_SQL_DATABASE }}
+      TARGET_SQL_RESOURCE_ID: ${{ vars.EVENT_RESET_SQL_RESOURCE_ID }}
+      TARGET_SQL_RESOURCE_GROUP: ${{ vars.EVENT_RESET_SQL_RESOURCE_GROUP }}
+      PREPARATION_SHA: ${{ inputs.preparation_sha }}
+      EXPECTED_PREPARATION_SHA: ${{ vars.EVENT2_PREPARATION_RELEASE_SHA }}
+      PROTECTED_CONNECTION: ${{ secrets.DB_CONNECTION_STRING }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      EVENT_RESET_FREEZE_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+      EVENT_RESET_FINALIZE_HEALTH_TOKEN: ${{ secrets.EVENT_RESET_FINALIZE_HEALTH_TOKEN }}
+
+    steps:
+      - name: Validate reviewed identity and protected environment
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          GH_TOKEN: ${{ github.token }}
+          FREEZE_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = 'DEPLOY LEGACY EVENT RESET PREPARATION'
+          test "$GITHUB_REF" = 'refs/heads/codex/event-reset-preparation-runtime'
+          [[ "$PREPARATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_PREPARATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$PREPARATION_SHA" = "$EXPECTED_PREPARATION_SHA"
+          test "$GITHUB_SHA" = "$PREPARATION_SHA"
+          test -n "$AZURE_FUNCTIONAPP_NAME"
+          test -n "$AZURE_RESOURCE_GROUP"
+          test -n "$TARGET_SQL_SERVER"
+          test -n "$TARGET_SQL_DATABASE"
+          test -n "$TARGET_SQL_RESOURCE_ID"
+          test -n "$TARGET_SQL_RESOURCE_GROUP"
+          test -n "$PROTECTED_CONNECTION"
+          test -n "$AZURE_SUBSCRIPTION_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test "$CLOUDFLARE_ACCOUNT_ID" = 'a76a4cf2fe42e20167837ba5fce117d0'
+          test "${#EVENT_RESET_FREEZE_STATUS_TOKEN}" -ge 32
+          test "${#EVENT_RESET_FINALIZE_HEALTH_TOKEN}" -ge 32
+          test -n "$FREEZE_STATUS_URL"
+          environment="$(gh api "repos/$GITHUB_REPOSITORY/environments/production-event-preparation")"
+          jq -e '
+            .name == "production-event-preparation" and
+            .deployment_branch_policy.custom_branch_policies == true and
+            any(.protection_rules[]?;
+              .type == "required_reviewers" and
+              .prevent_self_review == true and
+              (.reviewers | length) > 0)
+          ' <<<"$environment" > /dev/null
+          policies="$(gh api "repos/$GITHUB_REPOSITORY/environments/production-event-preparation/deployment-branch-policies")"
+          jq -e 'any(.branch_policies[]?;
+            .name == "codex/event-reset-preparation-runtime")' \
+            <<<"$policies" > /dev/null
+
+      - name: Confirm reset recovery credentials are provisioned
+        shell: bash
+        env:
+          EVIDENCE_KEY: ${{ secrets.EVENT_RESET_EVIDENCE_KEY }}
+          FILE_API_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
+          FILE_SIGNING_SECRET: ${{ secrets.EVENT_RESET_FILE_SIGNING_SECRET }}
+          FILE_FINALIZE_TOKEN: ${{ secrets.EVENT_RESET_FILE_FINALIZE_TOKEN }}
+          FILE_FINALIZE_SIGNING_SECRET: ${{ secrets.EVENT_RESET_FILE_FINALIZE_SIGNING_SECRET }}
+          DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
+          CACHE_SYNC_API_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
+          FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
+          FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
+          FILE_API_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
+          SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
+        run: |
+          set -euo pipefail
+          for value in "$EVIDENCE_KEY" "$FILE_API_TOKEN" "$FILE_SIGNING_SECRET" \
+            "$FILE_FINALIZE_TOKEN" "$FILE_FINALIZE_SIGNING_SECRET" "$CACHE_SYNC_API_TOKEN" "$DO_TOKEN"; do
+            test "${#value}" -ge 32
+          done
+          test "${#FILE_ADMIN_BACKFILL_SECRET}" -ge 32
+          test "${#FILE_ACCESS_SIGNING_SECRET}" -ge 32
+          test "${#DO_TOKEN}" -le 4096
+          test -n "$FILE_API_URL"
+          test -n "$SPEED_URL"
+          file_secrets=("$FILE_API_TOKEN" "$FILE_SIGNING_SECRET" "$FILE_FINALIZE_TOKEN" "$FILE_FINALIZE_SIGNING_SECRET")
+          for ((left=0; left<${#file_secrets[@]}; left++)); do
+            for ((right=left+1; right<${#file_secrets[@]}; right++)); do
+              test "${file_secrets[$left]}" != "${file_secrets[$right]}"
+            done
+          done
+          for value in "${file_secrets[@]}" "$CACHE_SYNC_API_TOKEN"; do
+            test "$DO_TOKEN" != "$value"
+          done
+
+      - name: Checkout the reviewed preparation source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.preparation_sha }}
+          persist-credentials: false
+
+      - name: Confirm checked-out source and legacy migration boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PREPARATION_SHA"
+          test -f backend/src/Alife.DbMigrator/EventResetTargetIdentityInspection.cs
+          test -f backend/src/Alife.DbMigrator/EventInstancePurge.cs
+          test -f backend/src/Alife.Api/Controllers/AdminEventResetStatusController.cs
+          test ! -f backend/src/Alife.Infrastructure/Persistence/Migrations/20261012225333_Event2RemoveLegacyEventStorage.cs
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+
+      - name: Build read-only inspection tool
+        run: dotnet build backend/src/Alife.DbMigrator/Alife.DbMigrator.csproj --configuration Release
+
+      - name: Azure login with preparation environment identity
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify exact Azure production target and live SQL source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id --output tsv)" = "$AZURE_SUBSCRIPTION_ID"
+          app_id="$(az functionapp show --name "$AZURE_FUNCTIONAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" --query id --output tsv)"
+          expected_app_id="/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.Web/sites/$AZURE_FUNCTIONAPP_NAME"
+          test "${app_id,,}" = "${expected_app_id,,}"
+          test "$(az functionapp show --name "$AZURE_FUNCTIONAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" --query properties.state --output tsv)" = Running
+          source_id="$(az resource show --ids "$TARGET_SQL_RESOURCE_ID" --query id --output tsv)"
+          test "${source_id,,}" = "${TARGET_SQL_RESOURCE_ID,,}"
+          test "$(az resource show --ids "$TARGET_SQL_RESOURCE_ID" --query properties.status --output tsv)" = Online
+          source_server="${TARGET_SQL_SERVER#tcp:}"
+          source_server="${source_server%%,*}"
+          source_server="${source_server%%.*}"
+          expected_source_id="/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$TARGET_SQL_RESOURCE_GROUP/providers/Microsoft.Sql/servers/$source_server/databases/$TARGET_SQL_DATABASE"
+          test "${source_id,,}" = "${expected_source_id,,}"
+          az sql db show --ids "$TARGET_SQL_RESOURCE_ID" --only-show-errors --output none
+
+      - name: Ensure exact private Event recovery bucket
+        shell: bash
+        run: |
+          set -euo pipefail
+          bucket_url="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/ccalc-event-reset-recovery"
+          bucket_reply="$RUNNER_TEMP/event-preparation-bucket.json"
+          bucket_status="$(curl --retry 4 --retry-all-errors --silent --show-error \
+            --output "$bucket_reply" --write-out '%{http_code}' \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$bucket_url")"
+          if [ "$bucket_status" = 404 ]; then
+            create_status="$(curl --retry 4 --retry-all-errors --silent --show-error \
+              --output "$bucket_reply" --write-out '%{http_code}' \
+              --request POST --header 'Content-Type: application/json' \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              --data '{"name":"ccalc-event-reset-recovery"}' \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets")"
+            case "$create_status" in
+              200|201) ;;
+              *) echo "Cloudflare could not create the exact recovery bucket (HTTP $create_status)."; exit 1 ;;
+            esac
+            jq -e '.success == true and .result.name == "ccalc-event-reset-recovery"' \
+              "$bucket_reply" > /dev/null
+          elif [ "$bucket_status" != 200 ]; then
+            echo "Cloudflare could not inspect the recovery bucket (HTTP $bucket_status)."
+            exit 1
+          fi
+          bucket="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$bucket_url")"
+          managed="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$bucket_url/domains/managed")"
+          custom="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$bucket_url/domains/custom")"
+          jq -e '.success == true and .result.name == "ccalc-event-reset-recovery"' <<<"$bucket" > /dev/null
+          jq -e '.success == true and .result.enabled == false' <<<"$managed" > /dev/null
+          jq -e '.success == true and
+            (.result.domains | type) == "array" and
+            ([.result.domains[] | select(.enabled != false)] | length) == 0' \
+            <<<"$custom" > /dev/null
+
+      - name: Bind live and protected SQL connections to the same legacy source
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="$RUNNER_TEMP/event-preparation"
+          mkdir -p "$evidence_root/app" "$evidence_root/protected"
+          settings="$(az functionapp config appsettings list \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          for name in EVENT_RESET_PREPARATION_STATE EVENT_RESET_LAST_VERIFIED_STATE \
+            EVENT_RESET_FINAL_RELEASE_STATE EVENT_RESET_ROLLBACK_STATE EVENT_RESET_FINALIZE_STATE; do
+            test -z "$(setting "$name")"
+          done
+          test "$(setting EVENT_RESET_ROLLBACK_HOLD)" != true
+          existing_mode="$(setting EVENT_WRITE_MODE)"
+          test -z "$existing_mode" || test "$existing_mode" = open
+          existing_epoch="$(setting EVENT_DATA_EPOCH)"
+          test -z "$existing_epoch" || test "$existing_epoch" = pre-event-2-reset
+          app_connection="$(setting ConnectionStrings__Default)"
+          test -n "$app_connection"
+          for source in app protected; do
+            connection="$app_connection"
+            [ "$source" = protected ] && connection="$PROTECTED_CONNECTION"
+            ConnectionStrings__Default="$connection" \
+              Events__ExpectedServer="$TARGET_SQL_SERVER" \
+              Events__ExpectedDatabase="$TARGET_SQL_DATABASE" \
+              Events__TargetResource="$TARGET_SQL_RESOURCE_ID" \
+              dotnet run --project backend/src/Alife.DbMigrator/Alife.DbMigrator.csproj \
+                --configuration Release --no-build -- \
+                --Events:TargetIdentity=inspect \
+                --Events:OutputDirectory="$evidence_root/$source"
+          done
+          source_hash="$(jq -er '.targetIdentityHash | strings | select(test("^[0-9a-f]{64}$"))' \
+            "$evidence_root/app/event-reset-target-identity.json")"
+          test "$source_hash" = "$(jq -r '.targetIdentityHash' \
+            "$evidence_root/protected/event-reset-target-identity.json")"
+          printf 'SOURCE_TARGET_IDENTITY_HASH=%s\n' "$source_hash" >> "$GITHUB_ENV"
+
+      - name: Prove live source retains legacy Event storage
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="$RUNNER_TEMP/event-preparation"
+          ConnectionStrings__Default="$PROTECTED_CONNECTION" \
+            dotnet run --project backend/src/Alife.DbMigrator/Alife.DbMigrator.csproj \
+              --configuration Release --no-build -- \
+              --Events:PreparationRuntime=inspect \
+              --Events:OutputDirectory="$evidence_root/protected"
+          jq -e '
+            .compositionSchemaVersion == "1.1.0" and
+            .legacySchemaVersion == "1.0.0" and
+            .legacyRuntimePreserved == true and
+            .destructiveMigrationKnown == false and
+            .destructiveMigrationApplied == false and
+            (.eventRootCount | type) == "number" and
+            .eventRootCount >= 0
+          ' "$evidence_root/protected/event-preparation-runtime.json" > /dev/null
+
+      - name: Setup Node for reviewed Images Worker
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify reviewed Images Worker safeguards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f cloudflare/images-api/worker/event-reset-files.js
+          node -e 'const fs=require("node:fs");const config=fs.readFileSync("cloudflare/images-api/wrangler.toml","utf8");if(!/binding = "EVENT_RESET_RECOVERY_BUCKET"\s+bucket_name = "ccalc-event-reset-recovery"/.test(config)||!/EVENT_WRITE_MODE = "open"/.test(config)||!/EVENT_SCHEMA_EPOCH = "2.0.0"/.test(config))process.exit(1)'
+          node --test cloudflare/images-api/worker/*.test.mjs
+
+      - name: Deploy protected Images Worker with private recovery binding
+        shell: bash
+        env:
+          FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
+          FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
+          FILE_API_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
+          FILE_SIGNING_SECRET: ${{ secrets.EVENT_RESET_FILE_SIGNING_SECRET }}
+          FILE_FINALIZE_TOKEN: ${{ secrets.EVENT_RESET_FILE_FINALIZE_TOKEN }}
+          FILE_FINALIZE_SIGNING_SECRET: ${{ secrets.EVENT_RESET_FILE_FINALIZE_SIGNING_SECRET }}
+        run: |
+          set -euo pipefail
+          node -e 'process.stdout.write(JSON.stringify({FILE_ADMIN_BACKFILL_SECRET:process.env.FILE_ADMIN_BACKFILL_SECRET,FILE_ACCESS_SIGNING_SECRET:process.env.FILE_ACCESS_SIGNING_SECRET,EVENT_RESET_FILE_ADMIN_SECRET:process.env.FILE_API_TOKEN,EVENT_RESET_FILE_SIGNING_SECRET:process.env.FILE_SIGNING_SECRET,EVENT_RESET_FILE_FINALIZE_SECRET:process.env.FILE_FINALIZE_TOKEN,EVENT_RESET_FILE_FINALIZE_SIGNING_SECRET:process.env.FILE_FINALIZE_SIGNING_SECRET,EVENT_RESET_TARGET_RESOURCE:process.env.TARGET_SQL_RESOURCE_ID}))' |
+            npx wrangler@4.88.0 secret bulk --config cloudflare/images-api/wrangler.toml
+          npx wrangler@4.88.0 deploy --config cloudflare/images-api/wrangler.toml
+
+      - name: Attest live Images Worker private-path safeguards
+        shell: bash
+        env:
+          FILE_API_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
+          FILE_API_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          status=''
+          http_status=''
+          for attempt in {1..18}; do
+            http_status="$(curl --silent --show-error --output "$RUNNER_TEMP/images-preparation-status.json" --write-out '%{http_code}' -H "Authorization: Bearer $FILE_API_TOKEN" "${FILE_API_URL%/}/api/admin/event-reset/status" || true)"
+            status="$(cat "$RUNNER_TEMP/images-preparation-status.json" 2>/dev/null || true)"
+            if [ "$http_status" = 503 ] && jq -e --arg resource "$TARGET_SQL_RESOURCE_ID" '.configurationValid == true and .ready == false and .frozen == false and .resetEpoch == null and .schemaEpoch == "2.0.0" and .targetResource == $resource' <<<"$status" > /dev/null 2>&1; then
+              break
+            fi
+            sleep 10
+          done
+          test "$http_status" = 503
+          jq -e --arg resource "$TARGET_SQL_RESOURCE_ID" '.configurationValid == true and .ready == false and .frozen == false and .resetEpoch == null and .schemaEpoch == "2.0.0" and .targetResource == $resource' <<<"$status" > /dev/null
+
+      - name: Publish legacy-preserving backend without migration or seed
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet publish backend/src/Alife.Api/Alife.Api.csproj \
+            --configuration Release --runtime linux-x64 --self-contained true \
+            --output "$RUNNER_TEMP/event-preparation-publish"
+
+      - name: Configure backend preparation runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp config appsettings set \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --settings \
+              'EVENT_RUNTIME_ENVIRONMENT=production' \
+              'EVENT_SCHEMA_EPOCH=2.0.0' \
+              'EVENT_DATA_EPOCH=pre-event-2-reset' \
+              'EVENT_WRITE_MODE=open' \
+              'Seed__IncludeDemoMembers=false' \
+              "EVENT_RESET_FREEZE_STATUS_TOKEN=$EVENT_RESET_FREEZE_STATUS_TOKEN" \
+              "EVENT_RESET_FINALIZE_HEALTH_TOKEN=$EVENT_RESET_FINALIZE_HEALTH_TOKEN" \
+            --only-show-errors --output none
+
+      - name: Deploy only the reviewed backend preparation package
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: ${{ runner.temp }}/event-preparation-publish
+
+      - name: Verify live legacy backend and exact database target
+        shell: bash
+        env:
+          FREEZE_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+        run: |
+          set -euo pipefail
+          status=''
+          for attempt in {1..18}; do
+            status="$(curl --silent --show-error \
+              -H "Authorization: Bearer $EVENT_RESET_FREEZE_STATUS_TOKEN" \
+              "$FREEZE_STATUS_URL" || true)"
+            if jq -e --arg hash "$SOURCE_TARGET_IDENTITY_HASH" '
+              .configurationValid == true and
+              .ready == false and .frozen == false and
+              .schemaVersion == "1.1.0" and
+              .schemaEpoch == "2.0.0" and
+              .dataEpoch == "pre-event-2-reset" and
+              .targetIdentityHash == $hash
+            ' <<<"$status" > /dev/null 2>&1; then
+              break
+            fi
+            sleep 10
+          done
+          jq -e --arg hash "$SOURCE_TARGET_IDENTITY_HASH" '
+            .configurationValid == true and
+            .ready == false and .frozen == false and
+            .schemaVersion == "1.1.0" and
+            .schemaEpoch == "2.0.0" and
+            .dataEpoch == "pre-event-2-reset" and
+            .targetIdentityHash == $hash
+          ' <<<"$status" > /dev/null
+          ConnectionStrings__Default="$PROTECTED_CONNECTION" \
+            dotnet run --project backend/src/Alife.DbMigrator/Alife.DbMigrator.csproj \
+              --configuration Release --no-build -- \
+              --Events:PreparationRuntime=inspect \
+              --Events:OutputDirectory="$RUNNER_TEMP/event-preparation/after-deploy"
+          jq -e '.legacyRuntimePreserved == true and .destructiveMigrationApplied == false' \
+            "$RUNNER_TEMP/event-preparation/after-deploy/event-preparation-runtime.json" > /dev/null
+
+      - name: Record verified preparation release only after live proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp config appsettings set \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --settings \
+              'EVENT_RESET_PREPARATION_STATE=verified' \
+              "EVENT_RESET_PREPARATION_SHA=$PREPARATION_SHA" \
+              "EVENT_RESET_PREPARATION_RUN_ID=$GITHUB_RUN_ID" \
+              'EVENT_RESET_PREPARATION_LEGACY_RUNTIME_PRESERVED=true' \
+            --only-show-errors --output none
+          settings="$(az functionapp config appsettings list \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          test "$(setting EVENT_RESET_PREPARATION_STATE)" = verified
+          test "$(setting EVENT_RESET_PREPARATION_SHA)" = "$PREPARATION_SHA"
+          test "$(setting EVENT_RESET_PREPARATION_RUN_ID)" = "$GITHUB_RUN_ID"
+          test "$(setting EVENT_RESET_PREPARATION_LEGACY_RUNTIME_PRESERVED)" = true
+          echo "Verified legacy-preserving backend preparation SHA $PREPARATION_SHA in workflow run $GITHUB_RUN_ID."
