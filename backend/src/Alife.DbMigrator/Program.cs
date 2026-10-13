@@ -1,8 +1,10 @@
 using Alife.Application.Pages.Services;
 using Alife.Application.IdentityAccess;
 using Alife.Application.Sermons.Services;
+using Alife.Application.Events.Services;
 using Alife.Infrastructure;
 using Alife.Infrastructure.Persistence;
+using Alife.DbMigrator;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -31,6 +33,18 @@ builder.Services.AddScoped<IIdentityAccessService, IdentityAccessService>();
 
 using var host = builder.Build();
 using var scope = host.Services.CreateScope();
+
+// These protected Event maintenance commands exit before migration, seeding and cache work.
+if (await EventResetTargetIdentityInspection.TryRunAsync(builder.Configuration, args, connectionString))
+    return;
+if (await EventPreparationRuntimeInspection.TryRunAsync(builder.Configuration, args, connectionString,
+        scope.ServiceProvider.GetRequiredService<AlifeDbContext>()))
+    return;
+if (EventInstancePurge.TryCreate(builder.Configuration, args, connectionString, out var eventPurge))
+{
+    await eventPurge!.RunAsync();
+    return;
+}
 
 // Explicit recovery does not run migrations, seeding, or unrelated cache mutations.
 var recoverAdministrator = args.Any(argument => string.Equals(argument, "--AdministratorActivation:Recover=true", StringComparison.OrdinalIgnoreCase));

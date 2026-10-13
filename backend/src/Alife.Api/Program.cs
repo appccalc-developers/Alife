@@ -106,6 +106,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<EventWriteFreezeState>();
+builder.Services.AddScoped<IEventFileAssetLinkProbe, EventFileAssetLinkProbe>();
+builder.Services.AddScoped<IEventNotificationLinkProbe, EventNotificationLinkProbe>();
+builder.Services.AddScoped<IEventResetTargetIdentityProbe, SqlEventResetTargetIdentityProbe>();
 builder.Services.AddSingleton<ApiHttpPipeline>();
 
 var app = builder.Build();

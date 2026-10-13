@@ -1,14 +1,18 @@
 using System.Text.Json;
+using Alife.Api;
 using Alife.Api.Controllers;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Common.Models;
 using Alife.Application.Notifications.Dtos;
 using Alife.Application.Notifications.Commands.MarkNotificationRead;
+using Alife.Application.Notifications.Commands.CreateNotification;
 using Alife.Application.Notifications.Queries.ListCurrentNotificationTasks;
 using Alife.Application.Notifications.Queries.ListNotifications;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using NSubstitute;
 
 namespace Alife.Tests.Unit.Notifications;
@@ -116,6 +120,44 @@ public class NotificationsControllerTests
         Assert.NotNull(notification.ReadUtc);
     }
 
+    [Fact]
+    public async Task EventLinkedNotifications_FreezeWhileOtherNotificationsRemainWritable()
+    {
+        var memberId = Guid.NewGuid();
+        var eventNotificationId = Guid.NewGuid();
+        var ordinaryNotificationId = Guid.NewGuid();
+        var mediator = Substitute.For<IMediator>();
+        var member = Substitute.For<ICurrentMemberAccessor>();
+        member.GetCurrentMemberId().Returns(memberId);
+        var links = Substitute.For<IEventNotificationLinkProbe>();
+        links.IsEventLinkedToRecipientAsync(eventNotificationId, memberId, Arg.Any<CancellationToken>()).Returns(true);
+        mediator.Send(Arg.Any<CreateNotificationCommand>(), Arg.Any<CancellationToken>())
+            .Returns(AppResult<NotificationMessageDto>.Validation("fixture reached handler"));
+        mediator.Send(Arg.Any<MarkNotificationReadCommand>(), Arg.Any<CancellationToken>())
+            .Returns(AppResult<NotificationMessageDto>.Success(CreateNotification(memberId, ordinaryNotificationId, DateTime.UtcNow)));
+        var controller = CreateController(mediator, member, FrozenState(), links);
+        using var payload = JsonDocument.Parse("{}");
+
+        var eventCreate = await controller.Create(new(memberId, null, Guid.NewGuid(), null, "event.notice",
+            payload.RootElement.Clone()), CancellationToken.None);
+        var eventRead = await controller.MarkRead(eventNotificationId, CancellationToken.None);
+        var eventReply = await controller.Reply(eventNotificationId,
+            new(payload.RootElement.Clone()), CancellationToken.None);
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, Assert.IsType<ObjectResult>(eventCreate).StatusCode);
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, Assert.IsType<ObjectResult>(eventRead).StatusCode);
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, Assert.IsType<ObjectResult>(eventReply).StatusCode);
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl.ToString());
+        Assert.Empty(mediator.ReceivedCalls());
+
+        var ordinaryCreate = await controller.Create(new(memberId, null, null, null, "personal.followup",
+            payload.RootElement.Clone()), CancellationToken.None);
+        var ordinaryRead = await controller.MarkRead(ordinaryNotificationId, CancellationToken.None);
+        Assert.IsType<BadRequestObjectResult>(ordinaryCreate);
+        Assert.IsType<OkObjectResult>(ordinaryRead);
+        await mediator.Received(1).Send(Arg.Any<CreateNotificationCommand>(), Arg.Any<CancellationToken>());
+        await mediator.Received(1).Send(Arg.Any<MarkNotificationReadCommand>(), Arg.Any<CancellationToken>());
+    }
+
     private static NotificationMessageDto CreateNotification(Guid memberId)
         => CreateNotification(memberId, Guid.NewGuid(), readUtc: null);
 
@@ -157,12 +199,32 @@ public class NotificationsControllerTests
 
     private static NotificationsController CreateController(
         IMediator mediator,
-        ICurrentMemberAccessor currentMemberAccessor)
-        => new(mediator, currentMemberAccessor)
+        ICurrentMemberAccessor currentMemberAccessor,
+        EventWriteFreezeState? freezeState = null,
+        IEventNotificationLinkProbe? linkProbe = null)
+        => new(mediator, currentMemberAccessor, freezeState ?? OpenState(), linkProbe ?? Substitute.For<IEventNotificationLinkProbe>())
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext()
             }
         };
+
+    private static EventWriteFreezeState OpenState() => State(new Dictionary<string, string?>(), Environments.Development);
+
+    private static EventWriteFreezeState FrozenState() => State(new Dictionary<string, string?>
+    {
+        ["EVENT_RUNTIME_ENVIRONMENT"] = "production",
+        ["EVENT_SCHEMA_EPOCH"] = "2.0.0",
+        ["EVENT_DATA_EPOCH"] = "reset-42",
+        ["EVENT_WRITE_MODE"] = "frozen",
+        ["EVENT_WRITE_FREEZE_EPOCH"] = "reset-42"
+    }, Environments.Production);
+
+    private static EventWriteFreezeState State(Dictionary<string, string?> values, string environmentName)
+    {
+        var host = Substitute.For<IHostEnvironment>();
+        host.EnvironmentName.Returns(environmentName);
+        return new(new ConfigurationBuilder().AddInMemoryCollection(values).Build(), host);
+    }
 }

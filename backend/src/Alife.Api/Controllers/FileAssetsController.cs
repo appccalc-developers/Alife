@@ -16,7 +16,9 @@ namespace Alife.Api.Controllers;
 public class FileAssetsController(
     IMediator mediator,
     ICurrentMemberAccessor currentMemberAccessor,
-    Alife.Application.Events.Services.EventRegistrationMaterialService registrationMaterials) : ControllerBase
+    Alife.Application.Events.Services.EventRegistrationMaterialService registrationMaterials,
+    EventWriteFreezeState eventFreeze,
+    IEventFileAssetLinkProbe eventFileAssetLinkProbe) : ControllerBase
 {
     [HttpGet("{fileAssetId:guid}/registration-material")]
     public async Task<IActionResult> RegistrationMaterial(Guid fileAssetId, CancellationToken ct)
@@ -103,6 +105,32 @@ public class FileAssetsController(
             return Unauthorized();
         }
 
+        // Count every in-flight file registration before checking its purpose. This
+        // makes a freeze wait for an upsert that could replace an Event asset's metadata.
+        using var mutation = eventFreeze.TryEnterMutation();
+        if (mutation is null && (IsEventRegistration(request) ||
+            await eventFileAssetLinkProbe.IsExistingEventAssetAsync(
+                request.StorageProvider, request.BucketName, request.ObjectKey, cancellationToken)))
+        {
+            var status = eventFreeze.GetStatus();
+            Response.Headers.CacheControl = "private, no-store";
+            Response.Headers.RetryAfter = status.RetryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (status.ResetEpoch is not null)
+                Response.Headers["X-Alife-Event-Reset-Epoch"] = status.ResetEpoch;
+            if (status.SchemaEpoch is not null)
+                Response.Headers["X-Alife-Event-Schema-Epoch"] = status.SchemaEpoch;
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                code = status.ConfigurationValid ? "event.reset.frozen" : "event.reset.configuration",
+                message = "Event changes are temporarily unavailable while Event data maintenance is in progress.",
+                frozen = true,
+                epoch = status.Epoch,
+                resetEpoch = status.ResetEpoch,
+                schemaVersion = status.SchemaVersion,
+                schemaEpoch = status.SchemaEpoch
+            });
+        }
+
         var result = await mediator.Send(
             new RegisterFileAssetCommand(
                 currentMemberId.Value,
@@ -146,4 +174,13 @@ public class FileAssetsController(
         Guid? OwnerMemberId,
         string? RelatedEntityType,
         Guid? RelatedEntityId);
+
+    private static bool IsEventRegistration(RegisterFileAssetRequest request) =>
+        request.Purpose is FileAssetPurpose.EventPoster or FileAssetPurpose.EventGallery or
+            FileAssetPurpose.EnrollmentPaymentProof or FileAssetPurpose.ReviewPhoto or
+            FileAssetPurpose.EventRegistrationMaterial ||
+        request.RelatedEntityType?.Trim() is { } relatedType &&
+        (relatedType.Equals("event", StringComparison.OrdinalIgnoreCase) ||
+         relatedType.Equals("enrollment", StringComparison.OrdinalIgnoreCase) ||
+         relatedType.Equals("review", StringComparison.OrdinalIgnoreCase));
 }

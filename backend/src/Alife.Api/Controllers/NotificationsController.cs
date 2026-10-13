@@ -18,7 +18,9 @@ namespace Alife.Api.Controllers;
 [Authorize]
 public class NotificationsController(
     IMediator mediator,
-    ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
+    ICurrentMemberAccessor currentMemberAccessor,
+    EventWriteFreezeState eventFreeze,
+    IEventNotificationLinkProbe eventLinkProbe) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
@@ -74,6 +76,11 @@ public class NotificationsController(
             return BadRequest(new { message = "Action data must be a JSON object." });
         }
 
+        var eventLinked = request.EventId.HasValue ||
+            request.ActionType?.StartsWith("event.", StringComparison.OrdinalIgnoreCase) == true;
+        using var mutation = eventLinked ? eventFreeze.TryEnterMutation() : null;
+        if (eventLinked && mutation is null) return EventFrozen();
+
         var result = await mediator.Send(
             new CreateNotificationCommand(
                 currentMemberId.Value,
@@ -81,7 +88,7 @@ public class NotificationsController(
                 request.GroupId,
                 request.EventId,
                 request.OccurredUtc,
-                request.ActionType,
+                request.ActionType ?? string.Empty,
                 request.ActionDataJson.GetRawText()),
             cancellationToken);
 
@@ -108,6 +115,10 @@ public class NotificationsController(
             return BadRequest(new { message = "Response data must be a JSON object." });
         }
 
+        var eventLinked = await eventLinkProbe.IsEventLinkedToRecipientAsync(id, currentMemberId.Value, cancellationToken);
+        using var mutation = eventLinked ? eventFreeze.TryEnterMutation() : null;
+        if (eventLinked && mutation is null) return EventFrozen();
+
         var result = await mediator.Send(
             new ReplyNotificationCommand(id, currentMemberId.Value, request.ResponseDataJson.GetRawText()),
             cancellationToken);
@@ -130,6 +141,10 @@ public class NotificationsController(
             return Unauthorized();
         }
 
+        var eventLinked = await eventLinkProbe.IsEventLinkedToRecipientAsync(id, currentMemberId.Value, cancellationToken);
+        using var mutation = eventLinked ? eventFreeze.TryEnterMutation() : null;
+        if (eventLinked && mutation is null) return EventFrozen();
+
         var result = await mediator.Send(
             new MarkNotificationReadCommand(id, currentMemberId.Value),
             cancellationToken);
@@ -145,6 +160,27 @@ public class NotificationsController(
 
     private static bool IsJsonObject(JsonElement value)
         => value.ValueKind == JsonValueKind.Object;
+
+    private IActionResult EventFrozen()
+    {
+        var status = eventFreeze.GetStatus();
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers.RetryAfter = status.RetryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (status.ResetEpoch is not null)
+            Response.Headers["X-Alife-Event-Reset-Epoch"] = status.ResetEpoch;
+        if (status.SchemaEpoch is not null)
+            Response.Headers["X-Alife-Event-Schema-Epoch"] = status.SchemaEpoch;
+        return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+        {
+            code = status.ConfigurationValid ? "event.reset.frozen" : "event.reset.configuration",
+            message = "Event changes are temporarily unavailable while Event data maintenance is in progress.",
+            frozen = true,
+            epoch = status.Epoch,
+            resetEpoch = status.ResetEpoch,
+            schemaVersion = status.SchemaVersion,
+            schemaEpoch = status.SchemaEpoch
+        });
+    }
 
     public sealed record CreateNotificationRequest(
         Guid RecipientMemberId,

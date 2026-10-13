@@ -4,18 +4,25 @@ using Alife.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Configuration;
 
 namespace Alife.Infrastructure.ReadServices;
 
 public sealed class EventReadService(
     AlifeDbContext dbContext,
     HybridCache hybridCache,
-    IHttpContextAccessor? httpContextAccessor = null) : IEventReadService
+    IHttpContextAccessor? httpContextAccessor = null,
+    IConfiguration? configuration = null) : IEventReadService
 {
+    private readonly string? eventDataEpoch = configuration?["EVENT_DATA_EPOCH"];
+    private readonly bool requireEventDataEpoch = string.Equals(
+        configuration?["EVENT_RUNTIME_ENVIRONMENT"]?.Trim(),
+        "production",
+        StringComparison.OrdinalIgnoreCase);
     public async Task<IReadOnlyList<GroupEventSummaryDto>> GetGroupEventsAsync(Guid groupId, CancellationToken cancellationToken)
     {
         var cached = await GetOrCreateAsync(
-            EventCacheKeys.GroupEvents(groupId),
+            EventCacheKeys.GroupEvents(groupId, eventDataEpoch, requireEventDataEpoch),
             async token =>
             {
                 var events = await dbContext.GroupEvents
@@ -90,7 +97,7 @@ public sealed class EventReadService(
         CancellationToken cancellationToken)
     {
         var events = await GetOrCreateAsync(
-            EventCacheKeys.PublicUpcomingEvents(),
+            EventCacheKeys.PublicUpcomingEvents(eventDataEpoch, requireEventDataEpoch),
             async token =>
             {
                 var candidates = await dbContext.GroupEvents
