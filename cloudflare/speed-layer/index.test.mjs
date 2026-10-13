@@ -582,6 +582,10 @@ test('Worker configuration keeps all three Event session namespaces without a pe
   assert.equal(deployConfig.secrets.required.includes('EVENT_RESET_DO_TOKEN'), true)
   assert.deepEqual(deployConfig.kv_namespaces, [{ binding: 'API_CACHE', id: 'a'.repeat(32) }])
 
+  const ordinaryConfig = createDeployConfig(deployConfig, 'a'.repeat(32), { requireEventResetSecret: false })
+  assert.equal(ordinaryConfig.secrets.required.includes('EVENT_RESET_DO_TOKEN'), false)
+  assert.deepEqual(ordinaryConfig.secrets.required, config.secrets.required)
+
   const checkedInDeployConfig = JSON.parse(await readFile(new URL('./.wrangler.deploy.jsonc', import.meta.url), 'utf8'))
   assert.equal(checkedInDeployConfig.secrets.required.includes('EVENT_RESET_DO_TOKEN'), true)
   assert.equal(checkedInDeployConfig.migrations.some(item => item.deleted_classes), false)

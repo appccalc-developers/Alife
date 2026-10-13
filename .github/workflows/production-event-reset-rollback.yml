@@ -48,8 +48,6 @@ jobs:
     timeout-minutes: 180
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      EVIDENCE_DIR: ${{ runner.temp }}/event-reset-rollback/original
-      ROLLBACK_PREVIEW_DIR: ${{ runner.temp }}/event-reset-rollback/restored-preview
       EVENT_RESET_FUNCTION_APP_NAME: ${{ vars.EVENT_RESET_FUNCTION_APP_NAME }}
       EVENT_RESET_FUNCTION_RESOURCE_GROUP: ${{ vars.EVENT_RESET_FUNCTION_RESOURCE_GROUP }}
       TARGET_SQL_RESOURCE_GROUP: ${{ vars.EVENT_RESET_SQL_RESOURCE_GROUP }}
@@ -57,6 +55,12 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
+      - name: Set runner-local evidence paths
+        shell: bash
+        run: |
+          printf 'EVIDENCE_DIR=%s/event-reset-rollback/original\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'ROLLBACK_PREVIEW_DIR=%s/event-reset-rollback/restored-preview\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+
       - name: Validate protected rollback inputs
         shell: bash
         env:
@@ -294,7 +298,7 @@ jobs:
         shell: bash
         env:
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
           ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
         run: |
@@ -352,7 +356,7 @@ jobs:
           BACKEND_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
           BACKEND_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           IMAGES_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
           IMAGES_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
           ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
@@ -539,7 +543,7 @@ jobs:
           BACKEND_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
           BACKEND_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           IMAGES_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
           IMAGES_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
           ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
@@ -646,7 +650,7 @@ jobs:
         shell: bash
         env:
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           RESET_RUN_ID: ${{ inputs.reset_run_id }}
           RESET_EPOCH: ${{ inputs.rollback_freeze_epoch }}
         run: |

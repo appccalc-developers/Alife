@@ -616,7 +616,7 @@ jobs:
         shell: bash
         env:
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
           IMAGES_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
           IMAGES_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
           TARGET_RESOURCE: ${{ vars.EVENT_RESET_SQL_RESOURCE_ID }}
