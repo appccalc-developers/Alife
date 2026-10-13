@@ -23,6 +23,7 @@ Repository [security, privacy, compatibility and publishing rules](../../AGENTS.
 | AI details and task/registration form assistants | [AI form assistance](AI-DETAILS-ASSISTANT.md) | eventDetailsAssistant, eventFormAssistant |
 | Module operations, eligibility, privacy and version exceptions | [Module catalogue](EVENT-COMPOSITION.md#capability-modules) | affected module, authorizationRules, cachePolicies, apis |
 | Event UI presentation | [Design](design/EVENT-WORKSPACE-DESIGN.md), read by task type | no new wire semantics |
+| One-time Event 2.0 instance reset, recovery and production gates | [Event 2.0 reset](EVENT-2-RESET.md) | event2Reset, schemaVersion, acceptedLegacySchemaVersions |
 
 Do not load every linked source. API changes also read the matching apis/enums/authorization/cache entries; account- or role-sensitive work must retain all applicable visibility dimensions.
 
@@ -98,7 +99,13 @@ Package lifecycle and approval validity are separate. An approval may become inv
 
 ### ADR-13 — Compatible enforcement rollout
 
-Event Package enforcement is versioned and rollout-controlled. Existing Events never receive invented approval. Before enforcement, dry-run evaluation records non-sensitive differences without changing existing visibility or registration behaviour. Explicit transition, a policy deadline, or a safety-critical fail-closed rule moves a legacy Event into enforcement; rollout is reversible without deleting Package history.
+The authorised pre-launch Event reset removes every Event instance and its dependent operational history before Event 2.0 becomes writable. It preserves versioned Event templates, RAM/Package/safeguarding policies, workflow templates, venue resources and non-Event data. Composition schema `2.0.0` is the new baseline; Event 1.x payloads are rejected with `event.schema.unsupported`, retired routes return `404`, and old browser or edge sessions cannot write back. From `2.0.0` onward Package, Plan, RAM and operational history again follow normal immutable-history and version-governance rules.
+
+Production reset is an isolated protected operation, never a deployment or application-start side effect. It requires a common write-freeze epoch, verified SQL and file recovery copies, a same-code/same-schema preview fingerprint and human approval of that fingerprint. Apply runs under an application lock and serializable transaction; verify proves Event instance data and Event-scoped soft references are empty while preserved data hashes remain unchanged. Recovery material is retained for 30 complete days and removed only by a separate protected finalize operation.
+
+### ADR-14 — Project-scoped Event composition
+
+The sixteen versioned Event templates own editable bilingual preset projects and fixed-question answer defaults. Creating an Event copies them into independent stable project IDs; the organiser reviews and confirms each project before creation. An accepted Event never follows later template edits. In composition schema `2.0.0`, eight common project arrangements are explicit yes/no switches (unchecked means `no`), and eight specialist questions appear only for applicable combinations of seven independent attributes. Overall risk review, participant notices/follow-up and multi-zone operations are answered once in Event Details as tri-state Event facts. Applicable project `yes` answers and confirmed Event facts form a union of required modules; `no` in another project cannot cancel a requirement, and an Event `unknown` never means `no`. Module dependencies and mandatory safety policy still apply. The Event keeps one module owner, report and approval, while distinct meals, journeys, stays, spaces and participant rules retain separate project/occurrence records. Pre-reset Event 1.x Plans have no runtime compatibility contract after the destructive reset.
 
 ## Roles, policy, duties, and readiness
 
@@ -106,7 +113,7 @@ Event Package enforcement is versioned and rollout-controlled. Existing Events n
 - Controlled permission packages constrain what templates may express. Server-side handlers enforce every permission, group, owner, role, and purpose boundary.
 - Policy evaluations record the policy version, evidence, result, exception capability, and decisions. Unknown or unsupported policy values fail closed.
 - Readiness is a projection over the accepted plan and current evidence. A blocked or unknown requirement cannot be displayed as ready.
-- Generic `EventWorkflowRun`, `EventWorkflowStep`, template and artifact creation is retired from the active product and APIs. Historical tables and stored Plan fields remain untouched for non-destructive compatibility.
+- Generic `EventWorkflowRun`, `EventWorkflowStep` and `EventArtifact` instances are retired from the active product and removed by the post-purge forward migration. Versioned `EventWorkflowTemplate` definitions remain preserved and readable.
 - Dedicated flows such as RAM remain authoritative and expose current work through narrowly scoped Church Life lists and Personal Center duty notifications; they do not synchronise to a generic workflow engine.
 
 ## Authorisation, privacy, and caching invariants
@@ -125,18 +132,18 @@ The exact authorisation rules, cache policies, data classifications, and surface
 
 ## API and persistence compatibility
 
-Migration is additive:
+Event 2.0 is a deliberately destructive, pre-launch boundary:
 
-- `GroupEvent` remains the compatible persistence root until a separately authorised cutover.
-- Supported Event creation/update routes, DTO fields, readable enum names, enrollment, review, RAM, and public projection behaviour remain compatible. The generic Event workflow/template/artifact API is retired while historical persistence is left unchanged. The Alife-app-only `/api/events/session/*` and `/api/events/extract` planning endpoints are retired; `/api/events/details-session/*` remains the Event details assistant contract.
-- `EventDataJson` remains readable and must not disappear silently.
-- Typed facts, snapshots, occurrences, structures, and module records are introduced alongside legacy structures, with dual-write only where explicitly implemented.
-- Backfill marks its source and never invents child, transport, safety, money, capacity, or sponsorship facts. Unknown remains unknown.
-- New sensitive projections use dedicated DTOs; persistence details never leak into frontend contracts.
-- Historical plans, occurrences, roles, and Activity Type references are never rewritten by later templates, archetypes, policies, or Series defaults.
-- Migration application is limited to an explicitly approved disposable/local database unless the user separately authorises a shared or production target.
+- `GroupEvent` and `EventDataJson` remain the current persistence root and current business payload. The JSON shape is strictly validated and excludes retired `optionalActivities`, `legacySummary` and other Event 1.x fields.
+- Create and update requests provide the complete `2.0.0` composition, Event facts, Activity Plan, project answers and module confirmations. Event 1.x or missing-version requests fail with HTTP `400` and code `event.schema.unsupported`.
+- Current RAM authoring remains on its independent schema version 2. Package policy and RAM policy schema versions do not change merely because composition becomes 2.0.
+- Retired Event edit, setup/workflow alias, legacy enrollment/capacity and old RAM request routes return `404`. Current registration application, participant and project-selection APIs own new data.
+- Current Event templates receive a new 2.0-capable version. Older template and policy versions remain immutable and readable, but cannot create a new Event or participate in current calculation.
+- New sensitive projections use dedicated DTOs; persistence details never leak into frontend contracts. Authentication, authorisation, ETag, idempotency, privacy and private-cache behavior remain mandatory.
+- Forward migrations may remove storage used only by pre-reset Event instances. They must retain migration history, current Event business tables, templates, policies, workflow templates, venues and non-Event structures.
+- From schema `2.0.0` onward, later changes require ordinary compatible migration or an explicitly authorised future cutover. The pre-launch reset exception cannot be reused implicitly.
 
-Exact endpoint contracts and accepted legacy schema versions are defined in [event-contract.json](event-contract.json). New endpoint implementation must preserve the authentication, authorisation, cache, ETag, and idempotency properties specified there.
+The exact endpoint contract and empty accepted-legacy-version list are defined in [event-contract.json](event-contract.json). Reset procedure and evidence requirements are in [Event 2.0 reset](EVENT-2-RESET.md).
 
 ## Human and AI authority boundary
 

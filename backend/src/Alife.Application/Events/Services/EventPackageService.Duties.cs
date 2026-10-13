@@ -121,17 +121,11 @@ public sealed partial class EventPackageService
                 activeMembers.Contains((e.GroupId, actor)), Participant(actor), roles.Where(r => r.EventId == e.Id && r.MemberId == actor).Select(r => r.RoleRequirementKey));
             var missingSlot = slots.FirstOrDefault(x => eventOccurrences.Any(o => o.Id == x.OccurrenceId) && x.EndUtc >= now &&
                 x.Assignments.Count(a => a.Status is EventRosterAssignmentStatus.Confirmed or EventRosterAssignmentStatus.Invited && a.EndedUtc == null && EligibleForSlot(x, a.MemberId)) < x.RequiredCount &&
-                (frozen is null || frozen.RosterRulesVersion >= EventRosterPolicy.CurrentVersion && !EventRosterPolicy.IsCritical(x.RoleCode, x.EligibilityCode, rosterGroups.FirstOrDefault(g => g.EventId == e.Id && g.RoleCode == x.RoleCode)?.ModuleCode)));
-            var published = e.PublicationStatus is EventPublicationStatus.Published or EventPublicationStatus.LegacyImplicit;
+                (frozen is null || !EventRosterPolicy.IsCritical(x.RoleCode, x.EligibilityCode,
+                    rosterGroups.FirstOrDefault(g => g.EventId == e.Id && g.RoleCode == x.RoleCode)?.ModuleCode)));
+            var published = e.PublicationStatus == EventPublicationStatus.Published;
             var coordinatesRoster = mine.Contains("SERVICE.ROSTER:roster.coordinator");
-            if (e.CollaborationVersion == 0 && !eventEnded && missingSlot is not null && owner)
-                OwnerStep("event.roster.coordinate", "Fill required service positions", "补齐必要服事岗位",
-                    $"/events/{e.Id}/workspace/roster?occurrenceId={missingSlot.OccurrenceId}", missingSlot.OccurrenceId);
-            else if (e.CollaborationVersion == 0 && !eventEnded && missingSlot is not null && coordinatesRoster)
-                Add("rosterCoordination", missingSlot.OccurrenceId, occurrences.Single(x => x.Id == missingSlot.OccurrenceId).RosterConcurrencyToken.ToString("N"),
-                    "event.roster.coordinate", "Fill required service positions", "补齐必要服事岗位", "roster", e.UpdatedUtc,
-                    occurrence: missingSlot.OccurrenceId, target: $"/events/{e.Id}/workspace/roster?occurrenceId={missingSlot.OccurrenceId}");
-            else if (published && !eventEnded && missingSlot is not null && coordinatesRoster)
+            if (published && !eventEnded && missingSlot is not null && coordinatesRoster)
             {
                 Add("rosterCoordination", missingSlot.OccurrenceId, occurrences.Single(x => x.Id == missingSlot.OccurrenceId).RosterConcurrencyToken.ToString("N"),
                     "event.roster.coordinate", "Schedule volunteers across dates", "多场次手工排班", "roster", e.UpdatedUtc,
@@ -148,9 +142,10 @@ public sealed partial class EventPackageService
             if (!eventEnded && frozen is null && owner && plan is not null && plan.RoleRequirements.Any(requirement => requirement.Minimum > roles.Count(r => r.EventId == e.Id && r.RoleRequirementKey == requirement.RequirementKey && activeMembers.Contains((e.GroupId, r.MemberId))) &&
                 !invitedRoles.Any(r => r.EventId == e.Id && r.RoleRequirementKey == requirement.RequirementKey && activeMembers.Contains((e.GroupId, r.MemberId)))))
                 OwnerStep("event.roles.coordinate", "Fill required Event responsibilities", "补齐必要活动职责", Workspace());
-            if ((!eventEnded || baseline is not null) && frozen is null && owner && e.PublicationStatus != EventPublicationStatus.LegacyImplicit)
+            if ((!eventEnded || baseline is not null) && frozen is null && owner)
             {
-                if (plan is null || EventPreparationPolicy.NeedsPlanReview(e, plan) || EventCompositionEngine.FormalSubmissionModuleBlockers(plan).Count > 0)
+                var formalActivityPlan = await EventActivityPlanService.ReadAsync(db, e.Id, ct);
+                if (plan is null || EventPreparationPolicy.NeedsPlanReview(e, plan) || EventCompositionEngine.FormalSubmissionModuleBlockers(plan, formalActivityPlan?.Data).Count > 0)
                     OwnerStep("event.preparation.complete", "Complete Event preparation", "完善活动方案与安排", Workspace());
                 else if (baseline?.Status is EventPackageStatus.ReturnedForAmendment or EventPackageStatus.Rejected)
                     OwnerStep("event.preparation.revise", "Revise the returned Event preparation", "修改退回的活动方案", Workspace());

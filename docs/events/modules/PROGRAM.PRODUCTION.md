@@ -58,6 +58,8 @@ During saved preparation, the existing authorized tool is embedded directly in *
 
 core flow. Occurrence Session and ProgramItem CRUD, owners, reordering, occurrence ETags/If-Match, print run sheet, series-occurrence isolation, protected APIs, and reachable `EventProgrammePanel` exist.
 
+An applicable project with `programmeProduction=yes` may link existing same-Event/occurrence ProgramItem IDs and bilingual production notes to the stable project ID. The Event owner or accepted programme lead saves the typed arrangement with an exact ETag during unfrozen preparation. It does not create or edit the referenced ProgramItems through a second route; their existing editor remains authoritative. One Event programme lead, report and approval summarise all linked projects. The arrangement response is private/no-store.
+
 
 ## Saved preparation compatibility
 

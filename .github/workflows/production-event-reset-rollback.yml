@@ -1,0 +1,720 @@
+name: Roll Back Production Event Reset
+
+on:
+  workflow_dispatch:
+    inputs:
+      evidence_run_id:
+        description: Successful Event reset workflow run containing encrypted verified evidence
+        type: string
+        required: true
+      reset_run_id:
+        description: Exact reset run id from the approved evidence
+        type: string
+        required: true
+      backup_reference:
+        description: Exact Azure SQL recovery database resource id
+        type: string
+        required: true
+      file_manifest_hash:
+        description: Exact approved file manifest SHA-256
+        type: string
+        required: true
+      rollback_freeze_epoch:
+        description: Active freeze epoch used for this rollback
+        type: string
+        required: true
+      restored_database_name:
+        description: New Azure SQL database name; the current database is never overwritten
+        type: string
+        required: true
+      confirmation:
+        description: Type RESTORE EVENT RESET TO A NEW DATABASE
+        type: string
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-event-reset
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    environment: production-event-reset-rollback
+    timeout-minutes: 180
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      EVIDENCE_DIR: ${{ runner.temp }}/event-reset-rollback/original
+      ROLLBACK_PREVIEW_DIR: ${{ runner.temp }}/event-reset-rollback/restored-preview
+      EVENT_RESET_FUNCTION_APP_NAME: ${{ vars.EVENT_RESET_FUNCTION_APP_NAME }}
+      EVENT_RESET_FUNCTION_RESOURCE_GROUP: ${{ vars.EVENT_RESET_FUNCTION_RESOURCE_GROUP }}
+      TARGET_SQL_RESOURCE_GROUP: ${{ vars.EVENT_RESET_SQL_RESOURCE_GROUP }}
+      TARGET_SQL_ENDPOINT: ${{ vars.EVENT_RESET_SQL_SERVER }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Validate protected rollback inputs
+        shell: bash
+        env:
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          MANIFEST_HASH: ${{ inputs.file_manifest_hash }}
+          ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+          RESTORED_DATABASE: ${{ inputs.restored_database_name }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVIDENCE_KEY: ${{ secrets.EVENT_RESET_EVIDENCE_KEY }}
+          FILE_API_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
+          FILE_SIGNING_SECRET: ${{ secrets.EVENT_RESET_FILE_SIGNING_SECRET }}
+          DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
+          SQL_USER: ${{ secrets.EVENT_RESET_ROLLBACK_SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.EVENT_RESET_ROLLBACK_SQL_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ "$EVIDENCE_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$RESET_RUN_ID" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
+          [[ "$MANIFEST_HASH" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$ROLLBACK_EPOCH" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
+          [[ "$RESTORED_DATABASE" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,126}[A-Za-z0-9]$ ]]
+          test "$CONFIRMATION" = 'RESTORE EVENT RESET TO A NEW DATABASE'
+          case "$BACKUP_REFERENCE" in
+            /subscriptions/*/resourceGroups/*/providers/Microsoft.Sql/servers/*/databases/*) ;;
+            *) exit 1 ;;
+          esac
+          test "${#EVIDENCE_KEY}" -ge 32
+          test "${#FILE_API_TOKEN}" -ge 32
+          test "${#FILE_SIGNING_SECRET}" -ge 32
+          test "${#DO_TOKEN}" -ge 32
+          test "${#DO_TOKEN}" -le 4096
+          test -n "$SQL_USER"
+          test "${#SQL_PASSWORD}" -ge 16
+          test -n "$EVENT_RESET_FUNCTION_APP_NAME"
+          test -n "$EVENT_RESET_FUNCTION_RESOURCE_GROUP"
+          test -n "$TARGET_SQL_RESOURCE_GROUP"
+          test -n "$TARGET_SQL_ENDPOINT"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+      - name: Download encrypted reset evidence
+        uses: actions/download-artifact@v5
+        with:
+          name: production-event-reset-evidence-${{ inputs.evidence_run_id }}
+          path: ${{ runner.temp }}/approved-evidence
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.evidence_run_id }}
+
+      - name: Require the successful original reset workflow run
+        id: original
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+        run: |
+          set -euo pipefail
+          run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$EVIDENCE_RUN_ID")"
+          test "$(jq -r '.conclusion' <<<"$run")" = success
+          test "$(jq -r '.path' <<<"$run")" = '.github/workflows/production-event-reset.yml'
+          test "$(jq -r '.event' <<<"$run")" = workflow_dispatch
+          echo "head_sha=$(jq -r '.head_sha' <<<"$run")" >> "$GITHUB_OUTPUT"
+
+      - name: Decrypt and validate original evidence
+        id: evidence
+        shell: bash
+        env:
+          EVIDENCE_KEY: ${{ secrets.EVENT_RESET_EVIDENCE_KEY }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          MANIFEST_HASH: ${{ inputs.file_manifest_hash }}
+          ORIGINAL_HEAD_SHA: ${{ steps.original.outputs.head_sha }}
+          EXPECTED_TARGET_RESOURCE: ${{ vars.EVENT_RESET_SQL_RESOURCE_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR" "$ROLLBACK_PREVIEW_DIR"
+          openssl enc -d -aes-256-cbc -pbkdf2 \
+            -in "${{ runner.temp }}/approved-evidence/evidence.tgz.enc" \
+            -out "${{ runner.temp }}/approved-evidence/evidence.tgz" \
+            -pass env:EVIDENCE_KEY
+          tar -xzf "${{ runner.temp }}/approved-evidence/evidence.tgz" -C "$EVIDENCE_DIR"
+          for required in preview.json apply.json verify.json r2-delete-manifest.json \
+            file-backup-receipt.json file-delete-receipt.json cache-receipt.json \
+            runtime-registration-receipt.json; do
+            test -f "$EVIDENCE_DIR/$required"
+          done
+          fingerprint="$(jq -r '.fingerprint' "$EVIDENCE_DIR/preview.json")"
+          target_resource="$(jq -r '.targetResource' "$EVIDENCE_DIR/preview.json")"
+          test "${target_resource,,}" = "${EXPECTED_TARGET_RESOURCE,,}"
+          target_group="$(sed -E 's#^/subscriptions/[^/]+/resourceGroups/([^/]+)/.*#\1#I' <<<"$target_resource")"
+          target_server="$(sed -E 's#^.*/Microsoft.Sql/servers/([^/]+)/databases/.*#\1#I' <<<"$target_resource")"
+          test -n "$target_group"; test -n "$target_server"
+          test "${target_group,,}" = "${TARGET_SQL_RESOURCE_GROUP,,}"
+          connection_server="$(sed -E 's/^tcp://I' <<<"$TARGET_SQL_ENDPOINT" | xargs)"
+          endpoint_host="${connection_server%%,*}"
+          endpoint_host="${endpoint_host%%:*}"
+          case "${endpoint_host,,}" in
+            "${target_server,,}"|"${target_server,,}.database.windows.net") ;;
+            *) echo 'The configured SQL endpoint does not identify the protected target SQL server.'; exit 1 ;;
+          esac
+          test "$(jq -r '.resetRunId' "$EVIDENCE_DIR/apply.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.codeSha' "$EVIDENCE_DIR/apply.json")" = "$ORIGINAL_HEAD_SHA"
+          test "$(jq -r '.previewFingerprint' "$EVIDENCE_DIR/apply.json")" = "$fingerprint"
+          test "$(jq -r '.previewFingerprint' "$EVIDENCE_DIR/verify.json")" = "$fingerprint"
+          test "$(jq -r '.fileManifestHash' "$EVIDENCE_DIR/verify.json")" = "$MANIFEST_HASH"
+          test "$(jq -r '.codeSha' "$EVIDENCE_DIR/verify.json")" = "$ORIGINAL_HEAD_SHA"
+          test "$(jq -r '.toolBuildHash' "$EVIDENCE_DIR/verify.json")" = "$(jq -r '.toolBuildHash' "$EVIDENCE_DIR/preview.json")"
+          test "$(jq -r '.schemaHash' "$EVIDENCE_DIR/verify.json")" = "$(jq -r '.schemaHash' "$EVIDENCE_DIR/preview.json")"
+          test "$(jq -S -c '.preservedTableCounts' "$EVIDENCE_DIR/verify.json")" = "$(jq -S -c '.preservedTableCounts' "$EVIDENCE_DIR/preview.json")"
+          test "$(jq -S -c '.preservedTableHashes' "$EVIDENCE_DIR/verify.json")" = "$(jq -S -c '.preservedTableHashes' "$EVIDENCE_DIR/preview.json")"
+          test "$(jq -r '.backupReference' "$EVIDENCE_DIR/apply.json")" = "$BACKUP_REFERENCE"
+          test "$(jq -r '.targetResource' "$EVIDENCE_DIR/apply.json")" = "$target_resource"
+          test "$(jq -r '.manifestHash' "$EVIDENCE_DIR/r2-delete-manifest.json")" = "$MANIFEST_HASH"
+          test "$(jq -r '.resetRunId' "$EVIDENCE_DIR/r2-delete-manifest.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.verified' "$EVIDENCE_DIR/file-backup-receipt.json")" = true
+          test "$(jq -r '.verified' "$EVIDENCE_DIR/file-delete-receipt.json")" = true
+          test "$(jq -r '.operation' "$EVIDENCE_DIR/file-backup-receipt.json")" = backup
+          test "$(jq -r '.operation' "$EVIDENCE_DIR/file-delete-receipt.json")" = delete
+          for receipt in file-backup-receipt.json file-delete-receipt.json; do
+            test "$(jq -r '.resetRunId' "$EVIDENCE_DIR/$receipt")" = "$RESET_RUN_ID"
+            test "$(jq -r '.manifestHash' "$EVIDENCE_DIR/$receipt")" = "$MANIFEST_HASH"
+            test "$(jq -r '.backupReference' "$EVIDENCE_DIR/$receipt")" = "$BACKUP_REFERENCE"
+            test "$(jq -r '.approvedFingerprint' "$EVIDENCE_DIR/$receipt")" = "$fingerprint"
+            test "$(jq -r '.targetResource' "$EVIDENCE_DIR/$receipt")" = "$target_resource"
+            test "$(jq -r '.resetEpoch' "$EVIDENCE_DIR/$receipt")" = "$(jq -r '.freezeEpoch' "$EVIDENCE_DIR/apply.json")"
+            test "$(jq -r '.schemaEpoch' "$EVIDENCE_DIR/$receipt")" = '2.0.0'
+            test "$(jq '.failures | length' "$EVIDENCE_DIR/$receipt")" = 0
+          done
+          test "$(jq -r '.verified' "$EVIDENCE_DIR/cache-receipt.json")" = true
+          test "$(jq -r '.resetRunId' "$EVIDENCE_DIR/cache-receipt.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.resetEpoch' "$EVIDENCE_DIR/cache-receipt.json")" = "$(jq -r '.freezeEpoch' "$EVIDENCE_DIR/apply.json")"
+          test "$(jq -r '.schemaEpoch' "$EVIDENCE_DIR/cache-receipt.json")" = '2.0.0'
+          test "$(jq -r '.dataEpoch' "$EVIDENCE_DIR/cache-receipt.json")" = "$(jq -r '.freezeEpoch' "$EVIDENCE_DIR/apply.json")"
+          test "$(jq '.failures | length' "$EVIDENCE_DIR/cache-receipt.json")" = 0
+          test "$(jq -r '.verified' "$EVIDENCE_DIR/runtime-registration-receipt.json")" = true
+          test "$(jq -r '.resetRunId' "$EVIDENCE_DIR/runtime-registration-receipt.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.evidenceRunId' "$EVIDENCE_DIR/runtime-registration-receipt.json")" = "$EVIDENCE_RUN_ID"
+          test "$(jq -r '.codeSha' "$EVIDENCE_DIR/runtime-registration-receipt.json")" = "$ORIGINAL_HEAD_SHA"
+          test "$(jq -r '.backupReference' "$EVIDENCE_DIR/runtime-registration-receipt.json")" = "$BACKUP_REFERENCE"
+          test "$(jq -r '.manifestHash' "$EVIDENCE_DIR/runtime-registration-receipt.json")" = "$MANIFEST_HASH"
+          test "$(jq -r '.fingerprint' "$EVIDENCE_DIR/runtime-registration-receipt.json")" = "$fingerprint"
+          test "$(jq -r '.resetEpoch' "$EVIDENCE_DIR/runtime-registration-receipt.json")" = "$(jq -r '.freezeEpoch' "$EVIDENCE_DIR/apply.json")"
+          test "$(jq -r '.schemaEpoch' "$EVIDENCE_DIR/runtime-registration-receipt.json")" = '2.0.0'
+          test "$(jq -r '.rollbackHold' "$EVIDENCE_DIR/runtime-registration-receipt.json")" = false
+          echo "code_sha=$ORIGINAL_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+          echo "target_resource=$target_resource" >> "$GITHUB_OUTPUT"
+          echo "TARGET_SQL_RESOURCE_GROUP=$target_group" >> "$GITHUB_ENV"
+          echo "TARGET_SQL_SERVER=$target_server" >> "$GITHUB_ENV"
+          echo "TARGET_SQL_CONNECTION_SERVER=$connection_server" >> "$GITHUB_ENV"
+
+      - name: Checkout the exact reset code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.evidence.outputs.code_sha }}
+          fetch-depth: 0
+
+      - name: Confirm immutable code identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ steps.evidence.outputs.code_sha }}'
+          git branch --remotes --contains HEAD | grep -Eq 'origin/main$'
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Azure login with rollback identity
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Freeze backend Event writes at the rollback epoch
+        shell: bash
+        env:
+          BACKEND_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          BACKEND_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+        run: |
+          set -euo pipefail
+          az functionapp config appsettings set \
+            --name "$EVENT_RESET_FUNCTION_APP_NAME" \
+            --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
+            --settings \
+              'EVENT_RUNTIME_ENVIRONMENT=production' \
+              'EVENT_SCHEMA_EPOCH=2.0.0' \
+              "EVENT_DATA_EPOCH=$ROLLBACK_EPOCH" \
+              'EVENT_WRITE_MODE=frozen' \
+              "EVENT_WRITE_FREEZE_EPOCH=$ROLLBACK_EPOCH" \
+            --only-show-errors --output none
+          for attempt in {1..18}; do
+            backend="$(curl --silent --show-error -H "Authorization: Bearer $BACKEND_STATUS_TOKEN" \
+              "$BACKEND_STATUS_URL" || true)"
+            if [ "$(jq -r '.ready // false' <<<"$backend" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.frozen // false' <<<"$backend" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.resetEpoch // empty' <<<"$backend" 2>/dev/null || true)" = "$ROLLBACK_EPOCH" ] && \
+               [ "$(jq -r '.schemaEpoch // empty' <<<"$backend" 2>/dev/null || true)" = '2.0.0' ] && \
+               [ "$(jq -r '.dataEpoch // empty' <<<"$backend" 2>/dev/null || true)" = "$ROLLBACK_EPOCH" ] && \
+               [ "$(jq -r '.activeMutations // -1' <<<"$backend" 2>/dev/null || true)" = 0 ] && \
+               [ "$(jq -r '.scheduledJobsAcknowledged // false' <<<"$backend" 2>/dev/null || true)" = true ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Backend did not drain and acknowledge the rollback freeze epoch.'
+          exit 1
+
+      - name: Build the reviewed Speed Layer rollback artifact
+        shell: bash
+        env:
+          CLOUDFLARE_API_CACHE_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_API_CACHE_NAMESPACE_ID }}
+          ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+        run: |
+          set -euo pipefail
+          npm ci --prefix cloudflare/alife-app
+          npm run generate:public-home-bootstrap --prefix cloudflare/alife-app
+          npm run build --prefix cloudflare/alife-app
+          npm ci --prefix cloudflare/speed-layer
+          npm run prepare:deploy-config --prefix cloudflare/speed-layer
+          node --input-type=module -e \
+            'import fs from "node:fs"; const p="cloudflare/speed-layer/.wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.ROLLBACK_EPOCH,EVENT_WRITE_MODE:"frozen",EVENT_WRITE_FREEZE_EPOCH:process.env.ROLLBACK_EPOCH}; delete c.vars.EVENT_RESET_DO_APPROVED_FINGERPRINT; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
+
+      - name: Freeze the Speed Layer at the rollback epoch
+        shell: bash
+        env:
+          SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
+          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
+          ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+        run: |
+          set -euo pipefail
+          secret_file="$RUNNER_TEMP/event-reset-speed-secrets.json"
+          trap 'rm -f "$secret_file"' EXIT
+          node -e 'require("node:fs").writeFileSync(process.argv[1], JSON.stringify({EVENT_RESET_DO_TOKEN:process.env.EVENT_RESET_DO_TOKEN}))' "$secret_file"
+          npx wrangler@4.88.0 deploy --config cloudflare/speed-layer/.wrangler.deploy.jsonc --secrets-file "$secret_file"
+          rm -f "$secret_file"
+          for attempt in {1..18}; do
+            speed="$(curl --silent --show-error -H "Authorization: Bearer $SPEED_TOKEN" \
+              "$SPEED_URL/api/internal/event-reset/status" || true)"
+            if [ "$(jq -r '.ready // false' <<<"$speed" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.frozen // false' <<<"$speed" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.resetEpoch // empty' <<<"$speed" 2>/dev/null || true)" = "$ROLLBACK_EPOCH" ] && \
+               [ "$(jq -r '.schemaEpoch // empty' <<<"$speed" 2>/dev/null || true)" = '2.0.0' ] && \
+               [ "$(jq -r '.dataEpoch // empty' <<<"$speed" 2>/dev/null || true)" = "$ROLLBACK_EPOCH" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Speed Layer did not enter the rollback freeze epoch.'
+          exit 1
+
+      - name: Freeze the Images API at the rollback epoch
+        shell: bash
+        env:
+          IMAGES_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
+          IMAGES_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
+          ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+          TARGET_RESOURCE: ${{ steps.evidence.outputs.target_resource }}
+        run: |
+          set -euo pipefail
+          npx wrangler@4.88.0 deploy --config cloudflare/images-api/wrangler.toml \
+            --var 'EVENT_WRITE_MODE:frozen' \
+            --var "EVENT_WRITE_FREEZE_EPOCH:$ROLLBACK_EPOCH"
+          for attempt in {1..18}; do
+            images="$(curl --silent --show-error -H "Authorization: Bearer $IMAGES_TOKEN" \
+              "$IMAGES_URL/api/admin/event-reset/status" || true)"
+            if [ "$(jq -r '.ready // false' <<<"$images" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.frozen // false' <<<"$images" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.resetEpoch // empty' <<<"$images" 2>/dev/null || true)" = "$ROLLBACK_EPOCH" ] && \
+               [ "$(jq -r '.schemaEpoch // empty' <<<"$images" 2>/dev/null || true)" = '2.0.0' ] && \
+               [ "$(jq -r '.targetResource // empty' <<<"$images" 2>/dev/null || true)" = "$TARGET_RESOURCE" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Images API did not enter the exact rollback freeze epoch.'
+          exit 1
+
+      - name: Require all Event writers frozen at the rollback epoch
+        shell: bash
+        env:
+          BACKEND_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          BACKEND_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
+          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          IMAGES_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
+          IMAGES_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
+          ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+        run: |
+          set -euo pipefail
+          backend="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error -H "Authorization: Bearer $BACKEND_STATUS_TOKEN" "$BACKEND_STATUS_URL")"
+          speed="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error -H "Authorization: Bearer $SPEED_TOKEN" "$SPEED_URL/api/internal/event-reset/status")"
+          images="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error -H "Authorization: Bearer $IMAGES_TOKEN" "$IMAGES_URL/api/admin/event-reset/status")"
+          for payload in "$backend" "$speed" "$images"; do
+            test "$(jq -r '.ready' <<<"$payload")" = true
+            test "$(jq -r '.frozen' <<<"$payload")" = true
+            test "$(jq -r '.resetEpoch' <<<"$payload")" = "$ROLLBACK_EPOCH"
+            test "$(jq -r '.schemaEpoch' <<<"$payload")" = '2.0.0'
+          done
+          test "$(jq -r '.dataEpoch' <<<"$backend")" = "$ROLLBACK_EPOCH"
+          test "$(jq -r '.dataEpoch' <<<"$speed")" = "$ROLLBACK_EPOCH"
+          test "$(jq -r '.targetResource' <<<"$images")" = '${{ steps.evidence.outputs.target_resource }}'
+          test "$(jq -r '.activeMutations' <<<"$backend")" = 0
+          test "$(jq -r '.scheduledJobsAcknowledged' <<<"$backend")" = true
+
+      - name: Validate recovery resource and begin or resume rollback hold
+        id: rollback
+        shell: bash
+        env:
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          MANIFEST_HASH: ${{ inputs.file_manifest_hash }}
+          RESTORED_DATABASE: ${{ inputs.restored_database_name }}
+          ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+          FINGERPRINT: ${{ steps.evidence.outputs.fingerprint }}
+        run: |
+          set -euo pipefail
+          test "$(az resource show --ids "$BACKUP_REFERENCE" --query properties.status -o tsv)" = Online
+          subscription_id="$(az account show --query id -o tsv)"
+          original_target='${{ steps.evidence.outputs.target_resource }}'
+          target_subscription="$(sed -E 's#^/subscriptions/([^/]+)/.*#\1#I' <<<"$original_target")"
+          backup_subscription="$(sed -E 's#^/subscriptions/([^/]+)/.*#\1#I' <<<"$BACKUP_REFERENCE")"
+          test "${subscription_id,,}" = "${target_subscription,,}"
+          test "${subscription_id,,}" = "${backup_subscription,,}"
+          destination_resource="/subscriptions/$target_subscription/resourceGroups/$TARGET_SQL_RESOURCE_GROUP/providers/Microsoft.Sql/servers/$TARGET_SQL_SERVER/databases/$RESTORED_DATABASE"
+          test "${destination_resource,,}" != "${BACKUP_REFERENCE,,}"
+          test "${destination_resource,,}" != "${original_target,,}"
+
+          settings="$(az functionapp config appsettings list --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --only-show-errors -o json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          state="$(setting EVENT_RESET_ROLLBACK_STATE)"
+          hold="$(setting EVENT_RESET_ROLLBACK_HOLD)"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_STATE)" = verified
+          test "$(setting EVENT_RESET_LAST_VERIFIED_RUN_ID)" = "$RESET_RUN_ID"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_EVIDENCE_RUN_ID)" = "$EVIDENCE_RUN_ID"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_CODE_SHA)" = '${{ steps.evidence.outputs.code_sha }}'
+          test "$(setting EVENT_RESET_LAST_VERIFIED_FINGERPRINT)" = "$FINGERPRINT"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_FILE_MANIFEST_HASH)" = "$MANIFEST_HASH"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_BACKUP_REFERENCE)" = "$BACKUP_REFERENCE"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_EPOCH)" = "$(jq -r '.freezeEpoch' "$EVIDENCE_DIR/apply.json")"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_SCHEMA_EPOCH)" = '2.0.0'
+          test -z "$(setting EVENT_RESET_FINALIZE_STATE)"
+          if [ -z "$state" ]; then
+            test "$hold" = false
+            state=new
+            az functionapp config appsettings set \
+              --name "$EVENT_RESET_FUNCTION_APP_NAME" \
+              --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
+              --settings \
+                "EVENT_RESET_ROLLBACK_HOLD=true" \
+                "EVENT_RESET_ROLLBACK_STATE=in-progress" \
+                "EVENT_RESET_ROLLBACK_RESET_RUN_ID=$RESET_RUN_ID" \
+                "EVENT_RESET_ROLLBACK_EVIDENCE_RUN_ID=$EVIDENCE_RUN_ID" \
+                "EVENT_RESET_ROLLBACK_MANIFEST_HASH=$MANIFEST_HASH" \
+                "EVENT_RESET_ROLLBACK_BACKUP_REFERENCE=$BACKUP_REFERENCE" \
+                "EVENT_RESET_ROLLBACK_DESTINATION_RESOURCE=$destination_resource" \
+                "EVENT_RESET_ROLLBACK_FREEZE_EPOCH=$ROLLBACK_EPOCH" \
+              --only-show-errors --output none
+          elif [ "$state" = in-progress ] || [ "$state" = complete ]; then
+            test "$hold" = true
+            test "$(setting EVENT_RESET_ROLLBACK_RESET_RUN_ID)" = "$RESET_RUN_ID"
+            test "$(setting EVENT_RESET_ROLLBACK_EVIDENCE_RUN_ID)" = "$EVIDENCE_RUN_ID"
+            test "$(setting EVENT_RESET_ROLLBACK_MANIFEST_HASH)" = "$MANIFEST_HASH"
+            test "$(setting EVENT_RESET_ROLLBACK_BACKUP_REFERENCE)" = "$BACKUP_REFERENCE"
+            test "$(setting EVENT_RESET_ROLLBACK_DESTINATION_RESOURCE)" = "$destination_resource"
+            test "$(setting EVENT_RESET_ROLLBACK_FREEZE_EPOCH)" = "$ROLLBACK_EPOCH"
+          else
+            echo "Rollback has an unknown state: $state"
+            exit 1
+          fi
+          echo "initial_state=$state" >> "$GITHUB_OUTPUT"
+          echo "destination_resource=$destination_resource" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve recovery identity and allow this runner through SQL firewalls
+        id: sqlfw
+        shell: bash
+        env:
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+        run: |
+          set -euo pipefail
+          runner_ip="$(curl --retry 5 --retry-all-errors -fsSL https://api.ipify.org | tr -d '[:space:]')"
+          [[ "$runner_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
+          source_group="$(sed -E 's#^/subscriptions/[^/]+/resourceGroups/([^/]+)/.*#\1#I' <<<"$BACKUP_REFERENCE")"
+          source_server="$(sed -E 's#^.*/Microsoft.Sql/servers/([^/]+)/databases/.*#\1#I' <<<"$BACKUP_REFERENCE")"
+          source_database="$(sed -E 's#^.*/databases/([^/]+)$#\1#I' <<<"$BACKUP_REFERENCE")"
+          test -n "$source_group"; test -n "$source_server"; test -n "$source_database"
+          rule_name="event-reset-rollback-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          az sql server firewall-rule create \
+            --resource-group "$source_group" --server "$source_server" --name "$rule_name" \
+            --start-ip-address "$runner_ip" --end-ip-address "$runner_ip" \
+            --only-show-errors --output none
+          if [ "${source_server,,}" != "${TARGET_SQL_SERVER,,}" ] || [ "${source_group,,}" != "${TARGET_SQL_RESOURCE_GROUP,,}" ]; then
+            az sql server firewall-rule create \
+              --resource-group "$TARGET_SQL_RESOURCE_GROUP" --server "$TARGET_SQL_SERVER" --name "$rule_name" \
+              --start-ip-address "$runner_ip" --end-ip-address "$runner_ip" \
+              --only-show-errors --output none
+          fi
+          echo "source_group=$source_group" >> "$GITHUB_OUTPUT"
+          echo "source_server=$source_server" >> "$GITHUB_OUTPUT"
+          echo "source_database=$source_database" >> "$GITHUB_OUTPUT"
+          echo "rule_name=$rule_name" >> "$GITHUB_OUTPUT"
+
+      - name: Copy recovery database to the new exact destination
+        shell: bash
+        env:
+          RESTORED_DATABASE: ${{ inputs.restored_database_name }}
+          INITIAL_STATE: ${{ steps.rollback.outputs.initial_state }}
+        run: |
+          set -euo pipefail
+          if az sql db show --resource-group "$TARGET_SQL_RESOURCE_GROUP" --server "$TARGET_SQL_SERVER" --name "$RESTORED_DATABASE" --only-show-errors >/dev/null 2>&1; then
+            test "$INITIAL_STATE" = in-progress || test "$INITIAL_STATE" = complete
+          else
+            test "$INITIAL_STATE" = new
+            az sql db copy \
+              --resource-group '${{ steps.sqlfw.outputs.source_group }}' \
+              --server '${{ steps.sqlfw.outputs.source_server }}' \
+              --name '${{ steps.sqlfw.outputs.source_database }}' \
+              --dest-resource-group "$TARGET_SQL_RESOURCE_GROUP" \
+              --dest-server "$TARGET_SQL_SERVER" \
+              --dest-name "$RESTORED_DATABASE" \
+              --only-show-errors --output none
+          fi
+          for attempt in {1..60}; do
+            state="$(az sql db show --resource-group "$TARGET_SQL_RESOURCE_GROUP" --server "$TARGET_SQL_SERVER" --name "$RESTORED_DATABASE" --query status -o tsv 2>/dev/null || true)"
+            [ "$state" = Online ] && break
+            sleep 15
+          done
+          test "$(az sql db show --resource-group "$TARGET_SQL_RESOURCE_GROUP" --server "$TARGET_SQL_SERVER" --name "$RESTORED_DATABASE" --query status -o tsv)" = Online
+
+      - name: Build the exact reset tool without migrations
+        run: dotnet build backend/src/Alife.DbMigrator/Alife.DbMigrator.csproj --configuration Release
+
+      - name: Read-only preview the new database against the original recovery database
+        shell: bash
+        env:
+          SQL_USER: ${{ secrets.EVENT_RESET_ROLLBACK_SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.EVENT_RESET_ROLLBACK_SQL_PASSWORD }}
+          RESTORED_DATABASE: ${{ inputs.restored_database_name }}
+          Events__PurgeEnvironment: Production
+          Events__ExpectedDatabase: ${{ inputs.restored_database_name }}
+          Events__TargetResource: ${{ steps.rollback.outputs.destination_resource }}
+          Events__CodeSha: ${{ steps.evidence.outputs.code_sha }}
+          Events__FreezeEpoch: ${{ inputs.rollback_freeze_epoch }}
+          Events__ResetRunId: ${{ inputs.reset_run_id }}
+          Events__VerifiedBackupReference: ${{ inputs.backup_reference }}
+          Events__VerifiedBackupConnectionString: ${{ secrets.EVENT_RESET_RECOVERY_DB_CONNECTION_STRING }}
+          Events__WriteFreezeConfirmed: 'true'
+          Events__BackupVerified: 'true'
+          Events__ProtectedEvidenceRoot: ${{ runner.temp }}
+          Events__OutputDirectory: ${{ runner.temp }}/event-reset-rollback/restored-preview
+        run: |
+          set -euo pipefail
+          export ConnectionStrings__Default="Server=tcp:$TARGET_SQL_CONNECTION_SERVER;Initial Catalog=$RESTORED_DATABASE;Persist Security Info=False;User ID=$SQL_USER;Password=$SQL_PASSWORD;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+          export Events__ExpectedServer="$TARGET_SQL_ENDPOINT"
+          dotnet run --project backend/src/Alife.DbMigrator/Alife.DbMigrator.csproj \
+            --configuration Release --no-build -- --Events:PurgeInstances=preview
+          test "$(jq -r '.codeSha' "$ROLLBACK_PREVIEW_DIR/preview.json")" = '${{ steps.evidence.outputs.code_sha }}'
+          test "$(jq -r '.schemaHash' "$ROLLBACK_PREVIEW_DIR/preview.json")" = "$(jq -r '.schemaHash' "$EVIDENCE_DIR/preview.json")"
+          test "$(jq -r '.toolBuildHash' "$ROLLBACK_PREVIEW_DIR/preview.json")" = "$(jq -r '.toolBuildHash' "$EVIDENCE_DIR/preview.json")"
+          test "$(jq -r '.fileManifestHash' "$ROLLBACK_PREVIEW_DIR/preview.json")" = '${{ inputs.file_manifest_hash }}'
+          original_proof="$(jq -S -c '{schemaHash,migrations,eventIds,projectIds,tables,auditIds,notificationIds,delegationIds,idempotencyIds,files,fileManifestHash,deleteCounts,preservedTableCounts,preservedTableHashes}' "$EVIDENCE_DIR/preview.json")"
+          restored_proof="$(jq -S -c '{schemaHash,migrations,eventIds,projectIds,tables,auditIds,notificationIds,delegationIds,idempotencyIds,files,fileManifestHash,deleteCounts,preservedTableCounts,preservedTableHashes}' "$ROLLBACK_PREVIEW_DIR/preview.json")"
+          test "$restored_proof" = "$original_proof"
+
+      - name: Reconfirm all Event writers remain frozen before restoration
+        shell: bash
+        env:
+          BACKEND_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          BACKEND_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
+          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          IMAGES_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
+          IMAGES_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
+          ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+        run: |
+          set -euo pipefail
+          backend="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error -H "Authorization: Bearer $BACKEND_STATUS_TOKEN" "$BACKEND_STATUS_URL")"
+          speed="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error -H "Authorization: Bearer $SPEED_TOKEN" "$SPEED_URL/api/internal/event-reset/status")"
+          images="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error -H "Authorization: Bearer $IMAGES_TOKEN" "$IMAGES_URL/api/admin/event-reset/status")"
+          for payload in "$backend" "$speed" "$images"; do
+            test "$(jq -r '.ready' <<<"$payload")" = true
+            test "$(jq -r '.frozen' <<<"$payload")" = true
+            test "$(jq -r '.resetEpoch' <<<"$payload")" = "$ROLLBACK_EPOCH"
+            test "$(jq -r '.schemaEpoch' <<<"$payload")" = '2.0.0'
+          done
+          test "$(jq -r '.targetResource' <<<"$images")" = '${{ steps.evidence.outputs.target_resource }}'
+          test "$(jq -r '.activeMutations' <<<"$backend")" = 0
+          test "$(jq -r '.scheduledJobsAcknowledged' <<<"$backend")" = true
+
+      - name: Restore exact R2 objects from the protected recovery area
+        shell: bash
+        env:
+          FILE_API_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
+          FILE_API_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
+          EVENT_RESET_FILE_SIGNING_SECRET: ${{ secrets.EVENT_RESET_FILE_SIGNING_SECRET }}
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          MANIFEST_HASH: ${{ inputs.file_manifest_hash }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          FINGERPRINT: ${{ steps.evidence.outputs.fingerprint }}
+          RESET_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+          TARGET_RESOURCE: ${{ steps.evidence.outputs.target_resource }}
+        run: |
+          set -euo pipefail
+          operation=restore
+          schema_epoch=2.0.0
+          jq --arg operation "$operation" --arg resetRunId "$RESET_RUN_ID" --arg manifestHash "$MANIFEST_HASH" \
+            --arg backupReference "$BACKUP_REFERENCE" --arg approvedFingerprint "$FINGERPRINT" \
+            --arg resetEpoch "$RESET_EPOCH" --arg schemaEpoch "$schema_epoch" --arg targetResource "$TARGET_RESOURCE" \
+            '. + {operation:$operation,resetRunId:$resetRunId,manifestHash:$manifestHash,backupReference:$backupReference,approvedFingerprint:$approvedFingerprint,resetEpoch:$resetEpoch,schemaEpoch:$schemaEpoch,targetResource:$targetResource}' \
+            "$EVIDENCE_DIR/r2-delete-manifest.json" > "$EVIDENCE_DIR/file-restore-request.json"
+          signature="$(node .github/scripts/sign-event-reset-file-request.mjs "$EVIDENCE_DIR/file-restore-request.json")"
+          curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $FILE_API_TOKEN" \
+            -H "X-Alife-Event-Reset-Signature: $signature" \
+            -H 'Content-Type: application/json' \
+            --data-binary @"$EVIDENCE_DIR/file-restore-request.json" \
+            "$FILE_API_URL/api/admin/event-reset/files" > "$EVIDENCE_DIR/file-restore-receipt.json"
+          test "$(jq -r '.operation' "$EVIDENCE_DIR/file-restore-receipt.json")" = restore
+          test "$(jq -r '.resetRunId' "$EVIDENCE_DIR/file-restore-receipt.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.manifestHash' "$EVIDENCE_DIR/file-restore-receipt.json")" = "$MANIFEST_HASH"
+          test "$(jq -r '.approvedFingerprint' "$EVIDENCE_DIR/file-restore-receipt.json")" = "$FINGERPRINT"
+          test "$(jq -r '.backupReference' "$EVIDENCE_DIR/file-restore-receipt.json")" = "$BACKUP_REFERENCE"
+          test "$(jq -r '.targetResource' "$EVIDENCE_DIR/file-restore-receipt.json")" = "$TARGET_RESOURCE"
+          test "$(jq -r '.resetEpoch' "$EVIDENCE_DIR/file-restore-receipt.json")" = "$RESET_EPOCH"
+          test "$(jq -r '.schemaEpoch' "$EVIDENCE_DIR/file-restore-receipt.json")" = '2.0.0'
+          test "$(jq -r '.verified' "$EVIDENCE_DIR/file-restore-receipt.json")" = true
+          test "$(jq '.failures | length' "$EVIDENCE_DIR/file-restore-receipt.json")" = 0
+
+      - name: Switch the Function App to the new database and retain rollback hold
+        shell: bash
+        env:
+          SQL_USER: ${{ secrets.EVENT_RESET_ROLLBACK_SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.EVENT_RESET_ROLLBACK_SQL_PASSWORD }}
+          RESTORED_DATABASE: ${{ inputs.restored_database_name }}
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+          DESTINATION_RESOURCE: ${{ steps.rollback.outputs.destination_resource }}
+        run: |
+          set -euo pipefail
+          connection="Server=tcp:$TARGET_SQL_CONNECTION_SERVER;Initial Catalog=$RESTORED_DATABASE;Persist Security Info=False;User ID=$SQL_USER;Password=$SQL_PASSWORD;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+          completed_utc="$(date -u +%FT%TZ)"
+          az functionapp config appsettings set \
+            --name "$EVENT_RESET_FUNCTION_APP_NAME" \
+            --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
+            --settings \
+              "ConnectionStrings__Default=$connection" \
+              "EVENT_RUNTIME_ENVIRONMENT=production" \
+              "EVENT_SCHEMA_EPOCH=2.0.0" \
+              "EVENT_DATA_EPOCH=$ROLLBACK_EPOCH" \
+              "EVENT_WRITE_MODE=frozen" \
+              "EVENT_WRITE_FREEZE_EPOCH=$ROLLBACK_EPOCH" \
+              "EVENT_RESET_ROLLBACK_HOLD=true" \
+              "EVENT_RESET_ROLLBACK_STATE=complete" \
+              "EVENT_RESET_ROLLBACK_ACTIVE_RESOURCE=$DESTINATION_RESOURCE" \
+              "EVENT_RESET_ROLLBACK_COMPLETED_AT_UTC=$completed_utc" \
+            --only-show-errors --output none
+          settings="$(az functionapp config appsettings list \
+            --name "$EVENT_RESET_FUNCTION_APP_NAME" \
+            --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          test "$(setting ConnectionStrings__Default)" = "$connection"
+          test "$(setting EVENT_WRITE_MODE)" = frozen
+          test "$(setting EVENT_WRITE_FREEZE_EPOCH)" = "$ROLLBACK_EPOCH"
+          test "$(setting EVENT_DATA_EPOCH)" = "$ROLLBACK_EPOCH"
+          test "$(setting EVENT_RESET_ROLLBACK_HOLD)" = true
+          test "$(setting EVENT_RESET_ROLLBACK_STATE)" = complete
+          test "$(setting EVENT_RESET_ROLLBACK_ACTIVE_RESOURCE)" = "$DESTINATION_RESOURCE"
+          jq -n --arg resetRunId "$RESET_RUN_ID" --arg rollbackEpoch "$ROLLBACK_EPOCH" \
+            --arg destinationResource "$DESTINATION_RESOURCE" --arg completedUtc "$completed_utc" \
+            '{resetRunId:$resetRunId,rollbackEpoch:$rollbackEpoch,destinationResource:$destinationResource,completedUtc:$completedUtc,rollbackHold:true,switched:true}' \
+            > "$EVIDENCE_DIR/database-switch-receipt.json"
+
+      - name: Clear Event edge caches at the rollback epoch
+        shell: bash
+        env:
+          SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
+          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          RESET_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+        run: |
+          set -euo pipefail
+          jq -n --arg resetRunId "$RESET_RUN_ID" --arg resetEpoch "$RESET_EPOCH" --arg schemaEpoch '2.0.0' --arg dataEpoch "$RESET_EPOCH" \
+            '{resetRunId:$resetRunId,resetEpoch:$resetEpoch,schemaEpoch:$schemaEpoch,dataEpoch:$dataEpoch}' > "$EVIDENCE_DIR/rollback-cache-request.json"
+          curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $SPEED_TOKEN" -H 'Content-Type: application/json' \
+            --data-binary @"$EVIDENCE_DIR/rollback-cache-request.json" \
+            "$SPEED_URL/api/internal/event-reset/cache" > "$EVIDENCE_DIR/rollback-cache-receipt.json"
+          test "$(jq -r '.verified' "$EVIDENCE_DIR/rollback-cache-receipt.json")" = true
+          test "$(jq -r '.resetEpoch' "$EVIDENCE_DIR/rollback-cache-receipt.json")" = "$RESET_EPOCH"
+          test "$(jq -r '.dataEpoch' "$EVIDENCE_DIR/rollback-cache-receipt.json")" = "$RESET_EPOCH"
+          test "$(jq '.failures | length' "$EVIDENCE_DIR/rollback-cache-receipt.json")" = 0
+
+      - name: Verify the rollback remains frozen after the database switch
+        shell: bash
+        env:
+          BACKEND_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          BACKEND_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          ROLLBACK_EPOCH: ${{ inputs.rollback_freeze_epoch }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..18}; do
+            backend="$(curl --silent --show-error -H "Authorization: Bearer $BACKEND_STATUS_TOKEN" "$BACKEND_STATUS_URL" || true)"
+            if [ "$(jq -r '.ready // false' <<<"$backend" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.frozen // false' <<<"$backend" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.resetEpoch // empty' <<<"$backend" 2>/dev/null || true)" = "$ROLLBACK_EPOCH" ] && \
+               [ "$(jq -r '.dataEpoch // empty' <<<"$backend" 2>/dev/null || true)" = "$ROLLBACK_EPOCH" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Backend did not return to the exact frozen rollback epoch.'
+          exit 1
+
+      - name: Encrypt rollback evidence
+        if: always()
+        shell: bash
+        env:
+          EVIDENCE_KEY: ${{ secrets.EVENT_RESET_EVIDENCE_KEY }}
+        run: |
+          set -euo pipefail
+          evidence_root="${{ runner.temp }}/event-reset-rollback"
+          test -d "$evidence_root"
+          tar -czf "${{ runner.temp }}/rollback-evidence.tgz" -C "$evidence_root" .
+          openssl enc -aes-256-cbc -salt -pbkdf2 \
+            -in "${{ runner.temp }}/rollback-evidence.tgz" \
+            -out "${{ runner.temp }}/rollback-evidence.tgz.enc" \
+            -pass env:EVIDENCE_KEY
+
+      - name: Upload encrypted rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-event-reset-rollback-${{ github.run_id }}
+          path: ${{ runner.temp }}/rollback-evidence.tgz.enc
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Remove temporary SQL firewall rules
+        if: always() && steps.sqlfw.outputs.rule_name != ''
+        shell: bash
+        run: |
+          source_server='${{ steps.sqlfw.outputs.source_server }}'
+          source_group='${{ steps.sqlfw.outputs.source_group }}'
+          rule='${{ steps.sqlfw.outputs.rule_name }}'
+          az sql server firewall-rule delete --resource-group "$source_group" --server "$source_server" --name "$rule" --only-show-errors --output none || true
+          if [ "${source_server,,}" != "${TARGET_SQL_SERVER,,}" ] || [ "${source_group,,}" != "${TARGET_SQL_RESOURCE_GROUP,,}" ]; then
+            az sql server firewall-rule delete --resource-group "$TARGET_SQL_RESOURCE_GROUP" --server "$TARGET_SQL_SERVER" --name "$rule" --only-show-errors --output none || true
+          fi

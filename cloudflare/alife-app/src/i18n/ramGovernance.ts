@@ -1,8 +1,5 @@
 // Fixed bilingual copy for types/ramGovernance.ts.
 export const ramGovernanceText = {
-    ramActivityLabels: {
-        generic: { en: 'General activity', zh: '通用活动' }, hiking: { en: 'Hiking', zh: '徒步' }, water: { en: 'Water activity', zh: '水上活动' }, sport: { en: 'Sport', zh: '运动' }, transport: { en: 'Transport', zh: '交通' }, camp: { en: 'Camp / overnight', zh: '营会／过夜' }, meal: { en: 'Shared meal', zh: '聚餐' }, outdoor: { en: 'Other outdoor activity', zh: '其他户外活动' }, other: { en: 'Other', zh: '其他' },
-    },
     likelihoodLabel: { en: 'Rare', zh: '极少' },
     likelihoodDescription: { en: 'Less than 5% chance of occurring.', zh: '发生机会低于 5%。' },
     likelihoodLabelUnlikely: { en: 'Unlikely', zh: '不太可能' },
@@ -26,10 +23,9 @@ export const ramGovernanceText = {
         'snapshot-draft': { en: 'Draft snapshot saved', zh: '已保存草稿快照' }, 'request-confirmation': { en: 'Personal confirmation requested', zh: '已请求本人确认' },
         confirm: { en: 'Personally confirmed', zh: '本人已确认' }, submit: { en: 'Submitted for independent RAM review', zh: '已提交 RAM 独立审核' }, approve: { en: 'Independent RAM review approved', zh: 'RAM 独立审核已通过' },
         return: { en: 'Returned for changes', zh: '退回修改' }, 'request-review': { en: 'Re-review requested', zh: '已请求重审' },
-        'legacy-submitted': { en: 'Historical submission', zh: '历史提交' }, 'legacy-approved': { en: 'Historical approval', zh: '历史批准' },
     },
     ramValidityLabels: {
-        Legacy: { en: 'Legacy record', zh: '旧版记录' }, Draft: { en: 'Draft', zh: '草稿' }, ReviewRequired: { en: 'Re-review required', zh: '需重审' },
+        Draft: { en: 'Draft', zh: '草稿' }, ReviewRequired: { en: 'Re-review required', zh: '需重审' },
         AwaitingConfirmation: { en: 'Awaiting personal confirmation', zh: '等待本人确认' }, Confirmed: { en: 'Personally confirmed', zh: '本人已确认' },
         AwaitingReview: { en: 'Awaiting independent RAM review', zh: '等待 RAM 独立审核' }, Valid: { en: 'Independently reviewed and valid', zh: '已通过独立审核且有效' },
         Returned: { en: 'Returned for changes', zh: '退回修改' }, Historical: { en: 'Historical evidence', zh: '历史记录' },

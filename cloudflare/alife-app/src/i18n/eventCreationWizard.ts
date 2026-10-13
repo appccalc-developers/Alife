@@ -4,6 +4,7 @@ export const eventCreationWizardText = {
     chooseACategoryAndTemplate: { en: 'Choose a category and template.', zh: '请选择活动分类和模板。' } as const,
     thePlanChangedReturnToArrangementsAndReviewAgain: { en: 'The plan changed. Return to arrangements and review again.', zh: '方案已变化，请返回活动安排重新审阅。' } as const,
     thePlanOrAVenueBookingHasAConflict: { en: 'The plan or a venue booking has a conflict. Review arrangements and refresh venues if their details changed.', zh: '方案或场地预订发生冲突，请检查活动安排；场地有更新时请刷新场地列表后重试。' } as const,
+    templateVersionChangedReload: { en: 'The template or plan changed. Reload this page, review the preset projects again, and refresh venue bookings if needed.', zh: '模板或方案已有更新。请重新载入页面，再次核对预设项目；如有需要，也请刷新场地预订。' } as const,
     toolsUpdatedForTheCurrentArrangements: { en: 'Tools updated for the current arrangements.', zh: '已根据当前安排更新管理功能。' } as const,
     retry: { en: 'Retry', zh: '重新计算' } as const,
     updatingToolsFromEventArrangements: { en: 'Updating tools from event arrangements…', zh: '正在根据活动安排更新功能，请稍候……' } as const,

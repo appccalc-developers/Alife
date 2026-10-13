@@ -1,7 +1,7 @@
+import { validActivityAttributes, validActivityScope } from '../../../../shared/activityAttributes'
 import type { Env } from '../../index'
 
 const categories = ['environment', 'activity', 'participants', 'transport', 'emergency']
-const activityTypes = ['generic', 'hiking', 'water', 'sport', 'transport', 'camp', 'meal', 'outdoor', 'other']
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'cache-control': 'private, no-store', vary: 'Cookie, Authorization' } })
 export async function readBounded(body: ReadableStream<Uint8Array> | null, limit: number) {
   if (!body) return ''
@@ -23,15 +23,17 @@ export async function readBounded(body: ReadableStream<Uint8Array> | null, limit
 export function ramGuidanceInput(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const p = value as Record<string, unknown>
-  if (Object.keys(p).some(k => !['eventId', 'activityType', 'category', 'language'].includes(k))) return null
-  if (typeof p.eventId !== 'string' || !/^[0-9a-f-]{36}$/i.test(p.eventId) || !activityTypes.includes(String(p.activityType)) || !categories.includes(String(p.category)) || !['en', 'zh'].includes(String(p.language))) return null
-  return { eventId: p.eventId, activityType: String(p.activityType), category: String(p.category), language: String(p.language) }
+  if (Object.keys(p).some(k => !['eventId', 'activityType', 'attributes', 'category', 'language'].includes(k))) return null
+  if (typeof p.eventId !== 'string' || !/^[0-9a-f-]{36}$/i.test(p.eventId) || !validActivityScope(p.activityType) ||
+      !validActivityAttributes(p.attributes) || p.activityType !== 'generic' && !p.attributes.includes(p.activityType) ||
+      !categories.includes(String(p.category)) || !['en', 'zh'].includes(String(p.language))) return null
+  return { eventId: p.eventId, activityType: String(p.activityType), attributes: p.attributes, category: String(p.category), language: String(p.language) }
 }
 export async function handleRamGuidance(request: Request, env: Env): Promise<Response> {
   if (Number(request.headers.get('content-length') || 0) > 1024) return json({ message: 'Guidance request is too large.' }, 413)
   let input: ReturnType<typeof ramGuidanceInput>
   try { input = ramGuidanceInput(JSON.parse(await readBounded(request.body, 1024))) } catch (e) { return json({ message: 'Invalid or oversized guidance request.' }, e instanceof RangeError ? 413 : 400) }
-  if (!input) return json({ message: 'Only an event ID, activity type, risk category and language are accepted.' }, 400)
+  if (!input) return json({ message: 'Only an event ID, activity scope, activity attributes, risk category and language are accepted.' }, 400)
   if (!env.API_PROXY_TARGET) return json({ message: 'RAM authorization is unavailable.' }, 503)
   const headers = new Headers()
   for (const name of ['cookie', 'authorization']) { const value = request.headers.get(name); if (value) headers.set(name, value) }
@@ -39,8 +41,8 @@ export async function handleRamGuidance(request: Request, env: Env): Promise<Res
   let access: Response
   try { access = await fetch(new URL(`/api/events/${input.eventId}/ram/workspace`, env.API_PROXY_TARGET).toString(), { headers, redirect: 'error', signal: AbortSignal.timeout(10000) }) }
   catch { return json({ message: 'RAM authorization is unavailable. Continue manually.' }, 503) }
+  if (!access.ok) { await access.body?.cancel(); return json({ message: 'RAM reading permission is required.' }, access.status === 401 ? 401 : 403) }
   await access.body?.cancel()
-  if (!access.ok) return json({ message: 'RAM reading permission is required.' }, access.status === 401 ? 401 : 403)
   if (!env.GEMINI_API_KEY) return json({ message: 'AI is unavailable. The question guidance and manual RAM remain available.' }, 503)
   try {
     const { eventId: _eventId, ...safeContext } = input

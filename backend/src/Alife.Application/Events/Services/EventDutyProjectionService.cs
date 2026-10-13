@@ -55,7 +55,7 @@ public sealed class EventDutyProjectionService(IAlifeDbContext db, IEventPackage
             .Where(x => (!eventId.HasValue || x.Id == eventId) &&
                 (canApprove || canSponsor || delegatedEvents.Contains(x.GroupId) || churchLeadershipGroups.Contains(x.GroupId) ||
                  canAudit && churchGroupIds.Contains(x.GroupId) ||
-                 groupIds.Contains(x.GroupId) && (leaderGroups.Contains(x.GroupId) || x.AccountableOwnerMemberId == member || x.AccountableOwnerMemberId == Guid.Empty && x.CreatedByMemberId == member ||
+                 groupIds.Contains(x.GroupId) && (leaderGroups.Contains(x.GroupId) || x.AccountableOwnerMemberId == member ||
                     db.EventTeamMembers.Any(t => t.EventId == x.Id && t.MemberId == member && t.EndedUtc == null) ||
                     db.EventRoleAssignments.Any(r => r.EventId == x.Id && r.MemberId == member && r.EndedUtc == null) ||
                     db.EventTasks.Any(t => t.EventId == x.Id && (t.AssignedMemberId == member || t.ReviewerMemberId == member) && t.Status != EventTaskStatus.Done && t.Status != EventTaskStatus.Cancelled) ||
@@ -71,7 +71,10 @@ public sealed class EventDutyProjectionService(IAlifeDbContext db, IEventPackage
         var activeMemberships = await db.GroupMemberships.AsNoTracking().Where(x => participantGroups.Contains(x.GroupId) && x.Status == MembershipStatus.Approved).Select(x => new { x.GroupId, x.MemberId }).ToListAsync(ct);
         var activeMembers = activeMemberships.Select(x => (x.GroupId, x.MemberId)).ToHashSet();
         var roles = await db.EventRoleAssignments.AsNoTracking().Where(x => ids.Contains(x.EventId) && x.EndedUtc == null).ToListAsync(ct);
-        var tasks = await db.EventTasks.AsNoTracking().Where(x => ids.Contains(x.EventId) && (x.AssignedMemberId == member || x.ReviewerMemberId == member || x.AssignmentStatus == "declined" && (x.Event.AccountableOwnerMemberId == member || x.Event.AccountableOwnerMemberId == Guid.Empty && x.Event.CreatedByMemberId == member)) && x.Status != EventTaskStatus.Done && x.Status != EventTaskStatus.Cancelled).ToListAsync(ct);
+        var tasks = await db.EventTasks.AsNoTracking().Where(x => ids.Contains(x.EventId) &&
+            (x.AssignedMemberId == member || x.ReviewerMemberId == member ||
+             x.AssignmentStatus == "declined" && x.Event.AccountableOwnerMemberId == member) &&
+            x.Status != EventTaskStatus.Done && x.Status != EventTaskStatus.Cancelled).ToListAsync(ct);
         var conditionTasks = await db.EventPackageConditions.AsNoTracking().Where(x => ids.Contains(x.EventPackage.EventId) && x.ReadinessTaskId != null).Select(x => x.ReadinessTaskId).ToArrayAsync(ct);
         var roster = await db.EventRosterAssignments.AsNoTracking().Include(x => x.ServiceSlot).ThenInclude(x => x.Occurrence)
             .Where(x => ids.Contains(x.ServiceSlot.Occurrence.EventId) && x.MemberId == member && x.EndedUtc == null && x.Status == EventRosterAssignmentStatus.Invited).ToListAsync(ct);
@@ -83,10 +86,10 @@ public sealed class EventDutyProjectionService(IAlifeDbContext db, IEventPackage
         foreach (var e in events)
         {
             var approved = groupIds.Contains(e.GroupId);
-            var owner = approved && (e.AccountableOwnerMemberId == Guid.Empty ? e.CreatedByMemberId : e.AccountableOwnerMemberId) == member;
+            var owner = approved && e.AccountableOwnerMemberId == member;
             var ownRoles = roles.Where(x => x.EventId == e.Id && x.MemberId == member).ToArray();
             bool Participant(Guid? id) => id.HasValue && EventDutyAccess.IsTaskParticipant(activeMembers.Contains((e.GroupId, id.Value)),
-                (e.AccountableOwnerMemberId == Guid.Empty ? e.CreatedByMemberId : e.AccountableOwnerMemberId) == id,
+                e.AccountableOwnerMemberId == id,
                 teams.Any(x => x.EventId == e.Id && x.MemberId == id && x.Status == EventTeamMemberStatus.Accepted),
                 roles.Any(x => x.EventId == e.Id && x.MemberId == id && x.Status == EventRoleAssignmentStatus.Accepted));
             var accepted = Participant(member);
@@ -129,11 +132,10 @@ public sealed class EventDutyProjectionService(IAlifeDbContext db, IEventPackage
             var ram = e.RamAssessment;
             var revision = revisions.FirstOrDefault(x => x.EventId == e.Id);
             var authorRole = ownRoles.Any(x => x.Status == EventRoleAssignmentStatus.Accepted && EventDutyAccess.IsRamAuthorRole(x.RoleRequirementKey));
-            var otherAuthor = roles.Any(x => x.EventId == e.Id && x.MemberId != member && x.Status == EventRoleAssignmentStatus.Accepted && Participant(x.MemberId) && EventDutyAccess.IsRamAuthorRole(x.RoleRequirementKey));
             var ramRequired = plan is not null && EventRamGovernanceService.IsRequired(e, plan);
             if (!frozenIds.Contains(e.Id))
             {
-                var canAuthor = accepted && (authorRole || e.CollaborationVersion == 0 && owner && (!otherAuthor || ram?.AuthorMemberId == member));
+                var canAuthor = accepted && authorRole;
                 if (canAuthor && (ram is not null || ramRequired) && (ram is null || ram.Validity is "Draft" or "Returned" or "ReviewRequired" or "Confirmed"))
                     Add("ramAssessment", e.Id, ram?.ConcurrencyToken.ToString("N") ?? e.PlanConcurrencyToken.ToString("N"), ram?.Validity == "Confirmed" ? "event.ram.submit" : "event.ram.author",
                         ram?.Validity == "Confirmed" ? "Submit confirmed RAM" : "Prepare or revise RAM", ram?.Validity == "Confirmed" ? "提交已确认的 RAM" : "起草或修改 RAM", "ram", ram?.UpdatedUtc ?? e.UpdatedUtc,

@@ -16,6 +16,8 @@ public static class AppResultExtensions
                 AppResultStatus.Forbidden => controller.StatusCode(
                     StatusCodes.Status403Forbidden,
                     new { message = result.Message }),
+                AppResultStatus.ValidationError when !string.IsNullOrWhiteSpace(result.Code) =>
+                    controller.BadRequest(new { code = result.Code, message = result.Message }),
                 AppResultStatus.ValidationError => controller.BadRequest(new { message = result.Message }),
                 AppResultStatus.Conflict => controller.Conflict(new { message = result.Message }),
                 AppResultStatus.ServiceUnavailable => controller.StatusCode(

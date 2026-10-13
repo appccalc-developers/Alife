@@ -22,7 +22,7 @@ public sealed partial class EventOperationsService(
             return AppResult<IReadOnlyList<EventOccurrenceDto>>.Forbidden("Approved group membership or event-team access is required.");
         var values = await db.EventOccurrences.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.StartUtc).ToListAsync(ct);
         return AppResult<IReadOnlyList<EventOccurrenceDto>>.Success(values.Select(x => new EventOccurrenceDto(
-            x.Id, x.EventId, x.StartUtc, x.EndUtc, x.LocalDate, x.Status, x.IsLegacyBackfill)).ToArray());
+            x.Id, x.EventId, x.StartUtc, x.EndUtc, x.LocalDate, x.Status)).ToArray());
     }
 
     public async Task<AppResult<EventTeamWorkspaceDto>> GetTeamAsync(Guid eventId, Guid memberId, CancellationToken ct)
@@ -529,7 +529,7 @@ public sealed partial class EventOperationsService(
         var slot = await db.EventServiceSlots.AsNoTracking().Include(x => x.Availability).FirstOrDefaultAsync(x => x.Id == slotId && x.OccurrenceId == occurrenceId && x.Occurrence.EventId == eventId, ct);
         if (slot is null) return AppResult<EventRosterDto>.NotFound("Position not found.");
         var group = await db.EventRosterGroups.AsNoTracking().FirstOrDefaultAsync(x => x.EventId == eventId && x.RoleCode == slot.RoleCode, ct);
-        // Keep legacy validation responses; the atomic batch revalidates all facts under the Event lock.
+        // Keep validation responses stable; the atomic batch revalidates all facts under the Event lock.
         if (group is null || !GroupMembers(group).Contains(request.MemberId) || !await IsEligibleForSlot(e, slot, request.MemberId, ct))
             return AppResult<EventRosterDto>.Validation("Choose a currently eligible member of this position's candidate group.");
         if (slot.Availability.Any(x => x.MemberId == request.MemberId && x.Status == EventAvailabilityStatus.Unavailable))
@@ -596,13 +596,11 @@ public sealed partial class EventOperationsService(
             x.EndedUtc == null && x.RoleRequirementKey.EndsWith($":{roleCode}"), ct));
 
     private async Task<bool> CanCoordinateRosterBatch(GroupEvent groupEvent, Guid memberId, CancellationToken ct)
-        => groupEvent.CollaborationVersion == 0
-            ? await CanCoordinate(groupEvent, memberId, "roster.coordinator", ct)
-            : (groupEvent.PublicationStatus is EventPublicationStatus.Published or EventPublicationStatus.LegacyImplicit) &&
-              await authorization.IsApprovedMemberAsync(groupEvent.GroupId, memberId, ct) &&
-              await db.EventRoleAssignments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == memberId &&
-                  x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null &&
-                  x.RoleRequirementKey == "SERVICE.ROSTER:roster.coordinator", ct);
+        => groupEvent.PublicationStatus == EventPublicationStatus.Published &&
+           await authorization.IsApprovedMemberAsync(groupEvent.GroupId, memberId, ct) &&
+           await db.EventRoleAssignments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == memberId &&
+               x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null &&
+               x.RoleRequirementKey == "SERVICE.ROSTER:roster.coordinator", ct);
 
     private async Task<bool> IsEligibleForSlot(GroupEvent groupEvent, EventServiceSlot slot, Guid memberId, CancellationToken ct)
     {
@@ -704,7 +702,7 @@ public sealed partial class EventOperationsService(
         if (task.Stage == "preparation") return await EventPreparationPolicy.SaveEditableAsync(db, task.EventId, ct);
         await db.SaveChangesAsync(ct); return true;
     }
-    private static EventTaskDto ToTaskDto(EventTask x) => new(x.Id, x.EventId, x.WorkflowStepId, new(x.TitleEn, x.TitleZh),
+    private static EventTaskDto ToTaskDto(EventTask x) => new(x.Id, x.EventId, new(x.TitleEn, x.TitleZh),
         new(x.DescriptionEn, x.DescriptionZh), x.AssignedMemberId, x.Status, x.IsRequired, x.RequiresApproval, x.IsRestricted,
         x.DueUtc, x.CompletedUtc, TaskETag(x), x.Dependencies.Select(d => new EventTaskDependencyDto(d.Id, d.DependsOnEventTaskId, d.DependencyType)).ToArray(),
         x.Blockers.Select(b => new EventTaskBlockerDto(b.Id, b.Reason, b.CreatedByMemberId, b.CreatedUtc, b.ResolvedByMemberId, b.Resolution, b.ResolvedUtc)).ToArray(),

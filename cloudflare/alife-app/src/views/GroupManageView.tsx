@@ -823,7 +823,7 @@ const EventsPanel = ({ groupId, isChurch = false, events, copy, currentGroupRout
                       }}>{language === 'zh' ? groupManageViewText.continuePreparation.zh : groupManageViewText.continuePreparation.en}</AppActionButton> : null}
                       {activeTab === 'upcoming' && lifecycleData.acceptsEnrollments && (lifecycleData.registrationDeadlineTime ?? 0) >= Date.now() ? <AppActionButton size="sm" variant="primary" onClick={() => {
                         activeEntityService.setEvent(event.id)
-                        navigate(`${detailPath}/enroll`)
+                        navigate(`/events/${event.id}/registration-work`)
                       }}>{copy.enroll}</AppActionButton> : null}
                     </div>
                   </div>

@@ -29,8 +29,8 @@ test('task board groups each reachable status without losing tasks', () => {
 
 test('occurrence selection preserves a valid choice and otherwise selects the first materialized occurrence', () => {
   const occurrences = [
-    { id: 'one', eventId: 'event', startUtc: '', endUtc: '', localDate: '2026-08-26', status: 'scheduled', isLegacyBackfill: false },
-    { id: 'two', eventId: 'event', startUtc: '', endUtc: '', localDate: '2026-09-02', status: 'scheduled', isLegacyBackfill: false },
+    { id: 'one', eventId: 'event', startUtc: '', endUtc: '', localDate: '2026-08-26', status: 'scheduled' },
+    { id: 'two', eventId: 'event', startUtc: '', endUtc: '', localDate: '2026-09-02', status: 'scheduled' },
   ]
   assert.equal(selectOccurrenceId(occurrences, 'two'), 'two')
   assert.equal(selectOccurrenceId(occurrences, 'missing'), 'one')

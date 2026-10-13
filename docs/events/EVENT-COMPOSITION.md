@@ -40,7 +40,7 @@ Stores reusable identity, an IANA time zone, local recurrence, exception dates, 
 
 ### Event
 
-The ownership, visibility, governance, registration, and Event Plan boundary. During compatible migration the target `Event` concept maps to the existing `GroupEvent` persistence root. Each Event has exactly one owning group, one accountable owner, and at least one occurrence.
+The ownership, visibility, governance, registration, and Event Plan boundary. Event 2.0 continues to map this concept to the existing `GroupEvent` persistence root. Each Event has exactly one owning group, one accountable owner, and at least one occurrence.
 
 ### EventOccurrence
 
@@ -75,11 +75,27 @@ The four archetypes are immutable system categories. Their codes, structural sem
 | `recurring-gathering` | Series with a rolling 12-week occurrence window | `small-group-fellowship`, `worship-service`, `bible-study-course`, `prayer-meeting` |
 | `festival-celebration` | Multi-session, multi-zone live operation | `community-festival`, `church-celebration`, `public-outreach`, `concert-performance` |
 
-Activity Types are immutable, versioned templates inside one fixed archetype. The catalogue begins with sixteen system presets at version 2. Authorised system administrators may create, edit, deactivate, or reactivate templates within the four categories. A template's code and archetype never change after creation; every edit creates an audited next version.
+The historical `Activity Type` contract names Event templates, not the concrete projects in an Event. These templates are immutable, versioned records inside one fixed archetype. The catalogue began with sixteen system presets at version 2; reviewed project presets and the questionnaire were introduced in later immutable versions. Event 2.0 creates a new current version from each administrator-owned current definition without rewriting its history. Authorised system administrators may create, edit, deactivate, or reactivate templates within the four categories. A template's code and archetype never change after creation; every edit creates an audited next version.
 
-Only a current active version may be used for a new schema 1.1 compose, recompose, or create operation. Deactivation fails closed for new composition but never invalidates historical Events or snapshots. Templates never confirm child, RAM, transport, money, venue, or capacity facts. `MONEY.FINANCE` is never type-preselected.
+Only a current active 2.0-capable version may be used for a new creation operation. Deactivation fails closed for new composition. Saved Event recomposition uses its accepted version and actual Activity Plan. Templates never confirm child, RAM, transport, money, venue, or capacity facts. `MONEY.FINANCE` comes from an applicable project-fee answer or confirmed Event money fact, never direct template preselection. Historical template and policy versions remain read-only and do not participate in current calculation.
 
-Legacy workflow-recommendation fields remain readable in stored Activity Types and Plan snapshots, but new composition ignores them and new templates persist no recommendation.
+Retired workflow-recommendation fields may remain in immutable historical template bodies, but Event 2.0 creation and composition reject them as current inputs and new templates persist no recommendation.
+
+### Concrete projects, answers and module demand
+
+Each current template version may hold an ordered list of editable bilingual preset projects. A project has its own template-local preset key, name, conditions, seven independent attributes, fixed-question default answers, occurrence repetition hint and optional configuration defaults. Version-4 presets may also carry `eventFactSuggestions` using only the three moved Event fact codes when a previous version-3 project default was `yes`; these are pending organiser suggestions, never confirmed facts or direct module triggers. Defaults may suggest eligibility, capacity, waitlist, fee and terms; they are not actual Event policy, a room reservation, a payment approval or a safety fact. Creation copies selected presets to independent string project IDs. The organiser may edit, duplicate, reorder or remove the copies and must explicitly confirm every retained preset and every selected template switch before creation. Switching templates asks before replacing only preset-derived projects; manually added projects remain. Existing Events and their accepted Plan versions do not follow later template edits.
+
+A new schema `2.0.0` creation proposal pins the reviewed template using `activityTypeVersion`. When that template has preset projects, the version is required and must equal its current 2.0-capable version; an outdated version returns HTTP 412 so the organiser reloads and reviews it. Every preset key must appear exactly once, either on a retained project from that version or in explicit `removedPresetKeys`. Unknown, duplicate, overlapping or missing keys fail validation; removal is not silently inferred. The sorted removal list enters the proposal hash and creation audit. Saved Event recomposition reads its own saved Activity Plan and accepted version; publishing a later compatible template version does not invalidate that Event or block its recompose.
+
+The fixed question directory and answer codes belong to the system. In schema `2.0.0`, required `questionnaireVersion: 2` identifies eight project-wide yes/no arrangement switches (`projectSelection`, `ageEligibility`, `capacityLimit`, `projectFee`, `minorsParticipate`, `spaceReservation`, `serviceTeam`, `programmeProduction`) and eight specialist questions filtered by the selected attributes. An unchecked switch immediately writes a human `no`; a checked switch writes `yes`. The switches are independent: selection is not implied by age, capacity, fee, minors, space, roster or programme arrangements. A project policy and draft occurrence offer may be saved while selection is off. Attribute selection does not infer another attribute, Event template, module answer or Event-level fact. Specialist answers retain `yes`, `no` and `unknown` with template/human provenance and confirmation. Removing an attribute makes its specialist answers inactive in the current calculation without erasing Event 2.0 audit history. Missing questionnaire version is invalid; no Event 1.x draft conversion runs at runtime. Template-preselected `yes` switches still require explicit organiser confirmation.
+
+Overall risk review, participant notices/follow-up and multi-zone operations are Event-level tri-state facts `safety.requiresRam`, `comms.followupRequired` and `scale.multiZone`, edited once in Event Details. They are not project answers. Formal confirmation requires human-sourced `certainty=confirmed` with a boolean value. Current project `yes` answers and confirmed Event facts combine by union, so another project's `no` cannot cancel a required module. Dependencies and mandatory safety policy still apply. `scale.multiZone=yes` retains FESTIVAL.OPERATIONS demand and blocks formal submission while the module is unavailable. Event 1.x answer-promotion and historical-hash branches are not part of the 2.0 runtime.
+
+An Event can be created and saved in preparation while specialist project answers or Event-level facts remain unknown. For schema `2.0.0`, formal Package submission requires the three Event-level facts to be human-confirmed true/false, each currently applicable specialist project question to be human-confirmed `yes` or `no`, and each template-origin project's review and selected default `yes` switches to be human-confirmed. The eight common project switches already have explicit yes/no values. Missing, unknown or unconfirmed applicable answers produce visible blockers; a saved draft or a default from a template is not formal confirmation. The server rejects a switch-off only when its own effective setting or record still requires that arrangement; a saved project policy or draft offer alone does not require `projectSelection=yes`. Closing `projectFee` conflicts with active charged participation or net-unrefunded historical project payments even if the current policy fee is zero. Conflicts remain visible and never silently erase operational module demand.
+
+There is one module responsibility, report and approval per Event. Project/occurrence policy, selections and typed arrangements refer to the stable project ID and may have separate records for different meals, journeys, stays, spaces or participant rules. A project answer alone does not publish an offer, book a venue, enrol a person or create a specialist approval. Operational rules are in the owning [registration](modules/PEOPLE.REGISTRATION.md#project-selection-and-eligibility), [finance](modules/MONEY.FINANCE.md#manual-registration-fees), [safeguarding](modules/SAFEGUARDING.CHILD.md#operational-behavior) and [space](modules/PLACE.RESOURCE.md#independent-venues-and-rooms) modules.
+
+Once any person has participated in or selected a project, keep that project in the Event Activity Plan, including after cancellation. Its policy, offer, payment and consent history refer to its stable string ID; removing the source project would lose the bilingual name and conditions needed to understand that history. The organiser cancels its offer, sends the applicable notice and settles fees/refunds, then creates a new project for a different occurrence or rules. An Activity Plan edit cannot delete or rebind the historical project directly.
 
 ## Capability modules
 
@@ -105,7 +121,7 @@ Each module has an immutable versioned contract containing:
 - `ActivationRules`
 - `Dependencies`
 - `RoleRequirements`
-- legacy `WorkflowContributions` (read-only compatibility; new Plans emit an empty list)
+- retained template metadata `WorkflowContributions` (historical template read only; 2.0 Plans emit an empty list)
 - `DataClassification`
 - `ReadinessRules`
 - `Version`
@@ -119,6 +135,8 @@ Implementations must cover at least:
 - a simple meal that stays light while unknown safety or finance facts remain visible for confirmation;
 - a remote hike requiring RAM and transport readiness evidence;
 - a child camp with role-restricted safeguarding data and versioned policy inputs;
+- a schema-2.0 generic project with eight unchecked common switches, plus meal/outdoor and water/outdoor projects whose applicable specialist questions and RAM checks follow the selected attributes;
+- several projects whose affirmative needs union with three Event-level decisions, including multi-zone unavailability and a conflicting attempt to close a switch backed by active project records;
 - a recurring fellowship with a 12-week window and occurrence-local exceptions;
 - a public festival whose public projection waits for root-church sponsorship and all readiness gates;
 - cross-viewer cache isolation for anonymous, church, team, restricted, and self projections;

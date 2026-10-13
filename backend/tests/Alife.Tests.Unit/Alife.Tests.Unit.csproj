@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\Alife.Application\Alife.Application.csproj" />
     <ProjectReference Include="..\..\src\Alife.Infrastructure\Alife.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Alife.Api\Alife.Api.csproj" />
+    <ProjectReference Include="..\..\src\Alife.DbMigrator\Alife.DbMigrator.csproj" />
   </ItemGroup>
 
 </Project>

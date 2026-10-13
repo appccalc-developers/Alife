@@ -2,13 +2,13 @@
 
 > Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#place-resource) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
-## Collaboration version 1
+## Current Event 2.0 contract
 
-Version 1 supplies an independent **venue and room catalogue/calendar** under the managing entity's administration. The root church catalogue appears in Church Management; non-church catalogues remain under their group management. An Event may reserve active venues owned by its group or by that group's root church. Catalogue administration is separate from Event ownership and plan editing: church-shared venues remain editable only by root-church catalogue administrators. Single and indefinite local weekly reservations share server conflict checks and venue locks across all using groups; they do not depend on the twelve-week occurrence horizon. Exceptions release/restore one date with reason and actor history; restoration cannot overwrite new bookings. Future-rule changes retain past bookings. DST ambiguity is explicit, never silently free. Calendar titles obey Event visibility; other viewers see Occupied. Equipment inventory remains deferred and standing bookings never extend approval coverage. See [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+Event 2.0 supplies an independent **venue and room catalogue/calendar** under the managing entity's administration. The root church catalogue appears in Church Management; non-church catalogues remain under their group management. An Event may reserve active venues owned by its group or by that group's root church. Catalogue administration is separate from Event ownership and Plan editing: church-shared venues remain editable only by root-church catalogue administrators. Single and indefinite local weekly reservations share server conflict checks and venue locks across all using groups; they do not depend on the twelve-week occurrence horizon. Exceptions release/restore one date with reason and actor history; restoration cannot overwrite new bookings. Future-rule changes retain past bookings. DST ambiguity is explicit, never silently free. Calendar titles obey Event visibility; other viewers see Occupied. Equipment inventory remains deferred and standing bookings never extend approval coverage. See [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
 
 ## Purpose
 
-Coordinate venue capacity, bookings, equipment, setup, handover, return, and conflicts while keeping legacy Session place data compatible.
+Coordinate authoritative venue capacity, bookings, equipment, setup, handover, return and conflict handling for Events and occurrences.
 
 ## Target contract
 
@@ -26,7 +26,7 @@ Reusable venues, rooms, authoritative capacity, Event/Occurrence reservations, c
 
 ### Roles and authority
 
-The user-confirmed 2026-09-22 clarification retains the collaboration-v1 split: catalogue writes require leadership/co-leadership of the venue's managing group, or the existing platform-admin group-authorization path. Being an Event owner or accepted resource coordinator grants no catalogue administration by itself. Those Event actors may reserve authorized venues, including the owning group's root-church catalogue, without editing the shared venue record. The machine authorization rule reflects this existing implementation.
+The user-confirmed authority split requires leadership/co-leadership of the venue's managing group, or the existing platform-admin group-authorization path, for catalogue writes. Being an Event owner or accepted resource coordinator grants no catalogue administration by itself. Those Event actors may reserve authorized venues, including the owning group's root-church catalogue, without editing the shared venue record. The machine authorization rule reflects this current implementation.
 
 At least one `resource.coordinator` who is an Event team member. Catalogue authority is scoped to the managing group; reservation authority is scoped to the Event and enforced on the server.
 
@@ -58,7 +58,7 @@ During saved preparation, the existing authorized tool is embedded directly in *
 
 ## Operational behavior
 
-venue slice. Reusable venue catalogue/capacity, Event and occurrence reservations, history-preserving release, half-open overlap detection, ETags, idempotency, exact coordinator authorisation, readiness, occurrence-local Package invalidation/review, private APIs, reachable `EventVenueWorkspaceSurface`, and legacy `Session.PlaceJson` compatibility exist.
+The venue slice includes reusable catalogue/capacity, Event and occurrence reservations, history-preserving release, half-open overlap detection, ETags, idempotency, exact coordinator authorisation, readiness, occurrence-local Package invalidation/review, private APIs and the reachable `EventVenueWorkspaceSurface`. `Session.PlaceJson` may describe session programme content but never supplies a reservation, venue fallback or booking authority.
 
 
 
@@ -74,7 +74,11 @@ Acceptance: an authorized child-group Event editor sees active root-church venue
 
 Calendars disclose Event names only to authorized viewers; others see Occupied. A weekly booking stores local first date, optional last date, start/end minutes, capacity and time zone. Blank last date is indefinite. Overnight intervals are supported within 24 hours. Calendar expansion uses the requested range (maximum 366 days), independently of the rolling twelve-week Event occurrence horizon. A Sunday morning remains occupied when queried a year later.
 
-Conflict checks cover single/single, single/weekly and weekly/weekly reservations; venue-row locks serialize competing writes. New invalid/ambiguous DST boundaries are explicitly rejected. Legacy unresolved local times are conservatively blocked and visibly flagged rather than treated as available. Single-date release/restore appends actor/time/reason history. Restoring checks new bookings and never overwrites another Event. Changing future dates creates a successor rule and retains the previous rule's past intervals and change reason. Authorized calendar history exposes relevant creation/change records and release/restore records in the selected dates. No long-term reservation extends Package approval validity.
+Conflict checks cover single/single, single/weekly and weekly/weekly reservations; venue-row locks serialize competing writes. Invalid or ambiguous local DST boundaries are explicitly rejected before persistence. Single-date release/restore appends actor/time/reason history. Restoring checks new bookings and never overwrites another Event. Changing future dates creates a successor rule and retains the previous rule's past intervals and change reason. Authorized calendar history exposes relevant creation/change records and release/restore records in the selected dates. No long-term reservation extends Package approval validity.
+
+An activity project/occurrence may associate an internal room reservation or an external-space request. Internal booking reuses the existing venue authority, time and conflict checks; the project link cannot create a second, weaker reservation route. External requests record an organiser's manual application, confirmation and evidence, with a scoped status but no invented external-provider approval. Distinct places or rules belong to distinct projects. The Event-level PLACE.RESOURCE report remains one adopted summary; project locations are its structured sources, not separately editable copies of the report.
+
+The current project-space record belongs to one offer. An internal confirmation references an existing confirmed, active, same-Event reservation covering the project's UTC interval and a finite project capacity; overlapping project allocations cannot exceed booked capacity. An external request moves through manual draft/awaiting confirmation/confirmed/refused/cancelled states; confirmed external space requires recorded human evidence, not a claimed provider integration. Saving a changed space returns the offer to draft, invalidates the affected occurrence approval context and requires reopening through its normal gate. Only the owner or accepted resource coordinator with PLACE.RESOURCE enabled may write it during unfrozen preparation; exact ETag and idempotency apply, and all responses are private/no-store.
 
 
 ## Saved preparation compatibility

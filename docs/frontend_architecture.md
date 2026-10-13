@@ -155,7 +155,6 @@ Important services:
 - `imageWorkerApi`
 - `cloudflareImageService`
 - `aiSessionService`
-- `enrollmentSessionService`
 - `reviewSessionService`
 - `aiTranslationService`
 

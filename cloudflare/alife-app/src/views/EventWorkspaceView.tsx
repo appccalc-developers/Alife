@@ -176,7 +176,6 @@ const EventWorkspaceView = () => {
             <AppSectionCard title={text.readiness} action={<AppBadge variant={readinessVariant(workspace.readiness.status)}>{workspace.readiness.status}</AppBadge>}>
               <p className="text-sm text-[#66766f]">{workspace.planVersion ? `${text.currentPlan} v${workspace.planVersion}` : text.noPlan}</p>
               <p className="mt-2 text-sm text-[#66766f]">{text.sponsorship}: {workspace.sponsorshipStatus}</p>
-              {plan?.isLegacyBackfill ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{text.reviewLegacy}</p> : null}
             </AppSectionCard>
             <AppSectionCard title={text.nextSteps}>
               <ol className="space-y-2 text-sm text-[#40554e]">

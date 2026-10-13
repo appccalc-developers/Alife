@@ -79,7 +79,6 @@ public sealed class EventPackageInvalidationService(
                 ram = new() { EventId = groupEvent.Id, SchemaVersion = 2, CreatedUtc = now, RamDataJson = RamEvaluator.Serialize(new Alife.Application.Events.Dtos.RamV2Draft()) };
                 db.EventRamAssessments.Add(ram); groupEvent.RamAssessment = ram;
             }
-            await EventRamGovernanceService.ArchiveLegacyAsync(db, ram, actorMemberId, cancellationToken);
             EventRamGovernanceService.Invalidate(ram);
             // Persist the coalesced job in the same transaction as the upstream change.
             RamSyncPolicy.Schedule(ram, now);
@@ -97,15 +96,11 @@ public sealed class EventPackageInvalidationService(
             var precise = candidates.Where(package => package.SourceReferences.Any(source =>
                 source.ModuleCode == affectedModuleCode && source.SubjectType == "moduleOccurrence" &&
                 source.SubjectId == affectedOccurrenceId.Value)).ToList();
-            // Packages created before occurrence-granular source references fail safe at Event scope.
-            var legacy = candidates.Where(package => IncludesModule(package.ManifestJson, affectedModuleCode) &&
-                !package.SourceReferences.Any(source => source.ModuleCode == affectedModuleCode &&
-                    source.SubjectType == "moduleOccurrence")).ToList();
             localBaselinePackages = precise.Where(package => package.ScopeType == EventPackageScopeType.Event &&
                 CoveredOccurrenceCount(package.CoveredOccurrenceIdsJson) > 1).ToList();
             packages = precise.Where(package => package.ScopeType == EventPackageScopeType.Occurrence ||
                     CoveredOccurrenceCount(package.CoveredOccurrenceIdsJson) <= 1)
-                .Concat(legacy).DistinctBy(package => package.Id).ToList();
+                .ToList();
         }
         else
         {
@@ -323,8 +318,6 @@ public sealed class EventPackageInvalidationService(
         if (cacheInvalidation is not null)
         {
             await cacheInvalidation.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
-            if (registrationPaused)
-                await cacheInvalidation.RemoveEventEnrollmentsAsync(groupEvent.Id, cancellationToken);
         }
 
         return new(packages.Count, publicationWithdrawn, registrationPaused,

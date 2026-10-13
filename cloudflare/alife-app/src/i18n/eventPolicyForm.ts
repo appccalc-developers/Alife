@@ -1,5 +1,9 @@
 // Fixed bilingual copy for components/events/EventPolicyForm.tsx.
 export const eventPolicyFormText = {
+    helpFor: { en: (label: string) => `About ${label}`, zh: (label: string) => `${label}说明` },
+    selectedTriggers: { en: (count: number) => `Trigger conditions · ${count} selected`, zh: (count: number) => `触发条件 · 已选 ${count} 项` },
+    fallbackConditions: { en: 'Fallback conditions', zh: '默认适用条件' } as const,
+    configurationNotes: { en: 'Configuration notes', zh: '设置说明' } as const,
     lightApproval: { en: 'Light approval', zh: '简易审批' } as const,
     standardApproval: { en: 'Standard approval', zh: '标准审批' } as const,
     enhancedApproval: { en: 'Enhanced approval', zh: '加强审批' } as const,

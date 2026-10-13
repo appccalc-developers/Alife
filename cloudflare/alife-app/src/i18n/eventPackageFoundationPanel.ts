@@ -50,7 +50,6 @@ export const eventPackageFoundationPanelText = {
     wholeEvent: { en: 'Whole event', zh: '整个活动' } as const,
     oneOccurrence: { en: 'One occurrence', zh: '单个场次' } as const,
     viewFullApprovalEvidenceAndGaps: { en: 'View full approval evidence and gaps', zh: '查看完整审批资料与缺项' } as const,
-    legacyTransition: { en: (value0: unknown) => `Legacy transition: ${value0}`, zh: (value0: unknown) => `旧活动过渡分类：${value0}` },
     whyThisPackageIsRequired: { en: 'Why this Package is required', zh: '为何需要此审批包' } as const,
     packageSections: { en: 'Package sections', zh: '审批包章节' } as const,
     ready: { en: 'Ready', zh: '就绪' } as const,

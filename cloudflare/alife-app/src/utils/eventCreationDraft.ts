@@ -2,8 +2,9 @@ import { eventCreationDraftText } from '../i18n/eventCreationDraft.ts'
 import { detailFields, isTimeZone, localTimeToUtc, type DetailField, type DetailSources } from '../../../shared/eventDetails.ts'
 import type { EventDto, EventVisibility, MultilingualString } from '../types/event'
 import type { EventActivityType, EventArchetype, EventFactInput, EventPlanComposeRequest, EventSeriesSetup, ModuleDecision } from '../types/eventComposition'
-import { createEmptyEventRamDraft } from './eventRam.ts'
 import { validStoredArrangements, type CreationArrangements } from './eventCreationArrangements.ts'
+import { applyTemplateProjects } from './eventProjectQuestionnaire.ts'
+import { emptyActivityPlan } from '../types/eventActivityPlan.ts'
 import { validStoredActivityPlan } from '../types/eventActivityPlan.ts'
 
 export type FactAnswer = 'unknown' | 'yes' | 'no'
@@ -24,7 +25,6 @@ export type CreationDraft = {
   archetypeCode: string
   activityTypeCode: string
   overrides: { visibility?: EventVisibility; registrationMode?: 'none' | 'required'; useRecommendedWorkflow?: boolean }
-  arrangementConfirmations?: Record<string, boolean>
   moduleConfirmations?: Record<string, boolean>
   moduleOverrides: Record<string, boolean>
   factValues: Record<string, FactAnswer>
@@ -49,7 +49,7 @@ export const initialCreationDraft = (): CreationDraft => {
     return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
   }
   return {
-    archetypeCode: '', activityTypeCode: '', overrides: {}, arrangementConfirmations: {}, moduleConfirmations: {}, moduleOverrides: {}, aiCandidateFacts: {},
+    archetypeCode: '', activityTypeCode: '', overrides: {}, moduleConfirmations: {}, moduleOverrides: {}, aiCandidateFacts: {},
     factValues: Object.fromEntries(creationFacts.map(([code]) => [code, 'unknown'])),
     title: { en: '', zh: '' }, description: { en: '', zh: '' }, locationName: { en: '', zh: '' },
     startLocal: local(10), endLocal: local(12), maxCapacity: '',
@@ -58,10 +58,13 @@ export const initialCreationDraft = (): CreationDraft => {
   }
 }
 
-export const selectCreationTemplate = (draft: CreationDraft, type: EventActivityType): CreationDraft => ({
-  ...draft, arrangementConfirmations: {}, moduleConfirmations: {}, archetypeCode: type.archetypeCode, activityTypeCode: type.code,
-  detailSources: { ...draft.detailSources, ...(draft.overrides.visibility === undefined ? { visibility: 'default' as const } : {}), ...(draft.overrides.registrationMode === undefined ? { registrationMode: 'default' as const } : {}) },
-})
+export const selectCreationTemplate = (draft: CreationDraft, type: EventActivityType): CreationDraft => {
+  const activityPlan = draft.activityPlan ?? emptyActivityPlan()
+  return {
+    ...draft, activityPlan: { ...activityPlan, activities: applyTemplateProjects(activityPlan.activities, type) }, moduleConfirmations: {}, archetypeCode: type.archetypeCode, activityTypeCode: type.code,
+    detailSources: { ...draft.detailSources, ...(draft.overrides.visibility === undefined ? { visibility: 'default' as const } : {}), ...(draft.overrides.registrationMode === undefined ? { registrationMode: 'default' as const } : {}) },
+  }
+}
 
 export const creationSettings = (draft: CreationDraft, type: EventActivityType | null) => ({
   visibility: draft.overrides.visibility ?? type?.defaults.visibility ?? 'groupVisible',
@@ -78,9 +81,10 @@ export const composeCreationDraft = (draft: CreationDraft, type: EventActivityTy
     return { code, value: null, certainty: 'unknown', source: 'human' }
   })
   return {
-    arrangementConfirmations: moduleConfirmationSummary(draft.moduleConfirmations),
     moduleConfirmations: Object.fromEntries(creationModuleCodes.map(code => [code, draft.moduleConfirmations?.[code] === true])),
-    schemaVersion: '1.1.0', archetypeCode: draft.archetypeCode, activityTypeCode: type.code,
+    schemaVersion: '2.0.0', activityPlan: draft.activityPlan ?? emptyActivityPlan(), archetypeCode: draft.archetypeCode, activityTypeCode: type.code,
+    activityTypeVersion: type.version,
+    removedPresetKeys: (type.presetProjects ?? []).filter(preset => !(draft.activityPlan?.activities ?? []).some(activity => activity.sourcePresetKey === preset.presetKey)).map(preset => preset.presetKey),
     useRecommendedWorkflow: false, basePlanVersion: null,
     facts: { items: [
       { code: 'visibility', value: settings.visibility, certainty: 'confirmed', source: 'human' },
@@ -103,7 +107,7 @@ export const creationDraftIssue = (draft: CreationDraft, type: EventActivityType
   try { start = Date.parse(localTimeToUtc(draft.startLocal, draft.timeZone)); timeField = 'endLocal'; end = Date.parse(localTimeToUtc(draft.endLocal, draft.timeZone)) }
   catch { return { field: timeField, message: zh ? eventCreationDraftText.checkTheEventTimeZoneAndDatesChooseA.zh : eventCreationDraftText.checkTheEventTimeZoneAndDatesChooseA.en } }
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return { field: 'endLocal', message: zh ? eventCreationDraftText.enterValidDatesWithTheEndAfterTheStart.zh : eventCreationDraftText.enterValidDatesWithTheEndAfterTheStart.en }
-  if (creationSettings(draft, type).registrationMode === 'required' && (!Number.isInteger(Number(draft.maxCapacity)) || Number(draft.maxCapacity) < 1)) return { field: 'maxCapacity', message: zh ? eventCreationDraftText.enterAWholeNumberCapacityGreaterThanZero.zh : eventCreationDraftText.enterAWholeNumberCapacityGreaterThanZero.en }
+  if (creationSettings(draft, type).registrationMode === 'required' && (!Number.isInteger(Number(draft.maxCapacity)) || Number(draft.maxCapacity) < 0 || Number(draft.maxCapacity) > 1000000)) return { field: 'maxCapacity', message: zh ? eventCreationDraftText.enterAWholeNumberCapacityGreaterThanZero.zh : eventCreationDraftText.enterAWholeNumberCapacityGreaterThanZero.en }
   if (archetype.isSeries) {
     if (!Number.isInteger(Number(draft.intervalWeeks ?? '1')) || Number(draft.intervalWeeks ?? '1') < 1 || Number(draft.intervalWeeks ?? '1') > 52) return { field: 'intervalWeeks', message: zh ? eventCreationDraftText.repeatIntervalMustBe152Weeks.zh : eventCreationDraftText.repeatIntervalMustBe152Weeks.en }
     try { new Intl.DateTimeFormat('en', { timeZone: draft.timeZone }).format() }
@@ -122,11 +126,11 @@ export const creationEvent = (draft: CreationDraft, type: EventActivityType, dis
     title: draft.title, description: draft.description, locationName: draft.locationName,
     startDate: startUtc, endDate: endUtc,
     timeZone: draft.timeZone,
-    visibility: settings.visibility,
+    visibility: settings.visibility, registrationMode: settings.registrationMode,
     registrationDeadline: new Date(Date.parse(startUtc) - (settings.registrationMode === 'required' ? 86_400_000 : 0)).toISOString(),
     maxCapacity: settings.registrationMode === 'required' ? Number(draft.maxCapacity) : 0,
-    capacityUnit: 'People', hardConstraints: [], optionalActivities: [], baseFeePerAdult: null, baseFeePerChild: null,
-    currency: 'NZD', posterImageUrl: null, galleryUrls: [], legacySummary: null, contactProfileIds: [], ram: createEmptyEventRamDraft(),
+    capacityUnit: 'People', hardConstraints: [], baseFeePerAdult: null, baseFeePerChild: null,
+    currency: 'NZD', posterImageUrl: null, galleryUrls: [], contactProfileIds: [],
   }
 }
 
@@ -138,13 +142,31 @@ export const creationSeries = (draft: CreationDraft, archetype: EventArchetype):
   exceptionDates: [], rollingOccurrenceWeeks: 12,
 } : null
 
-export const creationDraftKey = (memberId: string, groupId: string) => `alife:event-create:v2:${memberId}:${groupId}`
+export const creationDraftKey = (memberId: string, groupId: string) => `alife:event-create:v3:${memberId}:${groupId}`
+export const retiredCreationDraftKeys = (memberId: string, groupId: string) => [
+  `alife:event-create:v1:${memberId}:${groupId}`,
+  `alife:event-create:v2:${memberId}:${groupId}`,
+]
+
+const retiredCreationDraftPrefixes = ['alife:event-create:v1:', 'alife:event-create:v2:'] as const
+
+export const purgeRetiredCreationDrafts = (
+  storage: Pick<Storage, 'key' | 'length' | 'removeItem'>,
+) => {
+  const retiredKeys: string[] = []
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index)
+    if (key && retiredCreationDraftPrefixes.some(prefix => key.startsWith(prefix))) retiredKeys.push(key)
+  }
+  retiredKeys.forEach(key => storage.removeItem(key))
+  return retiredKeys.length
+}
 
 // Only this format is read. Validate the persisted boundary before hydrating controls.
 export const restoreCreationDraft = (raw: string, archetypes: EventArchetype[]): CreationDraft | null => {
   try {
     const value = JSON.parse(raw)
-    if (!value || ![2, 3].includes(value.version) || !value.draft) return null
+    if (!value || value.version !== 5 || !value.draft) return null
     const draft = value.draft as CreationDraft
     if (!['archetypeCode', 'activityTypeCode', 'startLocal', 'endLocal', 'maxCapacity', 'timeZone'].every(key => typeof (draft as unknown as Record<string, unknown>)[key] === 'string')) return null
     if (![draft.title, draft.description, draft.locationName].every(x => x && typeof x.en === 'string' && typeof x.zh === 'string')) return null
@@ -153,7 +175,6 @@ export const restoreCreationDraft = (raw: string, archetypes: EventArchetype[]):
     if (draft.activityTypeCode && !archetype?.activityTypes.some(x => x.code === draft.activityTypeCode)) return null
     if (!draft.overrides || !draft.moduleOverrides || !draft.factValues || !draft.aiCandidateFacts) return null
     if (draft.moduleConfirmations && !Object.entries(draft.moduleConfirmations).every(([key, value]) => creationModuleCodes.some(code => code === key) && typeof value === 'boolean')) return null
-    if (draft.arrangementConfirmations && !Object.entries(draft.arrangementConfirmations).every(([key, value]) => arrangementGroups.some(group => group.key === key) && typeof value === 'boolean')) return null
     if (draft.arrangements !== undefined && !validStoredArrangements(draft.arrangements)) return null
     if (draft.activityPlan !== undefined && !validStoredActivityPlan(draft.activityPlan)) return null
     if (draft.overrides.visibility !== undefined && !['groupVisible', 'churchVisible', 'public'].includes(draft.overrides.visibility)) return null
@@ -162,8 +183,8 @@ export const restoreCreationDraft = (raw: string, archetypes: EventArchetype[]):
     if (!Object.entries(draft.moduleOverrides).every(([key, x]) => creationModuleCodes.some(code => code === key) && key !== 'TEAM.WORK' && typeof x === 'boolean')) return null
     if (!creationFacts.every(([code]) => ['unknown', 'yes', 'no'].includes(draft.factValues[code]))) return null
     if (!Object.entries(draft.aiCandidateFacts).every(([key, x]) => creationFacts.some(([code]) => code === key) && typeof x === 'boolean')) return null
-    if (value.version === 3 && (typeof draft.intervalWeeks !== 'string' || !draft.detailSources || Object.entries(draft.detailSources).some(([key, source]) => !detailFields.includes(key as typeof detailFields[number]) || !['default', 'human', 'explicit', 'unresolved'].includes(source)))) return null
-    return value.version === 2 ? { ...draft, intervalWeeks: '1', detailSources: {} } : draft
+    if (typeof draft.intervalWeeks !== 'string' || !draft.detailSources || Object.entries(draft.detailSources).some(([key, source]) => !detailFields.includes(key as typeof detailFields[number]) || !['default', 'human', 'explicit', 'unresolved'].includes(source))) return null
+    return draft
   } catch { return null }
 }
 
@@ -189,15 +210,10 @@ export const createSubmissionGuard = () => {
   }
 }
 
-// Section review and tool selection are separate from factual evidence and approval.
-// Disabling a tool during preparation must not erase facts requiring it at submission.
-export const moduleConfirmationSummary = (values?: Record<string, boolean> | null) => Object.fromEntries(arrangementGroups.map(group => [group.key, group.modules.every(code => values?.[code] === true)]))
-
 export function invalidateArrangementConfirmation(draft: CreationDraft, moduleCode?: string): CreationDraft {
-  const groups = arrangementGroups.filter(group => !moduleCode || group.modules.some(code => code === moduleCode))
   const affected = moduleCode ? [moduleCode, ...(['PLACE.RESOURCE', 'MOVE.STAY', 'TEAM.WORK', 'PROGRAM.PRODUCTION', 'PEOPLE.REGISTRATION', 'SAFEGUARDING.CHILD'].includes(moduleCode) ? ['SAFETY.RAM'] : [])] : creationModuleCodes
   const values = { ...draft.moduleConfirmations, ...Object.fromEntries(affected.map(code => [code, false])) }
-  return { ...draft, moduleConfirmations: values, arrangementConfirmations: draft.moduleConfirmations ? moduleConfirmationSummary(values) : { ...draft.arrangementConfirmations, ...Object.fromEntries(groups.map(group => [group.key, false])) } }
+  return { ...draft, moduleConfirmations: values }
 }
 export function selectArrangementModule(draft: CreationDraft, moduleCode: string, selected: boolean): CreationDraft {
   const next = invalidateArrangementConfirmation(draft, moduleCode)
@@ -208,9 +224,5 @@ export function confirmArrangementModule(draft: CreationDraft, moduleCode: strin
   const decision = decisions.find(value => value.moduleCode === moduleCode)
   if (confirmed && decision && moduleCode !== 'TEAM.WORK') next = { ...next, moduleOverrides: { ...next.moduleOverrides, [moduleCode]: draft.moduleOverrides[moduleCode] ?? decision.status !== 'inactive' } }
   const values = { ...next.moduleConfirmations, [moduleCode]: confirmed }
-  return { ...next, moduleConfirmations: values, arrangementConfirmations: moduleConfirmationSummary(values) }
-}
-// Retained for callers editing legacy section metadata.
-export function confirmArrangementGroup(draft: CreationDraft, groupKey: string, confirmed: boolean, decisions: ModuleDecision[]): CreationDraft {
-  return arrangementGroups.find(group => group.key === groupKey)?.modules.reduce((next, code) => confirmArrangementModule(next, code, confirmed, decisions), draft) ?? draft
+  return { ...next, moduleConfirmations: values }
 }

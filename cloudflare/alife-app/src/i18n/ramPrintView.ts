@@ -7,7 +7,7 @@ export const ramPrintViewText = {
     currentVersion: { en: 'Current version', zh: '当前版本' } as const,
     historicalVersion: { en: 'Historical version', zh: '历史版本' } as const,
     policyMatrixVersion: { en: 'Policy / matrix version', zh: '政策／矩阵版本' } as const,
-    legacyUnspecified: { en: 'Legacy / unspecified', zh: '旧版／未指定' } as const,
+    unspecified: { en: 'Unspecified', zh: '未指定' } as const,
     participants: { en: 'Participants', zh: '参与人数' } as const,
     onSiteMemberAccount: { en: 'On-site member account', zh: '现场负责人账号' } as const,
     consequence: { en: 'Consequence', zh: '后果' } as const,

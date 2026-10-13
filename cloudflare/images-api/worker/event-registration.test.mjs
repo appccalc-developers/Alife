@@ -38,3 +38,24 @@ test('public aliases, listings, image writes and generic deletion cannot bypass 
     for (const method of ['DELETE', 'POST']) assert.equal((await f.dispatch(`/api/images/${path}`, { method })).status, 404);
   }
 });
+
+test('production registration writes fail closed unless Event 2.0 is open, and expose the freeze contract', async () => {
+  const f = fixture(), route = `/api/admin/event-registration/${key}`;
+  const headers = { 'content-type': 'application/pdf', 'x-alife-file-admin-secret': 'test-admin' };
+  Object.assign(f.env, { EVENT_RUNTIME_ENVIRONMENT: 'PRODUCTION', EVENT_WRITE_MODE: 'open' });
+  let response = await f.dispatch(route, { method: 'PUT', headers, body: '%PDF-test' });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get('x-alife-event-schema-epoch'), '2.0.0');
+  assert.equal((await response.json()).code, 'event.reset.configuration');
+
+  Object.assign(f.env, { EVENT_SCHEMA_EPOCH: '2.0.0', EVENT_WRITE_MODE: 'frozen', EVENT_WRITE_FREEZE_EPOCH: 'freeze-1' });
+  response = await f.dispatch(route, { method: 'PUT', headers, body: '%PDF-test' });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get('retry-after'), '60');
+  assert.equal(response.headers.get('x-alife-event-reset-epoch'), 'freeze-1');
+  assert.equal(response.headers.get('x-alife-event-schema-epoch'), '2.0.0');
+  assert.equal((await response.json()).code, 'event.reset.frozen');
+
+  Object.assign(f.env, { EVENT_WRITE_MODE: 'open', EVENT_WRITE_FREEZE_EPOCH: '' });
+  assert.equal((await f.dispatch(route, { method: 'PUT', headers, body: '%PDF-test' })).status, 204);
+});

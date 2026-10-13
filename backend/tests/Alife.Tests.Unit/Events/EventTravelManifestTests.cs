@@ -96,6 +96,31 @@ public sealed class EventTravelManifestTests
         var passenger = AddApprovedMember(db, seeded.Group.Id, "Passenger");
         AddCompleteJourney(db, seeded, passenger.Id);
         db.EventRoleAssignments.Add(Role(seeded.Event.Id, seeded.Owner, seeded.Owner));
+        var reportId = Guid.NewGuid();
+        var revisionId = Guid.NewGuid();
+        db.EventModuleReports.Add(new EventModuleReport
+        {
+            Id = reportId,
+            EventId = seeded.Event.Id,
+            ModuleCode = "MOVE.STAY",
+            Status = "adopted",
+            Revision = 1,
+            SubmittedRevisionId = revisionId,
+            AdoptedRevisionId = revisionId,
+            UpdatedByMemberId = seeded.Owner,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        db.EventModuleReportRevisions.Add(new EventModuleReportRevision
+        {
+            Id = revisionId,
+            ReportId = reportId,
+            Version = 1,
+            TextEn = "Travel arrangements complete",
+            TextZh = "交通安排已完成",
+            AuthorMemberId = seeded.Owner,
+            EventPlanVersion = 1,
+            SubmittedUtc = DateTime.UtcNow
+        });
         await db.SaveChangesAsync();
         var service = new EventTravelService(db, Authorization(seeded.Owner));
 
@@ -245,9 +270,16 @@ public sealed class EventTravelManifestTests
 
     private static void SeedMovePlan(AlifeDbContext db, GroupEvent groupEvent)
     {
-        var facts = new[] { Fact("move.transportRequired", true), Fact("move.accommodationRequired", false) };
-        var plan = new EventCompositionEngine().Compose(new(EventCompositionDefinitions.LegacySchemaVersion, null,
-            new(facts), []), new EventCompositionContext("\"baseline\"", HasAccountableOwner: true)).Value!;
+        var facts = new[]
+        {
+            Fact("move.transportRequired", true),
+            Fact("move.accommodationRequired", false),
+            Fact("safety.requiresRam", false),
+            Fact("comms.followupRequired", false),
+            Fact("scale.multiZone", false)
+        };
+        var plan = new EventCompositionEngine().Compose(EventCompositionTestData.CurrentRequest(facts: facts),
+            new EventCompositionContext("\"baseline\"", HasAccountableOwner: true)).Value!;
         groupEvent.ActivePlanVersion = 1;
         db.EventPlanSnapshots.Add(new EventPlanSnapshot { Id = Guid.NewGuid(), EventId = groupEvent.Id, Version = 1,
             SourceFactSetId = Guid.NewGuid(), SchemaVersion = plan.SchemaVersion, ProposalHash = plan.ProposalHash,

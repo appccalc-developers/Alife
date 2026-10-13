@@ -254,6 +254,7 @@
 | [EVENT-AUTHORIZATION-REVIEW-2026-09-22.md](../../archive/pending-docs-review/2026-10-10/docs/events/EVENT-AUTHORIZATION-REVIEW-2026-09-22.md) | 否 | 否 | 待确认历史 | 旧实施记录、权限审计、执行方案或某次验证报告；当前业务规则/缺口由 Event 核心、主题、机器契约和状态维护。历史证据仍可按明确链接查阅。 |
 | [EVENT-COMPOSITION.md](../events/EVENT-COMPOSITION.md) | 是 | 是 | 保留 | 现行架构、领域契约、状态、运维或设计入口；Alife 继续交付与功能等价的新 Church App 均需要。 |
 | [event-contract.json](../events/event-contract.json) | 是 | 是 | 保留 | 现行架构、领域契约、状态、运维或设计入口；Alife 继续交付与功能等价的新 Church App 均需要。 |
+| [EVENT-2-RESET.md](../events/EVENT-2-RESET.md) | 是 | 否 | 保留 | Alife 上线前一次性 Event 2.0 重置、恢复和生产门禁契约；新 Church App 不继承此实例清理授权。 |
 | [EVENT-CONTRACT.md](../events/EVENT-CONTRACT.md) | 是 | 是 | 保留 | 现行架构、领域契约、状态、运维或设计入口；Alife 继续交付与功能等价的新 Church App 均需要。 |
 | [EVENT-DUTIES.md](../events/EVENT-DUTIES.md) | 是 | 是 | 保留 | 现行架构、领域契约、状态、运维或设计入口；Alife 继续交付与功能等价的新 Church App 均需要。 |
 | [EVENT-PACKAGE-APPROVAL-EXECUTION-GOAL.zh-CN.md](../../archive/pending-docs-review/2026-10-10/docs/events/EVENT-PACKAGE-APPROVAL-EXECUTION-GOAL.zh-CN.md) | 否 | 否 | 待确认历史 | 旧实施记录、权限审计、执行方案或某次验证报告；当前业务规则/缺口由 Event 核心、主题、机器契约和状态维护。历史证据仍可按明确链接查阅。 |

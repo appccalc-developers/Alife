@@ -4,18 +4,26 @@ using Alife.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Configuration;
 
 namespace Alife.Infrastructure.ReadServices;
 
 public sealed class EventReadService(
     AlifeDbContext dbContext,
     HybridCache hybridCache,
-    IHttpContextAccessor? httpContextAccessor = null) : IEventReadService
+    IHttpContextAccessor? httpContextAccessor = null,
+    IConfiguration? configuration = null) : IEventReadService
 {
+    private readonly string? eventDataEpoch = configuration?["EVENT_DATA_EPOCH"];
+    private readonly bool requireEventDataEpoch = string.Equals(
+        configuration?["EVENT_RUNTIME_ENVIRONMENT"]?.Trim(),
+        "production",
+        StringComparison.OrdinalIgnoreCase);
+
     public async Task<IReadOnlyList<GroupEventSummaryDto>> GetGroupEventsAsync(Guid groupId, CancellationToken cancellationToken)
     {
         var cached = await GetOrCreateAsync(
-            EventCacheKeys.GroupEvents(groupId),
+            EventCacheKeys.GroupEvents(groupId, eventDataEpoch, requireEventDataEpoch),
             async token =>
             {
                 var events = await dbContext.GroupEvents
@@ -90,7 +98,7 @@ public sealed class EventReadService(
         CancellationToken cancellationToken)
     {
         var events = await GetOrCreateAsync(
-            EventCacheKeys.PublicUpcomingEvents(),
+            EventCacheKeys.PublicUpcomingEvents(eventDataEpoch, requireEventDataEpoch),
             async token =>
             {
                 var candidates = await dbContext.GroupEvents
@@ -111,8 +119,8 @@ public sealed class EventReadService(
                         Alife.Application.Events.Services.EventVisibilityPolicy.Public)
                     .Where(e => e.GovernanceMode != Alife.Domain.Enums.EventGovernanceMode.ChurchSponsored ||
                         e.SponsorshipStatus == Alife.Domain.Enums.EventSponsorshipStatus.Approved)
-                    .Where(e => e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.LegacyImplicit ||
-                        e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.Published && PublicationGateSatisfied(e, DateTime.UtcNow))
+                    .Where(e => e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.Published &&
+                        PublicationGateSatisfied(e, DateTime.UtcNow))
                     .Take(50)
                     .Select(e => new PublicEventSummaryDto(
                         e.Id,
@@ -143,8 +151,7 @@ public sealed class EventReadService(
                 PublicRamSatisfied(e) &&
                 (e.GovernanceMode != Alife.Domain.Enums.EventGovernanceMode.ChurchSponsored ||
                  e.SponsorshipStatus == Alife.Domain.Enums.EventSponsorshipStatus.Approved) &&
-                (e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.LegacyImplicit ||
-                 e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.Published && PublicationGateSatisfied(e, now)))
+                e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.Published && PublicationGateSatisfied(e, now))
             .Select(e => e.Id).ToHashSet();
         return events.Where(x => currentlyPublic.Contains(x.Id))
             .Take(Math.Clamp(limit, 1, 50)).ToList();
@@ -152,18 +159,13 @@ public sealed class EventReadService(
 
     private static bool PublicationGateSatisfied(Alife.Domain.Entities.GroupEvent groupEvent, DateTime now)
     {
-        if (groupEvent.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.LegacyImplicit) return true;
         if (groupEvent.PublicationStatus != Alife.Domain.Enums.EventPublicationStatus.Published) return false;
         return EventPackageGateEvaluator.Evaluate(Alife.Domain.Enums.EventLifecycleGate.Publish,
             groupEvent.PublicationGateMode, groupEvent.PublishedPackage, now).Allowed;
     }
 
     private static bool PublicRamSatisfied(Alife.Domain.Entities.GroupEvent e) =>
-        // Preserve legacy implicit-publication qualification. Explicit publication follows
-        // the current accepted Plan and still passes its independent Package gate.
-        e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.LegacyImplicit
-            ? e.RamAssessment?.Status == Alife.Domain.Enums.EventRamStatus.Approved
-            : EventLifecyclePolicy.HasRequiredRamApproval(e);
+        EventLifecyclePolicy.HasRequiredRamApproval(e);
 
     private async Task<T> GetOrCreateAsync<T>(
         string cacheKey,

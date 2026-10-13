@@ -15,12 +15,12 @@ public class EventRamAssessment
     public string AiRiskDraftJson { get; set; } = "[]";
     public Guid? SyncReviewedByMemberId { get; set; }
     public DateTime? SyncReviewedAt { get; set; }
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = 2;
     public Guid ConcurrencyToken { get; set; } = Guid.NewGuid();
     public Guid? PolicyVersionId { get; set; }
     public Guid? CurrentRevisionId { get; set; }
     public Guid? AuthorMemberId { get; set; }
-    public string Validity { get; set; } = "Legacy";
+    public string Validity { get; set; } = "Draft";
     public string ResidualLevel { get; set; } = "Incomplete";
     public bool ReviewRequested { get; set; }
     public Guid EventId { get; set; }

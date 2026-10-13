@@ -14,7 +14,7 @@ Pending provenance work: locate the original source or historical attachment, id
 
 ## Implementation orientation
 
-Use the [reading matrix](AGENTS.md). Composition proposes; explicit human acceptance creates the immutable Plan; organizational approval and explicit publication remain distinct. Role assignments, policy evidence and module permissions are independently authoritative. Current stages are preparation, registration, execution and followup; preparation is nonlinear. Legacy generic workflow fields may remain readable but are not a new orchestration engine.
+Use the [reading matrix](AGENTS.md). Composition proposes; explicit human acceptance creates the immutable Plan; organizational approval and explicit publication remain distinct. Role assignments, policy evidence and module permissions are independently authoritative. Current stages are preparation, registration, execution and followup; preparation is nonlinear. Generic workflow instance fields, runs, steps and artifacts are absent in Event 2.0; preserved workflow templates remain definitions and do not become an orchestration engine.
 
 The engineering orchestration is the requirement-to-evidence loop in [common design](../design/README.md); product Event orchestration follows its own contracts. Keep those meanings separate.
 

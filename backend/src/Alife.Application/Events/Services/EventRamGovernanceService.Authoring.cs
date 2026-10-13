@@ -5,7 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Events.Services;
 
-public sealed record RamAuthoringContext(RamPolicyDto? Policy, string SourceVersion, RamText Title);
+public sealed record RamAuthoringContext(RamPolicyDto? Policy, string SourceVersion, RamText Title,
+    string[]? ActivityTypes = null, IReadOnlyList<EventProjectQuestionDefinitionDto>? QuestionDefinitions = null);
 public sealed record RamDraftCheckRequest(Guid? EventId, Guid? GroupId, string RamDataJson, Guid? PolicyVersionId = null);
 public sealed record RamDraftIssue(string Field, RamText Message);
 public sealed record RamDraftCheck(RamV2Draft Draft, string ResidualLevel, IReadOnlyList<RamDraftIssue> Issues, RamPolicyDto? Policy);
@@ -38,7 +39,9 @@ public sealed partial class EventRamGovernanceService
         var query = db.EventRamPolicyVersions.AsNoTracking().Where(x => x.ChurchId == church && x.IsPublished);
         var policy = policyId.HasValue ? await query.FirstOrDefaultAsync(x => x.Id == policyId, ct)
             : await query.OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);
-        return AppResult<RamAuthoringContext>.Success(new(policy is null ? null : PolicyDto(policy), source, title));
+        return AppResult<RamAuthoringContext>.Success(new(policy is null ? null : PolicyDto(policy),
+            $"{source}:{policy?.ConcurrencyToken.ToString() ?? "none"}", title,
+            RamPolicyDefaults.ActivityTypes, EventProjectQuestionCatalog.Definitions));
     }
 
     public async Task<AppResult<RamDraftCheck>> CheckDraftAsync(RamDraftCheckRequest request, Guid actor, CancellationToken ct)

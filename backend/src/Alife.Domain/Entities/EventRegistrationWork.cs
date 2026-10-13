@@ -20,7 +20,6 @@ public sealed class EventRegistrationApplication
     public Guid CreatedByMemberId { get; set; }
     public string ManualOrganiserName { get; set; } = string.Empty;
     public string ProxyAuthorityEvidence { get; set; } = string.Empty;
-    public Guid? LegacyEnrollmentId { get; set; }
     public bool AllowSplit { get; set; }
     public bool IsInvitation { get; set; }
     public string InvitationMode { get; set; } = "byDeadline";
@@ -54,7 +53,6 @@ public sealed class EventRegistrationParticipant
     public string AnswersJson { get; set; } = "{}";
     public long PaidMinor { get; set; }
     public long RefundedMinor { get; set; }
-    public bool IsLegacy { get; set; }
     public EventRegistrationApplication Application { get; set; } = null!;
 }
 public sealed class EventRegistrationAction

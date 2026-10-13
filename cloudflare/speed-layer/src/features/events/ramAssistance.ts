@@ -1,17 +1,18 @@
+import { validActivityAttributes, validActivityScope } from '../../../../shared/activityAttributes'
 import type { Env } from '../../index'
 import { readBounded } from './ramGuidance'
 
 const fields = ['hazard', 'consequence', 'controlMeasures', 'additionalAction'] as const
 type RiskField = typeof fields[number]
-type AssistanceInput = { eventId?: string; groupId?: string; language: 'en' | 'zh'; mode: 'draft' | 'rewrite'; activityType: string; category: string; brief: string; selectedText: Partial<Record<RiskField, string>>; sourceVersion: string }
+type AssistanceInput = { eventId?: string; groupId?: string; language: 'en' | 'zh'; mode: 'draft' | 'rewrite'; activityType: string; attributes: string[]; category: string; brief: string; selectedText: Partial<Record<RiskField, string>>; sourceVersion: string }
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 // Supplement the human-reviewed sending preview; never claim this detects all personal information.
 export const containsRestrictedRamText = (v: string) => /[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\+?\d[\s()-]*){8,}|medical record|patient name|身份证|病历|患者姓名/i.test(v)
 export function ramAssistanceInput(value: unknown): AssistanceInput | null {
-  if (!object(value) || Object.keys(value).some(k => !['eventId', 'groupId', 'language', 'mode', 'activityType', 'category', 'brief', 'selectedText', 'sourceVersion'].includes(k))) return null
+  if (!object(value) || Object.keys(value).some(k => !['eventId', 'groupId', 'language', 'mode', 'activityType', 'attributes', 'category', 'brief', 'selectedText', 'sourceVersion'].includes(k))) return null
   if (!!value.eventId === !!value.groupId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value.eventId || value.groupId))) return null
   if (!['en', 'zh'].includes(String(value.language)) || !['draft', 'rewrite'].includes(String(value.mode)) ||
-      !['generic', 'hiking', 'water', 'sport', 'transport', 'camp', 'meal', 'outdoor', 'other'].includes(String(value.activityType)) ||
+      !validActivityScope(value.activityType) || !validActivityAttributes(value.attributes) || value.activityType !== 'generic' && !value.attributes.includes(value.activityType) ||
       !['environment', 'activity', 'participants', 'transport', 'emergency'].includes(String(value.category))) return null
   if (typeof value.brief !== 'string' || !value.brief.trim() || value.brief.length > 3000 ||
       typeof value.sourceVersion !== 'string' || value.sourceVersion.length > 150 || !object(value.selectedText)) return null
@@ -42,7 +43,7 @@ export async function handleRamAssistance(request: Request, env: Env): Promise<R
     const path = `/api/events/ram-authoring/access?${input.eventId ? `eventId=${input.eventId}` : `groupId=${input.groupId}`}`
     const access = await fetch(new URL(path, env.API_PROXY_TARGET).toString(), { headers, redirect: 'error', signal: AbortSignal.timeout(10000) })
     if (!access.ok) { await access.body?.cancel(); return reply({ message: 'Current RAM editing or Event creation permission is required. / 需要当前 RAM 编辑或活动创建权限。' }, [401, 403, 404, 409].includes(access.status) ? access.status : 503) }
-    const context = JSON.parse(await readBounded(access.body, 2000)) as { sourceVersion?: string }
+    const context = JSON.parse(await readBounded(access.body, 20000)) as { sourceVersion?: string }
     if (context.sourceVersion !== input.sourceVersion) return reply({ message: 'The Event changed. Refresh the sending preview. / 活动已改变，请刷新发送预览。' }, 412)
     if (!env.GEMINI_API_KEY) return reply({ message: 'AI is unavailable. Continue editing manually. / AI 暂不可用，可继续人工编辑。' }, 503)
     const { eventId: _eventId, groupId: _groupId, sourceVersion: _version, ...preview } = input

@@ -1678,6 +1678,25 @@
       "originalSha256": null
     },
     {
+      "originalPath": "docs/events/EVENT-2-RESET.md",
+      "currentPath": "docs/events/EVENT-2-RESET.md",
+      "action": "retain",
+      "role": "current-operational-contract",
+      "alife": true,
+      "churchApp": false,
+      "reason": "Alife 上线前一次性 Event 2.0 重置、恢复和生产门禁契约；不向新 Church App 转授实例清理权限。",
+      "inspection": "用户授权范围、Event 数据边界、恢复和人工门禁核对",
+      "versionControl": "tracked",
+      "incomingReferences": [
+        "AGENTS.md",
+        "docs/events/EVENT-CONTRACT.md",
+        "docs/events/IMPLEMENTATION-STATUS.md",
+        "docs/events/event-contract.json",
+        "docs/governance/work-register.json"
+      ],
+      "originalSha256": null
+    },
+    {
       "originalPath": "docs/events/EVENT-CONTRACT.md",
       "currentPath": "docs/events/EVENT-CONTRACT.md",
       "action": "retain",

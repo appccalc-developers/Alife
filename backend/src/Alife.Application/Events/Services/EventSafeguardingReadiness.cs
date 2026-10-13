@@ -54,7 +54,7 @@ public static class EventSafeguardingReadiness
             if (activeChildren.Length == 0)
             {
                 guardianshipComplete = false;
-                blockers.Add(new("No child safeguarding registrations are linked to event enrollments.", "尚無兒童保護登記連結至活動報名。"));
+                blockers.Add(new("No child safeguarding registrations are linked to event participants.", "尚無兒童保護登記連結至活動參與者。"));
             }
             foreach (var child in activeChildren)
             {

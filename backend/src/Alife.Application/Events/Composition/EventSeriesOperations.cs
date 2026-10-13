@@ -371,6 +371,6 @@ public sealed class ListEventSeriesOccurrencesQueryHandler(
         }
         var occurrences = await query.OrderBy(x => x.StartUtc).ToListAsync(cancellationToken);
         return AppResult<IReadOnlyList<EventOccurrenceDto>>.Success(occurrences.Select(x => new EventOccurrenceDto(
-            x.Id, x.EventId, x.StartUtc, x.EndUtc, x.LocalDate, x.Status, x.IsLegacyBackfill)).ToArray());
+            x.Id, x.EventId, x.StartUtc, x.EndUtc, x.LocalDate, x.Status)).ToArray());
     }
 }

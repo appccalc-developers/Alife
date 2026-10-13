@@ -13,15 +13,14 @@ public class GroupEvent
 	public EventGovernanceMode GovernanceMode { get; set; } = EventGovernanceMode.MemberLed;
 	public EventSponsorshipStatus SponsorshipStatus { get; set; } = EventSponsorshipStatus.NotRequested;
 	public int? ActivePlanVersion { get; set; }
-	public int CollaborationVersion { get; set; }
 	public Guid PlanConcurrencyToken { get; set; } = Guid.NewGuid();
-	public EventPublicationStatus PublicationStatus { get; set; } = EventPublicationStatus.LegacyImplicit;
+	public EventPublicationStatus PublicationStatus { get; set; } = EventPublicationStatus.Draft;
 	public Guid? PublishedPackageId { get; set; }
 	public Guid? PublishedByMemberId { get; set; }
 	public DateTime? PublishedUtc { get; set; }
 	public EventPackageEnforcementMode PublicationGateMode { get; set; } = EventPackageEnforcementMode.Off;
 	public Guid PublicationConcurrencyToken { get; set; } = Guid.NewGuid();
-	public EventRegistrationStatus RegistrationStatus { get; set; } = EventRegistrationStatus.LegacyImplicit;
+	public EventRegistrationStatus RegistrationStatus { get; set; } = EventRegistrationStatus.Closed;
 	public Guid? RegistrationPackageId { get; set; }
 	public Guid? RegistrationOpenedByMemberId { get; set; }
 	public DateTime? RegistrationOpenedUtc { get; set; }
@@ -61,8 +60,6 @@ public class GroupEvent
 	public ICollection<GroupEvent> ChildEvents { get; set; } = [];
 	public ICollection<EventContactProfile> ContactProfiles { get; set; } = [];
 	public EventRamAssessment? RamAssessment { get; set; }
-	public EventWorkflowRun? WorkflowRun { get; set; }
-	public ICollection<EventArtifact> Artifacts { get; set; } = [];
 	public ICollection<EventOccurrence> Occurrences { get; set; } = [];
 	public ICollection<EventFactSet> FactSets { get; set; } = [];
 	public ICollection<EventPlanSnapshot> PlanSnapshots { get; set; } = [];

@@ -1,9 +1,13 @@
 import { eventCreationWizardText } from '../i18n/eventCreationWizard.ts'
+import { eventProjectQuestionnaireText as projectCopy } from '../i18n/eventProjectQuestionnaire'
+import { projectNeedsConfirmation } from '../utils/eventProjectQuestionnaire'
+import type { EventProjectQuestionDefinition } from '../types/eventProjectQuestionnaire'
+import { ramService } from '../services/ramGovernanceService'
 import { emptyActivityPlan } from '../types/eventActivityPlan'
 import EventFlowRail from '../components/events/EventFlowRail'
 import { setupPath } from '../utils/eventSetupFlow'
 import RamDraftEditor from '../components/events/RamDraftEditor'
-import { upgradeRam, type RamDraft } from '../types/ramGovernance'
+import { parseRamDraft, type RamDraft } from '../types/ramGovernance'
 import { setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 import type { DetailsFocusRequest } from '../components/events/creation/DetailsWorkspace'
 import EventDetailsAssistant from '../components/events/creation/EventDetailsAssistant'
@@ -31,6 +35,8 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>(1)
   const stepRegion = useRef<HTMLFieldSetElement>(null)
+  const [questionDefinitions,setQuestionDefinitions]=useState<EventProjectQuestionDefinition[]>()
+  useEffect(()=>{let live=true;void ramService.authoringContext({groupId}).then(context=>{if(live)setQuestionDefinitions(context.questionDefinitions)}).catch(()=>{});return()=>{live=false}},[groupId,memberId])
   const [archetypes, setArchetypes] = useState<EventArchetype[]>([])
   const [catalogue, setCatalogue] = useState<'loading' | 'ready' | 'error'>('loading')
   const [catalogueError, setCatalogueError] = useState('')
@@ -40,7 +46,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
   useEffect(() => { stepRegion.current?.focus() }, [step, hydrated])
   const type = useMemo(() => resolveActivityType(archetypes, draft.archetypeCode, draft.activityTypeCode), [archetypes, draft.archetypeCode, draft.activityTypeCode])
   const archetype = archetypes.find(item => item.code === draft.archetypeCode) ?? null
-  const [ramDraft, setRamDraft] = useState<RamDraft>(() => upgradeRam(undefined)), [ramTouched, setRamTouched] = useState(false)
+  const [ramDraft, setRamDraft] = useState<RamDraft>(() => parseRamDraft(undefined)), [ramTouched, setRamTouched] = useState(false)
   useEffect(() => { setUnsavedChangesGuard(ramTouched, zh ? eventCreationWizardText.theRamDraftHasNotBeenSavedWithThe.zh : eventCreationWizardText.theRamDraftHasNotBeenSavedWithThe.en, 'confirm'); return () => setUnsavedChangesGuard(false) }, [ramTouched, zh])
   const composition = type ? composeCreationDraft(draft, type) : null
   const compositionSignature = JSON.stringify(composition)
@@ -87,7 +93,8 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
       }).catch(reason => {
         if (!sequence.current.isCurrent(id) || latest.current.compositionSignature !== compositionSignature) return
         setPreviewState('error')
-        setPreviewError(normalizeApiError(reason).message)
+        const failure = normalizeApiError(reason)
+        setPreviewError(failure.status === 412 ? (zh ? eventCreationWizardText.templateVersionChangedReload.zh : eventCreationWizardText.templateVersionChangedReload.en) : failure.message)
       })
     }, 400)
     return () => { clearTimeout(timer); sequence.current.invalidate() }
@@ -111,12 +118,13 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
       if (!sequence.current.isCurrent(id) || latest.current.creationSignature !== signature) return
       setPreview({ proposal, signature: compositionSignature })
       setPreviewState('ready')
-      const arrangementIssue = validateCreationArrangements(draft, type, proposal, zh)
+      if (draft.activityPlan?.activities.some(activity => projectNeedsConfirmation(activity,questionDefinitions ?? []))) { setError(zh ? projectCopy.confirmBeforeCreate.zh : projectCopy.confirmBeforeCreate.en); setStep(3); return }
+    const arrangementIssue = validateCreationArrangements(draft, type, proposal, zh)
       if (arrangementIssue) { setError(arrangementIssue); return }
       setReviewSignature(signature)
       setStep(4)
     } catch (reason) {
-      if (sequence.current.isCurrent(id)) { setPreviewState('error'); setPreviewError(normalizeApiError(reason).message) }
+      if (sequence.current.isCurrent(id)) { const failure = normalizeApiError(reason); setPreviewState('error'); setPreviewError(failure.status === 412 ? (zh ? eventCreationWizardText.templateVersionChangedReload.zh : eventCreationWizardText.templateVersionChangedReload.en) : failure.message) }
     } finally { actionLock.current = false; setBusy(false) }
   }
 
@@ -127,6 +135,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     }
     const issue = creationDraftIssue(draft, type, archetype, zh)
     if (issue) { setError(issue.message); setDetailsFocusRequest(previous => ({ field: issue.field, version: (previous?.version ?? 0) + 1 })); setStep(3); return }
+    if (draft.activityPlan?.activities.some(activity => projectNeedsConfirmation(activity,questionDefinitions ?? []))) { setError(zh ? projectCopy.confirmBeforeCreate.zh : projectCopy.confirmBeforeCreate.en);setStep(3);return }
     const arrangementIssue = validateCreationArrangements(draft, type, preview.proposal, zh)
     if (arrangementIssue) { setError(arrangementIssue); setStep(3); return }
     const idempotencyKey = submission.current.begin(JSON.stringify([creationSignature, preview.proposal.proposalHash]))
@@ -150,7 +159,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
       const failure = normalizeApiError(reason)
       if (failure.status === 412 || failure.status === 409) {
         setReviewSignature(''); setPreviewState('idle'); setStep(3)
-        setError(zh ? eventCreationWizardText.thePlanOrAVenueBookingHasAConflict.zh : eventCreationWizardText.thePlanOrAVenueBookingHasAConflict.en)
+        setError(failure.status === 412 ? (zh ? eventCreationWizardText.templateVersionChangedReload.zh : eventCreationWizardText.templateVersionChangedReload.en) : (zh ? eventCreationWizardText.thePlanOrAVenueBookingHasAConflict.zh : eventCreationWizardText.thePlanOrAVenueBookingHasAConflict.en))
       } else setError(failure.message)
     } finally { actionLock.current = false; setBusy(false) }
   }
@@ -168,7 +177,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     {catalogue === 'ready' && hydrated ? <>
       <fieldset ref={stepRegion} tabIndex={-1} aria-label={labels[step - 1]} disabled={busy} className="min-w-0 scroll-mt-24 space-y-4 outline-none" aria-busy={busy}>
         {step === 1 ? <TemplateStep draft={draft} setDraft={setDraft} zh={zh} archetypes={archetypes} type={type} /> : null}
-        {type && archetype ? <div hidden={step !== 3}><ArrangementsStep detailsFocusRequest={detailsFocusRequest} detailsPanel={active => <DetailsWorkspace focusRequest={detailsFocusRequest} zh={zh} active={active && step === 3} form={<DetailsStep groupId={groupId} draft={draft} setDraft={setDraft} zh={zh} type={type} archetype={archetype} ai={null} />} assistant={visible => <EventDetailsAssistant draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} zh={zh} active={visible} onBusy={setAiBusy} />} />} ownerPanel={<p className="mt-1">{me?.displayName || (zh ? eventCreationWizardText.currentUser.zh : eventCreationWizardText.currentUser.en)}</p>} ramDirty={ramTouched} draft={draft} setDraft={setDraft} zh={zh} type={type} groupId={groupId} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} ramPanel={<div className="space-y-4"><p className="rounded-xl bg-[#e3f0eb] p-3 text-sm">{zh ? eventCreationWizardText.fillInRisksHereTheyAreSavedWithThe.zh : eventCreationWizardText.fillInRisksHereTheyAreSavedWithThe.en}</p><RamDraftEditor groupId={groupId} conditionsKey={JSON.stringify(draft)} onBusy={setAiBusy} draft={{...ramDraft,...(draft.activityPlan || emptyActivityPlan())}} update={change => { setRamDraft(value => ({ ...value, ...change })); setRamTouched(true); setDraft(previous => invalidateArrangementConfirmation(previous, 'SAFETY.RAM')) }} editable={!busy} dirty zh={zh} /></div>} /></div> : null}
+        {type && archetype ? <div hidden={step !== 3}><ArrangementsStep questionDefinitions={questionDefinitions} detailsFocusRequest={detailsFocusRequest} detailsPanel={active => <DetailsWorkspace focusRequest={detailsFocusRequest} zh={zh} active={active && step === 3} form={<DetailsStep groupId={groupId} draft={draft} setDraft={setDraft} zh={zh} type={type} archetype={archetype} ai={null} />} assistant={visible => <EventDetailsAssistant draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} zh={zh} active={visible} onBusy={setAiBusy} />} />} ownerPanel={<p className="mt-1">{me?.displayName || (zh ? eventCreationWizardText.currentUser.zh : eventCreationWizardText.currentUser.en)}</p>} ramDirty={ramTouched} draft={draft} setDraft={setDraft} zh={zh} type={type} groupId={groupId} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} ramPanel={<div className="space-y-4"><p className="rounded-xl bg-[#e3f0eb] p-3 text-sm">{zh ? eventCreationWizardText.fillInRisksHereTheyAreSavedWithThe.zh : eventCreationWizardText.fillInRisksHereTheyAreSavedWithThe.en}</p><RamDraftEditor groupId={groupId} conditionsKey={JSON.stringify(draft)} onBusy={setAiBusy} draft={{...ramDraft,...(draft.activityPlan || emptyActivityPlan())}} update={change => { setRamDraft(value => ({ ...value, ...change })); setRamTouched(true); setDraft(previous => invalidateArrangementConfirmation(previous, 'SAFETY.RAM')) }} editable={!busy} dirty zh={zh} /></div>} /></div> : null}
         {step === 4 && type && archetype && preview ? <ReviewStep draft={draft} zh={zh} type={type} archetype={archetype} proposal={preview.proposal} /> : null}
       </fieldset>
       {step === 1 ? <AppActionButton variant="primary" disabled={busy || aiBusy} onClick={() => void next()}>{zh ? eventCreationWizardText.startArranging.zh : eventCreationWizardText.startArranging.en}</AppActionButton> : null}

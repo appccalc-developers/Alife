@@ -41,7 +41,7 @@ export const ramDraftEditorText = {
     theSourceOrEventConditionsChangedGenerateNewSuggestions: { en: 'The source or Event conditions changed. Generate new suggestions.', zh: '原文或活动条件已改变，请重新生成。' } as const,
     adoptThisSuggestionIntoDraft: { en: 'Adopt this suggestion into draft', zh: '采纳此项到草稿' } as const,
     compareWithLastSavedDraft: { en: (value0: unknown) => `Compare with last saved draft (${value0})`, zh: (value0: unknown) => `与最近保存内容对照（${value0} 项）` },
-    activityType: { en: 'Activity type', zh: '项目类型' } as const,
+    activityAttributes: { en: 'Activity attributes', zh: '活动属性' } as const,
     linkedActivity: { en: 'Linked activity', zh: '所属项目' } as const,
     initialScore: { en: 'Initial score', zh: '初始评分' } as const,
     residualScore: { en: 'Residual score', zh: '剩余评分' } as const,

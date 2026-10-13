@@ -33,7 +33,8 @@ public sealed class EventTravelService(
         if (!await IsModuleEnabled(eventId, ct))
             return AppResult<EventTravelMyJourneysDto>.Conflict("MOVE.STAY is not enabled by the accepted plan.");
         var participant = await authorization.IsApprovedMemberAsync(groupEvent.GroupId, memberId, ct) ||
-            await db.EventEnrollments.AsNoTracking().AnyAsync(x => x.EventId == eventId && x.MemberId == memberId, ct) ||
+            await db.EventRegistrationParticipants.AsNoTracking().AnyAsync(x => x.Application.EventId == eventId && x.MemberId == memberId &&
+                x.SeatStatus != "cancelled" && x.SeatStatus != "expired", ct) ||
             await db.EventTravelPassengerAssignments.AsNoTracking().AnyAsync(x => x.Journey.EventId == eventId &&
                 x.MemberId == memberId && x.EndedUtc == null, ct) ||
             await db.EventTravelDrivers.AsNoTracking().AnyAsync(x => x.EventId == eventId && x.MemberId == memberId && x.IsActive, ct);
@@ -346,12 +347,13 @@ public sealed class EventTravelService(
         var approvedMembers = await db.GroupMemberships.AsNoTracking().Where(x => x.GroupId == groupEvent.GroupId && x.Status == MembershipStatus.Approved)
             .Select(x => new { x.MemberId, x.Member.DisplayName }).ToListAsync(ct);
         foreach (var value in approvedMembers) memberMap[value.MemberId] = value.DisplayName ?? string.Empty;
-        var enrolledMembers = await db.EventEnrollments.AsNoTracking().Where(x => x.EventId == groupEvent.Id)
-            .Select(x => new { x.MemberId, x.Member.DisplayName }).ToListAsync(ct);
+        var enrolledMembers = await db.EventRegistrationParticipants.AsNoTracking()
+            .Where(x => x.Application.EventId == groupEvent.Id && x.MemberId.HasValue && x.SeatStatus != "cancelled" && x.SeatStatus != "expired")
+            .Select(x => new { MemberId = x.MemberId!.Value, DisplayName = x.DisplayName }).ToListAsync(ct);
         foreach (var value in enrolledMembers) memberMap[value.MemberId] = value.DisplayName ?? string.Empty;
         var options = memberMap.OrderBy(x => x.Value).Select(x => new EventTravelMemberOptionDto(x.Key, x.Value)).ToArray();
         return new(groupEvent.Id,
-            occurrences.Select(x => new EventOccurrenceDto(x.Id, x.EventId, x.StartUtc, x.EndUtc, x.LocalDate, x.Status, x.IsLegacyBackfill)).ToArray(),
+            occurrences.Select(x => new EventOccurrenceDto(x.Id, x.EventId, x.StartUtc, x.EndUtc, x.LocalDate, x.Status)).ToArray(),
             options, drivers.Select(x => ToDriverDto(x, DateOnly.FromDateTime(DateTime.UtcNow))).ToArray(),
             vehicles.Select(x => ToVehicleDto(x, DateOnly.FromDateTime(DateTime.UtcNow))).ToArray(),
             journeys.Select(ToJourneyDto).ToArray(), readiness.RamEvidence, readiness.Readiness, true, Classification);
@@ -372,7 +374,8 @@ public sealed class EventTravelService(
 
     private async Task<bool> IsEventParticipant(GroupEvent groupEvent, Guid memberId, CancellationToken ct)
         => await authorization.IsApprovedMemberAsync(groupEvent.GroupId, memberId, ct) ||
-           await db.EventEnrollments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == memberId, ct);
+           await db.EventRegistrationParticipants.AsNoTracking().AnyAsync(x => x.Application.EventId == groupEvent.Id && x.MemberId == memberId &&
+               x.SeatStatus != "cancelled" && x.SeatStatus != "expired", ct);
 
     private async Task<bool> IsModuleEnabled(Guid eventId, CancellationToken ct)
     {

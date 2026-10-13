@@ -1,6 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applyRamAlphaDemoMatrix, ramAlphaDemoLevel, ramDefaultScales, type RamPolicyData } from '../src/types/ramGovernance.ts'
+import { applyRamAlphaDemoMatrix, ramAlphaDemoLevel, ramDefaultScales, activityAttributes, ramApplicableQuestions, activityAttributeCodes, ramActivityContentName, type RamPolicyData } from '../src/types/ramGovernance.ts'
+
+test('activity attributes use seven fixed bilingual choices', () => {
+  assert.deepEqual(activityAttributeCodes, ['hiking', 'water', 'sport', 'transport', 'camp', 'meal', 'outdoor'])
+  assert.deepEqual(ramActivityContentName('generic'), { en: 'All activities', zh: '所有活动' })
+  for (const code of activityAttributeCodes) assert.ok(ramActivityContentName(code).en && ramActivityContentName(code).zh)
+})
 
 test('Alpha Demo preset fills all 25 cells without changing other policy parameters', () => {
   const policy = {
@@ -31,10 +37,10 @@ test('Alpha Demo bands and manual-derived bilingual scale definitions remain exa
 })
 
 import { duplicateRamRisk, ramChanges, ramDraftFingerprint } from '../src/utils/ramAuthoring.ts'
-import { upgradeRam } from '../src/types/ramGovernance.ts'
+import { parseRamDraft } from '../src/types/ramGovernance.ts'
 
 test('risk copying retains bilingual text while clearing authority and ratings', () => {
-  const draft = upgradeRam(undefined)
+  const draft = parseRamDraft(undefined)
   const risk = { id: 'old', activityId: 'a', categoryCode: 'environment', hazard: { en: 'Slip', zh: '滑倒' }, consequence: { en: 'Injury', zh: '受伤' }, controlMeasures: { en: 'Check', zh: '检查' }, additionalAction: { en: '', zh: '' }, personResponsible: 'Owner', likelihood: 2, impact: 3, residualLikelihood: 1, residualImpact: 2 }
   const copy = duplicateRamRisk(risk, 'new')
   assert.deepEqual(copy.hazard, risk.hazard); assert.equal(copy.personResponsible, ''); assert.equal(copy.likelihood, null)
@@ -44,3 +50,25 @@ test('risk copying retains bilingual text while clearing authority and ratings',
   assert.notEqual(ramDraftFingerprint(draft, 'old conditions'), ramDraftFingerprint(draft, 'new conditions'))
   assert.notEqual(ramDraftFingerprint(next, 'same'), ramDraftFingerprint(draft, 'same'))
 });
+
+ test('activity attributes match general plus every selected scope, with stable identity and order', () => {
+  const bi = (value: string) => ({ en: value, zh: value })
+  const questions = ['generic','meal','water','outdoor'].map(activityType => ({code:activityType,activityType,categoryCode:'activity',text:bi(activityType),guidance:bi(activityType)}))
+  for (const [attributes, expected] of [[[],['generic']],[['meal'],['generic','meal']],[['meal','outdoor'],['generic','meal','outdoor']],[['water','outdoor'],['generic','water','outdoor']]] as [string[],string[]][]) {
+    assert.deepEqual(ramApplicableQuestions([...questions,questions[0]],{attributes}).map(q=>q.code),expected)
+  }
+  assert.deepEqual(activityAttributes({attributes:[]}),[])
+})
+
+import { emptyActivityPlan, validStoredActivityPlan } from '../src/types/eventActivityPlan.ts'
+
+test('stored activity plans and RAM drafts require current fixed attribute arrays', () => {
+  const activity = { id: 'a', attributes: ['meal', 'outdoor'], name: { en: 'Meal', zh: 'Meal' }, conditions: { en: '', zh: '' }, answers: {} }
+  assert.equal(validStoredActivityPlan({ ...emptyActivityPlan(), activities: [activity] }), true)
+  for (const attributes of [undefined, null, ['other'], ['craft'], ['meal', 'meal']]) {
+    assert.equal(validStoredActivityPlan({ ...emptyActivityPlan(), activities: [{ ...activity, attributes }] }), false)
+    assert.throws(() => parseRamDraft(JSON.stringify({ ...parseRamDraft(undefined), activities: [{ ...activity, attributes }] })))
+  }
+  assert.throws(() => parseRamDraft(JSON.stringify({ activityName: activity.name, hazards: [] })))
+  assert.deepEqual(parseRamDraft(undefined).activities, [])
+})

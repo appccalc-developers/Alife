@@ -13,12 +13,11 @@ import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import CoverImage from '../components/CoverImage'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { activeEntityService } from '../services/activeEntityService'
-import { enrollmentSessionService } from '../services/enrollmentSessionService'
+import { registrationWorkService, type RegistrationWork } from '../services/eventRegistrationWorkService'
 import { eventService } from '../services/eventService'
 import { normalizeApiError } from '../services/http'
 import { parseReviewDraft, reviewSessionService } from '../services/reviewSessionService'
 import { useAuthStore } from '../stores/auth'
-import type { EventEnrollmentRecord } from '../types/enrollment'
 import type { EventDto, GroupEventRecord, MultilingualString } from '../types/event'
 import type { EventReviewRecord } from '../types/review'
 import { contactService } from '../services/contactService'
@@ -27,7 +26,7 @@ import { getEventLifecycle, readEventLifecycleData } from '../utils/eventLifecyc
 import { buildScopedEventDetailPath } from '../utils/eventRoutes'
 import useConfirmation from '../hooks/useConfirmation'
 
-type EventDetailSection = 'notice' | 'workflow' | 'enrollments' | 'memories'
+type EventDetailSection = 'notice' | 'enrollments' | 'memories'
 
 const EventNoticePanel = ({ event, eventDto, language, contacts, currentGroupRoute }: { event: GroupEventRecord; eventDto: EventDto; language: string; contacts: ContactProfileDto[]; currentGroupRoute: boolean }) => {
   const text = getLabels(language)
@@ -121,19 +120,6 @@ const EventNoticePanel = ({ event, eventDto, language, contacts, currentGroupRou
               <li key={`${rule.ruleKey}-${localized(rule.displayMessage, language)}`} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
                 <span className="font-semibold">{rule.ruleKey}</span>
                 <span className="ml-2">{localized(rule.displayMessage, language)}</span>
-              </li>
-            ))}
-          </ul>
-        </AppSectionCard>
-      ) : null}
-
-      {eventDto.optionalActivities.length ? (
-        <AppSectionCard dense title={text.optionalActivities}>
-          <ul className="flex flex-wrap gap-2">
-            {eventDto.optionalActivities.map((activity, index) => (
-              <li key={`${localized(activity.name, language)}-${index}`} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800">
-                {localized(activity.name, language)}
-                {activity.extraFee > 0 ? <span className="ml-1 text-xs">+{eventDto.currency} {activity.extraFee}</span> : null}
               </li>
             ))}
           </ul>
@@ -335,7 +321,7 @@ const EventDetailView = () => {
   const text = getLabels(language)
   const [event, setEvent] = useState<GroupEventRecord | null>(null)
   const canEditPlan = Boolean(me?.id && event?.accountableOwnerMemberId === me.id)
-  const [enrollments, setEnrollments] = useState<EventEnrollmentRecord[]>([])
+  const [registrationWork, setRegistrationWork] = useState<RegistrationWork | null>(null)
   const [reviews, setReviews] = useState<EventReviewRecord[]>([])
   const [contacts, setContacts] = useState<ContactProfileDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -350,16 +336,16 @@ const EventDetailView = () => {
     if (!eventId) return
     setRelatedLoading(true)
     try {
-      const [nextEnrollments, nextReviews] = await Promise.all([
-        enrollmentSessionService.listEventEnrollments(eventId).catch(() => [] as EventEnrollmentRecord[]),
+      const [nextRegistrationWork, nextReviews] = await Promise.all([
+        isGuest ? Promise.resolve(null) : registrationWorkService.get(eventId).catch(() => null),
         reviewSessionService.listEventReviews(eventId).catch(() => [] as EventReviewRecord[]),
       ])
-      setEnrollments(nextEnrollments)
+      setRegistrationWork(nextRegistrationWork)
       setReviews(nextReviews)
     } finally {
       setRelatedLoading(false)
     }
-  }, [eventId])
+  }, [eventId, isGuest])
 
   useEffect(() => {
     if (!groupId || !eventId) return
@@ -370,15 +356,15 @@ const EventDetailView = () => {
 
     Promise.all([
       eventService.getGroupEvents(groupId, me?.id ?? 'anonymous'),
-      enrollmentSessionService.listEventEnrollments(eventId).catch(() => [] as EventEnrollmentRecord[]),
+      isGuest ? Promise.resolve(null) : registrationWorkService.get(eventId).catch(() => null),
       reviewSessionService.listEventReviews(eventId).catch(() => [] as EventReviewRecord[]),
       contactService.list(groupId).catch(() => [] as ContactProfileDto[]),
     ])
-      .then(([events, nextEnrollments, nextReviews, groupContacts]) => {
+      .then(([events, nextRegistrationWork, nextReviews, groupContacts]) => {
         if (cancelled) return
         const nextEvent = events.find((item) => item.id === eventId) ?? null
         setEvent(nextEvent)
-        setEnrollments(nextEnrollments)
+        setRegistrationWork(nextRegistrationWork)
         setReviews(nextReviews)
         const ids = new Set(nextEvent?.contactProfileIds ?? [])
         setContacts(groupContacts.filter((contact) => ids.has(contact.id)))
@@ -397,7 +383,7 @@ const EventDetailView = () => {
     return () => {
       cancelled = true
     }
-  }, [eventId, groupId, me?.id, text.eventLoadFailed])
+  }, [eventId, groupId, isGuest, me?.id, text.eventLoadFailed])
 
   const eventDto = useMemo(() => (event ? parseEventDto(event) : null), [event])
   const lifecycle = event ? getEventLifecycle(event) : null
@@ -432,10 +418,6 @@ const EventDetailView = () => {
 
   if (!groupId || !eventId) {
     return <Navigate to="/" replace />
-  }
-
-  if (activeSection === 'workflow') {
-    return <Navigate to={`${eventBasePath}/workspace`} replace />
   }
 
   if (
@@ -490,14 +472,12 @@ const EventDetailView = () => {
         <>
           {activeSection === 'enrollments' ? (
             <EnrollmentPanel
-              event={event}
-              eventDto={eventDto}
-              enrollments={enrollments}
+              eventId={eventId}
+              work={registrationWork}
               language={language}
               memberId={me?.id}
               isGuest={isGuest}
               loading={relatedLoading}
-              onRefresh={refreshRelated}
             />
           ) : activeSection === 'memories' ? (
             <MemoriesPanel

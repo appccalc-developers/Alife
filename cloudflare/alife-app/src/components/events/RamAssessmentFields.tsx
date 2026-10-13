@@ -33,7 +33,7 @@ export default function RamAssessmentFields({ draft, update, policy, editable, d
   useEffect(() => { if (focusRequest) { setActivityFilter(''); setCategoryFilter(''); setCompletionFilter('') } }, [focusRequest])
   const editRisk = (id: string, fields: Partial<RamRisk>) => update({ hazards: draft.hazards.map(h => h.id === id ? { ...h, ...fields } : h) })
   return <div className="space-y-4">
-    <RamSourceSummary draft={draft} zh={zh} eventId={eventId}/>
+    <RamSourceSummary policy={policy} draft={draft} zh={zh} eventId={eventId}/>
     {!eventId?<AppSectionCard title={zh?ramAssessmentFieldsText.onsiteLeadershipConfirmation.zh:ramAssessmentFieldsText.onsiteLeadershipConfirmation.en}><fieldset disabled={!editable}>        <label data-ram-field="ram.onsite" className="block text-sm font-semibold">{zh ? ramAssessmentFieldsText.willTheAuthorPersonallyAttendAndLead.zh : ramAssessmentFieldsText.willTheAuthorPersonallyAttendAndLead.en}<select className={ramInput} value={draft.authorAttendsAndLeads === null ? '' : String(draft.authorAttendsAndLeads)} onChange={e => update({ authorAttendsAndLeads: e.target.value === '' ? null : e.target.value === 'true' })}><option value="">{zh ? ramAssessmentFieldsText.notYetConfirmed.zh : ramAssessmentFieldsText.notYetConfirmed.en}</option><option value="true">{zh ? ramAssessmentFieldsText.yes.zh : ramAssessmentFieldsText.yes.en}</option><option value="false">{zh ? ramAssessmentFieldsText.noAnotherMemberWillLead.zh : ramAssessmentFieldsText.noAnotherMemberWillLead.en}</option></select></label>
 </fieldset></AppSectionCard>:null}
 

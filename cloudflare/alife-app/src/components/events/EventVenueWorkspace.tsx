@@ -120,7 +120,7 @@ export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language, o
     <div className="space-y-4">
       <AppSectionCard
         title={localize(item.label, language)}
-        subtitle={language === 'zh' ? eventVenueWorkspaceText.venuesAreReusableManagedResourcesLegacySessionPlaceText.zh : eventVenueWorkspaceText.venuesAreReusableManagedResourcesLegacySessionPlaceText.en}
+        subtitle={language === 'zh' ? eventVenueWorkspaceText.venuesAreReusableManagedResources.zh : eventVenueWorkspaceText.venuesAreReusableManagedResources.en}
         action={<AppBadge variant={data.readiness.blockers.length ? 'warning' : 'success'}>{data.readiness.blockers.length ? (language === 'zh' ? eventVenueWorkspaceText.blocked.zh : eventVenueWorkspaceText.blocked.en) : (language === 'zh' ? eventVenueWorkspaceText.ready.zh : eventVenueWorkspaceText.ready.en)}</AppBadge>}
       >
         <div className="grid gap-3 tablet:grid-cols-3">

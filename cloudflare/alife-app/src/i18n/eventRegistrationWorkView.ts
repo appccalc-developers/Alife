@@ -6,7 +6,6 @@ export const eventRegistrationWorkViewText = {
     procedures: { en: 'Procedures', zh: '手续' } as const,
     place: { en: 'Place', zh: '名额' } as const,
     verifiedNetPayment: { en: 'Verified net payment', zh: '已核实净付款' } as const,
-    thisRecordCameFromLegacyRegistrationUnknownHouseholdMembers: { en: 'This record came from legacy registration. Unknown household members and historical consent have not been inferred.', zh: '此记录来自旧报名。未知家庭成员和历史同意未补造。' } as const,
     consentRecorded: { en: 'Consent recorded', zh: '同意已记录' } as const,
     personalOrGuardianConsentIsStillNeededProxyEntry: { en: 'Personal or guardian consent is still needed. Proxy entry does not provide consent.', zh: '尚缺本人或监护人同意。代填资料不能代替本人同意。' } as const,
     iAgreeAsTheGuardian: { en: 'I agree as the guardian', zh: '我作为监护人同意规则' } as const,

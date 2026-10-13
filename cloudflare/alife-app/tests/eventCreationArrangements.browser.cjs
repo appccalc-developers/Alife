@@ -40,7 +40,7 @@ const relatedModules = new Set(['TEAM.WORK', 'SERVICE.ROSTER']);
         else if (pathname.endsWith('/venues/reservable')) { venueLoads++; data = { managingGroupId: 'qa-group', canManage: true, venues: [venue] }; }
         else if (pathname.endsWith('/compose')) {
           composeLoads++; const input = request.postDataJSON();
-          data = { schemaVersion: '1.1.0', proposalHash: JSON.stringify(input.humanSelections), baselineETag: '"plan-new"', facts: { items: [], sourceHash: 'facts' }, roleRequirements: [], workflowContributions: [], navigation: [], warnings: [], readiness: { status: 'notReady', blockers: [], warnings: [] },
+          data = { schemaVersion: '2.0.0', proposalHash: JSON.stringify(input.humanSelections), baselineETag: '"plan-new"', facts: { items: [], sourceHash: 'facts' }, roleRequirements: [], workflowContributions: [], navigation: [], warnings: [], readiness: { status: 'notReady', blockers: [], warnings: [] },
             moduleDecisions: modules.map(([moduleCode, en, cn]) => ({ moduleCode, label: label(en, cn), status: moduleCode === 'TEAM.WORK' ? 'required' : (input.humanSelections.find(x => x.moduleCode === moduleCode)?.selected ?? moduleCode === 'SERVICE.ROSTER') ? 'selected' : 'inactive', reasonCodes: [], dependencies: [], dataClasses: [], integrationKey: '', surfaceKey: '', navigationOrder: 1 })) };
         } else if (pathname.endsWith('/events') && request.method() === 'POST') {
           const body = request.postDataJSON(); assert.equal(JSON.parse(body.ramDataJson).hazards[0].hazard.en, 'Private RAM hazard');

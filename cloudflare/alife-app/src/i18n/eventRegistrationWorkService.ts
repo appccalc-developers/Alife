@@ -8,7 +8,6 @@ export const eventRegistrationWorkServiceText = {
     waitlisted: { en: 'Waitlisted', zh: '候补' } as const,
     cancelled: { en: 'Cancelled', zh: '已取消' } as const,
     expired: { en: 'Expired', zh: '已到期' } as const,
-    legacyRecord: { en: 'Legacy record', zh: '历史记录' } as const,
     noFeeApprovalRequired: { en: 'No fee approval required', zh: '无需收费审批' } as const,
     notSubmitted: { en: 'Not submitted', zh: '尚未提交' } as const,
     independentReviewPending: { en: 'Independent review pending', zh: '待独立审批' } as const,

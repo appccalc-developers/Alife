@@ -21,6 +21,21 @@ public sealed class CreateGroupEventCommandHandler(
 {
     public async Task<AppResult<GroupEventSummaryDto>> Handle(CreateGroupEventCommand request, CancellationToken cancellationToken)
     {
+        if (EventCompositionRequestContract.HasUnsupportedSchema(request.Composition))
+            return AppResult<GroupEventSummaryDto>.Validation(
+                $"schemaVersion must be {EventCompositionDefinitions.SchemaVersion}.",
+                EventCompositionDefinitions.UnsupportedSchemaErrorCode);
+        if (EventCompositionRequestContract.ValidateComplete(request.Composition!) is { } compositionError)
+            return AppResult<GroupEventSummaryDto>.Validation(
+                compositionError,
+                EventCompositionRequestContract.InvalidCompositionErrorCode);
+        if (string.IsNullOrWhiteSpace(request.CompositionProposalHash))
+            return AppResult<GroupEventSummaryDto>.Validation(
+                "compositionProposalHash is required for Event creation.",
+                EventCompositionRequestContract.InvalidCompositionErrorCode);
+        var compositionRequest = request.Composition!;
+        var activityPlan = compositionRequest.ActivityPlan!;
+
         var canManage = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
             request.GroupId,
             request.CurrentMemberId,
@@ -36,14 +51,15 @@ public sealed class CreateGroupEventCommandHandler(
             return AppResult<GroupEventSummaryDto>.Validation("RAM data must be a JSON object.");
         }
 
+        if (EventDataContract.Validate(request.EventDataJson, request.TitleEn, request.TitleZh,
+                request.StartDate, request.EndDate) is { } eventDataError)
+            return AppResult<GroupEventSummaryDto>.Validation(eventDataError);
         if (!EventVisibilityPolicy.TryReadVisibility(request.EventDataJson, out var visibility))
         {
             return AppResult<GroupEventSummaryDto>.Validation("Event data must be a JSON object with a supported visibility.");
         }
 
-        // Keep the optional legacy field, but never delegate ownership through it.
-        if (request.AccountableOwnerMemberId.HasValue && request.AccountableOwnerMemberId != request.CurrentMemberId)
-            return AppResult<GroupEventSummaryDto>.Validation("The event creator must be its accountable owner. / 活动创建者必须是活动总负责人。");
+        // Creation always binds accountability to the authenticated, authorized creator.
         var accountableOwnerMemberId = request.CurrentMemberId;
 
         if (request.ParentEventId.HasValue)
@@ -65,8 +81,6 @@ public sealed class CreateGroupEventCommandHandler(
         }
 
         var idempotencyKey = request.IdempotencyKey?.Trim();
-        if (request.Arrangements is not null && request.Composition is null)
-            return AppResult<GroupEventSummaryDto>.Validation("Creation arrangements require an accepted composition proposal.");
         string? createRequestHash = null;
         if (request.Composition is not null)
         {
@@ -155,40 +169,39 @@ public sealed class CreateGroupEventCommandHandler(
         var activityTypesByCode = activityTemplateCatalog is null
             ? EventCompositionDefinitions.ActivityTypesByCode
             : await activityTemplateCatalog.ActiveDefinitionsByCodeAsync(cancellationToken);
+        if (activityPlan.Activities.Any(a => a.SourcePresetKey is not null &&
+                (!a.PresetConfirmed || a.Answers?.Any(answer =>
+                    answer.Value.Value != "unknown" && !answer.Value.Confirmed &&
+                    EventProjectQuestionCatalog.Definitions.Any(question =>
+                        question.Code == answer.Key &&
+                        (question.AppliesToAttributes.Length == 0 ||
+                         question.AppliesToAttributes.Any(a.Attributes.Contains)))) == true)))
+            return AppResult<GroupEventSummaryDto>.Validation("Review and confirm each preset activity project before creating the Event. / 创建活动前请逐项核对并确认模板预设项目。");
         RamEvaluation? initialRam = null;
         EventRamPolicyVersion? initialRamPolicy = null;
         if (request.RamDataJson is not null)
         {
-            using var json = JsonDocument.Parse(request.RamDataJson);
-            if (json.RootElement.TryGetProperty("schemaVersion", out var schema))
+            var churchId = await EventCompositionPersistence.FindChurchRootIdAsync(dbContext, request.GroupId, cancellationToken);
+            initialRamPolicy = await dbContext.EventRamPolicyVersions.AsNoTracking()
+                .Where(x => x.ChurchId == churchId && x.IsPublished).OrderByDescending(x => x.Version).FirstOrDefaultAsync(cancellationToken);
+            try
             {
-                if (schema.ValueKind != JsonValueKind.Number || !schema.TryGetInt32(out var version) || version is not (1 or 2))
-                    return AppResult<GroupEventSummaryDto>.Validation("Unsupported RAM schema version.");
-                if (version == 2)
-                {
-                    var churchId = await EventCompositionPersistence.FindChurchRootIdAsync(dbContext, request.GroupId, cancellationToken);
-                    initialRamPolicy = await dbContext.EventRamPolicyVersions.AsNoTracking()
-                        .Where(x => x.ChurchId == churchId && x.IsPublished).OrderByDescending(x => x.Version).FirstOrDefaultAsync(cancellationToken);
-                    try
-                    {
-                        initialRam = RamEvaluator.Evaluate(RamEvaluator.Parse(request.RamDataJson), initialRamPolicy is null ? null
-                            : JsonSerializer.Deserialize<RamPolicyData>(initialRamPolicy.PolicyJson, RamEvaluator.Json));
-                    }
-                    catch (JsonException)
-                    {
-                        return AppResult<GroupEventSummaryDto>.Validation("RAM must be a valid version 2 draft.");
-                    }
-                }
+                initialRam = RamEvaluator.Evaluate(RamEvaluator.Parse(request.RamDataJson), initialRamPolicy is null ? null
+                    : JsonSerializer.Deserialize<RamPolicyData>(initialRamPolicy.PolicyJson, RamEvaluator.Json));
+            }
+            catch (JsonException)
+            {
+                return AppResult<GroupEventSummaryDto>.Validation("RAM must be a valid version 2 draft with fixed activity attributes.");
             }
         }
         var now = DateTime.UtcNow;
         var ramAssessment = new EventRamAssessment
         {
             EventId = Guid.Empty,
-            RamDataJson = initialRam is null ? request.RamDataJson ?? "{}" : RamEvaluator.Serialize(initialRam.Draft),
-            SchemaVersion = initialRam is null ? 1 : 2,
-            Validity = initialRam is null ? "Legacy" : "Draft",
-            AuthorMemberId = initialRam is null ? null : request.CurrentMemberId,
+            RamDataJson = RamEvaluator.Serialize(initialRam?.Draft ?? new RamV2Draft()),
+            SchemaVersion = 2,
+            Validity = "Draft",
+            AuthorMemberId = request.CurrentMemberId,
             PolicyVersionId = initialRamPolicy?.Id,
             ResidualLevel = initialRam?.ResidualLevel ?? "Incomplete",
             Status = EventRamStatus.Draft,
@@ -201,11 +214,10 @@ public sealed class CreateGroupEventCommandHandler(
             GroupId = request.GroupId,
             CreatedByMemberId = request.CurrentMemberId,
             AccountableOwnerMemberId = accountableOwnerMemberId,
-            CollaborationVersion = 1,
             ParentEventId = request.ParentEventId,
             GovernanceMode = request.GovernanceMode ?? EventGovernanceMode.MemberLed,
-            PublicationStatus = request.Composition is null && initialRam is null ? EventPublicationStatus.LegacyImplicit : EventPublicationStatus.Draft,
-            RegistrationStatus = request.Composition is null && initialRam is null ? EventRegistrationStatus.LegacyImplicit : EventRegistrationStatus.Closed,
+            PublicationStatus = EventPublicationStatus.Draft,
+            RegistrationStatus = EventRegistrationStatus.Closed,
             TitleEn = request.TitleEn,
             TitleZh = request.TitleZh,
             StartDate = request.StartDate,
@@ -222,7 +234,11 @@ public sealed class CreateGroupEventCommandHandler(
         EventPlanSnapshot? planSnapshot = null;
         if (request.Composition is not null)
         {
-            var composition = request.Composition with { BasePlanVersion = null };
+            var composition = compositionRequest with
+            {
+                BasePlanVersion = null,
+                ActivityPlan = activityPlan
+            };
             var proposalResult = compositionEngine!.Compose(composition, new EventCompositionContext(
                 "\"plan-new\"",
                 HasAccountableOwner: true,
@@ -285,7 +301,7 @@ public sealed class CreateGroupEventCommandHandler(
         EventSeries? eventSeries = null;
         IReadOnlyList<EventOccurrence> occurrences;
         var isCurrentRecurring = acceptedProposal is not null &&
-            string.Equals(acceptedProposal.SchemaVersion, EventCompositionDefinitions.SchemaVersion, StringComparison.Ordinal) &&
+            acceptedProposal.SchemaVersion == EventCompositionDefinitions.SchemaVersion &&
             string.Equals(acceptedProposal.ArchetypeCode, "recurring-gathering", StringComparison.Ordinal);
         if (isCurrentRecurring)
         {
@@ -422,24 +438,33 @@ public sealed class CreateGroupEventCommandHandler(
             }
         }
 
-        if (request.Arrangements?.ActivityPlan is { } activityPlan)
+        if (activityPlan.Activities.Any(a => a.OccurrenceId.HasValue))
+            return AppResult<GroupEventSummaryDto>.Validation("Select occurrence links after creating the Event.");
+        var activityRow = new EventActivityPlan
         {
-            if (EventActivityPlanService.Validate(activityPlan) is { } activityError) return AppResult<GroupEventSummaryDto>.Validation(activityError);
-            if (activityPlan.Activities.Any(a => a.OccurrenceId.HasValue)) return AppResult<GroupEventSummaryDto>.Validation("Select occurrence links after creating the Event.");
-            var activityRow = new EventActivityPlan { EventId = groupEvent.Id, DataJson = RamEvaluator.Serialize(activityPlan), UpdatedUtc = now };
-            dbContext.EventActivityPlans.Add(activityRow);
-            if (ramAssessment.SchemaVersion == 2 || request.RamDataJson is null)
+            EventId = groupEvent.Id,
+            DataJson = RamEvaluator.Serialize(activityPlan),
+            UpdatedUtc = now
+        };
+        dbContext.EventActivityPlans.Add(activityRow);
+        if (compositionRequest.RemovedPresetKeys is { Count: > 0 } removedPresetKeys)
+            dbContext.AuditLogs.Add(new AuditLog
             {
-                var mirrored = EventActivityPlanService.Mirror(ramAssessment.SchemaVersion == 2 ? RamEvaluator.Parse(ramAssessment.RamDataJson) : new RamV2Draft(),
-                    new(groupEvent.Id,groupEvent.GroupId,new(groupEvent.TitleEn,groupEvent.TitleZh),groupEvent.StartDate,groupEvent.EndDate,null) { ActivityPlan = new(activityPlan,activityRow.ConcurrencyToken.ToString()) });
-                var evaluated = RamEvaluator.Evaluate(mirrored, initialRamPolicy is null ? null : JsonSerializer.Deserialize<RamPolicyData>(initialRamPolicy.PolicyJson,RamEvaluator.Json));
-                ramAssessment.RamDataJson = RamEvaluator.Serialize(evaluated.Draft); ramAssessment.ResidualLevel = evaluated.ResidualLevel;
-                ramAssessment.SchemaVersion = 2; ramAssessment.Validity = "Draft"; ramAssessment.AuthorMemberId = request.CurrentMemberId;
-            }
-            else ramAssessment.RamDataJson = EventActivityPlanService.MirrorLegacySources(ramAssessment.RamDataJson,
-                new(groupEvent.Id,groupEvent.GroupId,new(groupEvent.TitleEn,groupEvent.TitleZh),groupEvent.StartDate,groupEvent.EndDate,null) { ActivityPlan = new(activityPlan,activityRow.ConcurrencyToken.ToString()) });
-            RamSyncPolicy.Schedule(ramAssessment,now);
-        }
+                Id = Guid.NewGuid(), ActorMemberId = request.CurrentMemberId,
+                Action = "event.activityPreset.removeAtCreation", EntityType = "event_activity_plan",
+                EntityId = groupEvent.Id, BeforeJson = "[]",
+                AfterJson = JsonSerializer.Serialize(removedPresetKeys.Order(StringComparer.Ordinal).ToArray()),
+                MetadataJson = JsonSerializer.Serialize(new
+                {
+                    compositionRequest.ActivityTypeCode, compositionRequest.ActivityTypeVersion
+                }),
+                OccurredUtc = now
+            });
+        var mirrored = EventActivityPlanService.Mirror(RamEvaluator.Parse(ramAssessment.RamDataJson),
+            new(groupEvent.Id,groupEvent.GroupId,new(groupEvent.TitleEn,groupEvent.TitleZh),groupEvent.StartDate,groupEvent.EndDate,null) { ActivityPlan = new(activityPlan,activityRow.ConcurrencyToken.ToString()) });
+        var evaluated = RamEvaluator.Evaluate(mirrored, initialRamPolicy is null ? null : JsonSerializer.Deserialize<RamPolicyData>(initialRamPolicy.PolicyJson,RamEvaluator.Json));
+        ramAssessment.RamDataJson = RamEvaluator.Serialize(evaluated.Draft); ramAssessment.ResidualLevel = evaluated.ResidualLevel;
+        RamSyncPolicy.Schedule(ramAssessment,now);
         dbContext.GroupEvents.Add(groupEvent);
         dbContext.EventRamAssessments.Add(ramAssessment);
         if (eventSeries is not null)
@@ -492,8 +517,7 @@ public sealed class CreateGroupEventCommandHandler(
         new(e.Id, e.GroupId, e.CreatedByMemberId, e.TitleEn, e.TitleZh,
             e.StartDate, e.EndDate, e.EventDataJson, e.CreatedUtc, e.UpdatedUtc, contactProfileIds, ramStatus, visibility,
             e.AccountableOwnerMemberId, e.GovernanceMode, e.SponsorshipStatus, e.ActivePlanVersion,
-            e.PublicationStatus, e.PublicationStatus == EventPublicationStatus.LegacyImplicit ||
-                e.PublicationStatus == EventPublicationStatus.Published && EventPackageGateEvaluator.Evaluate(
+            e.PublicationStatus, e.PublicationStatus == EventPublicationStatus.Published && EventPackageGateEvaluator.Evaluate(
                     EventLifecycleGate.Publish, e.PublicationGateMode, e.PublishedPackage, DateTime.UtcNow).Allowed,
             e.PublishedPackageId, e.PublishedUtc);
 
@@ -505,6 +529,6 @@ public sealed class CreateGroupEventCommandHandler(
             AppResultStatus.Conflict => AppResult<TTarget>.Conflict(source.Message ?? "Conflict."),
             AppResultStatus.PreconditionFailed => AppResult<TTarget>.PreconditionFailed(
                 source.Message ?? "Precondition failed."),
-            _ => AppResult<TTarget>.Validation(source.Message ?? "Validation failed.")
+            _ => AppResult<TTarget>.Validation(source.Message ?? "Validation failed.", source.Code)
         };
 }

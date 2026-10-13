@@ -95,7 +95,6 @@ public sealed class EventModuleReportService(IAlifeDbContext db, IEventPackageIn
                 row.Status = operation == "adopt" ? "adopted" : operation == "return" ? "returned" : "draft";
                 if (operation == "adopt")
                 {
-                    e.CollaborationVersion = 1;
                     row.AdoptedRevisionId = row.SubmittedRevisionId;
                     await invalidation.InvalidateForModuleChangeAsync(e, actor, module, "event.report.adopted", "operational", ct);
                 }

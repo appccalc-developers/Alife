@@ -18,6 +18,12 @@ Read the compact [core contract](EVENT-CONTRACT.md) once. Search headings/JSON k
 
 Do not routinely load the full machine contract, historical log, execution proposals or generated long handbook. Reading budgets are guidance, never a reason to omit applicable authentication, privacy, cache isolation, bilingual compatibility or human-approval requirements.
 
+## Event 2.0 reset scope
+
+The repository-root [Event 2.0 pre-launch reset exception](../../AGENTS.md#event-20-pre-launch-reset-exception) is authoritative for this one cutover. Pre-reset Event instance data and Event 1.x runtime compatibility are not current requirements. Historical templates and policies remain readable, but cannot create or calculate a new Event. Composition schema `2.0.0` is the new compatibility baseline: all Event data created after the reset again requires forward migration, immutable history and auditable version governance.
+
+Documentation and tests must not reintroduce an Event 1.x runtime fallback merely to preserve historical examples. They must still preserve security, privacy, authorization, cache isolation, bilingual behavior, templates, policy history, venue resources and non-Event data. Any production reset evidence must identify the protected workflow run, target, verified recovery references and approved preview fingerprint without exposing sensitive record details.
+
 ## Documentation update triggers
 
 Review the final diff for documentation impact, then update only affected authoritative sources in the same change:

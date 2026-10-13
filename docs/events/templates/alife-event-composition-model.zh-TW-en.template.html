@@ -1355,9 +1355,9 @@
 
       <div class="contract-strip" aria-label="契約識別" data-aria-zh="契約識別" data-aria-en="Contract identity">
         <div class="contract-stat"><span>STATUS</span><strong><span data-lang="zh-Hant">已決目標架構</span><span data-lang="en">Decision-complete target</span></strong></div>
-        <div class="contract-stat"><span>SCHEMA</span><strong>alife.event-composition/1.0.0</strong></div>
-        <div class="contract-stat"><span>BASELINE</span><strong>main · 8f09dac</strong></div>
-        <div class="contract-stat"><span>DELIVERY</span><strong><span data-lang="zh-Hant">漸進、相容、人工確認</span><span data-lang="en">Incremental, compatible, human-confirmed</span></strong></div>
+        <div class="contract-stat"><span>SCHEMA</span><strong>alife.event-composition/2.0.0</strong></div>
+        <div class="contract-stat"><span>BASELINE</span><strong>Event 2.0 reset</strong></div>
+        <div class="contract-stat"><span>DELIVERY</span><strong><span data-lang="zh-Hant">受保護重置、人工確認</span><span data-lang="en">Protected reset, human-confirmed</span></strong></div>
       </div>
 
       <div class="callout critical">
@@ -1571,7 +1571,7 @@ PlanSnapshot 1   ─── 0..* ModuleInstance / PolicyEvaluation / RoleRequirem
         <article class="contract-panel"><h3><span data-lang="zh-Hant">Event 與 Occurrence</span><span data-lang="en">Event and Occurrence</span></h3><p class="muted"><span data-lang="zh-Hant">Event 是擁有權、可見性、治理、報名與計畫的邊界；Occurrence 是一次真實執行。單次活動建立一個 Occurrence，定期活動由 Series 滾動建立多個 Occurrence。</span><span data-lang="en">Event owns ownership, visibility, governance, registration and plan boundaries; Occurrence is one real delivery. A one-off Event creates one Occurrence, while a recurring Series materialises several.</span></p></article>
         <article class="contract-panel"><h3><span data-lang="zh-Hant">時間與金額</span><span data-lang="en">Time and money</span></h3><p class="muted"><span data-lang="zh-Hant">Series 保存 IANA <code>timeZone</code>、本地重複規則與例外日期；Occurrence 保存已解析的 UTC 開始／結束。金額一律使用整數 <code>amountMinor</code> 與 ISO 4217 <code>currency</code>，不可使用浮點作權威值。</span><span data-lang="en">Series stores an IANA <code>timeZone</code>, local recurrence rule and exception dates; Occurrence stores resolved UTC instants. Money uses integer <code>amountMinor</code> plus ISO 4217 <code>currency</code>, never floating point as the authority.</span></p></article>
         <article class="contract-panel"><h3><span data-lang="zh-Hant">歷史與身份</span><span data-lang="en">History and identity</span></h3><p class="muted"><span data-lang="zh-Hant">Series 或範本日後變更不改寫已物化 Occurrence、已接受方案或歷史角色。所有引用使用穩定 GUID，標題與語言切換不改變實體身份。</span><span data-lang="en">Later Series or template changes do not rewrite materialised occurrences, accepted plans or historical roles. Stable GUIDs identify records; titles and language switching never change identity.</span></p></article>
-        <article class="contract-panel"><h3><span data-lang="zh-Hant">相容持久化</span><span data-lang="en">Compatible persistence</span></h3><p class="muted"><span data-lang="zh-Hant">目標概念 <code>Event</code> 先映射現有 <code>GroupEvent</code>；新增資料表採旁路與回填，不要求第一階段重新命名現有 entity、route 或 payload。</span><span data-lang="en">The target concept <code>Event</code> initially maps to current <code>GroupEvent</code>. New tables are added alongside and backfilled; phase one does not rename current entities, routes or payloads.</span></p></article>
+        <article class="contract-panel"><h3><span data-lang="zh-Hant">2.0 持久化基線</span><span data-lang="en">2.0 persistence baseline</span></h3><p class="muted"><span data-lang="zh-Hant"><code>Event</code> 繼續映射 <code>GroupEvent</code>；pre-reset 實例不回填。受保護重置保留模板、政策、場地及非 Event 資料，2.0 之後恢復正常不可變歷史與版本治理。</span><span data-lang="en"><code>Event</code> continues to map to <code>GroupEvent</code>; pre-reset instances are not backfilled. The protected reset preserves templates, policies, venues and non-Event data, and normal immutable history and version governance resume after 2.0.</span></p></article>
       </div>
 
       <div data-lang="zh-Hant">
@@ -1937,7 +1937,7 @@ PlanSnapshot 1   ─── 0..* ModuleInstance / PolicyEvaluation / RoleRequirem
 
       <h3 style="margin-top:24px"><span data-lang="zh-Hant">受控 Surface Registry 與路由規則</span><span data-lang="en">Controlled Surface Registry and routing rules</span></h3>
       <div class="contract-grid">
-        <article class="contract-panel"><h3><span data-lang="zh-Hant">建立流程 · schema 1.1</span><span data-lang="en">Creation flow · schema 1.1</span></h3><p class="muted"><code>Archetype → Activity type → Presets &amp; modules → Details &amp; facts → Plan review → Human accept → Workspace</code></p><p class="muted"><span data-lang="zh-Hant">新建頁不再以「輕量／camp／outreach／自訂籌備方式」作入口。Proposal 不持久化權限或發布狀態；建立 API 必須在伺服器重新計算並比對 <code>proposalHash</code>，再原子建立 Event、Occurrence／Series、Plan、RAM 與經人工選擇的現有 Workflow。舊編輯 URL 只轉址到 Workspace；1.0 request 仍可讀。</span><span data-lang="en">Creation no longer starts from quick/camp/outreach/custom preparation modes. A proposal persists no access or publication state. The create API recomputes and verifies <code>proposalHash</code> before atomically creating Event, Occurrence/Series, Plan, RAM and any human-selected existing Workflow. Legacy edit URLs only redirect to Workspace; 1.0 requests remain readable.</span></p></article>
+        <article class="contract-panel"><h3><span data-lang="zh-Hant">建立流程 · schema 2.0</span><span data-lang="en">Creation flow · schema 2.0</span></h3><p class="muted"><code>Archetype → Activity type → Preset projects → Details &amp; facts → Plan review → Human accept → Workspace</code></p><p class="muted"><span data-lang="zh-Hant">Proposal 不持久化權限或發布狀態；建立 API 必須在伺服器重新計算並比對 <code>proposalHash</code>，再原子建立 Event、Occurrence／Series、Plan 與 RAM。請求必須使用完整 2.0 契約；1.x 請求回傳 <code>event.schema.unsupported</code>，已移除的舊路由回傳 404。</span><span data-lang="en">A proposal persists no access or publication state. The create API recomputes and verifies <code>proposalHash</code> before atomically creating Event, Occurrence/Series, Plan and RAM. Requests must use the complete 2.0 contract; 1.x requests return <code>event.schema.unsupported</code>, and removed legacy routes return 404.</span></p></article>
         <article class="contract-panel"><h3><span data-lang="zh-Hant">活動工作空間</span><span data-lang="en">Event workspace</span></h3><p class="muted"><span data-lang="zh-Hant">Overview 與 Workflow &amp; outputs 永遠存在；小型同級 Surface 使用一列、不可巢狀的 TabView。Workflow 步驟、產出物與範本管理位於固定 Workspace 標籤。報名管理、排班、財務、RAM、兒童保護、交通住宿與現場指揮使用獨立頁面。</span><span data-lang="en">Overview and Workflow &amp; outputs always exist. Small peer surfaces use one non-nested TabView. Workflow steps, artifacts, and template management live in the fixed Workspace tab. Enrollment management, roster, finance, RAM, safeguarding, travel/stay and live command use dedicated pages.</span></p></article>
         <article class="contract-panel"><h3><span data-lang="zh-Hant">元件解析</span><span data-lang="en">Component resolution</span></h3><p class="muted"><span data-lang="zh-Hant">API 只回傳已知 <code>surfaceKey</code>、狀態、readiness 和允許的動作；React 以編譯時 <code>Record&lt;EventSurfaceKey, Component&gt;</code> 解析。未知 key 隱藏並記錄診斷，不做動態 import。</span><span data-lang="en">The API returns only a known <code>surfaceKey</code>, status, readiness and allowed actions. React resolves it through a compile-time <code>Record&lt;EventSurfaceKey, Component&gt;</code>. Unknown keys are hidden and diagnosed, never dynamically imported.</span></p></article>
         <article class="contract-panel"><h3><span data-lang="zh-Hant">路由與返回</span><span data-lang="en">Routes and return paths</span></h3><p class="muted"><span data-lang="zh-Hant">沿用 <code>/events/:eventId</code> 與 <code>/groups/:groupId/events/:eventId</code>；大型 Surface 使用受控 suffix，並顯示返回精確來源的 <code>← 返回活動</code>。不得由 API 提供完整 URL。</span><span data-lang="en">Preserve <code>/events/:eventId</code> and <code>/groups/:groupId/events/:eventId</code>. Large surfaces use controlled suffixes and show <code>← Back to event</code> to the exact source. APIs never supply full URLs.</span></p></article>
@@ -2128,7 +2128,7 @@ PlanSnapshot 1   ─── 0..* ModuleInstance / PolicyEvaluation / RoleRequirem
       <pre class="snapshot" aria-label="活動方案概念結構" data-aria-zh="活動方案概念結構" data-aria-en="Conceptual event plan structure">EventPlanSnapshot
 ├── schemaVersion / planVersion / sourceHash
 ├── archetypeCode / archetypeVersion
-├── activityTypeCode / activityTypeVersion  # nullable for 1.0 legacy
+├── activityTypeCode / activityTypeVersion  # pinned current 2.0-capable template
 ├── workflowRecommendation                  # code, resolved version, decision
 ├── facts                         # confirmed reality
 ├── governanceMode                # private | member-led | church-sponsored
@@ -2198,15 +2198,18 @@ type ReadinessStatus = 'notReady' | 'blocked' | 'ready' | 'complete'
 type FactValue&lt;T&gt; = {
   certainty: FactCertainty
   value: T | null
-  source: 'human' | 'trustedContext' | 'aiCandidate' | 'legacyBackfill'
+  source: 'human' | 'trustedContext' | 'aiCandidate'
   confirmedByMemberId?: string | null
   confirmedUtc?: string | null
 }
 
 type EventPlanComposeRequest = {
-  schemaVersion: '1.0.0' | '1.1.0'
+  schemaVersion: '2.0.0'
   archetypeCode?: 'simple-social' | 'camp-retreat' | 'recurring-gathering' | 'festival-celebration' | null
-  activityTypeCode?: string | null       // required for new 1.1 creation
+  activityTypeCode?: string | null
+  activityTypeVersion?: number | null
+  activityPlan: ActivityPlanData
+  moduleConfirmations: Record&lt;string, boolean&gt;
   useRecommendedWorkflow?: boolean
   facts: EventFactSetInput
   humanSelections: Array&lt;{ moduleCode: EventModuleCode; selected: boolean; reason?: string }&gt;
@@ -2353,26 +2356,26 @@ public sealed record AcceptEventPlanRequest(
       </div>
 
       <ol class="phase-track">
-        <li><strong>1 · FOUNDATION</strong><br><span data-lang="zh-Hant">新增版本化 Archetype／Activity Type 定義、FactSet、Plan、Series／Occurrence 表與唯讀映射。</span><span data-lang="en">Add versioned Archetype/Activity Type definitions, FactSet, Plan, Series/Occurrence tables and read-only mapping.</span></li>
-        <li><strong>2 · BACKFILL</strong><br><span data-lang="zh-Hant">每個既有 GroupEvent 建立一個 occurrence 和 legacy plan snapshot。</span><span data-lang="en">Create one occurrence and legacy plan snapshot for every existing GroupEvent.</span></li>
-        <li><strong>3 · COMPOSE</strong><br><span data-lang="zh-Hant">加入 compose/accept API、雙寫與既有 create 的可選 composition。</span><span data-lang="en">Add compose/accept APIs, dual-write and optional composition on current create.</span></li>
-        <li><strong>4 · WORKSPACE</strong><br><span data-lang="zh-Hant">加入受控 Surface Registry、方案檢視與角色化工作空間。</span><span data-lang="en">Add the controlled Surface Registry, plan review and role-aware workspace.</span></li>
-        <li><strong>5 · CUTOVER</strong><br><span data-lang="zh-Hant">證據充分後切換權威讀取，另案處理 legacy 欄位淘汰。</span><span data-lang="en">Move authoritative reads only after evidence; deprecate legacy fields in a separate approved change.</span></li>
+        <li><strong>1 · PREPARE</strong><br><span data-lang="zh-Hant">停止示範 Event seed，加入共同凍結 epoch、精確檔案清單與受保護 reset workflow。</span><span data-lang="en">Stop demo Event seeding and add the common freeze epoch, exact file manifest and protected reset workflow.</span></li>
+        <li><strong>2 · BACK UP</strong><br><span data-lang="zh-Hant">驗證具名 SQL 副本與私有 R2 恢復副本，再產生相同程式及 schema 的 preview fingerprint。</span><span data-lang="en">Verify named SQL and private R2 recovery copies, then produce the preview fingerprint with the same code and schema.</span></li>
+        <li><strong>3 · RESET</strong><br><span data-lang="zh-Hant">人工批准 fingerprint 後，在序列化交易與 application lock 下刪除 Event 實例並驗證保留資料。</span><span data-lang="en">After human fingerprint approval, delete Event instances under a serializable transaction and application lock, then verify preserved data.</span></li>
+        <li><strong>4 · CUT OVER</strong><br><span data-lang="zh-Hant">套用前向 migration，發布唯一 2.0 runtime，提升 cache／session epoch，驗證後才解除凍結。</span><span data-lang="en">Apply the forward migration, release the sole 2.0 runtime, raise cache/session epochs, and unfreeze only after verification.</span></li>
+        <li><strong>5 · RETAIN</strong><br><span data-lang="zh-Hant">恢復資料保留完整 30 日，之後由另一個受保護、人工批准的 finalize 操作精確銷毀。</span><span data-lang="en">Retain recovery material for 30 complete days, then destroy it exactly through a separate protected, human-approved finalize operation.</span></li>
       </ol>
 
-      <div class="callout info"><strong><span data-lang="zh-Hant">1.1 建立流程切片：</span><span data-lang="en">1.1 creation-flow slice:</span></strong> <span data-lang="zh-Hant"><code>20260826215739_AddEventActivityTypePlanning</code> 只為 <code>EventPlanSnapshot</code> 新增 nullable <code>activity_type_code/version</code>；舊快照保持 null，不以標題、Workflow 或 <code>EventDataJson</code> 推斷。Migration 已生成且可逆，但未套用資料庫。新建立流程會原子寫入 snapshot，定期原型同一 SaveChanges 建立 Series 與未來 12 週 Occurrences。</span><span data-lang="en"><code>20260826215739_AddEventActivityTypePlanning</code> adds only nullable <code>activity_type_code/version</code> metadata to <code>EventPlanSnapshot</code>. Legacy snapshots remain null and are never inferred from title, Workflow or <code>EventDataJson</code>. The reversible migration is generated but not applied. New creation atomically writes the snapshot; recurring creation also writes its Series and rolling 12-week Occurrences in the same SaveChanges.</span></div>
+      <div class="callout info"><strong><span data-lang="zh-Hant">2.0 本機演練：</span><span data-lang="en">2.0 local rehearsal:</span></strong> <span data-lang="zh-Hant">具名、已驗證的 SQL 備份完成後，獨立工具以 preview／apply／verify 清除 23 個 Event root 與 350 筆從屬資料；保留資料 hash 通過，重複執行為空結果。production 仍須由受保護 environment 的 reviewer 批准 live fingerprint。</span><span data-lang="en">After a named, verified SQL backup, the independent preview/apply/verify tool removed 23 Event roots and 350 dependent rows; preserved-data hashes passed and repetition produced an empty result. Production still requires a protected-environment reviewer to approve the live fingerprint.</span></div>
 
-      <div class="callout info"><strong><span data-lang="zh-Hant">活動模板目錄切片：</span><span data-lang="en">Event-template catalogue slice:</span></strong> <span data-lang="zh-Hant"><code>20260827002820_AddEventActivityTemplateCatalog</code> 新增不可變版本表，並以目前 16 個 v2 定義作系統預置資料。管理端點、專門平台權限、AuditLog、ETag 與新建／重新組合的啟用版本解析已接通。Migration 已生成、Down 可逆、可產生冪等 SQL，但未套用任何資料庫。</span><span data-lang="en"><code>20260827002820_AddEventActivityTemplateCatalog</code> adds the immutable version table and seeds the current sixteen v2 definitions as system presets. Admin endpoints, a dedicated platform permission, AuditLog, ETags and active-version resolution for creation/recomposition are connected. The migration is generated, has a reversible Down and produces idempotent SQL, but has not been applied to any database.</span></div>
+      <div class="callout info"><strong><span data-lang="zh-Hant">活動模板目錄：</span><span data-lang="en">Event-template catalogue:</span></strong> <span data-lang="zh-Hant">16 個目前模板已各自產生保留管理員設定的 2.0 當前版本，包含問卷版本 2 與可編輯預設項目。舊模板版本唯讀保留，不建立新 Event，也不參與目前計算。</span><span data-lang="en">Each of the sixteen current templates has a new 2.0 current version that preserves administrator settings and adds questionnaire version 2 with editable preset projects. Older template versions remain read-only and neither create new Events nor participate in current calculation.</span></div>
 
       <div class="table-wrap">
         <table>
           <caption><span data-lang="zh-Hant">各階段不可破壞的相容條件</span><span data-lang="en">Compatibility conditions that every phase preserves</span></caption>
           <thead><tr><th>Area</th><th><span data-lang="zh-Hant">要求</span><span data-lang="en">Requirement</span></th></tr></thead>
           <tbody>
-            <tr><td>Persistence</td><td><span data-lang="zh-Hant"><code>GroupEvent</code> 保持既有主鍵與關係；<code>EventDataJson</code> 在淘汰前持續可讀，新增 typed records 先採旁路與雙寫。</span><span data-lang="en"><code>GroupEvent</code> keeps its keys and relations. <code>EventDataJson</code> remains readable until explicit deprecation; typed records begin alongside with dual-write.</span></td></tr>
-            <tr><td>Backfill</td><td><span data-lang="zh-Hant">來源標記 <code>legacyBackfill</code>；不捏造未知兒童、交通、安全或官方身份。未知保持 unknown，RAM／Workflow 版本保持原樣。</span><span data-lang="en">Mark source <code>legacyBackfill</code>. Do not invent children, transport, safety or official-status facts. Unknown remains unknown; preserve RAM/workflow versions.</span></td></tr>
-            <tr><td>API</td><td><span data-lang="zh-Hant">舊 client 可完全省略 composition。新欄位為可選；舊回應欄位與可讀 enum 不改名。新的敏感投影使用獨立 DTO。</span><span data-lang="en">Old clients may omit composition entirely. New fields are optional; existing response fields and readable enums are not renamed. New sensitive projections use separate DTOs.</span></td></tr>
-            <tr><td>Workflow</td><td><span data-lang="zh-Hant">不新增 BPMN／第二流程引擎。模組將定義轉成現有 EventWorkflow steps/artifacts；RAM 仍由專用 handler 權威同步。</span><span data-lang="en">Do not add BPMN or a second workflow engine. Modules compile definitions into existing EventWorkflow steps/artifacts; RAM remains synchronised by its authoritative handlers.</span></td></tr>
+            <tr><td>Persistence</td><td><span data-lang="zh-Hant"><code>GroupEvent</code> 與嚴格的目前 <code>EventDataJson</code> 形狀繼續作為 2.0 業務載體；模板、政策及場地資源不在實例清理範圍。</span><span data-lang="en"><code>GroupEvent</code> and the strict current <code>EventDataJson</code> shape remain the 2.0 business carrier; templates, policies and venue resources are outside instance purging.</span></td></tr>
+            <tr><td>Reset</td><td><span data-lang="zh-Hant">pre-reset Event 不 backfill；它們以受控 preview/apply/verify 流程刪除。2.0 後重新要求不可變歷史與稽核。</span><span data-lang="en">Pre-reset Events are not backfilled; the controlled preview/apply/verify workflow removes them. Immutable history and audit resume for 2.0 data.</span></td></tr>
+            <tr><td>API</td><td><span data-lang="zh-Hant">Composition 必須是 <code>2.0.0</code> 且問卷為 2；1.x 回傳 <code>400 event.schema.unsupported</code>，已移除路由回傳 404。</span><span data-lang="en">Composition must be <code>2.0.0</code> with questionnaire 2; 1.x returns <code>400 event.schema.unsupported</code>, and removed routes return 404.</span></td></tr>
+            <tr><td>Workflow</td><td><span data-lang="zh-Hant">實例 workflow run／step／artifact 已移除；目前 Plan、Package、RAM 及專門業務歷史由各自權威服務管理。</span><span data-lang="en">Instance workflow run/step/artifact storage is removed; current Plan, Package, RAM and specialist operational histories remain under their owning services.</span></td></tr>
             <tr><td>Database</td><td><span data-lang="zh-Hant">Migration 可逆且審查 snapshot；只在獲准的 local/disposable database 測試。沒有明確批准，不套用 shared/production database。</span><span data-lang="en">Migrations are reversible and snapshots reviewed; test only against an approved local/disposable database. Never apply to shared/production without explicit approval.</span></td></tr>
             <tr><td>Retirement</td><td><span data-lang="zh-Hant">有報名、金流、文件、角色、提交或批准的模組不得自動移除；先完成資料保存／取消／轉移與人工確認。</span><span data-lang="en">A module with enrollments, money, files, roles, submissions or approvals cannot be removed automatically; preserve/cancel/transfer data and obtain human confirmation first.</span></td></tr>
           </tbody>
@@ -2399,12 +2402,12 @@ public sealed record AcceptEventPlanRequest(
         <article class="scenario-card"><strong>07 · <span data-lang="zh-Hant">模板管理與停用</span><span data-lang="en">Template administration and deactivation</span></strong><p class="muted"><span data-lang="zh-Hant">專門權限可在四個固定分類內新增模板並建立新版本；無權使用者讀寫均為 403。停用後新建／重新組合 fail closed，舊 Event／Snapshot 仍可讀；過期 ETag 不能覆寫新版本，所有管理回應為 private no-store。</span><span data-lang="en">The dedicated permission can add a template inside one of four fixed categories and create later versions; unauthorised reads and writes return 403. After deactivation, new creation/recomposition fails closed while old Events/snapshots remain readable. A stale ETag cannot overwrite a newer version and every management response is private no-store.</span></p></article>
       </div>
 
-      <div class="callout"><strong><span data-lang="zh-Hant">最低驗證：</span><span data-lang="en">Minimum verification:</span></strong> <span data-lang="zh-Hant">每個切片都要包含正／負角色測試、舊 payload 相容測試、proposal stale／重試測試、雙語切換、320–1440px 介面、私密 cache headers，以及對應的失效路徑。</span><span data-lang="en">Every slice includes positive/negative role tests, legacy-payload compatibility, stale proposal/retry tests, bilingual switching, 320–1440px UI, private cache headers and the matching invalidation path.</span></div>
+      <div class="callout"><strong><span data-lang="zh-Hant">最低驗證：</span><span data-lang="en">Minimum verification:</span></strong> <span data-lang="zh-Hant">包含正／負角色、1.x 拒絕與舊路由 404、proposal stale／重試、雙語切換、320–1440px 介面、私密 cache headers、清理 fingerprint／hash，以及對應的失效路徑。</span><span data-lang="en">Cover positive/negative roles, 1.x rejection and retired-route 404s, stale proposals/retries, bilingual switching, 320–1440px UI, private cache headers, purge fingerprints/hashes and matching invalidation paths.</span></div>
 
       <div class="callout info">
-        <strong><span data-lang="zh-Hant">本次驗證證據（2026-08-27）：</span><span data-lang="en">Verification evidence for this slice (2026-08-27):</span></strong>
-        <span data-lang="zh-Hant">後端完整測試 <code>368/368</code>、活動模板管理後端專項 <code>10/10</code>、事件前端專項 <code>31/31</code>、系統管理導覽 <code>15/15</code>、禁止阻塞式 Web dialog <code>1/1</code>、TypeScript／Vite production build、EF model drift、冪等 migration SQL，以及 HTML JavaScript／內嵌 JSON／後端活動模板代碼一致性檢查均通過。Migration <code>20260827002820_AddEventActivityTemplateCatalog</code> 已生成且 Down 可逆，但未套用任何資料庫。依使用者安排，320／390／768／1024／1440px 的中英文實機瀏覽器視覺驗證未由 Codex 執行；本切片狀態為 <code>implemented-not-migrated</code>，不是 deployed 聲明。</span>
-        <span data-lang="en">The full backend suite (<code>368/368</code>), focused event-template backend suite (<code>10/10</code>), focused event frontend suite (<code>31/31</code>), system-management navigation suite (<code>15/15</code>), blocking Web-dialog guard (<code>1/1</code>), TypeScript/Vite production build, EF model-drift and idempotent migration-SQL checks, plus HTML JavaScript/embedded JSON/backend template-code consistency checks passed. Migration <code>20260827002820_AddEventActivityTemplateCatalog</code> was generated with a reversible Down method but was not applied to any database. As agreed with the user, Codex did not perform the 320/390/768/1024/1440px bilingual real-browser visual review. This slice is <code>implemented-not-migrated</code>, not deployed.</span>
+        <strong><span data-lang="zh-Hant">本機重置證據（2026-10-13）：</span><span data-lang="en">Local reset evidence (2026-10-13):</span></strong>
+        <span data-lang="zh-Hant">已驗證備份後，fingerprint <code>ac495ebc…991d26</code> 的 preview／apply／verify 清除 23 個 Event root 與 350 筆資料，保留 50 個資料表的 count／hash，檔案失敗為零；另以刪除 apply receipt 模擬 commit 後中斷並成功重建 <code>recoveredAfterCommit</code> 證據。空狀態重跑為零。前向 migration 與模板問卷初始化只套用已批准的 <code>localhost,14333/alife_db</code>；production 尚未執行或認證。</span>
+        <span data-lang="en">After the verified backup, preview/apply/verify under fingerprint <code>ac495ebc…991d26</code> removed 23 Event roots and 350 rows, retained counts/hashes for 50 tables and had zero file failures. Deleting the apply receipt simulated interruption after commit and the tool safely reconstructed <code>recoveredAfterCommit</code> evidence; an empty-state repeat changed nothing. The forward migration and template questionnaire initialization were applied only to the approved <code>localhost,14333/alife_db</code>; production has neither run nor been certified.</span>
       </div>
     </section>
 
@@ -2438,18 +2441,18 @@ Source of truth
 5. Reinspect the current repository before editing; baseline 8f09dac is historical.
 
 Execution
-- Begin with a current-to-target gap report. Reuse GroupEvent and the existing
-  EventWorkflowRun/Step/Artifact engine; do not introduce BPMN or rename current
-  public contracts in the first phase.
-- Deliver in order: additive domain/migration foundation, legacy backfill,
-  composition engine and API, controlled UI registry/workspace, focused tests.
-- Keep each phase independently buildable and backward-compatible. If the user
-  narrows the request, implement only the smallest complete vertical slice.
-- For schema 1.1 creation, use the four immutable system archetypes and the
-  current active versioned template catalogue, seeded with sixteen system
-  presets. Keep schema 1.0 reads/create/edit compatible; do not infer a missing
-  type for legacy snapshots. Template administration requires the dedicated
-  platform permission and may never change the four archetype definitions.
+- Reuse GroupEvent and EventDataJson as the current Event root. Preserve workflow
+  template definitions, but do not recreate retired generic workflow run/step/
+  artifact instances.
+- Event creation, update and composition accept only schema 2.0.0 with project
+  questionnaire version 2 and complete Event facts, Activity Plan, answers and
+  module confirmations. Event 1.x has no runtime fallback after the reset.
+- Use the four immutable system archetypes and current active 2.0-capable
+  versioned template catalogue, seeded with sixteen template lines but no Event
+  instances. Template administration requires the dedicated platform permission
+  and may never change the four archetype definitions.
+- From schema 2.0 onward, keep every phase buildable, version-governed and
+  migration-friendly. Never reuse the pre-launch reset exception implicitly.
 - Server-side authorization is mandatory. Frontend visibility is never a control.
 - Compose/recompose return proposals only. Human accept creates immutable plan
   snapshots after server recomputation, If-Match and idempotency validation.
@@ -2569,11 +2572,11 @@ Success criteria and evidence
         try {
           if (!source || !preview || !status) fail("Machine contract elements are missing.");
           const contract = JSON.parse(source.textContent);
-          if (contract.schemaVersion !== "1.1.0") fail("Unsupported schemaVersion.");
+          if (contract.schemaVersion !== "2.0.0") fail("Unsupported schemaVersion.");
           if (!Array.isArray(contract.modules) || contract.modules.length !== 12) fail("Exactly 12 modules are required.");
           if (!Array.isArray(contract.archetypes) || contract.archetypes.length !== 4) fail("Exactly 4 archetypes are required.");
           if (!Array.isArray(contract.activityTypes) || contract.activityTypes.length !== 16) fail("Exactly 16 initial system-preset activity types are required.");
-          if (!Array.isArray(contract.architectureDecisions) || contract.architectureDecisions.length !== 8) fail("Exactly 8 architecture decisions are required.");
+          if (!Array.isArray(contract.architectureDecisions) || contract.architectureDecisions.length !== 13) fail("Exactly 13 architecture decisions are required.");
 
           const moduleCodes = contract.modules.map((module) => module.code);
           const moduleCodeSet = new Set(moduleCodes);

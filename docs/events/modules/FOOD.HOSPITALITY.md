@@ -52,6 +52,8 @@ Participants submit their own needs through registration. Authorised hospitality
 
 Partial report support: accepted lead, bilingual drafting/submission/return/adoption, immutable history and independent work page. Menus, dietary/allergy records and kitchen operations remain target work.
 
+For each project whose applicable `foodService` answer is `yes`, the owner or accepted hospitality lead may record a project/occurrence arrangement with bilingual service method, preparation place, dietary handling and food-safety plan. The stable Activity Plan ID, not the Event template name, identifies the meal. Two meals with different preparation rules use two projects. These typed arrangements are sources for the one Event hospitality report; they do not collect participant allergy identities, certify kitchen safety or create a second report/approval. Writes require an exact ETag, current role and unfrozen preparation; responses are private/no-store.
+
 
 
 

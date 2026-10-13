@@ -60,6 +60,8 @@ public class EventLifecyclePolicyTests
     {
         EndDate = endDate,
         EventDataJson = $$"""{"registrationDeadline":"{{deadline}}","maxCapacity":{{capacity}}}""",
-        RamAssessment = new EventRamAssessment { Status = EventRamStatus.Approved }
+        PublicationStatus = EventPublicationStatus.Published,
+        RegistrationStatus = EventRegistrationStatus.Open,
+        RamAssessment = new EventRamAssessment { Status = EventRamStatus.Approved, Validity = "Valid" }
     };
 }

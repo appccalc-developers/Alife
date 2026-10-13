@@ -89,8 +89,8 @@ public sealed partial class EventPackageFoundationTests
     public async Task DutyProjection_OwnerRespectsManualLifecycleChoicesAndPostEventLimits()
     {
         await using var db = CreateDb(); var f = await DutyFixture(db, "TEAM.WORK");
-        f.Seed.Event.RamAssessment = new() { EventId = f.Seed.Event.Id, Status = EventRamStatus.Approved, Validity = "Valid", RamDataJson = "{}" };
-        f.Seed.Event.EventDataJson = "{\"maxCapacity\":20,\"registrationDeadline\":\"" + DateTime.UtcNow.AddDays(2).ToString("O") + "\"}"; await db.SaveChangesAsync();
+        f.Seed.Event.EventDataJson = "{\"maxCapacity\":20,\"registrationDeadline\":\"" + DateTime.UtcNow.AddDays(2).ToString("O") + "\"}";
+        await SeedApprovedCurrentRamAsync(db, f.Seed);
         var submitted = await SubmittedDutyPackage(f.Service, f.Seed);
         var approved = await f.Service.DecideAsync(f.Seed.Event.Id, submitted.Id, f.Seed.Owner, new(EventPackageDecisionType.Approve, new("Ready", "通过")), submitted.ETag, "lifecycle-approve", default);
         Assert.True(approved.IsSuccess, approved.Message); var p = new EventDutyProjectionService(db, f.Service);
@@ -133,7 +133,7 @@ public sealed partial class EventPackageFoundationTests
     public async Task DutyProjection_PublishedRosterVacancyGoesToCoordinatorAndMissingCoordinatorGoesToOwner()
     {
         await using var db = CreateDb(); var f = await DutyFixture(db, "TEAM.WORK", "SERVICE.ROSTER");
-        f.Seed.Event.CollaborationVersion = 1; f.Seed.Event.PublicationStatus = EventPublicationStatus.Published;
+        f.Seed.Event.PublicationStatus = EventPublicationStatus.Published;
         var coordinator = Guid.NewGuid(); db.Members.Add(new() { Id = coordinator });
         db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = f.Seed.Event.GroupId, MemberId = coordinator, Status = MembershipStatus.Approved });
         var ownerRosterRole = db.EventRoleAssignments.Single(x => x.EventId == f.Seed.Event.Id && x.RoleRequirementKey == "SERVICE.ROSTER:roster.coordinator");

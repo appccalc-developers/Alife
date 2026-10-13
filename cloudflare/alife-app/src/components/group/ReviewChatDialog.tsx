@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { translateUi, type UiTextKey } from '../../i18n/uiText'
 import type { AiSessionAppContext } from '../../types/aiSession'
-import type { EventEnrollmentRecord } from '../../types/enrollment'
 import type { GroupEventRecord, MultilingualString } from '../../types/event'
 import type { EventReviewRecord, ReviewDraft } from '../../types/review'
 import { useAiSession } from '../../hooks/useAiSession'
@@ -23,7 +22,6 @@ type Props = {
   language: string
   reviewId?: string
   existingReview?: EventReviewRecord | null
-  enrollments?: EventEnrollmentRecord[]
   aiContentContext?: AiContentContext
   onSuccess: (message: string) => void
 }
@@ -161,7 +159,6 @@ const ReviewChatDialog = ({
   language,
   reviewId,
   existingReview = null,
-  enrollments = [],
   aiContentContext = { missionStatements: [], eventContext: null },
   onSuccess,
 }: Props) => {
@@ -183,19 +180,8 @@ const ReviewChatDialog = ({
     knownFacts: {
       reviewId: targetReviewId,
       existingReview: existingDraft,
-      enrollments: enrollments.map((item) => {
-        try {
-          return JSON.parse(item.enrollmentJson)
-        } catch {
-          return {
-            id: item.id,
-            eventId: item.eventId,
-            memberId: item.memberId,
-          }
-        }
-      }),
     },
-  }), [aiContentContext.eventContext, aiContentContext.missionStatements, enrollments, event, existingDraft, groupId, language, memberId, targetReviewId])
+  }), [aiContentContext.eventContext, aiContentContext.missionStatements, event, existingDraft, groupId, language, memberId, targetReviewId])
   const t = (key: UiTextKey) => translateUi(language, key)
   const { state, setState, loading, error, clearError, sendMessage } = useAiSession<ReviewDraft, MultilingualString | null>(
     sessionId,

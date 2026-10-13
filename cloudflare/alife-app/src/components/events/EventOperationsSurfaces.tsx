@@ -1,5 +1,5 @@
 import { eventOperationsSurfacesText } from '../../i18n/eventOperationsSurfaces.ts'
-import EventActivityPlanPanel from './EventActivityPlanPanel'
+import EventActivityPlanOperations from './EventActivityPlanOperations'
 import type { ActivityPlanData } from '../../types/eventActivityPlan'
 import { BilingualField } from './creation/CreationFields'
 import EventTeamModules from './EventTeamModules'
@@ -83,14 +83,16 @@ export const EventTeamPanel = ({ eventId, groupId, language, item, onBusyChange,
   useEffect(() => { let live = true; void eventOperationsService.listOccurrences(eventId).then(rows => { if (live) setTaskOccurrences(rows) }).catch(() => {}); return () => { live = false } }, [eventId])
   const [activityPlan, setActivityPlan] = useState<ActivityPlanData | null>(null), [taskActivity, setTaskActivity] = useState('')
   const [eventContext, setEventContext] = useState<FormAssistantContext>()
+  const [projectTimeZone,setProjectTimeZone]=useState<string>()
   useEffect(() => {
     if (!currentMemberId) return
     let live = true
     void eventService.getGroupEvents(groupId, currentMemberId).then(records => {
       if (!live) return
       const record = records.find(item => item.id === eventId)
-      let details: { title?: Bilingual; description?: Bilingual } = {}
+      let details: { title?: Bilingual; description?: Bilingual; timeZone?: string } = {}
       try { details = record?.eventDataJson ? JSON.parse(record.eventDataJson) as typeof details : {} } catch { details = {} }
+      setProjectTimeZone(details.timeZone)
       setEventContext({ eventTitle: details.title || { en: record?.titleEn || '', zh: record?.titleZh || '' }, eventDescription: details.description || { en: '', zh: '' } })
     }).catch(() => {})
     return () => { live = false }
@@ -149,7 +151,7 @@ export const EventTeamPanel = ({ eventId, groupId, language, item, onBusyChange,
 
   return (
     <div className="space-y-4">
-      <EventActivityPlanPanel eventId={eventId} groupId={groupId} zh={language === 'zh'} eventContext={eventContext} onSaved={onSaved} onPlanChange={setActivityPlan} onBusy={setAiBusy}/>
+      <EventActivityPlanOperations eventId={eventId} groupId={groupId} zh={language === 'zh'} eventContext={eventContext} timeZone={projectTimeZone} onSaved={onSaved} onPlanChange={setActivityPlan} onBusy={setAiBusy}/>
       {data ? <EventTeamModules eventId={eventId} zh={language === 'zh'} moduleSelections={moduleSelections} state={{ data, candidates, error, loading: state === 'loading', reload: load }} onBusy={setBusy} onSaved={async () => { await load(); await onSaved?.() }} /> : null}
       <AppSectionCard summary={surfaceStatusSummary(state, language) ?? (language === 'zh' ? eventOperationsSurfacesText.collaborators.zh(data?.members.length || 0) : eventOperationsSurfacesText.collaborators.en(data?.members.length || 0))} title={language === 'zh' ? eventOperationsSurfacesText.collaboratorsLabel.zh : eventOperationsSurfacesText.collaboratorsLabel.en} subtitle={language === 'zh' ? eventOperationsSurfacesText.inviteMembersToHelpPrepareEachMemberAcceptsOr.zh : eventOperationsSurfacesText.inviteMembersToHelpPrepareEachMemberAcceptsOr.en} action={<AppBadge variant={item.readiness === 'ready' ? 'success' : 'warning'}>{item.readiness}</AppBadge>}>
         <SurfaceState state={state} language={language} error={error} onRetry={() => void load()} />

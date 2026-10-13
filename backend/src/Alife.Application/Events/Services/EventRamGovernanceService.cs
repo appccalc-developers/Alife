@@ -14,12 +14,16 @@ namespace Alife.Application.Events.Services;
 public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthorizationService authorization,
     IEventCacheInvalidationService cache, IEventPackageInvalidationService packages)
 {
-    public const string UpgradeMessage = "ram.client.upgradeRequired: Open the current RAM editor; versioned RAM cannot be submitted or overwritten by a legacy client. / 请打开新版 RAM 编辑器。";
     private static string Hash<T>(T value) where T : notnull => EventPackageCanonicalizer.HashCanonical(value);
     private static string Token(EventRamAssessment? ram) => ram?.ConcurrencyToken.ToString("D") ?? "new";
     private static bool Matches(string? expected, string actual) => expected?.Trim('"') == actual;
     private static RamPolicyDto PolicyDto(EventRamPolicyVersion p) => new(p.Id,p.ChurchId,p.Version,p.IsPublished,p.ConcurrencyToken.ToString("D"),
-        JsonSerializer.Deserialize<RamPolicyData>(p.PolicyJson,RamEvaluator.Json)!,p.PublishedByMemberId,p.PublishedUtc);
+        PolicyData(p.PolicyJson),p.PublishedByMemberId,p.PublishedUtc);
+    private static RamPolicyData PolicyData(string json)
+    {
+        var data = JsonSerializer.Deserialize<RamPolicyData>(json, RamEvaluator.Json)!;
+        return data;
+    }
     private static RamRevisionDto RevisionDto(EventRamRevision r) => new(r.Id,r.Version,r.SchemaVersion,r.PolicyVersionId,r.ContentHash,r.ResidualLevel,r.AuthorMemberId,r.OnsiteMemberId,r.CreatedUtc);
     private static RamActionDto ActionDto(EventRamAction a) => new(a.Id,a.RevisionId,a.ActorMemberId,a.Action,a.Reason,a.HealthSafetySigned,a.CreatedUtc);
     private Task<bool> ChurchMember(Guid church, Guid actor, CancellationToken ct) => db.GroupMemberships.AsNoTracking()
@@ -33,10 +37,9 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
     }
     private async Task<bool> CanEdit(GroupEvent e,Guid actor,CancellationToken ct) =>
         await authorization.IsApprovedMemberAsync(e.GroupId,actor,ct) &&
-        (e.CollaborationVersion == 0 && await EventCompositionPersistence.CanManageEventAsync(db,authorization,e,actor,ct) ||
         await db.EventRoleAssignments.AsNoTracking().AnyAsync(x=>x.EventId==e.Id && x.MemberId==actor &&
             x.Status==EventRoleAssignmentStatus.Accepted && x.EndedUtc==null &&
-            (x.RoleRequirementKey=="ram.author" || x.RoleRequirementKey.EndsWith(":ram.author")),ct));
+            (x.RoleRequirementKey=="ram.author" || x.RoleRequirementKey.EndsWith(":ram.author")),ct);
     private Task<bool> AcceptedDuty(Guid eventId,Guid actor,CancellationToken ct) => db.EventRoleAssignments.AsNoTracking()
         .AnyAsync(x => x.EventId == eventId && x.MemberId == actor && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null &&
             db.GroupMemberships.Any(m => m.MemberId == actor && m.GroupId == x.Event.GroupId && m.Status == MembershipStatus.Approved),ct);
@@ -62,20 +65,22 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
     public async Task<AppResult<RamPolicyDto>> SavePolicyAsync(Guid church,Guid actor,RamPolicySaveRequest request,CancellationToken ct)
     {
         if (!await CanManagePolicy(church,actor,ct)) return AppResult<RamPolicyDto>.Forbidden("RAM policy permission and membership of this church are required.");
-        var errors = RamEvaluator.ValidatePolicy(request.Data,false);
-        if (errors.Count != 0) return AppResult<RamPolicyDto>.Validation(string.Join("\n",errors));
+        if (request.Data is null) return AppResult<RamPolicyDto>.Validation("Policy sections are required.");
         await using var tx = await db.BeginSerializableTransactionAsync(ct);
         var draft = request.DraftId.HasValue ? await db.EventRamPolicyVersions.FirstOrDefaultAsync(x => x.Id == request.DraftId && x.ChurchId == church,ct) : null;
         if (request.DraftId.HasValue && draft is null) return AppResult<RamPolicyDto>.NotFound("Policy draft not found in this church.");
         if (draft?.IsPublished == true) return AppResult<RamPolicyDto>.Conflict("Published policy versions are immutable. Create a new draft to restore or revise one.");
         if (draft is not null && !Matches(request.ExpectedETag,draft.ConcurrencyToken.ToString("D"))) return AppResult<RamPolicyDto>.PreconditionFailed("Policy changed; reload before saving.");
+        var data = request.Data;
+        var errors = RamEvaluator.ValidatePolicy(data,false).ToList();
+        if (errors.Count != 0) return AppResult<RamPolicyDto>.Validation(string.Join("\n",errors));
         if (draft is null)
         {
             if (await db.EventRamPolicyVersions.AnyAsync(x => x.ChurchId == church && !x.IsPublished,ct)) return AppResult<RamPolicyDto>.Conflict("This church already has a policy draft. Reload it before editing.");
             draft = new() { Id=Guid.NewGuid(),ChurchId=church,Version=(await db.EventRamPolicyVersions.Where(x=>x.ChurchId==church).MaxAsync(x=>(int?)x.Version,ct) ?? 0)+1,CreatedByMemberId=actor,CreatedUtc=DateTime.UtcNow };
             db.EventRamPolicyVersions.Add(draft);
         }
-        draft.PolicyJson=RamEvaluator.Serialize(request.Data);
+        draft.PolicyJson=RamEvaluator.Serialize(data);
         draft.ConcurrencyToken=Guid.NewGuid();
         try { await db.SaveChangesAsync(ct); if(tx is not null) await tx.CommitAsync(ct); }
         catch(DbUpdateException) { return AppResult<RamPolicyDto>.Conflict("Policy changed concurrently; reload before saving."); }
@@ -112,10 +117,10 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
             policy = await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==referenceId && x.ChurchId==church,ct);
         var owner = await EventWorkAccess.OwnerAsync(db,e,actor,ct);
         var history=await db.EventRamRevisions.AsNoTracking().Where(x=>x.EventId==eventId && (edit || audit || owner || x.OnsiteMemberId==actor)).OrderByDescending(x=>x.Version).ToListAsync(ct);
-        var reviewOnly = e.CollaborationVersion >= 1 && audit && !edit && !owner;
+        var reviewOnly = audit && !edit && !owner;
         if (reviewOnly)
         {
-            var submittedIds = await db.EventRamActions.AsNoTracking().Where(x => x.EventId == eventId && (x.Action == "submit" || x.Action == "legacy-submitted" || x.Action == "legacy-approved")).Select(x => x.RevisionId).Distinct().ToArrayAsync(ct);
+            var submittedIds = await db.EventRamActions.AsNoTracking().Where(x => x.EventId == eventId && (x.Action == "submit")).Select(x => x.RevisionId).Distinct().ToArrayAsync(ct);
             history = history.Where(x => submittedIds.Contains(x.Id)).ToList();
         }
         var ids=history.Select(x=>x.Id).ToArray();
@@ -161,7 +166,7 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         if(request.PolicyVersionId.HasValue && policy is null) return AppResult<EventRamAssessmentDto>.Validation("The published RAM policy must belong to the Event's church.");
         RamEvaluation evaluation;
         var sourceContext = await EventPlanContextCapture.CaptureAsync(db,e,ct);
-        if (sourceContext.ActivityPlan is null) return AppResult<EventRamAssessmentDto>.Conflict("Define or adopt activities in Tasks and handoffs before saving RAM. / 请先在任务与交接中定义或采纳活动项目，再保存 RAM。");
+        if (sourceContext.ActivityPlan is null) return AppResult<EventRamAssessmentDto>.Conflict("Define activities in Tasks and handoffs before saving RAM. / 请先在任务与交接中定义活动项目，再保存 RAM。");
         try { evaluation=RamEvaluator.Evaluate(EventActivityPlanService.Mirror(RamEvaluator.Parse(request.RamDataJson), sourceContext),policy is null?null:PolicyDto(policy).Data); }
         catch(JsonException) { return AppResult<EventRamAssessmentDto>.Validation("RAM must be a valid version 2 JSON object."); }
         evaluation.Draft.SchemaVersion=2;
@@ -169,7 +174,6 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         if (ram?.SchemaVersion==2 && ram.PolicyVersionId==policy?.Id && ram.RamDataJson==RamEvaluator.Serialize(evaluation.Draft))
             return AppResult<EventRamAssessmentDto>.Success(EventRamPolicy.ToDto(ram,e.GroupId));
         if(ram is null) { ram=new(){EventId=eventId,CreatedUtc=DateTime.UtcNow}; db.EventRamAssessments.Add(ram); e.RamAssessment=ram; }
-        await ArchiveLegacyAsync(db,ram,actor,ct);
         var wasReviewed=ram.Status!=EventRamStatus.Draft || ram.CurrentRevisionId.HasValue || ram.Validity=="ReviewRequired";
         ram.SchemaVersion=2; ram.AuthorMemberId=actor; ram.PolicyVersionId=policy?.Id;
         ram.RamDataJson=RamEvaluator.Serialize(evaluation.Draft); ram.ResidualLevel=evaluation.ResidualLevel;
@@ -180,11 +184,6 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         var authorTasks = await db.EventTasks.Where(x => x.EventId == eventId && x.SourceType == "ramAssessment" && x.SourceId == eventId && x.Status != EventTaskStatus.Done && x.Status != EventTaskStatus.Cancelled).ToListAsync(ct);
         foreach(var task in authorTasks) { task.AssignedMemberId = actor; task.UpdatedUtc = DateTime.UtcNow; task.ConcurrencyToken = Guid.NewGuid(); }
         e.UpdatedUtc=DateTime.UtcNow;
-        if(e.PublicationStatus==EventPublicationStatus.LegacyImplicit)
-        {
-            e.PublicationStatus=EventPublicationStatus.Unpublished;
-            e.PublicationConcurrencyToken=Guid.NewGuid();
-        }
         await packages.InvalidateForMaterialChangeAsync(e,actor,"event.ram.changed","governanceCritical",ct);
         try { await db.SaveChangesAsync(ct); if(tx is not null) await tx.CommitAsync(ct); }
         catch(DbUpdateConcurrencyException) { return AppResult<EventRamAssessmentDto>.PreconditionFailed("RAM changed concurrently; reload."); }
@@ -209,7 +208,6 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
             var visible = await GetAsync(eventId,actor,ct);
             return visible.IsSuccess && visible.Value!.Assessment is { } assessment ? AppResult<EventRamAssessmentDto>.Success(assessment) : AppResult<EventRamAssessmentDto>.Forbidden("The report is no longer available to this account.");
         }
-        if(ram.SchemaVersion!=2 && action!="request-review") return AppResult<EventRamAssessmentDto>.Conflict(UpgradeMessage);
         if(!Matches(request.ExpectedETag,Token(ram))) return AppResult<EventRamAssessmentDto>.PreconditionFailed("RAM changed; reload the specified version.");
         if(await EventPreparationPolicy.IsFrozenAsync(db,eventId,ct)) return AppResult<EventRamAssessmentDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         var edit=await CanEdit(e,actor,ct); var audit=await CanAuditAsync(e,actor,ct);
@@ -217,7 +215,7 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         if (action is "confirm" or "submit" or "approve" && revision?.EventPlanContextHash is { } contextHash &&
             contextHash != Hash(await EventPlanContextCapture.CaptureAsync(db,e,ct)))
             return AppResult<EventRamAssessmentDto>.Conflict("The Event Plan changed since this RAM version. Request confirmation of a new version before submitting or reviewing. / 活动方案已改变，请重新确认新的 RAM 版本。");
-        if (action is "submit" or "approve" && e.CollaborationVersion >= 1 && revision?.EventPlanContextHash is null)
+        if (action is "submit" or "approve" && revision?.EventPlanContextHash is null)
             return AppResult<EventRamAssessmentDto>.Conflict("This RAM version is not bound to a complete plan. Request a new confirmation.");
         if(action=="snapshot-draft")
         {
@@ -242,14 +240,13 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         {
             if(!edit && !audit) return AppResult<EventRamAssessmentDto>.Forbidden("The Event lead or safety reviewer must request re-review.");
             if(string.IsNullOrWhiteSpace(request.Reason)) return AppResult<EventRamAssessmentDto>.Validation("Explain why re-review is required.");
-            await ArchiveLegacyAsync(db,ram,actor,ct);
-            revision ??= await Snapshot(ram,null,ct);
+                revision ??= await Snapshot(ram,null,ct);
             Invalidate(ram,"ReviewRequired"); ram.ReviewRequested=true;
         }
         else
         {
             if(revision is null || revision.Id!=request.RevisionId) return AppResult<EventRamAssessmentDto>.Conflict("This is not the current immutable RAM version.");
-            if (e.CollaborationVersion >= 1 && action is "confirm" or "submit" or "approve" && !await CanEdit(e, revision.AuthorMemberId, ct))
+            if (action is "confirm" or "submit" or "approve" && !await CanEdit(e, revision.AuthorMemberId, ct))
                 return AppResult<EventRamAssessmentDto>.Conflict("The RAM author no longer holds the accepted responsibility. A current author must prepare a new version.");
             if(action is "submit" or "approve" && revision.OnsiteMemberId is {} onsiteActor && revision.AuthorMemberId!=onsiteActor && !await AcceptedDuty(eventId,onsiteActor,ct))
                 return AppResult<EventRamAssessmentDto>.Conflict("The on-site duty is no longer accepted; request a new confirmation.");
@@ -408,14 +405,6 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
             EventPlanVersion=e.ActivePlanVersion,EventPlanContextJson=RamEvaluator.Serialize(context),EventPlanContextHash=Hash(context)};
         db.EventRamRevisions.Add(revision); return revision;
     }
-    public static async Task ArchiveLegacyAsync(IAlifeDbContext db,EventRamAssessment ram,Guid actor,CancellationToken ct)
-    {
-        if(ram.SchemaVersion!=1 || await db.EventRamRevisions.AnyAsync(x=>x.EventId==ram.EventId && x.SchemaVersion==1,ct) || db.EventRamRevisions.Local.Any(x=>x.EventId==ram.EventId && x.SchemaVersion==1)) return;
-        var revision=new EventRamRevision{Id=Guid.NewGuid(),EventId=ram.EventId,Version=1,SchemaVersion=1,RamDataJson=ram.RamDataJson,ContentHash=Hash(ram.RamDataJson),AuthorMemberId=ram.SubmittedByMemberId??actor,CreatedUtc=ram.UpdatedUtc};
-        db.EventRamRevisions.Add(revision);
-        if(ram.SubmittedByMemberId is {} submitter) db.EventRamActions.Add(new(){Id=Guid.NewGuid(),EventId=ram.EventId,RevisionId=revision.Id,ActorMemberId=submitter,Action="legacy-submitted",CreatedUtc=ram.SubmittedUtc??ram.UpdatedUtc,IdempotencyKey=$"legacy-submit-{revision.Id}",RequestHash=revision.ContentHash});
-        if(ram.ApprovedByMemberId is {} approver) db.EventRamActions.Add(new(){Id=Guid.NewGuid(),EventId=ram.EventId,RevisionId=revision.Id,ActorMemberId=approver,Action="legacy-approved",CreatedUtc=ram.ApprovedUtc??ram.UpdatedUtc,IdempotencyKey=$"legacy-{revision.Id}",RequestHash=revision.ContentHash});
-    }
     public static void Invalidate(EventRamAssessment ram,string validity="ReviewRequired")
     {
         ram.Status=EventRamStatus.Draft; ram.Validity=validity; ram.CurrentRevisionId=null; ram.SubmittedByMemberId=null; ram.SubmittedUtc=null; ram.ApprovedByMemberId=null; ram.ApprovedUtc=null;
@@ -430,13 +419,13 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         if(r is null) return AppResult<RamPrintDto>.NotFound("RAM version not found.");
         var owner = await EventWorkAccess.OwnerAsync(db,e,actor,ct);
         if(!owner && !await CanEdit(e,actor,ct) && !await EventWorkAccess.ReviewContextAsync(db,e,actor,ct) && !(r.OnsiteMemberId==actor && await AcceptedDuty(eventId,actor,ct))) return AppResult<RamPrintDto>.Forbidden("RAM reading permission is required for printing this version.");
-        if (e.CollaborationVersion >= 1 && !owner && !await CanEdit(e,actor,ct) && r.OnsiteMemberId != actor &&
-            !await db.EventRamActions.AnyAsync(x => x.RevisionId == r.Id && (x.Action == "submit" || x.Action == "legacy-submitted" || x.Action == "legacy-approved"),ct)) return AppResult<RamPrintDto>.Forbidden("Only submitted reports are available to the reviewer pool.");
+        if (!owner && !await CanEdit(e,actor,ct) && r.OnsiteMemberId != actor &&
+            !await db.EventRamActions.AnyAsync(x => x.RevisionId == r.Id && (x.Action == "submit"),ct)) return AppResult<RamPrintDto>.Forbidden("Only submitted reports are available to the reviewer pool.");
         var p=await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==r.PolicyVersionId,ct);
         var actions=await db.EventRamActions.AsNoTracking().Where(x=>x.RevisionId==revisionId).OrderBy(x=>x.CreatedUtc).ToListAsync(ct);
         var current=e.RamAssessment?.CurrentRevisionId==revisionId;
         return AppResult<RamPrintDto>.Success(new(RevisionDto(r),r.RamDataJson,p is null?null:PolicyDto(p),actions.Select(ActionDto).ToArray(),current,current?e.RamAssessment!.Validity:"Historical",
-            !actions.Any(x=>x.Action is "approve" or "legacy-approved")));
+            !actions.Any(x=>x.Action == "approve")));
     }
 
     public static bool IsRequired(GroupEvent e, EventPlanProposalDto? plan = null)
@@ -444,14 +433,13 @@ public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroup
         if(e.RamAssessment?.ReviewRequested==true) return true;
         if(plan?.ModuleDecisions.Any(x=>x.ModuleCode=="SAFETY.RAM" &&
             x.Status is EventModuleDecisionStatus.Required or EventModuleDecisionStatus.Selected)==true) return true;
-        if(plan?.ActivityTypeCode=="outdoor-activity" || plan?.ArchetypeCode=="camp-retreat") return true;
         if(plan?.Facts.Items.Any(f=>f.Certainty==EventFactCertainty.Confirmed &&
             f.Code is "safety.requiresRam" or "safety.highRisk" or "place.offsite" or "place.outdoor" or "move.accommodationRequired" &&
             f.Value?.ValueKind==JsonValueKind.True)==true) return true;
         try
         {
             var draft=e.RamAssessment is null?null:RamEvaluator.Parse(e.RamAssessment.RamDataJson);
-            if(draft is { IsOuting:true } or { IsOvernight:true } or { IsHighRisk:true } || draft?.Activities.Any(x=>x.Type is "hiking" or "water" or "camp" or "outdoor")==true) return true;
+            if(draft is { IsOuting:true } or { IsOvernight:true } or { IsHighRisk:true } || draft?.Activities.Any(x=>x.Attributes.Any(a => a is "hiking" or "water" or "camp" or "outdoor"))==true) return true;
             using var json=JsonDocument.Parse(e.EventDataJson);
             return HasTrigger(json.RootElement);
         }

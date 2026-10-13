@@ -1,8 +1,10 @@
 using Alife.Application.Pages.Services;
 using Alife.Application.IdentityAccess;
 using Alife.Application.Sermons.Services;
+using Alife.Application.Events.Services;
 using Alife.Infrastructure;
 using Alife.Infrastructure.Persistence;
+using Alife.DbMigrator;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -32,6 +34,77 @@ builder.Services.AddScoped<IIdentityAccessService, IdentityAccessService>();
 using var host = builder.Build();
 using var scope = host.Services.CreateScope();
 
+// Read-only, offline binding check used by the protected reset workflow. It parses the
+// running Function App's configured connection without logging it or touching the database.
+if (await EventResetTargetIdentityInspection.TryRunAsync(builder.Configuration, args, connectionString))
+    return;
+
+// The Event 2.0 reset is an independent maintenance command. It must remain before
+// every migration, seed, normalisation, cache or one-off data path in this executable.
+if (EventInstancePurge.TryCreate(builder.Configuration, args, connectionString, out var eventPurge))
+{
+    await eventPurge!.RunAsync();
+    return;
+}
+
+// Read-only deployment gate for the one destructive Event 2.0 storage migration.
+// The final source may contain this migration while an independently reviewed preparation
+// release remains live. The workflow uses this result before any deploy or ordinary migration,
+// blocks the final source until reset verification, and gates the one destructive application.
+var event2MigrationGate = builder.Configuration["Events:Event2MigrationGate"];
+if (event2MigrationGate is not null)
+{
+    if (!args.Any(argument => string.Equals(argument, "--Events:Event2MigrationGate=inspect", StringComparison.Ordinal)) ||
+        event2MigrationGate != "inspect")
+        throw new InvalidOperationException("The Event 2.0 migration gate requires the explicit inspect command.");
+    var outputValue = builder.Configuration["Events:OutputDirectory"] ??
+        throw new InvalidOperationException("Events:OutputDirectory is required for migration-gate inspection.");
+    if (!Path.IsPathFullyQualified(outputValue))
+        throw new InvalidOperationException("Events:OutputDirectory must be absolute for migration-gate inspection.");
+    var outputDirectory = Path.GetFullPath(outputValue);
+    Directory.CreateDirectory(outputDirectory);
+    var gateDb = scope.ServiceProvider.GetRequiredService<AlifeDbContext>();
+    var known = gateDb.Database.GetMigrations().Contains(Event2DestructiveMigrationGate.MigrationId, StringComparer.Ordinal);
+    var applied = (await gateDb.Database.GetAppliedMigrationsAsync()).Contains(Event2DestructiveMigrationGate.MigrationId, StringComparer.Ordinal);
+    var result = new { migrationId = Event2DestructiveMigrationGate.MigrationId, known, applied, pending = known && !applied };
+    await File.WriteAllTextAsync(
+        Path.Combine(outputDirectory, "event2-migration-gate.json"),
+        System.Text.Json.JsonSerializer.Serialize(result));
+    Console.WriteLine($"Event 2.0 migration gate inspected: known={known}; applied={applied}; pending={known && !applied}.");
+    return;
+}
+
+// Explicit local questionnaire-version initialization. No schema migration or unrelated seeding.
+var questionnaireMode = builder.Configuration["Events:QuestionnaireVersions"];
+if (questionnaireMode is not null)
+{
+    if (!args.Any(argument => argument.StartsWith("--Events:QuestionnaireVersions=", StringComparison.Ordinal)) ||
+        questionnaireMode is not ("preview" or "apply"))
+        throw new InvalidOperationException("Questionnaire versions require an explicit preview or apply command.");
+    var target = new SqlConnectionStringBuilder(connectionString);
+    if (!string.Equals(target.DataSource, "localhost,14333", StringComparison.OrdinalIgnoreCase) ||
+        !string.Equals(target.InitialCatalog, "alife_db", StringComparison.OrdinalIgnoreCase) ||
+        builder.Configuration["Events:ExpectedServer"] != target.DataSource ||
+        builder.Configuration["Events:ExpectedDatabase"] != target.InitialCatalog)
+        throw new InvalidOperationException("Questionnaire initialization is restricted to localhost,14333/alife_db.");
+    if (questionnaireMode == "apply")
+    {
+        var backupPath = Path.GetFullPath(builder.Configuration["Events:VerifiedBackupPath"] ??
+            throw new InvalidOperationException("A verified recovery backup path is required."));
+        var backupRoot = Path.GetFullPath("C:/Data/Alife/Backups").TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!backupPath.StartsWith(backupRoot, StringComparison.OrdinalIgnoreCase) ||
+            !File.Exists(backupPath) || new FileInfo(backupPath).Length == 0)
+            throw new InvalidOperationException("The verified local recovery backup is missing.");
+    }
+    var questionnaireDb = scope.ServiceProvider.GetRequiredService<AlifeDbContext>();
+    if ((await questionnaireDb.Database.GetPendingMigrationsAsync()).Any())
+        throw new InvalidOperationException("Apply separately reviewed schema migrations before questionnaire initialization.");
+    var initialized = await EventActivityTemplateCatalog.InitializeQuestionnaireVersionsAsync(
+        questionnaireDb, default, apply: questionnaireMode == "apply");
+    Console.WriteLine($"Questionnaire {questionnaireMode}: target={target.DataSource}/{target.InitialCatalog}; template successors={initialized}.");
+    return;
+}
+
 // Explicit recovery does not run migrations, seeding, or unrelated cache mutations.
 var recoverAdministrator = args.Any(argument => string.Equals(argument, "--AdministratorActivation:Recover=true", StringComparison.OrdinalIgnoreCase));
 if (builder.Configuration.GetValue<bool>("AdministratorActivation:Recover") && !recoverAdministrator)
@@ -55,10 +128,20 @@ if (builder.Configuration.GetValue<bool>("Sermons:NormalizeOnly"))
 await EnsureSqlServerDatabaseExistsAsync(connectionString);
 
 var dbContext = scope.ServiceProvider.GetRequiredService<AlifeDbContext>();
+var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+// Environment variables or appsettings cannot authorize this migration. The protected
+// final-release workflow must provide both exact command-line arguments.
+Event2DestructiveMigrationGate.RequireExplicitAuthorization(pendingMigrations, args);
 await dbContext.Database.MigrateAsync();
 var normalizedSermons = await SermonMetadataBackfill.RunAsync(dbContext, scope.ServiceProvider.GetRequiredService<ISermonCacheInvalidationService>());
 Console.WriteLine($"Sermon metadata normalized: {normalizedSermons}.");
 var seedSummary = await SeedData.EnsureSeededAsync(dbContext, builder.Configuration);
+// Copy each current administrator-edited template to a new version exactly once.
+// The archived version and every accepted Event plan remain untouched.
+var initializedProjectTemplates = await EventActivityTemplateCatalog.InitializePresetProjectVersionsAsync(dbContext, default);
+Console.WriteLine($"Event project template versions initialized: {initializedProjectTemplates}.");
+var initializedEvent2Templates = await EventActivityTemplateCatalog.InitializeQuestionnaireVersionsAsync(dbContext, default);
+Console.WriteLine($"Event 2.0 template versions initialized: {initializedEvent2Templates}.");
 if (builder.Configuration.GetValue<bool>("AdministratorActivation:Enabled"))
 {
     var activation = await scope.ServiceProvider.GetRequiredService<IIdentityAccessService>().InitializeAdministratorAsync(false, default);

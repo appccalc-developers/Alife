@@ -181,9 +181,9 @@ export function mergeDetails(snapshot: DetailsSnapshot, result: DetailsResult, m
 export class EventDetailsSession extends AiChatSession<DetailsResult> {
   constructor(storage: DurableObjectStateLike, env: Env) {
     super(storage, env, {
-      storageKey: 'event-details-v1', routeNotFoundMessage: 'Details session route not found.', scenarioDefinition: SCENARIO,
+      storageKey: 'event-details-v2', routeNotFoundMessage: 'Details session route not found.', scenarioDefinition: SCENARIO,
       responseSchema: DETAILS_RESPONSE_SCHEMA, normalizeDraft: readDetailsAiResult, validateDraft: () => [],
-      buildGeminiContext: ({ state, userMessage }) => ({ task: 'event-details-v1', snapshot: readDetailsSnapshot(state.appContext.knownFacts?.snapshot), userMessage, chatHistory: state.chatHistory.slice(-8), language: state.appContext.language ?? 'bilingual' }),
+      buildGeminiContext: ({ state, userMessage }) => ({ task: 'event-details-v2', snapshot: readDetailsSnapshot(state.appContext.knownFacts?.snapshot), userMessage, chatHistory: state.chatHistory.slice(-8), language: state.appContext.language ?? 'bilingual' }),
       mergeDraft: (_previous, next, state, message) => mergeDetails(readDetailsSnapshot(state.appContext.knownFacts?.snapshot), next, message),
       formatChatHistoryEntry: result => JSON.stringify({ assistantReply: result.assistantReply, issues: result.issues }),
     })

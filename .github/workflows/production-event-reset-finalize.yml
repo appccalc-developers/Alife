@@ -1,0 +1,380 @@
+name: Finalize Production Event Reset Recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      evidence_run_id:
+        description: Successful Event reset workflow run containing encrypted verified evidence
+        type: string
+        required: true
+      reset_run_id:
+        description: Exact reset run id from the approved evidence
+        type: string
+        required: true
+      file_manifest_hash:
+        description: Exact approved file manifest SHA-256
+        type: string
+        required: true
+      backup_reference:
+        description: Exact Azure SQL recovery database resource id
+        type: string
+        required: true
+      confirmation:
+        description: Type DESTROY EVENT RESET RECOVERY MATERIAL
+        type: string
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-event-reset
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    environment: production-event-reset-finalize
+    timeout-minutes: 60
+    env:
+      EVENT_RESET_FUNCTION_APP_NAME: ${{ vars.EVENT_RESET_FUNCTION_APP_NAME }}
+      EVENT_RESET_FUNCTION_RESOURCE_GROUP: ${{ vars.EVENT_RESET_FUNCTION_RESOURCE_GROUP }}
+    steps:
+      - name: Validate finalization inputs
+        shell: bash
+        env:
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          MANIFEST_HASH: ${{ inputs.file_manifest_hash }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVIDENCE_KEY: ${{ secrets.EVENT_RESET_EVIDENCE_KEY }}
+          FILE_FINALIZE_TOKEN: ${{ secrets.EVENT_RESET_FILE_FINALIZE_TOKEN }}
+          FILE_FINALIZE_SIGNING_SECRET: ${{ secrets.EVENT_RESET_FILE_FINALIZE_SIGNING_SECRET }}
+          STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          TARGET_RESOURCE: ${{ vars.EVENT_RESET_SQL_RESOURCE_ID }}
+        run: |
+          set -euo pipefail
+          [[ "$EVIDENCE_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$RESET_RUN_ID" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
+          [[ "$MANIFEST_HASH" =~ ^[0-9a-f]{64}$ ]]
+          test "$CONFIRMATION" = 'DESTROY EVENT RESET RECOVERY MATERIAL'
+          case "$BACKUP_REFERENCE" in
+            /subscriptions/*/resourceGroups/*/providers/Microsoft.Sql/servers/*/databases/*) ;;
+            *) exit 1 ;;
+          esac
+          test "${#EVIDENCE_KEY}" -ge 32
+          test "${#FILE_FINALIZE_TOKEN}" -ge 32
+          test "${#FILE_FINALIZE_SIGNING_SECRET}" -ge 32
+          test "${#STATUS_TOKEN}" -ge 32
+          test -n "$STATUS_URL"
+          case "$TARGET_RESOURCE" in
+            /subscriptions/*/resourceGroups/*/providers/Microsoft.Sql/servers/*/databases/*) ;;
+            *) exit 1 ;;
+          esac
+          test -n "$EVENT_RESET_FUNCTION_APP_NAME"
+          test -n "$EVENT_RESET_FUNCTION_RESOURCE_GROUP"
+
+      - name: Download encrypted reset evidence
+        uses: actions/download-artifact@v5
+        with:
+          name: production-event-reset-evidence-${{ inputs.evidence_run_id }}
+          path: ${{ runner.temp }}/approved-evidence
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.evidence_run_id }}
+
+      - name: Require the successful original reset workflow run
+        id: original
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+        run: |
+          set -euo pipefail
+          run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$EVIDENCE_RUN_ID")"
+          test "$(jq -r '.conclusion' <<<"$run")" = success
+          test "$(jq -r '.path' <<<"$run")" = '.github/workflows/production-event-reset.yml'
+          test "$(jq -r '.event' <<<"$run")" = workflow_dispatch
+          echo "head_sha=$(jq -r '.head_sha' <<<"$run")" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the exact reset code for canonical request signing
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.original.outputs.head_sha }}
+          fetch-depth: 1
+
+      - name: Decrypt and validate the exact verified reset evidence
+        id: evidence
+        shell: bash
+        env:
+          EVIDENCE_KEY: ${{ secrets.EVENT_RESET_EVIDENCE_KEY }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          MANIFEST_HASH: ${{ inputs.file_manifest_hash }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          ORIGINAL_HEAD_SHA: ${{ steps.original.outputs.head_sha }}
+          TARGET_RESOURCE: ${{ vars.EVENT_RESET_SQL_RESOURCE_ID }}
+        run: |
+          set -euo pipefail
+          evidence_dir="${{ runner.temp }}/event-reset-finalize"
+          mkdir -p "$evidence_dir"
+          openssl enc -d -aes-256-cbc -pbkdf2 \
+            -in "${{ runner.temp }}/approved-evidence/evidence.tgz.enc" \
+            -out "${{ runner.temp }}/approved-evidence/evidence.tgz" \
+            -pass env:EVIDENCE_KEY
+          tar -xzf "${{ runner.temp }}/approved-evidence/evidence.tgz" -C "$evidence_dir"
+          for required in preview.json apply.json verify.json r2-delete-manifest.json \
+            file-backup-receipt.json file-delete-receipt.json cache-receipt.json \
+            runtime-registration-receipt.json; do
+            test -f "$evidence_dir/$required"
+          done
+
+          fingerprint="$(jq -r '.fingerprint' "$evidence_dir/preview.json")"
+          test "$(jq -r '.resetRunId' "$evidence_dir/apply.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.codeSha' "$evidence_dir/apply.json")" = "$ORIGINAL_HEAD_SHA"
+          test "$(jq -r '.fileManifestHash' "$evidence_dir/apply.json")" = "$MANIFEST_HASH"
+          test "$(jq -r '.backupReference' "$evidence_dir/apply.json")" = "$BACKUP_REFERENCE"
+          test "$(jq -r '.targetResource' "$evidence_dir/apply.json")" = "$TARGET_RESOURCE"
+          test "$(jq -r '.previewFingerprint' "$evidence_dir/apply.json")" = "$fingerprint"
+          test "$(jq -r '.previewFingerprint' "$evidence_dir/verify.json")" = "$fingerprint"
+          test "$(jq -r '.fileManifestHash' "$evidence_dir/verify.json")" = "$MANIFEST_HASH"
+          test "$(jq -r '.codeSha' "$evidence_dir/verify.json")" = "$ORIGINAL_HEAD_SHA"
+          test "$(jq -r '.toolBuildHash' "$evidence_dir/verify.json")" = "$(jq -r '.toolBuildHash' "$evidence_dir/preview.json")"
+          test "$(jq -r '.schemaHash' "$evidence_dir/verify.json")" = "$(jq -r '.schemaHash' "$evidence_dir/preview.json")"
+          test "$(jq -S -c '.preservedTableCounts' "$evidence_dir/verify.json")" = "$(jq -S -c '.preservedTableCounts' "$evidence_dir/preview.json")"
+          test "$(jq -S -c '.preservedTableHashes' "$evidence_dir/verify.json")" = "$(jq -S -c '.preservedTableHashes' "$evidence_dir/preview.json")"
+          test "$(jq -r '.resetRunId' "$evidence_dir/r2-delete-manifest.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.manifestHash' "$evidence_dir/r2-delete-manifest.json")" = "$MANIFEST_HASH"
+
+          for receipt in file-backup-receipt.json file-delete-receipt.json; do
+            test "$(jq -r '.resetRunId' "$evidence_dir/$receipt")" = "$RESET_RUN_ID"
+            test "$(jq -r '.manifestHash' "$evidence_dir/$receipt")" = "$MANIFEST_HASH"
+            test "$(jq -r '.backupReference' "$evidence_dir/$receipt")" = "$BACKUP_REFERENCE"
+            test "$(jq -r '.approvedFingerprint' "$evidence_dir/$receipt")" = "$fingerprint"
+            test "$(jq -r '.targetResource' "$evidence_dir/$receipt")" = "$TARGET_RESOURCE"
+            test "$(jq -r '.resetEpoch' "$evidence_dir/$receipt")" = "$(jq -r '.freezeEpoch' "$evidence_dir/apply.json")"
+            test "$(jq -r '.schemaEpoch' "$evidence_dir/$receipt")" = '2.0.0'
+            test "$(jq -r '.verified' "$evidence_dir/$receipt")" = true
+            test "$(jq '.failures | length' "$evidence_dir/$receipt")" = 0
+          done
+          test "$(jq -r '.operation' "$evidence_dir/file-backup-receipt.json")" = backup
+          test "$(jq -r '.operation' "$evidence_dir/file-delete-receipt.json")" = delete
+
+          test "$(jq -r '.verified' "$evidence_dir/cache-receipt.json")" = true
+          test "$(jq -r '.resetRunId' "$evidence_dir/cache-receipt.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.resetEpoch' "$evidence_dir/cache-receipt.json")" = "$(jq -r '.freezeEpoch' "$evidence_dir/apply.json")"
+          test "$(jq -r '.schemaEpoch' "$evidence_dir/cache-receipt.json")" = '2.0.0'
+          test "$(jq '.failures | length' "$evidence_dir/cache-receipt.json")" = 0
+
+          test "$(jq -r '.verified' "$evidence_dir/runtime-registration-receipt.json")" = true
+          test "$(jq -r '.resetRunId' "$evidence_dir/runtime-registration-receipt.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.evidenceRunId' "$evidence_dir/runtime-registration-receipt.json")" = "$EVIDENCE_RUN_ID"
+          test "$(jq -r '.codeSha' "$evidence_dir/runtime-registration-receipt.json")" = "$ORIGINAL_HEAD_SHA"
+          test "$(jq -r '.fingerprint' "$evidence_dir/runtime-registration-receipt.json")" = "$fingerprint"
+          test "$(jq -r '.manifestHash' "$evidence_dir/runtime-registration-receipt.json")" = "$MANIFEST_HASH"
+          test "$(jq -r '.backupReference' "$evidence_dir/runtime-registration-receipt.json")" = "$BACKUP_REFERENCE"
+          test "$(jq -r '.schemaEpoch' "$evidence_dir/runtime-registration-receipt.json")" = '2.0.0'
+          test "$(jq -r '.rollbackHold' "$evidence_dir/runtime-registration-receipt.json")" = false
+
+          applied="$(jq -r '.appliedUtc' "$evidence_dir/apply.json")"
+          applied_epoch="$(date -u -d "$applied" +%s)"
+          now_epoch="$(date -u +%s)"
+          test "$now_epoch" -ge "$((applied_epoch + 30 * 24 * 60 * 60))"
+          echo "dir=$evidence_dir" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+          echo "reset_epoch=$(jq -r '.freezeEpoch' "$evidence_dir/apply.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the production Event runtime is healthy
+        shell: bash
+        env:
+          STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          response="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $STATUS_TOKEN" "$STATUS_URL")"
+          test "$(jq -r '.configurationValid' <<<"$response")" = true
+          test "$(jq -r '.schemaEpoch' <<<"$response")" = '2.0.0'
+          test "$(jq -r '.frozen' <<<"$response")" = false
+          test -z "$(jq -r '.resetEpoch // empty' <<<"$response")"
+
+      - name: Azure login with recovery-finalization identity
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Begin or resume the exact finalization operation
+        id: finalization
+        shell: bash
+        env:
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          MANIFEST_HASH: ${{ inputs.file_manifest_hash }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          FINGERPRINT: ${{ steps.evidence.outputs.fingerprint }}
+          RESET_EPOCH: ${{ steps.evidence.outputs.reset_epoch }}
+        run: |
+          set -euo pipefail
+          settings="$(az functionapp config appsettings list \
+            --name "$EVENT_RESET_FUNCTION_APP_NAME" \
+            --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          state="$(setting EVENT_RESET_FINALIZE_STATE)"
+          test "$(az functionapp show --name "$EVENT_RESET_FUNCTION_APP_NAME" --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" --query state -o tsv)" = Running
+          test "$(setting EVENT_RESET_FINAL_RELEASE_STATE)" = complete
+          test "$(setting EVENT_RESET_FINAL_RELEASE_SHA)" = "$(setting EVENT_RESET_LAST_VERIFIED_CODE_SHA)"
+          test "$(setting EVENT_WRITE_MODE)" = open
+          test -z "$(setting EVENT_WRITE_FREEZE_EPOCH)"
+          test "$(setting EVENT_RESET_ROLLBACK_HOLD)" = false
+          test "$(setting EVENT_RESET_LAST_VERIFIED_STATE)" = verified
+          test "$(setting EVENT_RESET_LAST_VERIFIED_RUN_ID)" = "$RESET_RUN_ID"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_EVIDENCE_RUN_ID)" = "$EVIDENCE_RUN_ID"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_CODE_SHA)" = '${{ steps.original.outputs.head_sha }}'
+          test "$(setting EVENT_RESET_LAST_VERIFIED_FINGERPRINT)" = "$FINGERPRINT"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_FILE_MANIFEST_HASH)" = "$MANIFEST_HASH"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_BACKUP_REFERENCE)" = "$BACKUP_REFERENCE"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_EPOCH)" = "$RESET_EPOCH"
+          test "$(setting EVENT_RESET_LAST_VERIFIED_SCHEMA_EPOCH)" = '2.0.0'
+
+          if [ -z "$state" ]; then
+            test "$(az resource show --ids "$BACKUP_REFERENCE" --query properties.status -o tsv)" = Online
+            state=new
+            az functionapp config appsettings set \
+              --name "$EVENT_RESET_FUNCTION_APP_NAME" \
+              --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
+              --settings \
+                "EVENT_RESET_FINALIZE_STATE=in-progress" \
+                "EVENT_RESET_FINALIZE_RESET_RUN_ID=$RESET_RUN_ID" \
+                "EVENT_RESET_FINALIZE_EVIDENCE_RUN_ID=$EVIDENCE_RUN_ID" \
+                "EVENT_RESET_FINALIZE_MANIFEST_HASH=$MANIFEST_HASH" \
+                "EVENT_RESET_FINALIZE_BACKUP_REFERENCE=$BACKUP_REFERENCE" \
+              --only-show-errors --output none
+          elif [ "$state" = in-progress ] || [ "$state" = complete ]; then
+            test "$(setting EVENT_RESET_FINALIZE_RESET_RUN_ID)" = "$RESET_RUN_ID"
+            test "$(setting EVENT_RESET_FINALIZE_EVIDENCE_RUN_ID)" = "$EVIDENCE_RUN_ID"
+            test "$(setting EVENT_RESET_FINALIZE_MANIFEST_HASH)" = "$MANIFEST_HASH"
+            test "$(setting EVENT_RESET_FINALIZE_BACKUP_REFERENCE)" = "$BACKUP_REFERENCE"
+          else
+            echo "Unknown finalization state: $state"
+            exit 1
+          fi
+
+          if az resource show --ids "$BACKUP_REFERENCE" --only-show-errors >/dev/null 2>&1; then
+            test "$(az resource show --ids "$BACKUP_REFERENCE" --query properties.status -o tsv)" = Online
+            echo 'recovery_exists=true' >> "$GITHUB_OUTPUT"
+          else
+            test "$state" != new
+            echo 'recovery_exists=false' >> "$GITHUB_OUTPUT"
+          fi
+          echo "initial_state=$state" >> "$GITHUB_OUTPUT"
+
+      - name: Finalize exact R2 recovery objects idempotently
+        shell: bash
+        env:
+          FILE_API_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
+          FILE_FINALIZE_TOKEN: ${{ secrets.EVENT_RESET_FILE_FINALIZE_TOKEN }}
+          EVENT_RESET_FILE_SIGNING_SECRET: ${{ secrets.EVENT_RESET_FILE_FINALIZE_SIGNING_SECRET }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          RESET_EPOCH: ${{ steps.evidence.outputs.reset_epoch }}
+          TARGET_RESOURCE: ${{ vars.EVENT_RESET_SQL_RESOURCE_ID }}
+          EVIDENCE_DIR: ${{ steps.evidence.outputs.dir }}
+        run: |
+          set -euo pipefail
+          fingerprint="$(jq -r '.fingerprint' "$EVIDENCE_DIR/preview.json")"
+          jq --arg operation finalize --arg backupReference "$BACKUP_REFERENCE" --arg approvedFingerprint "$fingerprint" \
+            --arg resetEpoch "$RESET_EPOCH" --arg schemaEpoch '2.0.0' --arg targetResource "$TARGET_RESOURCE" \
+            '. + {operation:$operation, backupReference:$backupReference, approvedFingerprint:$approvedFingerprint, resetEpoch:$resetEpoch, schemaEpoch:$schemaEpoch, targetResource:$targetResource}' \
+            "$EVIDENCE_DIR/r2-delete-manifest.json" > "$EVIDENCE_DIR/file-finalize-request.json"
+          signature="$(node .github/scripts/sign-event-reset-file-request.mjs "$EVIDENCE_DIR/file-finalize-request.json")"
+          curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $FILE_FINALIZE_TOKEN" -H 'Content-Type: application/json' \
+            -H "X-Alife-Event-Reset-Signature: $signature" \
+            --data-binary @"$EVIDENCE_DIR/file-finalize-request.json" \
+            "$FILE_API_URL/api/admin/event-reset/files" > "$EVIDENCE_DIR/file-finalize-receipt.json"
+          test "$(jq -r '.operation' "$EVIDENCE_DIR/file-finalize-receipt.json")" = finalize
+          test "$(jq -r '.resetRunId' "$EVIDENCE_DIR/file-finalize-receipt.json")" = '${{ inputs.reset_run_id }}'
+          test "$(jq -r '.manifestHash' "$EVIDENCE_DIR/file-finalize-receipt.json")" = '${{ inputs.file_manifest_hash }}'
+          test "$(jq -r '.backupReference' "$EVIDENCE_DIR/file-finalize-receipt.json")" = "$BACKUP_REFERENCE"
+          test "$(jq -r '.approvedFingerprint' "$EVIDENCE_DIR/file-finalize-receipt.json")" = "$fingerprint"
+          test "$(jq -r '.targetResource' "$EVIDENCE_DIR/file-finalize-receipt.json")" = "$TARGET_RESOURCE"
+          test "$(jq -r '.resetEpoch' "$EVIDENCE_DIR/file-finalize-receipt.json")" = "$RESET_EPOCH"
+          test "$(jq -r '.schemaEpoch' "$EVIDENCE_DIR/file-finalize-receipt.json")" = '2.0.0'
+          test "$(jq -r '.verified' "$EVIDENCE_DIR/file-finalize-receipt.json")" = true
+          test "$(jq '.failures | length' "$EVIDENCE_DIR/file-finalize-receipt.json")" = 0
+
+      - name: Delete the exact named Azure SQL recovery database if present
+        shell: bash
+        env:
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+        run: |
+          set -euo pipefail
+          if az resource show --ids "$BACKUP_REFERENCE" --only-show-errors >/dev/null 2>&1; then
+            az resource delete --ids "$BACKUP_REFERENCE" --only-show-errors
+          fi
+          for attempt in {1..30}; do
+            if ! az resource show --ids "$BACKUP_REFERENCE" --only-show-errors >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Recovery database still exists after exact-resource deletion.'
+          exit 1
+
+      - name: Mark exact finalization complete and write receipt
+        shell: bash
+        env:
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          MANIFEST_HASH: ${{ inputs.file_manifest_hash }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          EVIDENCE_DIR: ${{ steps.evidence.outputs.dir }}
+          INITIAL_STATE: ${{ steps.finalization.outputs.initial_state }}
+        run: |
+          set -euo pipefail
+          finalized_utc="$(date -u +%FT%TZ)"
+          az functionapp config appsettings set \
+            --name "$EVENT_RESET_FUNCTION_APP_NAME" \
+            --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
+            --settings \
+              "EVENT_RESET_FINALIZE_STATE=complete" \
+              "EVENT_RESET_FINALIZE_COMPLETED_AT_UTC=$finalized_utc" \
+            --only-show-errors --output none
+          jq -n \
+            --arg resetRunId "$RESET_RUN_ID" \
+            --arg evidenceRunId "$EVIDENCE_RUN_ID" \
+            --arg manifestHash "$MANIFEST_HASH" \
+            --arg backupReference "$BACKUP_REFERENCE" \
+            --arg finalizedUtc "$finalized_utc" \
+            --arg initialState "$INITIAL_STATE" \
+            --arg workflowRunId "$GITHUB_RUN_ID" \
+            '{resetRunId:$resetRunId,evidenceRunId:$evidenceRunId,manifestHash:$manifestHash,backupReference:$backupReference,finalizedUtc:$finalizedUtc,initialState:$initialState,workflowRunId:$workflowRunId,sqlRecoveryDeleted:true,r2RecoveryDeleted:true,finalizationState:"complete"}' \
+            > "$EVIDENCE_DIR/finalize.json"
+
+      - name: Encrypt finalization evidence
+        shell: bash
+        env:
+          EVIDENCE_KEY: ${{ secrets.EVENT_RESET_EVIDENCE_KEY }}
+          EVIDENCE_DIR: ${{ steps.evidence.outputs.dir }}
+        run: |
+          set -euo pipefail
+          tar -czf "${{ runner.temp }}/finalize-evidence.tgz" -C "$EVIDENCE_DIR" \
+            preview.json apply.json verify.json file-backup-receipt.json file-delete-receipt.json \
+            cache-receipt.json runtime-registration-receipt.json file-finalize-receipt.json finalize.json
+          openssl enc -aes-256-cbc -salt -pbkdf2 \
+            -in "${{ runner.temp }}/finalize-evidence.tgz" \
+            -out "${{ runner.temp }}/finalize-evidence.tgz.enc" \
+            -pass env:EVIDENCE_KEY
+
+      - name: Upload encrypted finalization evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-event-reset-finalize-${{ github.run_id }}
+          path: ${{ runner.temp }}/finalize-evidence.tgz.enc
+          if-no-files-found: error
+          retention-days: 90

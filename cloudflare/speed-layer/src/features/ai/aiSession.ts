@@ -72,6 +72,7 @@ export type DurableObjectStateLike = {
     get<T>(key: string): Promise<T | undefined>
     put<T>(key: string, value: T): Promise<void>
     delete?(key: string): Promise<boolean>
+    deleteAll?(): Promise<void>
     setAlarm?(scheduledTime: number): Promise<void>
     deleteAlarm?(): Promise<void>
   }
@@ -124,6 +125,8 @@ type AiChatSessionConfig<TDraft, TContext> = {
 export class AiChatSession<TDraft, TContext = unknown> {
   private statePromise: Promise<AiSessionState<TDraft, TContext>>
   private readonly clients = new Set<ReadableStreamDefaultController<Uint8Array>>()
+  private readonly pendingStorageMutations = new Set<Promise<void>>()
+  private purgedForEventReset = false
 
   protected readonly durableState: DurableObjectStateLike
   protected readonly env: Env
@@ -141,6 +144,10 @@ export class AiChatSession<TDraft, TContext = unknown> {
   }
 
   protected async handleRequest(request: Request, sessionIdHint: string): Promise<Response> {
+    if (this.purgedForEventReset) {
+      return eventResetInProgressResponse()
+    }
+
     const url = new URL(request.url)
     const authorized = await this.authorizeSessionRequest(request, sessionIdHint)
     if (authorized instanceof Response) {
@@ -226,11 +233,36 @@ export class AiChatSession<TDraft, TContext = unknown> {
   }
 
   protected async setSessionState(state: AiSessionState<TDraft, TContext>) {
+    if (this.purgedForEventReset) return
     const nextState = withFreshExpiry(state)
     this.statePromise = Promise.resolve(nextState)
-    await this.durableState.storage.put(this.config.storageKey, nextState)
+    await this.runStorageMutation(() => this.durableState.storage.put(this.config.storageKey, nextState))
+    if (this.purgedForEventReset) return
     await this.scheduleCleanup(nextState)
+    if (this.purgedForEventReset) return
     this.broadcast(this.formatSsePayload(nextState))
+  }
+
+  /**
+   * Permanently clears this temporary AI session during the protected Event reset.
+   * The reset flag is set before awaiting storage so requests already waiting on
+   * Gemini cannot persist state after the purge begins.
+   */
+  async purgeForEventReset() {
+    this.purgedForEventReset = true
+    this.statePromise = Promise.resolve(createEmptySessionState<TDraft, TContext>())
+    this.broadcast({ type: 'reset' })
+    this.closeEventStreams()
+
+    while (this.pendingStorageMutations.size > 0) {
+      await Promise.allSettled([...this.pendingStorageMutations])
+    }
+
+    await this.durableState.storage.deleteAlarm?.()
+    if (!this.durableState.storage.deleteAll) {
+      throw new Error('Durable Object storage does not support deleteAll().')
+    }
+    await this.durableState.storage.deleteAll()
   }
 
   protected formatState(state: AiSessionState<TDraft, TContext>) {
@@ -387,23 +419,18 @@ export class AiChatSession<TDraft, TContext = unknown> {
     this.statePromise = Promise.resolve(createEmptySessionState<TDraft, TContext>())
 
     if (this.durableState.storage.delete) {
-      await this.durableState.storage.delete(this.config.storageKey)
+      await this.runStorageMutation(async () => {
+        await this.durableState.storage.delete?.(this.config.storageKey)
+      })
     } else {
-      await this.durableState.storage.put(this.config.storageKey, createEmptySessionState<TDraft, TContext>())
+      await this.runStorageMutation(() => this.durableState.storage.put(this.config.storageKey, createEmptySessionState<TDraft, TContext>()))
     }
-    await this.durableState.storage.deleteAlarm?.()
+    if (this.durableState.storage.deleteAlarm) {
+      await this.runStorageMutation(() => this.durableState.storage.deleteAlarm!())
+    }
 
     this.broadcast({ type: 'closed', closedAt })
-
-    for (const client of Array.from(this.clients)) {
-      try {
-        client.close()
-      } catch {
-        // Ignore streams that were already closed by the client.
-      } finally {
-        this.clients.delete(client)
-      }
-    }
+    this.closeEventStreams()
 
     return noStoreJson({ status: 'closed', closedAt })
   }
@@ -516,6 +543,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
 
   private async loadState(): Promise<AiSessionState<TDraft, TContext>> {
     const stored = await this.durableState.storage.get<unknown>(this.config.storageKey)
+    if (this.purgedForEventReset) return createEmptySessionState<TDraft, TContext>()
     const normalized = normalizeSessionState<TDraft, TContext>(stored)
 
     if (isExpiredSessionState(normalized)) {
@@ -524,7 +552,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
     }
 
     if (stored !== undefined && sessionStateNeedsRepair(stored)) {
-      await this.durableState.storage.put(this.config.storageKey, normalized)
+      await this.runStorageMutation(() => this.durableState.storage.put(this.config.storageKey, normalized))
     }
 
     return normalized
@@ -532,6 +560,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
 
   private async ensureState(sessionIdHint: string, memberId: string): Promise<AiSessionState<TDraft, TContext>> {
     const current = normalizeSessionState<TDraft, TContext>(await this.statePromise)
+    if (this.purgedForEventReset) return createEmptySessionState<TDraft, TContext>()
     if (isExpiredSessionState(current)) {
       await this.clearStoredState()
       const empty = createEmptySessionState<TDraft, TContext>()
@@ -570,7 +599,8 @@ export class AiChatSession<TDraft, TContext = unknown> {
       expiresAt,
     }
     this.statePromise = Promise.resolve(nextState)
-    await this.durableState.storage.put(this.config.storageKey, nextState)
+    await this.runStorageMutation(() => this.durableState.storage.put(this.config.storageKey, nextState))
+    if (this.purgedForEventReset) return createEmptySessionState<TDraft, TContext>()
     await this.scheduleCleanup(nextState)
     return nextState
   }
@@ -593,21 +623,26 @@ export class AiChatSession<TDraft, TContext = unknown> {
 
   private async clearStoredState() {
     if (this.durableState.storage.delete) {
-      await this.durableState.storage.delete(this.config.storageKey)
+      await this.runStorageMutation(async () => {
+        await this.durableState.storage.delete?.(this.config.storageKey)
+      })
     } else {
-      await this.durableState.storage.put(this.config.storageKey, createEmptySessionState<TDraft, TContext>())
+      await this.runStorageMutation(() => this.durableState.storage.put(this.config.storageKey, createEmptySessionState<TDraft, TContext>()))
     }
-    await this.durableState.storage.deleteAlarm?.()
+    if (this.durableState.storage.deleteAlarm) {
+      await this.runStorageMutation(() => this.durableState.storage.deleteAlarm!())
+    }
   }
 
   private async scheduleCleanup(state: AiSessionState<TDraft, TContext>) {
     const expiresAt = Date.parse(state.expiresAt ?? '')
-    if (!Number.isNaN(expiresAt)) {
-      await this.durableState.storage.setAlarm?.(expiresAt)
+    if (!Number.isNaN(expiresAt) && this.durableState.storage.setAlarm) {
+      await this.runStorageMutation(() => this.durableState.storage.setAlarm!(expiresAt))
     }
   }
 
   async alarm() {
+    if (this.purgedForEventReset) return
     const state = await this.loadState()
     if (isExpiredSessionState(state)) {
       await this.clearStoredState()
@@ -616,6 +651,29 @@ export class AiChatSession<TDraft, TContext = unknown> {
     }
 
     await this.scheduleCleanup(state)
+  }
+
+  private async runStorageMutation(mutation: () => Promise<unknown>) {
+    if (this.purgedForEventReset) return
+    const pending = Promise.resolve().then(mutation).then(() => undefined)
+    this.pendingStorageMutations.add(pending)
+    try {
+      await pending
+    } finally {
+      this.pendingStorageMutations.delete(pending)
+    }
+  }
+
+  private closeEventStreams() {
+    for (const client of Array.from(this.clients)) {
+      try {
+        client.close()
+      } catch {
+        // Ignore streams that were already closed by the client.
+      } finally {
+        this.clients.delete(client)
+      }
+    }
   }
 
   private broadcast(payload: unknown) {
@@ -773,6 +831,9 @@ export function createMemoryDurableObjectState(): DurableObjectStateLike {
       },
       async delete(key: string) {
         return storage.delete(key)
+      },
+      async deleteAll() {
+        storage.clear()
       },
     },
   }
@@ -1129,6 +1190,13 @@ function noStoreJson(body: unknown, init: ResponseInit = {}) {
   headers.set('cache-control', 'no-store')
   headers.set('vary', appendVary(appendVary(headers.get('vary'), 'Cookie'), 'Authorization'))
   return Response.json(body, { ...init, headers })
+}
+
+function eventResetInProgressResponse() {
+  return noStoreJson(
+    { code: 'event.reset.frozen', message: 'Event session storage is being reset.' },
+    { status: 503, headers: { 'retry-after': '60' } },
+  )
 }
 
 function appendVary(vary: string | null, value: string) {

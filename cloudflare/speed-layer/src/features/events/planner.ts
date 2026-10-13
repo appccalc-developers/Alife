@@ -8,9 +8,13 @@ import {
   type DurableObjectStateLike,
 } from '../ai/aiSession'
 import { EventDetailsSession } from './details'
+import { EVENT_DURABLE_OBJECT_PURGE_PATH, eventSessionObjectName, handleEventDurableObjectPurgeRequest } from './eventReset'
 
 const DETAILS_ROUTE = '/api/events/details-session'
-const DETAILS_OBJECT_PREFIX = 'details-v1:'
+// The Event 2.0 epoch must address a new Durable Object even when an old browser
+// still holds the same opaque session id. Keep the feature version in the name as
+// well as the global Event schema epoch added by eventSessionObjectName().
+const DETAILS_OBJECT_PREFIX = 'details-v2:'
 const fallbackStates = new Map<string, ReturnType<typeof createMemoryDurableObjectState>>()
 
 export default {
@@ -18,7 +22,7 @@ export default {
     const url = new URL(request.url)
     const sessionId = getSessionIdFromPath(request, DETAILS_ROUTE)
     const targetPath = resolveAiSessionObjectPath(url, request, { extraRoutes: ['/close'] })
-    const objectName = `${DETAILS_OBJECT_PREFIX}${createAiSessionObjectName(request, sessionId)}`
+    const objectName = eventSessionObjectName(env, `${DETAILS_OBJECT_PREFIX}${createAiSessionObjectName(request, sessionId)}`)
 
     if (env.EVENT_SESSIONS) {
       const objectId = env.EVENT_SESSIONS.idFromName(objectName)
@@ -57,6 +61,15 @@ export class EventPlanningSession {
   }
 
   async fetch(request: Request): Promise<Response> {
+    if (new URL(request.url).pathname === EVENT_DURABLE_OBJECT_PURGE_PATH) {
+      return handleEventDurableObjectPurgeRequest(
+        request,
+        this.env,
+        'EVENT_SESSIONS',
+        'EventPlanningSession',
+        () => this.getDetails().purgeForEventReset(),
+      )
+    }
     if (!new URL(request.url).pathname.startsWith('/details/')) {
       return Response.json(
         { message: 'Event details session route not found.' },

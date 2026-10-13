@@ -34,8 +34,7 @@ public enum EventFactSource
 {
     Human = 0,
     TrustedContext = 1,
-    AiCandidate = 2,
-    LegacyBackfill = 3
+    AiCandidate = 2
 }
 
 public enum EventModuleDecisionStatus
@@ -93,17 +92,10 @@ public enum EventPackageStatus
 }
 public enum EventPackageApprovalValidity { NotDecided = 0, Active = 1, Invalidated = 2, Expired = 3, Revoked = 4 }
 public enum EventPackageEnforcementMode { Off = 0, DryRun = 1, Enforced = 2 }
-public enum LegacyEventPackageTransition
-{
-    FormalPackageRequired = 0,
-    LegacyReadOnlyPackage = 1,
-    TimeLimitedCompatibility = 2,
-    SafetyCriticalBlocked = 3
-}
 public enum EventPackageDecisionType { Approve = 0, ApproveWithConditions = 1, ReturnForAmendment = 2, Reject = 3, Revoke = 4, ConditionWaiver = 5 }
 public enum EventPackageConditionStatus { Open = 0, EvidenceSubmitted = 1, Verified = 2, Rejected = 3, Expired = 4, Waived = 5 }
 public enum EventLifecycleGate { Publish = 0, Registration = 1, Payment = 2, Execute = 3 }
-public enum EventPublicationStatus { LegacyImplicit = 0, Draft = 1, Published = 2, Unpublished = 3 }
-public enum EventRegistrationStatus { LegacyImplicit = 0, Closed = 1, Open = 2 }
+public enum EventPublicationStatus { Draft = 1, Published = 2, Unpublished = 3 }
+public enum EventRegistrationStatus { Closed = 1, Open = 2 }
 public enum EventExecutionStatus { NotConfirmed = 0, Confirmed = 1, Invalidated = 2 }
 public enum EventPackageDelegationScopeType { Organisation = 0, Event = 1, Occurrence = 2 }

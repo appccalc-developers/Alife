@@ -13,7 +13,7 @@ public sealed record RegistrationApplicationRequest(Guid OrganiserMemberId, IRea
     string ManualOrganiserName = "", string ProxyAuthorityEvidence = "");
 public sealed record RegistrationParticipantDto(Guid Id, Guid? MemberId, string DisplayName, bool IsChild, string GuardianName,
     string SeatStatus, string ProcedureStatus, string ConsentMethod, DateTime? ConsentedUtc, bool EligibilityVerified, bool MaterialsVerified,
-    string AnswersJson, long PaidMinor, long RefundedMinor, bool IsLegacy, Guid? GuardianMemberId = null, bool ProxyAccessRevoked = false);
+    string AnswersJson, long PaidMinor, long RefundedMinor, Guid? GuardianMemberId = null, bool ProxyAccessRevoked = false);
 public sealed record RegistrationApplicationDto(Guid Id, Guid OrganiserMemberId, bool AllowSplit, bool IsInvitation, string InvitationMode,
     DateTime? InvitedUtc, DateTime? ReservationExpiresUtc, string ETag, string Channel, int PolicyVersion, IReadOnlyList<RegistrationParticipantDto> Participants,
     Guid CreatedByMemberId = default, string ManualOrganiserName = "");

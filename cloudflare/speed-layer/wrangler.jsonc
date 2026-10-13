@@ -1,6 +1,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "app-ccalc",
+	"keep_vars": false,
 	"compatibility_date": "2026-05-06",
 	"observability": {
 		"enabled": true
@@ -20,7 +21,11 @@
 		"API_PROXY_TARGET": "https://api.ccalc.live",
 		"CORS_ALLOWED_ORIGINS": "https://ccalc.live,https://www.ccalc.live,https://app.ccalc.live",
 		"GEMINI_MODEL": "gemini-3.1-flash-lite",
-		"GEMINI_IMAGE_MODEL": "gemini-3.1-flash-image"
+		"GEMINI_IMAGE_MODEL": "gemini-3.1-flash-image",
+		"EVENT_SCHEMA_EPOCH": "2.0.0",
+		"EVENT_DATA_EPOCH": "pre-event-2-reset",
+		"EVENT_RUNTIME_ENVIRONMENT": "production",
+		"EVENT_WRITE_MODE": "open"
 	},
 	"secrets": {
 		"required": [

@@ -297,7 +297,6 @@ AI-assisted workflows run through the Cloudflare speed layer:
 
 - generic AI router under `/api/ai`;
 - Event Details Assistant sessions under `/api/events/details-session/*`;
-- enrollment sessions under `/api/enrollments/session/*`;
 - review sessions under `/api/reviews/session/*`.
 
 Durable Object classes:
@@ -306,7 +305,7 @@ Durable Object classes:
 - `EnrollmentSession`
 - `ReviewSession`
 
-The Durable Objects keep session state and call Gemini. `EventPlanningSession` is the historical configured class name and now delegates only to the Details Assistant. Completed drafts are committed to backend REST APIs by the frontend, preserving the separation between temporary AI conversation state and durable business records. The former `/api/events/session/*` and `/api/events/extract` planning endpoints are retired.
+The Durable Objects keep temporary session state and call Gemini. `EventPlanningSession` is the historical configured class name and now delegates only to the Details Assistant. `EnrollmentSession` retains the old Event-only namespace for protected reset inventory and clearing but has no product session route and cannot create a new enrollment session. Completed details and review drafts are committed to backend REST APIs by the frontend, preserving the separation between temporary AI conversation state and durable business records. The former `/api/events/session/*`, `/api/events/extract` and `/api/enrollments/session/*` endpoints are retired.
 
 ## Image Architecture
 
@@ -354,6 +353,8 @@ It is a standard .NET publish/container flow, not Native AOT in the current proj
 - configures Durable Object bindings and migrations;
 - sets `API_PROXY_TARGET`;
 - requires `GEMINI_API_KEY`.
+
+All three Event-only Durable Object class names remain stable. A Worker version upload cannot apply a class lifecycle migration, so the Event 2.0 reset clears each approved object in place under the protected frozen workflow with `deleteAlarm()` and `storage.deleteAll()`. Its internal maintenance endpoint is on the publicly reachable Worker router, but requires the exact frozen epochs, dedicated `EVENT_RESET_DO_TOKEN`, an `X-Alife-Event-Reset-DO-Signature` HMAC-SHA256 over the raw request body and a fingerprint matching the temporary `EVENT_RESET_DO_APPROVED_FINGERPRINT` deployment variable. The workflow validates the exact account, Worker and three class-to-namespace identities, can resume the same approved manifest after a partial run, and requires provider inventory to report `hasStoredData: false`; ordinary logs expose class-level counts and hashes without object IDs.
 
 `cloudflare/images-api/wrangler.toml`:
 

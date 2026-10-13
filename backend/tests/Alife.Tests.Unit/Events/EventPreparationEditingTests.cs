@@ -19,7 +19,9 @@ public sealed partial class EventPackageFoundationTests
     {
         await using var db = CreateDb();
         var seed = await SeedAsync(db, false, ["TEAM.WORK"]);
-        var input = new EventPlanComposeRequest("1.1.0", archetype, new([]), [], seed.Plan.PlanVersion, template);
+        var input = EventCompositionTestData.CurrentRequest(
+            archetypeCode: archetype, activityTypeCode: template) with
+        { BasePlanVersion = seed.Plan.PlanVersion };
         var auth = Authorization(); var engine = new EventCompositionEngine();
         var preview = await new RecomposeEventPlanCommandHandler(db, auth, engine).Handle(new(seed.Event.Id, seed.Owner, input, seed.Plan.ETag), default);
         Assert.Equal(AppResultStatus.Conflict, preview.Status);
@@ -45,10 +47,9 @@ public sealed partial class EventPackageFoundationTests
         Assert.Single(source.ExceptionDates);
         var seriesEdit = new UpdateEventSeriesRequest(new("Gathering", "聚会"), "FREQ=WEEKLY;INTERVAL=2", "Pacific/Auckland",
             new DateTime(2026, 10, 4, 18, 0, 0), 120, source.ExceptionDates, source.RollingOccurrenceWeeks);
+        var update = await ReviewedUpdateAsync(db, seed, "Revised", "已修改");
         var result = await new UpdateGroupEventCommandHandler(db, Authorization(), Substitute.For<IEventCacheInvalidationService>(), new EventPackageInvalidationService(db))
-            .Handle(new(seed.Event.Id, seed.Owner, "Revised", "已修改", seed.Event.StartDate, seed.Event.EndDate,
-                "{\"visibility\":\"groupVisible\",\"timeZone\":\"Pacific/Auckland\"}", IfMatch: seed.Event.UpdatedUtc.ToString("O"),
-                SeriesUpdate: new(source.ETag, seriesEdit)), default);
+            .Handle(update with { SeriesUpdate = new(source.ETag, seriesEdit) }, default);
         Assert.True(result.IsSuccess, result.Message);
         db.ChangeTracker.Clear();
         Assert.Equal("FREQ=WEEKLY;INTERVAL=2", (await db.EventSeries.SingleAsync()).RecurrenceRule);

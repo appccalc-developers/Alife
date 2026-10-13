@@ -237,7 +237,7 @@ internal static class EventPackagePolicyRules
         if (string.IsNullOrWhiteSpace(request.Version) || request.Version.Trim().Length > 40) return "Policy version is required and must be at most 40 characters.";
         if (request.SchemaVersion != "1" || !Enum.IsDefined(request.EnforcementMode)) return "Unsupported policy schema or enforcement mode.";
         var r = request.Rules;
-        if (!Shape(r, ["schemaVersion", "tierRules", "authorityByTier", "preEventConfirmationWindowHours", "approvalValidityByTier", "materialChangeRules", "conditionWaiverAllowed", "delegationRules", "legacyRollout"])) return "Policy rules contain missing or unknown properties.";
+        if (!Shape(r, ["schemaVersion", "tierRules", "authorityByTier", "preEventConfirmationWindowHours", "approvalValidityByTier", "materialChangeRules", "conditionWaiverAllowed", "delegationRules"])) return "Policy rules contain missing or unknown properties.";
         if (r.GetProperty("schemaVersion").GetString() != "1") return "rules.schemaVersion must be 1.";
         if (!r.GetProperty("preEventConfirmationWindowHours").TryGetInt32(out var hours) || hours <= 0) return "A positive confirmation window is required.";
         var tiers = r.GetProperty("tierRules").EnumerateArray().ToArray();
@@ -267,14 +267,6 @@ internal static class EventPackagePolicyRules
         if (!Shape(delegation, ["enabled"], ["allowedTiers"]) || delegation.GetProperty("enabled").ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return "Invalid delegation rules.";
         if (delegation.TryGetProperty("allowedTiers", out var allowed) && !Codes(allowed, Tiers.ToHashSet())) return "Unknown delegation tier.";
         if (delegation.GetProperty("enabled").GetBoolean() && (allowed.ValueKind != JsonValueKind.Array || allowed.GetArrayLength() == 0)) return "Select at least one delegation tier.";
-        var rollout = r.GetProperty("legacyRollout");
-        if (!Shape(rollout, ["effectiveFromUtc", "transitionDeadlineUtc", "cohortRule", "safetyCriticalModuleCodes", "transitionByMode"])) return "Invalid rollout structure.";
-        if (!rollout.GetProperty("effectiveFromUtc").TryGetDateTimeOffset(out var start) ||
-            !rollout.GetProperty("transitionDeadlineUtc").TryGetDateTimeOffset(out var end) || end <= start) return "Transition deadline must follow its start.";
-        if (rollout.GetProperty("cohortRule").GetString() != "new-events-first" ||
-            !Codes(rollout.GetProperty("safetyCriticalModuleCodes"), EventCompositionDefinitions.ModulesByCode.Keys.ToHashSet())) return "Unknown rollout rules.";
-        var transitions = rollout.GetProperty("transitionByMode");
-        if (!Shape(transitions, [], ["off", "dryRun", "enforced"]) || transitions.EnumerateObject().Any(x => x.Value.GetString() != (x.Name switch { "off" => "legacyReadOnlyPackage", "dryRun" => "timeLimitedCompatibility", _ => "formalPackageRequired" }))) return "Unknown rollout transition.";
         return null;
     }
 

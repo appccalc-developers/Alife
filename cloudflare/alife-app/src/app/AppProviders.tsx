@@ -6,6 +6,16 @@ import { AuthProvider } from '../stores/auth'
 import { CurrentGroupProvider } from '../stores/currentGroup'
 import UnsavedChangesModalHost from '../components/layout/UnsavedChangesModalHost'
 import AuthBootstrapGate from './components/AuthBootstrapGate'
+import { purgeRetiredCreationDrafts } from '../utils/eventCreationDraft'
+
+const Event2DraftCleanup = () => {
+  useEffect(() => {
+    try { purgeRetiredCreationDrafts(window.localStorage) }
+    catch { /* Storage can be unavailable; Event 1.x drafts are never read. */ }
+  }, [])
+
+  return null
+}
 
 const LocalDevHostRedirect = () => {
   useEffect(() => {
@@ -28,6 +38,7 @@ const AppProviders = ({ children }: PropsWithChildren) => (
         <AuthBootstrapGate>
           <CurrentGroupProvider>
             <LocalDevHostRedirect />
+            <Event2DraftCleanup />
             {children}
             <UnsavedChangesModalHost />
           </CurrentGroupProvider>

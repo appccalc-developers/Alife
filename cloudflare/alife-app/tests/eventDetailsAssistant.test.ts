@@ -1,4 +1,5 @@
 import { explicitLocalRange } from '../../shared/eventDetailsTime.ts'
+import { publicEventAiFacts } from '../../shared/eventAiPrivacy.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { detailCompletion, detailFields, localTimeToUtc, type EventDetailsForm, type DetailsResult } from '../../shared/eventDetails.ts'
@@ -12,6 +13,17 @@ const form: EventDetailsForm = {
 }
 const type = { code: 'prayer-meeting', archetypeCode: 'recurring-gathering', defaults: { visibility: 'groupVisible', registrationMode: 'none' } } as EventActivityType
 const category = { code: type.archetypeCode, isSeries: true, activityTypes: [type] } as EventArchetype
+test('Event AI context excludes current private Event fields', () => {
+  assert.deepEqual(publicEventAiFacts({
+    id: 'event-1',
+    title: { zh: '活动', en: 'Event' },
+    contactProfileIds: ['private-contact'],
+    ram: { hazards: [{ personResponsible: 'Private member' }] },
+  }), {
+    id: 'event-1',
+    title: { zh: '活动', en: 'Event' },
+  })
+})
 test('completion excludes inapplicable fields and unconfirmed defaults; scores cannot approve', () => {
   assert.equal(detailCompletion(form, {}, true).percent, 0)
   const sources = Object.fromEntries(detailFields.map(k => [k, 'human' as const]))
@@ -46,14 +58,11 @@ test('newest snapshot and complete field adoption preserve composition choices',
   assert.equal(creationSeries(filled, category)?.rollingOccurrenceWeeks, 12)
   assert.equal(creationSeries(filled, category)?.durationMinutes, 60)
 })
-test('v2 drafts preserve data with unconfirmed sources; v3 preserves explicit clears', () => {
+test('current drafts round-trip exactly and retired draft envelopes are ignored', () => {
   const draft = { ...initialCreationDraft(), timeZone: form.timeZone!, title: form.title, startLocal: form.startLocal!, intervalWeeks: '2', detailSources: { title: 'human' as const } }
-  const restored = restoreCreationDraft(JSON.stringify({ version: 2, draft }), [])!
-  assert.deepEqual(restored.title, draft.title)
-  assert.equal(restored.startLocal, draft.startLocal)
-  assert.equal(restored.intervalWeeks, '1')
-  assert.deepEqual(restored.detailSources, {})
-  assert.deepEqual(restoreCreationDraft(JSON.stringify({ version: 3, draft }), []), draft)
+  const restored = restoreCreationDraft(JSON.stringify({ version: 5, draft }), [])!
+  assert.deepEqual(restored, draft)
+  assert.equal(restoreCreationDraft(JSON.stringify({ version: 4, draft }), []), null)
   const cleared = applyDetailsResult(draft, { form: { ...form, title: { zh: '', en: '' }, startLocal: null }, sources: {}, adoptedFields: ['title', 'startLocal'] } as DetailsResult)
   assert.equal(cleared.startLocal, '')
   assert.deepEqual(cleared.title, { zh: '', en: '' })

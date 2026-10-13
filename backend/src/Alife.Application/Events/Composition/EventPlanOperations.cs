@@ -50,6 +50,9 @@ public sealed class ComposeEventPlanCommandHandler(
                 "Only owning-group leaders and co-leaders can compose event plans.");
         }
 
+        if (!EventCompositionDefinitions.IsSupportedSchema(request.Composition.SchemaVersion))
+            return EventSchemaValidation.Unsupported<EventPlanProposalDto>();
+
         var normalized = request.Composition with { BasePlanVersion = null };
         var activityTypesByCode = activityTemplateCatalog is null
             ? EventCompositionDefinitions.ActivityTypesByCode
@@ -141,6 +144,8 @@ public sealed class RecomposeEventPlanCommandHandler(
             return AppResult<EventPlanProposalDto>.Forbidden(
                 "Only the accountable owner can recompose the event plan.");
         }
+        if (!EventCompositionDefinitions.IsSupportedSchema(request.Composition.SchemaVersion))
+            return EventSchemaValidation.Unsupported<EventPlanProposalDto>();
         var activeSnapshot = await dbContext.EventPlanSnapshots.AsNoTracking()
             .Where(x => x.EventId == groupEvent.Id && x.IsActive)
             .OrderByDescending(x => x.Version)
@@ -174,13 +179,33 @@ public sealed class RecomposeEventPlanCommandHandler(
 
         if (basePlan?.Plan.ModuleConfirmations is not null && request.Composition.ModuleConfirmations is null)
             return AppResult<EventPlanProposalDto>.Conflict("Upgrade this client to preserve module confirmations. / 请升级客户端以保留模块确认状态。");
-        if (basePlan?.Plan.ArrangementConfirmations is not null && request.Composition.ArrangementConfirmations is null)
-            return AppResult<EventPlanProposalDto>.Conflict("Upgrade this client to preserve arrangement confirmations. / 请升级客户端以保留分区确认状态。");
         var protectedModules = await EventCompositionPersistence.GetProtectedModuleCodesAsync(
             dbContext, groupEvent, cancellationToken);
         if (EventPreparationPolicy.ChangesTemplate(basePlan, request.Composition))
             return AppResult<EventPlanProposalDto>.Conflict(EventPreparationPolicy.TemplateLockedMessage);
-        var composition = EventPreparationPolicy.WithSavedDetails(groupEvent, request.Composition with { BasePlanVersion = groupEvent.ActivePlanVersion });
+        var savedActivityPlan = (await EventActivityPlanService.ReadAsync(
+            dbContext, groupEvent.Id, cancellationToken))?.Data ?? EventActivityPlanService.Empty;
+        if (request.Composition.ActivityPlan is not null &&
+            ActivityAttributes.FactsJson(savedActivityPlan) != ActivityAttributes.FactsJson(request.Composition.ActivityPlan))
+            return AppResult<EventPlanProposalDto>.PreconditionFailed("Save the changed activity projects before recomposing the Event plan.");
+        // Recomposition is a side-effect-free preview and may describe the detail values that
+        // the caller is about to save. The update endpoint independently canonicalizes those
+        // values from EventDataJson and recomputes this hash inside its transaction.
+        var composition = request.Composition with
+        {
+            BasePlanVersion = groupEvent.ActivePlanVersion,
+            ActivityPlan = savedActivityPlan
+        };
+        // Ordinary plan reviews may omit the two detail-derived facts and expect the
+        // server to use the saved Event brief. Detail editing sends both facts for the
+        // proposed brief, so preserve those values for its side-effect-free preview.
+        // Keeping the cases distinct makes the preview hash match the later atomic
+        // details update without changing the established plan-accept workflow.
+        var hasCompleteProposedDetails =
+            composition.Facts.Items.Any(x => x.Code == "visibility") &&
+            composition.Facts.Items.Any(x => x.Code == "people.registrationMode");
+        if (!hasCompleteProposedDetails)
+            composition = EventPreparationPolicy.WithSavedDetails(groupEvent, composition);
         var activityTypesByCode = activityTemplateCatalog is null
             ? EventCompositionDefinitions.ActivityTypesByCode
             : await activityTemplateCatalog.ActiveDefinitionsByCodeAsync(cancellationToken);
@@ -236,6 +261,8 @@ public sealed class AcceptEventPlanCommandHandler(
             return AppResult<EventPlanSnapshotDto>.Validation(
                 "composition is required so the server can recompute the proposal before acceptance.");
         }
+        if (!EventCompositionDefinitions.IsSupportedSchema(request.Request.Composition.SchemaVersion))
+            return EventSchemaValidation.Unsupported<EventPlanSnapshotDto>();
         var idempotencyKey = request.IdempotencyKey?.Trim();
         if (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > 200)
         {
@@ -304,11 +331,18 @@ public sealed class AcceptEventPlanCommandHandler(
             dbContext, groupEvent, cancellationToken);
         if (basePlan?.Plan.ModuleConfirmations is not null && request.Request.Composition.ModuleConfirmations is null)
             return AppResult<EventPlanSnapshotDto>.Conflict("Upgrade this client to preserve module confirmations. / 请升级客户端以保留模块确认状态。");
-        if (basePlan?.Plan.ArrangementConfirmations is not null && request.Request.Composition.ArrangementConfirmations is null)
-            return AppResult<EventPlanSnapshotDto>.Conflict("Upgrade this client to preserve arrangement confirmations. / 请升级客户端以保留分区确认状态。");
         if (EventPreparationPolicy.ChangesTemplate(basePlan, request.Request.Composition))
             return AppResult<EventPlanSnapshotDto>.Conflict(EventPreparationPolicy.TemplateLockedMessage);
-        var composition = EventPreparationPolicy.WithSavedDetails(groupEvent, request.Request.Composition with { BasePlanVersion = groupEvent.ActivePlanVersion });
+        var savedActivityPlan = (await EventActivityPlanService.ReadAsync(
+            dbContext, groupEvent.Id, cancellationToken))?.Data ?? EventActivityPlanService.Empty;
+        if (request.Request.Composition.ActivityPlan is not null &&
+            ActivityAttributes.FactsJson(savedActivityPlan) != ActivityAttributes.FactsJson(request.Request.Composition.ActivityPlan))
+            return AppResult<EventPlanSnapshotDto>.PreconditionFailed("Save the changed activity projects before accepting the Event plan.");
+        var composition = EventPreparationPolicy.WithSavedDetails(groupEvent, request.Request.Composition with
+        {
+            BasePlanVersion = groupEvent.ActivePlanVersion,
+            ActivityPlan = savedActivityPlan
+        });
         var activityTypesByCode = activityTemplateCatalog is null
             ? EventCompositionDefinitions.ActivityTypesByCode
             : await activityTemplateCatalog.ActiveDefinitionsByCodeAsync(cancellationToken);
@@ -432,7 +466,6 @@ public sealed class AcceptEventPlanCommandHandler(
             request.CurrentMemberId,
             now,
             etag,
-            false,
             acceptedProposal,
             request.Request.HumanDecisions ?? []));
     }
@@ -444,8 +477,16 @@ public sealed class AcceptEventPlanCommandHandler(
             AppResultStatus.Forbidden => AppResult<TTarget>.Forbidden(source.Message ?? "Forbidden."),
             AppResultStatus.Conflict => AppResult<TTarget>.Conflict(source.Message ?? "Conflict."),
             AppResultStatus.PreconditionFailed => AppResult<TTarget>.PreconditionFailed(source.Message ?? "Precondition failed."),
-            _ => AppResult<TTarget>.Validation(source.Message ?? "Validation failed.")
+            _ => AppResult<TTarget>.Validation(source.Message ?? "Validation failed.", source.Code)
         };
+
+}
+
+internal static class EventSchemaValidation
+{
+    public static AppResult<T> Unsupported<T>() => AppResult<T>.Validation(
+        $"schemaVersion must be {EventCompositionDefinitions.SchemaVersion}.",
+        EventCompositionDefinitions.UnsupportedSchemaErrorCode);
 }
 
 public sealed record GetEventWorkspaceQuery(Guid EventId, Guid CurrentMemberId)

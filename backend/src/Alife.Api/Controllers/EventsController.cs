@@ -4,14 +4,11 @@ using Alife.Application.Abstractions.Identity;
 using Alife.Application.Events.Commands.CreateGroupEvent;
 using Alife.Application.Events.Commands.DeleteGroupEvent;
 using Alife.Application.Events.Commands.UpdateGroupEvent;
-using Alife.Application.Events.Commands.SaveEventRam;
-using Alife.Application.Events.Commands.SubmitEventRam;
-using Alife.Application.Events.Commands.ApproveEventRam;
 using Alife.Application.Events.Queries.GetGroupEvents;
-using Alife.Application.Events.Queries.GetEventRam;
 using Alife.Application.Events.Queries.ListPublicUpcomingEvents;
 using Alife.Domain.Enums;
 using Alife.Application.Events.Services;
+using System.Text.Json.Serialization;
 using Alife.Application.Events.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -24,8 +21,7 @@ namespace Alife.Api.Controllers;
 [Authorize]
 public class EventsController(
     IMediator mediator,
-    ICurrentMemberAccessor currentMemberAccessor,
-    EventRamGovernanceService ramGovernance) : ControllerBase
+    ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
     [HttpGet("events/public/upcoming")]
     [AllowAnonymous]
@@ -61,6 +57,10 @@ public class EventsController(
             return Unauthorized();
         }
 
+        if (ValidateWriteComposition(request.Composition, request.CompositionProposalHash) is { } compositionError)
+            return compositionError;
+        var composition = request.Composition!.ToApplication();
+
         var result = await mediator.Send(
             new CreateGroupEventCommand(
                 groupId,
@@ -72,9 +72,8 @@ public class EventsController(
                 request.EventDataJson,
                 request.ContactProfileIds ?? [],
                 request.RamDataJson,
-                request.Composition,
+                composition,
                 request.CompositionProposalHash,
-                request.AccountableOwnerMemberId,
                 request.GovernanceMode,
                 request.ParentEventId,
                 Request.Headers["Idempotency-Key"].FirstOrDefault(),
@@ -95,6 +94,11 @@ public class EventsController(
             return Unauthorized();
         }
 
+        if (ValidateWriteComposition(request.Composition, request.CompositionProposalHash,
+                request.PlanETag, requirePlanETag: true) is { } compositionError)
+            return compositionError;
+        var composition = request.Composition!.ToApplication();
+
         var result = await mediator.Send(
             new UpdateGroupEventCommand(
                 id,
@@ -105,7 +109,9 @@ public class EventsController(
                 request.EndDate,
                 request.EventDataJson,
                 request.ContactProfileIds ?? [],
-                request.RamDataJson,
+                composition,
+                request.CompositionProposalHash,
+                request.PlanETag,
                 Request.Headers.IfMatch.FirstOrDefault(), request.SeriesUpdate),
             cancellationToken);
 
@@ -125,53 +131,11 @@ public class EventsController(
         return this.ToActionResult(result);
     }
 
-    [HttpGet("events/{id:guid}/ram")]
-    public async Task<IActionResult> GetRam(Guid id, CancellationToken cancellationToken)
-    {
-        this.ApplyPrivateNoStoreHeaders();
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null) return Unauthorized();
-        var result = await mediator.Send(new GetEventRamQuery(id, currentMemberId.Value), cancellationToken);
-        return this.ToActionResult(result);
-    }
-
-    [HttpPut("events/{id:guid}/ram")]
-    public async Task<IActionResult> SaveRam(Guid id, [FromBody] SaveEventRamRequest request, CancellationToken cancellationToken)
-    {
-        this.ApplyPrivateNoStoreHeaders();
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null) return Unauthorized();
-        if (request.SchemaVersion == 2)
-            return this.ToActionResult(await ramGovernance.SaveAsync(id, currentMemberId.Value,
-                new(request.RamDataJson, request.PolicyVersionId, request.ExpectedETag ?? ""), cancellationToken));
-        var result = await mediator.Send(new SaveEventRamCommand(id, currentMemberId.Value, request.RamDataJson), cancellationToken);
-        return this.ToActionResult(result);
-    }
-
-    [HttpPost("events/{id:guid}/ram/submit")]
-    public async Task<IActionResult> SubmitRam(Guid id, CancellationToken cancellationToken,
-        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] RamActionRequest? request = null)
-    {
-        this.ApplyPrivateNoStoreHeaders();
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null) return Unauthorized();
-        if (request is not null) return this.ToActionResult(await ramGovernance.ActAsync(id,currentMemberId.Value,"submit",request,Request.Headers["Idempotency-Key"].ToString(),cancellationToken));
-        var result = await mediator.Send(new SubmitEventRamCommand(id, currentMemberId.Value), cancellationToken);
-        return this.ToActionResult(result);
-    }
-
-    [HttpPost("events/{id:guid}/ram/approve")]
-    public async Task<IActionResult> ApproveRam(Guid id, CancellationToken cancellationToken,
-        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] RamActionRequest? request = null)
-    {
-        this.ApplyPrivateNoStoreHeaders();
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null) return Unauthorized();
-        if (request is not null) return this.ToActionResult(await ramGovernance.ActAsync(id,currentMemberId.Value,"approve",request,Request.Headers["Idempotency-Key"].ToString(),cancellationToken));
-        var result = await mediator.Send(new ApproveEventRamCommand(id, currentMemberId.Value), cancellationToken);
-        return this.ToActionResult(result);
-    }
-
+    // Composition fields are nullable only at the JSON transport boundary so an omitted
+    // schema can be mapped to the stable Event error code instead of ApiController's
+    // generic model-state response. ValidateWriteComposition makes the complete tree
+    // mandatory before any command is dispatched.
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public record CreateGroupEventRequest(
         string TitleEn,
         string TitleZh,
@@ -180,14 +144,14 @@ public class EventsController(
         string EventDataJson,
         IReadOnlyList<Guid>? ContactProfileIds,
         string? RamDataJson,
-        Alife.Application.Events.Dtos.EventPlanComposeRequest? Composition = null,
-        string? CompositionProposalHash = null,
-        Guid? AccountableOwnerMemberId = null,
+        EventWriteCompositionRequest? Composition,
+        string? CompositionProposalHash,
         EventGovernanceMode? GovernanceMode = null,
         Guid? ParentEventId = null,
         Alife.Application.Events.Dtos.CreateEventSeriesSetupRequest? SeriesSetup = null,
         Alife.Application.Events.Dtos.EventCreationArrangementsRequest? Arrangements = null);
 
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public record UpdateGroupEventRequest(
         string TitleEn,
         string TitleZh,
@@ -195,9 +159,64 @@ public class EventsController(
         DateTime EndDate,
         string EventDataJson,
         IReadOnlyList<Guid>? ContactProfileIds,
-        string? RamDataJson,
+        EventWriteCompositionRequest? Composition,
+        string? CompositionProposalHash,
+        string? PlanETag,
         Alife.Application.Events.Dtos.PreparationSeriesUpdate? SeriesUpdate = null);
 
-    public record SaveEventRamRequest(string RamDataJson, int SchemaVersion = 1, Guid? PolicyVersionId = null, string? ExpectedETag = null);
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record EventWriteCompositionRequest(
+        string? SchemaVersion,
+        EventFactSetInput? Facts,
+        IReadOnlyList<ModuleSelectionInput>? HumanSelections,
+        IReadOnlyDictionary<string, bool>? ModuleConfirmations,
+        ActivityPlanData? ActivityPlan,
+        string? ArchetypeCode = null,
+        int? BasePlanVersion = null,
+        string? ActivityTypeCode = null,
+        bool UseRecommendedWorkflow = false,
+        int? ActivityTypeVersion = null,
+        IReadOnlyList<string>? RemovedPresetKeys = null)
+    {
+        public EventPlanComposeRequest ToApplication() => new(
+            SchemaVersion!,
+            ArchetypeCode,
+            Facts!,
+            HumanSelections!,
+            BasePlanVersion,
+            ActivityTypeCode,
+            UseRecommendedWorkflow,
+            ModuleConfirmations,
+            ActivityPlan,
+            ActivityTypeVersion,
+            RemovedPresetKeys);
+    }
+
+    private BadRequestObjectResult? ValidateWriteComposition(
+        EventWriteCompositionRequest? request,
+        string? proposalHash,
+        string? planETag = null,
+        bool requirePlanETag = false)
+    {
+        if (request is null || !EventCompositionDefinitions.IsSupportedSchema(request.SchemaVersion ?? string.Empty))
+            return BadRequest(new
+            {
+                code = EventCompositionDefinitions.UnsupportedSchemaErrorCode,
+                message = $"schemaVersion must be {EventCompositionDefinitions.SchemaVersion}."
+            });
+
+        var composition = request.ToApplication();
+        var error = EventCompositionRequestContract.ValidateComplete(composition);
+        if (error is not null || string.IsNullOrWhiteSpace(proposalHash) ||
+            requirePlanETag && (string.IsNullOrWhiteSpace(planETag) || !composition.BasePlanVersion.HasValue))
+            return BadRequest(new
+            {
+                code = EventCompositionRequestContract.InvalidCompositionErrorCode,
+                message = error ?? (!requirePlanETag
+                    ? "compositionProposalHash is required for Event creation."
+                    : "compositionProposalHash, planETag and composition.basePlanVersion are required for an Event detail update.")
+            });
+        return null;
+    }
 
 }

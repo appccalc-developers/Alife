@@ -1,5 +1,5 @@
 // Use a small allowlist, not recursive copying of arbitrary RAM, contacts, medical data or JSON strings.
-const eventFields = ['id', 'title', 'description', 'purpose', 'locationName', 'startDate', 'endDate', 'timeZone', 'registrationDeadline', 'maxCapacity', 'capacityUnit', 'visibility', 'optionalActivities', 'currency']
+const eventFields = ['id', 'title', 'description', 'purpose', 'locationName', 'startDate', 'endDate', 'timeZone', 'registrationDeadline', 'maxCapacity', 'capacityUnit', 'visibility', 'currency']
 export function publicEventAiFacts(input: unknown): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return {}
   const value = input as Record<string, unknown>

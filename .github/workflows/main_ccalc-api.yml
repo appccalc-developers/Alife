@@ -1,6 +1,7 @@
 name: Alife.API Migration and Deploy
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -9,12 +10,18 @@ on:
       - "backend/**"
 
 permissions:
+  actions: read
   id-token: write
   contents: read
+
+concurrency:
+  group: production-event-reset
+  cancel-in-progress: false
 
 jobs:
   migrate-and-deploy:
     runs-on: ubuntu-latest
+    environment: production-event-final-release
     env:
       AZURE_FUNCTIONAPP_NAME: fapi-ccalc
       AZURE_RESOURCE_GROUP: ccalc
@@ -46,6 +53,30 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Block deployment while rollback hold is active
+        shell: bash
+        run: |
+          set -euo pipefail
+          settings="$(az functionapp config appsettings list \
+            --name "$AZURE_FUNCTIONAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() {
+            jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1
+          }
+
+          rollback_hold="$(setting EVENT_RESET_ROLLBACK_HOLD)"
+          rollback_state="$(setting EVENT_RESET_ROLLBACK_STATE)"
+          finalize_state="$(setting EVENT_RESET_FINALIZE_STATE)"
+          if [ "${rollback_hold,,}" = true ] || [ -n "$rollback_state" ]; then
+            echo 'Deployment is blocked because Event reset rollback hold is active.'
+            exit 1
+          fi
+          if [ -n "$finalize_state" ] && [ "$finalize_state" != complete ]; then
+            echo 'Deployment is blocked because recovery finalization is incomplete.'
+            exit 1
+          fi
+
       - name: Configure Function App runtime settings
         shell: bash
         env:
@@ -65,6 +96,8 @@ jobs:
           ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE: ${{ secrets.ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE }}
           FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
           FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
+          EVENT_RESET_FREEZE_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          EVENT_RESET_FINALIZE_HEALTH_TOKEN: ${{ secrets.EVENT_RESET_FINALIZE_HEALTH_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -83,7 +116,35 @@ jobs:
             exit 1
           fi
 
+          if [ "${#EVENT_RESET_FREEZE_STATUS_TOKEN}" -lt 32 ] || [ "${#EVENT_RESET_FINALIZE_HEALTH_TOKEN}" -lt 32 ]; then
+            echo "Missing Event reset maintenance secrets."
+            exit 1
+          fi
+
+          existing_settings="$(az functionapp config appsettings list \
+            --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --only-show-errors --output json)"
+          existing_setting() {
+            jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$existing_settings" | tail -n1
+          }
+          verified_data_epoch="$(existing_setting EVENT_RESET_LAST_VERIFIED_EPOCH)"
+          event_data_epoch="$(existing_setting EVENT_DATA_EPOCH)"
+          if [ -n "$verified_data_epoch" ]; then
+            event_data_epoch="$verified_data_epoch"
+          elif [ -z "$event_data_epoch" ]; then
+            event_data_epoch='pre-event-2-reset'
+          fi
+          [[ "$event_data_epoch" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
+          event_write_mode="$(existing_setting EVENT_WRITE_MODE)"
+          [ -n "$event_write_mode" ] || event_write_mode=open
+          case "$event_write_mode" in open|frozen) ;; *) echo 'Invalid Event write mode.'; exit 1 ;; esac
+
           settings=(
+            "EVENT_RUNTIME_ENVIRONMENT=production"
+            "EVENT_SCHEMA_EPOCH=2.0.0"
+            "EVENT_DATA_EPOCH=$event_data_epoch"
+            "EVENT_WRITE_MODE=$event_write_mode"
             "Seed__IncludeDemoMembers=$Seed__IncludeDemoMembers"
             "FileAssets__ProviderCode=$FileAssets__ProviderCode"
             "FileAssets__BucketName=$FileAssets__BucketName"
@@ -93,6 +154,8 @@ jobs:
             "FileAssets__PrivateFileMaxLifetimeMinutes=$FileAssets__PrivateFileMaxLifetimeMinutes"
             "FileAssets__ImageApiAdminSecret=$FILE_ADMIN_BACKFILL_SECRET"
             "FileAssets__PrivateFileSigningSecret=$FILE_ACCESS_SIGNING_SECRET"
+            "EVENT_RESET_FREEZE_STATUS_TOKEN=$EVENT_RESET_FREEZE_STATUS_TOKEN"
+            "EVENT_RESET_FINALIZE_HEALTH_TOKEN=$EVENT_RESET_FINALIZE_HEALTH_TOKEN"
             "ConnectionStrings__Default=$DB_CONNECTION_STRING"
             "Passkeys__Enabled=true"
             "Passkeys__RpId=$PASSKEY_RP_ID"
@@ -214,17 +277,226 @@ jobs:
         shell: bash
         run: sleep 30
 
+      - name: Inspect whether the Event 2.0 destructive migration is pending
+        id: event2-gate
+        working-directory: ./backend/src/Alife.DbMigrator
+        shell: bash
+        env:
+          ConnectionStrings__Default: ${{ secrets.DB_CONNECTION_STRING }}
+          Events__OutputDirectory: ${{ runner.temp }}/event2-migration-gate
+        run: |
+          set -euo pipefail
+          dotnet run --configuration Release -- --Events:Event2MigrationGate=inspect
+          gate_file="${{ runner.temp }}/event2-migration-gate/event2-migration-gate.json"
+          known="$(jq -r '.known' "$gate_file")"
+          applied="$(jq -r '.applied' "$gate_file")"
+          pending="$(jq -r '.pending' "$gate_file")"
+          test "$known" = true || test "$known" = false
+          test "$applied" = true || test "$applied" = false
+          test "$pending" = true || test "$pending" = false
+          echo "known=$known" >> "$GITHUB_OUTPUT"
+          echo "applied=$applied" >> "$GITHUB_OUTPUT"
+          echo "pending=$pending" >> "$GITHUB_OUTPUT"
+
+      - name: Select preparation, final-release or normal migration mode
+        id: event2-release
+        shell: bash
+        env:
+          EVENT2_FINAL_RELEASE_AUTHORIZED: ${{ vars.EVENT2_FINAL_RELEASE_AUTHORIZED }}
+          MIGRATION_KNOWN: ${{ steps.event2-gate.outputs.known }}
+          MIGRATION_APPLIED: ${{ steps.event2-gate.outputs.applied }}
+          MIGRATION_PENDING: ${{ steps.event2-gate.outputs.pending }}
+        run: |
+          set -euo pipefail
+          # This checkout is the final 2.0 runtime and cannot serve as the
+          # legacy-preserving preparation release. While the destructive migration
+          # is pending, an absent/false protected authorization blocks deployment.
+          # The protected environment switches authorization to true only after an
+          # independently deployed preparation release and the reset verify marker.
+          settings="$(az functionapp config appsettings list \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          final_state="$(setting EVENT_RESET_FINAL_RELEASE_STATE)"
+          phase=normal
+          if [ "$MIGRATION_PENDING" = true ]; then
+            if [ "$EVENT2_FINAL_RELEASE_AUTHORIZED" = true ]; then
+              phase=final
+            else
+              phase=preparation-required
+            fi
+          elif [ "$MIGRATION_KNOWN" = true ] && [ "$MIGRATION_APPLIED" = true ] && [ "$final_state" != complete ]; then
+            test "$EVENT2_FINAL_RELEASE_AUTHORIZED" = true
+            phase=resume-final
+          fi
+          echo "phase=$phase" >> "$GITHUB_OUTPUT"
+          echo "Event 2.0 deployment phase: $phase"
+
+      - name: Refuse to replace the independent preparation release with final code
+        if: steps.event2-release.outputs.phase == 'preparation-required'
+        shell: bash
+        env:
+          EXPECTED_PREPARATION_SHA: ${{ vars.EVENT2_PREPARATION_RELEASE_SHA }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          settings="$(az functionapp config appsettings list \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          preparation_state="$(setting EVENT_RESET_PREPARATION_STATE)"
+          preparation_sha="$(setting EVENT_RESET_PREPARATION_SHA)"
+          preparation_run_id="$(setting EVENT_RESET_PREPARATION_RUN_ID)"
+          legacy_preserved="$(setting EVENT_RESET_PREPARATION_LEGACY_RUNTIME_PRESERVED)"
+
+          if [ "$preparation_state" != verified ] || [ "${legacy_preserved,,}" != true ] || \
+             ! [[ "$preparation_sha" =~ ^[0-9a-f]{40}$ ]] || \
+             ! [[ "$preparation_run_id" =~ ^[0-9]+$ ]] || \
+             ! [[ "$EXPECTED_PREPARATION_SHA" =~ ^[0-9a-f]{40}$ ]] || \
+             [ "$preparation_sha" != "$EXPECTED_PREPARATION_SHA" ] || \
+             [ "$preparation_sha" = "$GITHUB_SHA" ]; then
+            echo 'A distinct, legacy-preserving Event reset preparation release has not been verified.'
+            echo 'Deploy that reviewed preparation artifact through its protected release first and record its SHA/run marker.'
+            exit 1
+          fi
+
+          preparation_run="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$preparation_run_id")"
+          test "$(jq -r '.status' <<<"$preparation_run")" = completed
+          test "$(jq -r '.conclusion' <<<"$preparation_run")" = success
+          test "$(jq -r '.head_sha' <<<"$preparation_run")" = "$preparation_sha"
+
+          echo 'The independent preparation release is verified. This final-runtime checkout will remain undeployed until protected final-release authorization is enabled after reset verify.'
+          exit 1
+
+      - name: Require verified reset marker for the final destructive migration
+        if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
+        shell: bash
+        env:
+          RESET_HEALTH_URL: ${{ vars.EVENT_RESET_FINALIZE_HEALTH_URL }}
+          RESET_HEALTH_TOKEN: ${{ secrets.EVENT_RESET_FINALIZE_HEALTH_TOKEN }}
+          FREEZE_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          FREEZE_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          RELEASE_PHASE: ${{ steps.event2-release.outputs.phase }}
+          EXPECTED_PREPARATION_SHA: ${{ vars.EVENT2_PREPARATION_RELEASE_SHA }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test -n "$RESET_HEALTH_URL"
+          test -n "$FREEZE_STATUS_URL"
+          test "${#RESET_HEALTH_TOKEN}" -ge 32
+          test "${#FREEZE_STATUS_TOKEN}" -ge 32
+          settings="$(az functionapp config appsettings list \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          test "$(setting EVENT_RESET_PREPARATION_STATE)" = verified
+          test "$(setting EVENT_RESET_PREPARATION_LEGACY_RUNTIME_PRESERVED)" = true
+          preparation_sha="$(setting EVENT_RESET_PREPARATION_SHA)"
+          preparation_run_id="$(setting EVENT_RESET_PREPARATION_RUN_ID)"
+          [[ "$EXPECTED_PREPARATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$preparation_sha" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$preparation_run_id" =~ ^[0-9]+$ ]]
+          test "$preparation_sha" = "$EXPECTED_PREPARATION_SHA"
+          test "$preparation_sha" != "$GITHUB_SHA"
+          preparation_run="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$preparation_run_id")"
+          test "$(jq -r '.status' <<<"$preparation_run")" = completed
+          test "$(jq -r '.conclusion' <<<"$preparation_run")" = success
+          test "$(jq -r '.head_sha' <<<"$preparation_run")" = "$preparation_sha"
+          test "$(setting EVENT_RESET_ROLLBACK_HOLD)" = false
+          test "$(setting EVENT_RESET_LAST_VERIFIED_STATE)" = verified
+          test "$(setting EVENT_RESET_LAST_VERIFIED_SCHEMA_EPOCH)" = '2.0.0'
+          test "$(setting EVENT_RESET_LAST_VERIFIED_CODE_SHA)" = "$GITHUB_SHA"
+          reset_epoch="$(setting EVENT_RESET_LAST_VERIFIED_EPOCH)"
+          reset_run_id="$(setting EVENT_RESET_LAST_VERIFIED_RUN_ID)"
+          evidence_run_id="$(setting EVENT_RESET_LAST_VERIFIED_EVIDENCE_RUN_ID)"
+          fingerprint="$(setting EVENT_RESET_LAST_VERIFIED_FINGERPRINT)"
+          manifest_hash="$(setting EVENT_RESET_LAST_VERIFIED_FILE_MANIFEST_HASH)"
+          backup_reference="$(setting EVENT_RESET_LAST_VERIFIED_BACKUP_REFERENCE)"
+          [[ "$reset_run_id" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
+          [[ "$evidence_run_id" =~ ^[0-9]+$ ]]
+          [[ "$fingerprint" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$manifest_hash" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$reset_epoch" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
+          test "$(setting EVENT_DATA_EPOCH)" = "$reset_epoch"
+          case "$backup_reference" in
+            /subscriptions/*/resourceGroups/*/providers/Microsoft.Sql/servers/*/databases/*) ;;
+            *) exit 1 ;;
+          esac
+          health=''
+          for attempt in {1..12}; do
+            health="$(curl --silent --show-error -H "Authorization: Bearer $RESET_HEALTH_TOKEN" "$RESET_HEALTH_URL" || true)"
+            [ "$(jq -r '.healthy // false' <<<"$health" 2>/dev/null || true)" = true ] && break
+            sleep 10
+          done
+          test "$(jq -r '.healthy' <<<"$health")" = true
+          test "$(jq -r '.schemaEpoch' <<<"$health")" = '2.0.0'
+          test "$(jq -r '.dataEpoch' <<<"$health")" = "$reset_epoch"
+          test "$(jq -r '.resetRunId' <<<"$health")" = "$reset_run_id"
+          test "$(jq -r '.rollbackHold' <<<"$health")" = false
+          test "$(jq -r '.eventRootCount' <<<"$health")" = 0
+          test "$(jq -r '.eventInstanceRowCount' <<<"$health")" = 0
+          test "$(jq -r '.finalizationBlocksDeployment' <<<"$health")" = false
+          if [ "$RELEASE_PHASE" = final ]; then
+            test "$(jq -r '.destructiveMigrationApplied' <<<"$health")" = false
+            test "$(jq -r '.finalReleaseBlocksDeployment' <<<"$health")" = false
+          else
+            test "$(jq -r '.destructiveMigrationApplied' <<<"$health")" = true
+            test "$(jq -r '.finalReleaseBlocksDeployment' <<<"$health")" = true
+          fi
+
+          freeze_status="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $FREEZE_STATUS_TOKEN" "$FREEZE_STATUS_URL")"
+          test "$(jq -r '.configurationValid' <<<"$freeze_status")" = true
+          test "$(jq -r '.frozen' <<<"$freeze_status")" = true
+          test "$(jq -r '.resetEpoch' <<<"$freeze_status")" = "$reset_epoch"
+          test "$(jq -r '.schemaEpoch' <<<"$freeze_status")" = '2.0.0'
+          test "$(jq -r '.dataEpoch' <<<"$freeze_status")" = "$reset_epoch"
+          test "$(jq -r '.activeMutations' <<<"$freeze_status")" = 0
+          test "$(jq -r '.scheduledJobsAcknowledged' <<<"$freeze_status")" = true
+
+      - name: Reconfirm rollback hold immediately before migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          settings="$(az functionapp config appsettings list \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          rollback_hold="$(setting EVENT_RESET_ROLLBACK_HOLD)"
+          test "${rollback_hold,,}" != true
+          test -z "$(setting EVENT_RESET_ROLLBACK_STATE)"
+
       - name: Run Alife.DbMigrator
+        if: steps.event2-release.outputs.phase != 'preparation-required'
         working-directory: ./backend/src/Alife.DbMigrator
         shell: bash
         env:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           ConnectionStrings__Default: ${{ secrets.DB_CONNECTION_STRING }}
+          RELEASE_PHASE: ${{ steps.event2-release.outputs.phase }}
         run: |
           set -euo pipefail
+          migrator_arguments=()
+          if [ "$RELEASE_PHASE" = final ] || [ "$RELEASE_PHASE" = resume-final ]; then
+            settings="$(az functionapp config appsettings list \
+              --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+              --only-show-errors --output json)"
+            reset_run_id="$(jq -r '.[] | select(.name == "EVENT_RESET_LAST_VERIFIED_RUN_ID") | .value' <<<"$settings" | tail -n1)"
+            [[ "$reset_run_id" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
+            migrator_arguments+=(
+              '--Events:AllowEvent2DestructiveMigration=true'
+              "--Events:VerifiedResetRunId=$reset_run_id"
+            )
+          fi
           for attempt in 1 2 3; do
             echo "Running migrator (attempt $attempt/3)..."
-            if dotnet run --configuration Release; then
+            if dotnet run --configuration Release -- "${migrator_arguments[@]}"; then
               exit 0
             fi
 
@@ -250,6 +522,229 @@ jobs:
         with:
           app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
           package: ${{ github.workspace }}/publish
+
+      - name: Verify final Event 2.0 code while backend writes remain frozen
+        if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
+        shell: bash
+        env:
+          FREEZE_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          FREEZE_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          RESET_HEALTH_URL: ${{ vars.EVENT_RESET_FINALIZE_HEALTH_URL }}
+          RESET_HEALTH_TOKEN: ${{ secrets.EVENT_RESET_FINALIZE_HEALTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          settings="$(az functionapp config appsettings list \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          reset_epoch="$(setting EVENT_RESET_LAST_VERIFIED_EPOCH)"
+          reset_run_id="$(setting EVENT_RESET_LAST_VERIFIED_RUN_ID)"
+          for attempt in {1..18}; do
+            freeze_status="$(curl --silent --show-error -H "Authorization: Bearer $FREEZE_STATUS_TOKEN" "$FREEZE_STATUS_URL" || true)"
+            health="$(curl --silent --show-error -H "Authorization: Bearer $RESET_HEALTH_TOKEN" "$RESET_HEALTH_URL" || true)"
+            if [ "$(jq -r '.configurationValid // false' <<<"$freeze_status" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.frozen // false' <<<"$freeze_status" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.resetEpoch // empty' <<<"$freeze_status" 2>/dev/null || true)" = "$reset_epoch" ] && \
+               [ "$(jq -r '.schemaEpoch // empty' <<<"$freeze_status" 2>/dev/null || true)" = '2.0.0' ] && \
+               [ "$(jq -r '.dataEpoch // empty' <<<"$freeze_status" 2>/dev/null || true)" = "$reset_epoch" ] && \
+               [ "$(jq -r '.healthy // false' <<<"$health" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.resetRunId // empty' <<<"$health" 2>/dev/null || true)" = "$reset_run_id" ] && \
+               [ "$(jq -r '.dataEpoch // empty' <<<"$health" 2>/dev/null || true)" = "$reset_epoch" ] && \
+               [ "$(jq -r '.destructiveMigrationApplied // false' <<<"$health" 2>/dev/null || true)" = true ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Final Event 2.0 API did not become healthy while the reset freeze remained active.'
+          exit 1
+
+      - name: Setup Node.js for the protected final release
+        if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            cloudflare/alife-app/package-lock.json
+            cloudflare/speed-layer/package-lock.json
+
+      - name: Build the reviewed frontend and Speed Layer for unfreeze
+        if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
+        shell: bash
+        env:
+          CLOUDFLARE_API_CACHE_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_API_CACHE_NAMESPACE_ID }}
+        run: |
+          set -euo pipefail
+          npm ci --prefix cloudflare/alife-app
+          npm run generate:public-home-bootstrap --prefix cloudflare/alife-app
+          npm run build --prefix cloudflare/alife-app
+          npm ci --prefix cloudflare/speed-layer
+          npm run prepare:deploy-config --prefix cloudflare/speed-layer
+          settings="$(az functionapp config appsettings list --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --only-show-errors --output json)"
+          data_epoch="$(jq -r '.[] | select(.name == "EVENT_RESET_LAST_VERIFIED_EPOCH") | .value' <<<"$settings" | tail -n1)"
+          test "$(jq -r '.[] | select(.name == "EVENT_DATA_EPOCH") | .value' <<<"$settings" | tail -n1)" = "$data_epoch"
+          [[ "$data_epoch" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
+          EVENT_DATA_EPOCH="$data_epoch" node --input-type=module -e \
+            'import fs from "node:fs"; const p="cloudflare/speed-layer/.wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.EVENT_DATA_EPOCH,EVENT_WRITE_MODE:"open"}; delete c.vars.EVENT_WRITE_FREEZE_EPOCH; delete c.vars.EVENT_RESET_DO_APPROVED_FINGERPRINT; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
+
+      - name: Open Images API and Speed Layer from the reviewed final code
+        if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CACHE_SYNC_API_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
+          EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$GEMINI_API_KEY"
+          test -n "$CACHE_SYNC_API_TOKEN"
+          test "${#EVENT_RESET_DO_TOKEN}" -ge 32
+          test "${#EVENT_RESET_DO_TOKEN}" -le 4096
+          test "$EVENT_RESET_DO_TOKEN" != "$CACHE_SYNC_API_TOKEN"
+          npx wrangler@4.88.0 deploy --config cloudflare/images-api/wrangler.toml
+          node -e 'process.stdout.write(`GEMINI_API_KEY=${process.env.GEMINI_API_KEY}\nCACHE_SYNC_API_TOKEN=${process.env.CACHE_SYNC_API_TOKEN}\nEVENT_RESET_DO_TOKEN=${process.env.EVENT_RESET_DO_TOKEN}\n`)' > cloudflare/speed-layer/.event2-final.vars
+          npx wrangler@4.88.0 deploy --config cloudflare/speed-layer/.wrangler.deploy.jsonc \
+            --secrets-file cloudflare/speed-layer/.event2-final.vars
+          rm -f cloudflare/speed-layer/.event2-final.vars
+
+      - name: Verify Cloudflare Event writers are open on schema 2.0
+        if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
+        shell: bash
+        env:
+          SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
+          SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          IMAGES_URL: ${{ vars.EVENT_RESET_FILE_API_URL }}
+          IMAGES_TOKEN: ${{ secrets.EVENT_RESET_FILE_API_TOKEN }}
+          TARGET_RESOURCE: ${{ vars.EVENT_RESET_SQL_RESOURCE_ID }}
+        run: |
+          set -euo pipefail
+          settings="$(az functionapp config appsettings list --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --only-show-errors --output json)"
+          data_epoch="$(jq -r '.[] | select(.name == "EVENT_RESET_LAST_VERIFIED_EPOCH") | .value' <<<"$settings" | tail -n1)"
+          for attempt in {1..18}; do
+            speed="$(curl --silent --show-error -H "Authorization: Bearer $SPEED_TOKEN" \
+              "$SPEED_URL/api/internal/event-reset/status" || true)"
+            images="$(curl --silent --show-error -H "Authorization: Bearer $IMAGES_TOKEN" \
+              "$IMAGES_URL/api/admin/event-reset/status" || true)"
+            if [ "$(jq -r '.frozen // true' <<<"$speed" 2>/dev/null || true)" = false ] && \
+               [ -z "$(jq -r '.resetEpoch // empty' <<<"$speed" 2>/dev/null || true)" ] && \
+               [ "$(jq -r '.schemaEpoch // empty' <<<"$speed" 2>/dev/null || true)" = '2.0.0' ] && \
+               [ "$(jq -r '.dataEpoch // empty' <<<"$speed" 2>/dev/null || true)" = "$data_epoch" ] && \
+               [ "$(jq -r '.frozen // true' <<<"$images" 2>/dev/null || true)" = false ] && \
+               [ -z "$(jq -r '.resetEpoch // empty' <<<"$images" 2>/dev/null || true)" ] && \
+               [ "$(jq -r '.schemaEpoch // empty' <<<"$images" 2>/dev/null || true)" = '2.0.0' ] && \
+               [ "$(jq -r '.targetResource // empty' <<<"$images" 2>/dev/null || true)" = "$TARGET_RESOURCE" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Cloudflare Event writers did not enter the open Event 2.0 state.'
+          exit 1
+
+      - name: Open backend Event writes and enter final verification
+        if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
+        shell: bash
+        run: |
+          set -euo pipefail
+          completed_utc="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          az functionapp config appsettings set \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --settings \
+              'EVENT_WRITE_MODE=open' \
+              'EVENT_WRITE_FREEZE_EPOCH=' \
+              'EVENT_RESET_FINAL_RELEASE_STATE=verifying' \
+              "EVENT_RESET_FINAL_RELEASE_SHA=$GITHUB_SHA" \
+              "EVENT_RESET_FINAL_RELEASE_RUN_ID=$GITHUB_RUN_ID" \
+              "EVENT_RESET_FINAL_RELEASE_STARTED_AT_UTC=$completed_utc" \
+            --only-show-errors --output none
+
+      - name: Verify the final release is open and healthy before committing its marker
+        if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
+        shell: bash
+        env:
+          FREEZE_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          FREEZE_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          RESET_HEALTH_URL: ${{ vars.EVENT_RESET_FINALIZE_HEALTH_URL }}
+          RESET_HEALTH_TOKEN: ${{ secrets.EVENT_RESET_FINALIZE_HEALTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          settings="$(az functionapp config appsettings list \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+          reset_run_id="$(setting EVENT_RESET_LAST_VERIFIED_RUN_ID)"
+          test "$(setting EVENT_RESET_FINAL_RELEASE_STATE)" = verifying
+          test "$(setting EVENT_RESET_FINAL_RELEASE_SHA)" = "$GITHUB_SHA"
+          test "$(setting EVENT_RESET_ROLLBACK_HOLD)" = false
+          for attempt in {1..18}; do
+            freeze_status="$(curl --silent --show-error -H "Authorization: Bearer $FREEZE_STATUS_TOKEN" "$FREEZE_STATUS_URL" || true)"
+            health="$(curl --silent --show-error -H "Authorization: Bearer $RESET_HEALTH_TOKEN" "$RESET_HEALTH_URL" || true)"
+            if [ "$(jq -r '.configurationValid // false' <<<"$freeze_status" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.frozen // true' <<<"$freeze_status" 2>/dev/null || true)" = false ] && \
+               [ -z "$(jq -r '.resetEpoch // empty' <<<"$freeze_status" 2>/dev/null || true)" ] && \
+               [ "$(jq -r '.schemaEpoch // empty' <<<"$freeze_status" 2>/dev/null || true)" = '2.0.0' ] && \
+               [ "$(jq -r '.dataEpoch // empty' <<<"$freeze_status" 2>/dev/null || true)" = "$(setting EVENT_RESET_LAST_VERIFIED_EPOCH)" ] && \
+               [ "$(jq -r '.healthy // false' <<<"$health" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.dataEpoch // empty' <<<"$health" 2>/dev/null || true)" = "$(setting EVENT_RESET_LAST_VERIFIED_EPOCH)" ] && \
+               [ "$(jq -r '.resetRunId // empty' <<<"$health" 2>/dev/null || true)" = "$reset_run_id" ] && \
+               [ "$(jq -r '.destructiveMigrationApplied // false' <<<"$health" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.finalReleaseBlocksDeployment // false' <<<"$health" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.rollbackHold // true' <<<"$health" 2>/dev/null || true)" = false ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Final Event 2.0 release did not reach the open verified state.'
+          exit 1
+
+      - name: Commit final-release completion marker
+        if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
+        shell: bash
+        run: |
+          set -euo pipefail
+          completed_utc="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          az functionapp config appsettings set \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --settings \
+              'EVENT_RESET_PREPARATION_STATE=complete' \
+              'EVENT_RESET_FINAL_RELEASE_STATE=complete' \
+              "EVENT_RESET_FINAL_RELEASE_COMPLETED_AT_UTC=$completed_utc" \
+            --only-show-errors --output none
+
+      - name: Verify the committed final-release marker remains healthy
+        if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
+        shell: bash
+        env:
+          FREEZE_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          FREEZE_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          RESET_HEALTH_URL: ${{ vars.EVENT_RESET_FINALIZE_HEALTH_URL }}
+          RESET_HEALTH_TOKEN: ${{ secrets.EVENT_RESET_FINALIZE_HEALTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..18}; do
+            settings="$(az functionapp config appsettings list \
+              --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+              --only-show-errors --output json)"
+            setting() { jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$settings" | tail -n1; }
+            freeze_status="$(curl --silent --show-error -H "Authorization: Bearer $FREEZE_STATUS_TOKEN" "$FREEZE_STATUS_URL" || true)"
+            health="$(curl --silent --show-error -H "Authorization: Bearer $RESET_HEALTH_TOKEN" "$RESET_HEALTH_URL" || true)"
+            if [ "$(setting EVENT_RESET_FINAL_RELEASE_STATE)" = complete ] && \
+               [ "$(setting EVENT_RESET_FINAL_RELEASE_SHA)" = "$GITHUB_SHA" ] && \
+               [ "$(jq -r '.configurationValid // false' <<<"$freeze_status" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.frozen // true' <<<"$freeze_status" 2>/dev/null || true)" = false ] && \
+               [ -z "$(jq -r '.resetEpoch // empty' <<<"$freeze_status" 2>/dev/null || true)" ] && \
+               [ "$(jq -r '.healthy // false' <<<"$health" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.destructiveMigrationApplied // false' <<<"$health" 2>/dev/null || true)" = true ] && \
+               [ "$(jq -r '.finalReleaseBlocksDeployment // true' <<<"$health" 2>/dev/null || true)" = false ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'The final release marker did not return to the healthy open state.'
+          exit 1
 
       - name: Remove GitHub runner IP from Azure SQL firewall
         if: always()

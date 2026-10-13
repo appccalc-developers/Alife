@@ -27,11 +27,8 @@ public sealed class SeedDataTests
         Assert.True(await db.Members.AnyAsync(x => x.DisplayName == "Demo Leader"));
     }
 
-    private static readonly Guid PicnicId = Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff1");
-    private static readonly Guid TrainingId = Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff2");
-
     [Fact]
-    public async Task EnsureSeededAsync_CreatesOnlyThePicnicFixtureAndIsIdempotent()
+    public async Task EnsureSeededAsync_DoesNotCreateEventInstances()
     {
         await using var dbContext = new AlifeDbContext(
             new DbContextOptionsBuilder<AlifeDbContext>()
@@ -41,39 +38,36 @@ public sealed class SeedDataTests
         await SeedData.EnsureSeededAsync(dbContext);
         await SeedData.EnsureSeededAsync(dbContext);
 
-        var picnic = await dbContext.GroupEvents.SingleAsync(x => x.Id == PicnicId);
-        Assert.NotEqual(Guid.Empty, picnic.AccountableOwnerMemberId);
-        Assert.Equal(picnic.CreatedByMemberId, picnic.AccountableOwnerMemberId);
-        Assert.True(await dbContext.Members.AnyAsync(x => x.Id == picnic.AccountableOwnerMemberId));
-        Assert.Equal("Community Picnic", picnic.TitleEn);
-        Assert.Equal("社区野餐", picnic.TitleZh);
-        Assert.False(await dbContext.GroupEvents.AnyAsync(x => x.Id == TrainingId));
-
-        var enrollment = await dbContext.EventEnrollments.SingleAsync(x => x.EventId == PicnicId);
-        Assert.Equal(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee3"), enrollment.MemberId);
-
-        var invitation = await dbContext.NotificationMessages.SingleAsync(x => x.EventId == PicnicId);
-        Assert.Equal("event.invitation", invitation.ActionType);
-        Assert.False(await dbContext.NotificationMessages.AnyAsync(x => x.ActionType == "group.join.requested"));
+        Assert.Empty(await dbContext.GroupEvents.ToListAsync());
+        Assert.False(await dbContext.NotificationMessages.AnyAsync(x => x.EventId != null));
+        Assert.True(await dbContext.Groups.AnyAsync());
+        Assert.True(await dbContext.Pages.AnyAsync());
     }
 
     [Fact]
-    public async Task EnsureSeededAsync_PreservesAnExistingFixtureOwner()
+    public async Task EnsureSeededAsync_DoesNotModifyAnExistingEvent()
     {
         await using var dbContext = new AlifeDbContext(
             new DbContextOptionsBuilder<AlifeDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
                 .Options);
         await SeedData.EnsureSeededAsync(dbContext);
-        var picnic = await dbContext.GroupEvents.SingleAsync(x => x.Id == PicnicId);
-        var existingOwner = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee3");
-        Assert.True(await dbContext.Members.AnyAsync(x => x.Id == existingOwner));
-        picnic.AccountableOwnerMemberId = existingOwner;
+        var group = await dbContext.Groups.FirstAsync();
+        var owner = await dbContext.Members.FirstAsync();
+        var existing = new Alife.Domain.Entities.GroupEvent
+        {
+            Id = Guid.NewGuid(), GroupId = group.Id, CreatedByMemberId = owner.Id,
+            AccountableOwnerMemberId = owner.Id, TitleEn = "Fixture", TitleZh = "测试",
+            StartDate = DateTime.UtcNow.AddDays(1), EndDate = DateTime.UtcNow.AddDays(1).AddHours(1),
+            EventDataJson = "{\"visibility\":\"groupVisible\"}", CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        };
+        dbContext.GroupEvents.Add(existing);
         await dbContext.SaveChangesAsync();
         dbContext.ChangeTracker.Clear();
 
         await SeedData.EnsureSeededAsync(dbContext);
 
-        Assert.Equal(existingOwner, (await dbContext.GroupEvents.SingleAsync(x => x.Id == PicnicId)).AccountableOwnerMemberId);
+        Assert.Equal("Fixture", (await dbContext.GroupEvents.SingleAsync()).TitleEn);
     }
 }

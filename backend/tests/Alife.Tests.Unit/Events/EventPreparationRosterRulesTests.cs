@@ -17,7 +17,7 @@ public sealed partial class EventOperationsCoreTests
     public async Task DefaultPositions_AreExplicitVersionedAndExtendOnlyMissingDatesWithoutPeople()
     {
         await using var db = CreateDb(); var owner = Guid.NewGuid(); var member = Guid.NewGuid();
-        var e = SeedEvent(db, Guid.NewGuid(), owner); var first = SeedOccurrence(db, e);
+        var e = SeedEvent(db, Guid.NewGuid(), owner); var first = SeedOccurrence(db, e); SeedRosterCoordinator(db, e, owner);
         db.Members.AddRange(Member(owner, "Owner"), Member(member, "Member")); SeedPlan(db, e, Fact("people.volunteersRequired", true));
         var zone = TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
         var anchor = DateTime.SpecifyKind(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone).Date.AddDays(1).AddHours(19), DateTimeKind.Unspecified);

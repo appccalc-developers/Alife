@@ -21,7 +21,7 @@ public record GroupEventSummaryDto(
     EventGovernanceMode GovernanceMode = EventGovernanceMode.MemberLed,
     EventSponsorshipStatus SponsorshipStatus = EventSponsorshipStatus.NotRequested,
     int? ActivePlanVersion = null,
-    EventPublicationStatus PublicationStatus = EventPublicationStatus.LegacyImplicit,
+    EventPublicationStatus PublicationStatus = EventPublicationStatus.Draft,
     bool PublicationGateSatisfied = true,
     Guid? PublishedPackageId = null,
     DateTime? PublishedUtc = null,
