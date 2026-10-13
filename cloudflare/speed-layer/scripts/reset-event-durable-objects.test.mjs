@@ -262,6 +262,40 @@ test('collectInventory follows namespace pages and opaque object cursors', async
   assert.equal(calls.filter(value => value.includes('/objects')).length, 4)
 })
 
+test('collectInventory accepts current Cloudflare pagination without total_pages or total_count for objects', async () => {
+  const calls = []
+  const fetchImpl = async input => {
+    const url = new URL(input)
+    calls.push(url)
+    if (url.pathname.endsWith('/workers/durable_objects/namespaces')) {
+      return json({
+        success: true,
+        result: [namespace('EnrollmentSession'), namespace('EventPlanningSession'), namespace('ReviewSession')],
+        result_info: { page: 1, count: 3, total_count: 3 },
+      })
+    }
+    const namespaceId = url.pathname.split('/').at(-2)
+    const object = namespaceId === ids.EventPlanningSession
+      ? { id: objectId(1), hasStoredData: true }
+      : { id: objectId(namespaceId === ids.EnrollmentSession ? 2 : 3), hasStoredData: false }
+    return url.searchParams.has('cursor')
+      ? json({ success: true, result: [], result_info: { count: 0 } })
+      : json({ success: true, result: [object], result_info: { count: 1, cursor: 'opaque-last' } })
+  }
+
+  const inventory = await collectInventory({
+    accountId: EXPECTED_ACCOUNT_ID,
+    apiToken: 'token',
+    apiBaseUrl: 'https://api.example.test/client/v4',
+    fetchImpl,
+  })
+
+  assert.equal(inventory.namespaceCount, 3)
+  assert.equal(inventory.objectCount, 3)
+  assert.equal(inventory.storedObjectCount, 1)
+  assert.equal(calls.filter(url => url.pathname.endsWith('/objects')).length, 6)
+})
+
 test('approval fingerprint includes every listed object identity and storage flag', () => {
   const context = {
     accountId: EXPECTED_ACCOUNT_ID,
@@ -402,6 +436,18 @@ test('object inventory fails closed on incomplete cursor and changing pagination
         success: true,
         result: [{ id: objectId(1), hasStoredData: true }],
         result_info: { count: 1, page: 1, total_count: 2 },
+      }),
+    }),
+    /omitted the cursor/,
+  )
+
+  await assert.rejects(
+    listNamespaceObjects({
+      ...base,
+      fetchImpl: async () => json({
+        success: true,
+        result: [{ id: objectId(1), hasStoredData: true }],
+        result_info: { count: 1 },
       }),
     }),
     /omitted the cursor/,

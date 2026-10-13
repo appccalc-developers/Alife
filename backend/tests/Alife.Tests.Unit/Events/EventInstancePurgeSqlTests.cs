@@ -13,6 +13,119 @@ namespace Alife.Tests.Unit.Events;
 public sealed class EventInstancePurgeSqlTests
 {
     [LocalEventPurgeSqlFact]
+    public async Task Irreversible_mode_is_bound_into_preview_fingerprint_and_apply_context()
+    {
+        await using var fixture = await DatabaseFixture.CreateAsync();
+        var recoverableOutput = fixture.Output("mode-recoverable");
+        var irreversibleOutput = fixture.Output("mode-irreversible");
+        var recoverable = await fixture.PreviewAsync(recoverableOutput, "mode-binding");
+        await fixture.Purge(irreversibleOutput, EventInstancePurge.PurgeMode.Preview,
+            "mode-binding", irreversibleNoRecovery: true).RunAsync();
+        var irreversible = JsonSerializer.Deserialize<EventInstancePurge.Manifest>(
+            await File.ReadAllTextAsync(Path.Combine(irreversibleOutput, "preview.json")),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+
+        Assert.False(recoverable.IrreversibleNoRecovery);
+        Assert.True(irreversible.IrreversibleNoRecovery);
+        Assert.NotEqual(recoverable.Fingerprint, irreversible.Fingerprint);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            fixture.Purge(irreversibleOutput, EventInstancePurge.PurgeMode.Apply,
+                "mode-binding", irreversible.Fingerprint).RunAsync());
+        Assert.Contains("recovery mode", error.Message, StringComparison.Ordinal);
+
+        await fixture.Purge(irreversibleOutput, EventInstancePurge.PurgeMode.Apply,
+            "mode-binding", irreversible.Fingerprint, irreversibleNoRecovery: true).RunAsync();
+        await fixture.Purge(irreversibleOutput, EventInstancePurge.PurgeMode.Verify,
+            "mode-binding", irreversibleNoRecovery: true).RunAsync();
+    }
+
+    [LocalEventPurgeSqlFact]
+    public async Task Migration_inspection_requires_all_instance_tables_to_be_empty()
+    {
+        await using var fixture = await DatabaseFixture.CreateAsync();
+        var empty = await fixture.InspectMigrationAsync();
+        Assert.True(empty.InstanceDataEmpty);
+        Assert.Equal(0, empty.RowCounts["dbo.group_events"]);
+
+        await fixture.ExecuteAsync("""
+            INSERT INTO [dbo].[event_idempotency_records]
+                ([id], [operation], [scope_id], [key], [request_hash], [result_entity_id], [created_utc], [expires_utc])
+            VALUES (NEWID(), N'fixture', NEWID(), N'fixture', N'fixture', NEWID(), SYSUTCDATETIME(), DATEADD(day, 1, SYSUTCDATETIME()));
+            """);
+        var idempotencyOnly = await fixture.InspectMigrationAsync();
+        Assert.Equal(0, idempotencyOnly.RowCounts["dbo.group_events"]);
+        Assert.Equal(1, idempotencyOnly.RowCounts["dbo.event_idempotency_records"]);
+        Assert.False(idempotencyOnly.InstanceDataEmpty);
+        await fixture.ExecuteAsync("DELETE FROM [dbo].[event_idempotency_records];");
+
+        await fixture.SeedEventAsync();
+        var occupied = await fixture.InspectMigrationAsync();
+        Assert.False(occupied.InstanceDataEmpty);
+        Assert.Equal(1, occupied.RowCounts["dbo.group_events"]);
+        Assert.Throws<InvalidOperationException>(() =>
+            Event2DestructiveMigrationGate.RequireEmptyInstanceInspection(occupied.InstanceDataEmpty));
+    }
+
+    [LocalEventPurgeSqlFact]
+    public async Task Migration_inspection_rejects_unknown_event_table_and_inbound_foreign_key()
+    {
+        await using var fixture = await DatabaseFixture.CreateAsync();
+        await fixture.ExecuteAsync("CREATE TABLE [dbo].[event_unreviewed_probe] ([id] uniqueidentifier NOT NULL PRIMARY KEY);");
+        var unknownTable = await Assert.ThrowsAsync<InvalidOperationException>(fixture.InspectMigrationAsync);
+        Assert.Contains("Unknown Event tables", unknownTable.Message, StringComparison.Ordinal);
+
+        await fixture.ExecuteAsync("DROP TABLE [dbo].[event_unreviewed_probe];");
+        await fixture.ExecuteAsync("""
+            CREATE TABLE [dbo].[migration_probe]
+            (
+                [id] uniqueidentifier NOT NULL PRIMARY KEY,
+                [root_id] uniqueidentifier NOT NULL,
+                CONSTRAINT [fk_migration_probe_group_events_root_id]
+                    FOREIGN KEY ([root_id]) REFERENCES [dbo].[group_events]([id])
+            );
+            """);
+        var unknownForeignKey = await Assert.ThrowsAsync<InvalidOperationException>(fixture.InspectMigrationAsync);
+        Assert.Contains("Unclassified foreign keys", unknownForeignKey.Message, StringComparison.Ordinal);
+    }
+
+    [LocalEventPurgeSqlFact]
+    public async Task Migration_inspection_rejects_orphaned_known_event_soft_reference()
+    {
+        await using var fixture = await DatabaseFixture.CreateAsync();
+        await using (var db = fixture.OpenDb())
+        {
+            db.FileAssets.Add(new FileAsset
+            {
+                Id = Guid.NewGuid(),
+                BucketName = "shared-fixture",
+                ObjectKey = "shared/unlinked-event-poster.png",
+                OriginalFileName = "poster.png",
+                StoredFileName = "poster.png",
+                ContentType = "image/png",
+                SizeBytes = 1,
+                Visibility = FileAssetVisibility.GroupVisible,
+                Purpose = FileAssetPurpose.EventPoster,
+                UploadedUtc = DateTime.UtcNow,
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+        var detachedSharedFile = await fixture.InspectMigrationAsync();
+        Assert.True(detachedSharedFile.InstanceDataEmpty);
+
+        await fixture.ExecuteAsync("""
+            INSERT INTO [dbo].[audit_logs] ([id], [action], [entity_type], [entity_id], [occurred_utc])
+            VALUES (NEWID(), N'event.test', N'GroupEvent', NEWID(), SYSUTCDATETIME());
+            """);
+
+        var inspection = await fixture.InspectMigrationAsync();
+        Assert.Equal(0, inspection.RowCounts["dbo.group_events"]);
+        Assert.Equal(1, inspection.RowCounts["dbo.audit_logs:event-references"]);
+        Assert.False(inspection.InstanceDataEmpty);
+    }
+
+    [LocalEventPurgeSqlFact]
     public async Task Current_profile_applies_verifies_and_repeats_as_no_op()
     {
         await using var fixture = await DatabaseFixture.CreateAsync();
@@ -265,9 +378,10 @@ public sealed class EventInstancePurgeSqlTests
             string output,
             EventInstancePurge.PurgeMode mode,
             string run,
-            string? expectedFingerprint = null) =>
+            string? expectedFingerprint = null,
+            bool irreversibleNoRecovery = false) =>
             EventInstancePurge.CreateForIsolatedIntegrationTest(
-                ConnectionString(_database), output, mode, run, expectedFingerprint);
+                ConnectionString(_database), output, mode, run, expectedFingerprint, irreversibleNoRecovery);
 
         public async Task<EventInstancePurge.Manifest> PreviewAsync(string output, string run)
         {
@@ -291,6 +405,9 @@ public sealed class EventInstancePurgeSqlTests
             await connection.OpenAsync();
             return await EventInstancePurge.InspectReviewedSchemaProfileAsync(connection);
         }
+
+        public Task<EventInstancePurge.MigrationInstanceInspection> InspectMigrationAsync() =>
+            EventInstancePurge.InspectForMigrationAsync(ConnectionString(_database));
 
         public async ValueTask DisposeAsync()
         {

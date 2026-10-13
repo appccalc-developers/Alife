@@ -99,7 +99,7 @@ function cloudflareHeaders(apiToken) {
 export async function listNamespaces({ accountId, apiToken, apiBaseUrl = DEFAULT_CLOUDFLARE_API, fetchImpl = fetch }) {
   const namespaces = []
   let expectedTotalCount = null
-  let expectedTotalPages = null
+  let expectedTotalPages
   for (let page = 1; page <= MAX_NAMESPACE_PAGES; page += 1) {
     const url = new URL(`${apiBaseUrl}/accounts/${encodeURIComponent(accountId)}/workers/durable_objects/namespaces`)
     url.searchParams.set('page', String(page))
@@ -108,32 +108,37 @@ export async function listNamespaces({ accountId, apiToken, apiBaseUrl = DEFAULT
     if (!Array.isArray(payload.result)) throw new Error('Durable Object namespace inventory omitted its result array.')
     const info = payload.result_info
     const totalCount = Number(info?.total_count)
-    const totalPages = Number(info?.total_pages)
+    const totalPages = info?.total_pages === undefined ? null : Number(info.total_pages)
     const responsePage = Number(info?.page)
     const count = Number(info?.count)
     if (!Number.isSafeInteger(totalCount) || totalCount < 0 ||
-        !Number.isSafeInteger(totalPages) || totalPages < 0 || totalPages > MAX_NAMESPACE_PAGES ||
-        (totalCount === 0) !== (totalPages === 0) ||
+        (totalPages !== null && (!Number.isSafeInteger(totalPages) || totalPages < 0 || totalPages > MAX_NAMESPACE_PAGES ||
+          (totalCount === 0) !== (totalPages === 0))) ||
         !Number.isSafeInteger(responsePage) || responsePage !== page ||
-        (totalPages > 0 && responsePage > totalPages) ||
+        (totalPages !== null && totalPages > 0 && responsePage > totalPages) ||
         !Number.isSafeInteger(count) || count !== payload.result.length) {
       throw new Error('Durable Object namespace inventory returned inconsistent pagination metadata.')
     }
     if (expectedTotalCount === null) expectedTotalCount = totalCount
     else if (expectedTotalCount !== totalCount) throw new Error('Durable Object namespace inventory total_count changed between pages.')
-    if (expectedTotalPages === null) expectedTotalPages = totalPages
+    if (expectedTotalPages === undefined) expectedTotalPages = totalPages
     else if (expectedTotalPages !== totalPages) throw new Error('Durable Object namespace inventory total_pages changed between pages.')
     namespaces.push(...payload.result)
     if (namespaces.length > totalCount) throw new Error('Durable Object namespace inventory exceeded total_count.')
-    if (totalPages === 0) {
-      if (page !== 1 || totalCount !== 0 || payload.result.length !== 0) {
+    if (totalCount === 0) {
+      if (page !== 1 || payload.result.length !== 0) {
         throw new Error('Durable Object namespace inventory returned an invalid empty page.')
       }
       return namespaces
     }
-    if (page >= totalPages) {
-      if (namespaces.length !== totalCount) throw new Error('Durable Object namespace inventory did not reach total_count.')
+    if (namespaces.length === totalCount) {
+      if (totalPages !== null && page !== totalPages) {
+        throw new Error('Durable Object namespace inventory did not match total_pages.')
+      }
       return namespaces
+    }
+    if (totalPages !== null && page >= totalPages) {
+      throw new Error('Durable Object namespace inventory did not reach total_count.')
     }
     if (payload.result.length === 0) throw new Error('Durable Object namespace inventory ended before total_pages.')
   }
@@ -174,7 +179,7 @@ export async function listNamespaceObjects({ accountId, apiToken, namespaceId, a
   const seenIds = new Set()
   const seenCursors = new Set()
   let cursor = ''
-  let expectedTotalCount = null
+  let expectedTotalCount
   for (let pageIndex = 0; pageIndex < MAX_OBJECT_PAGES; pageIndex += 1) {
     const url = new URL(`${apiBaseUrl}/accounts/${encodeURIComponent(accountId)}/workers/durable_objects/namespaces/${encodeURIComponent(namespaceId)}/objects`)
     url.searchParams.set('limit', String(OBJECT_PAGE_SIZE))
@@ -182,15 +187,15 @@ export async function listNamespaceObjects({ accountId, apiToken, namespaceId, a
     const payload = await requestJson(url, { headers: cloudflareHeaders(apiToken) }, 'Durable Object instance inventory', fetchImpl)
     if (!Array.isArray(payload.result)) throw new Error('Durable Object instance inventory omitted its result array.')
     const info = payload.result_info
-    const totalCount = Number(info?.total_count)
+    const totalCount = info?.total_count === undefined ? null : Number(info.total_count)
     const count = Number(info?.count)
     const responsePage = info?.page === undefined ? pageIndex + 1 : Number(info.page)
-    if (!Number.isSafeInteger(totalCount) || totalCount < 0 ||
+    if ((totalCount !== null && (!Number.isSafeInteger(totalCount) || totalCount < 0)) ||
         !Number.isSafeInteger(count) || count !== payload.result.length ||
         !Number.isSafeInteger(responsePage) || responsePage !== pageIndex + 1) {
       throw new Error('Durable Object instance inventory returned inconsistent pagination metadata.')
     }
-    if (expectedTotalCount === null) expectedTotalCount = totalCount
+    if (expectedTotalCount === undefined) expectedTotalCount = totalCount
     else if (expectedTotalCount !== totalCount) throw new Error('Durable Object instance inventory total_count changed between pages.')
     for (const object of payload.result) {
       if (typeof object?.id !== 'string' || !HEX_64.test(object.id)) {
@@ -203,12 +208,18 @@ export async function listNamespaceObjects({ accountId, apiToken, namespaceId, a
       seenIds.add(object.id)
       objects.push({ id: object.id, hasStoredData: object.hasStoredData })
     }
-    if (objects.length > totalCount) throw new Error('Durable Object instance inventory exceeded total_count.')
-    if (objects.length === totalCount) {
+    if (totalCount !== null && objects.length > totalCount) throw new Error('Durable Object instance inventory exceeded total_count.')
+    if (payload.result.length === 0) {
+      if (totalCount !== null && objects.length !== totalCount) {
+        throw new Error('Durable Object instance inventory ended before total_count.')
+      }
       objects.sort((left, right) => left.id.localeCompare(right.id))
       return objects
     }
-    if (payload.result.length === 0) throw new Error('Durable Object instance inventory ended before total_count.')
+    if (totalCount !== null && objects.length === totalCount) {
+      objects.sort((left, right) => left.id.localeCompare(right.id))
+      return objects
+    }
     const nextCursor = payload.result_info?.cursor || payload.result_info?.cursors?.after || ''
     if (typeof nextCursor !== 'string' || seenCursors.has(nextCursor)) {
       throw new Error('Durable Object instance pagination returned an invalid or repeated cursor.')

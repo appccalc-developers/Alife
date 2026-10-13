@@ -382,6 +382,41 @@ test('Event reset Durable Object purge maps exact classes through idFromString a
   }
 })
 
+test('Event reset Durable Object empty verification uses the approved identities without purging them', async () => {
+  const forwarded = []
+  const binding = {
+    idFromString(value) { return value },
+    get(id) {
+      return {
+        async fetch(request) {
+          forwarded.push({ id, path: new URL(request.url).pathname, body: await request.json() })
+          return Response.json({ verified: true, empty: true })
+        },
+      }
+    },
+  }
+  const body = { ...resetEnvelope('EventPlanningSession', 'EVENT_SESSIONS'), operation: 'verify-empty' }
+  const rawBody = JSON.stringify(body)
+  const response = await dispatch(`${ORIGIN}/api/internal/event-reset/durable-objects`, {
+    method: 'POST',
+    auth: false,
+    env: frozenResetEnv({ EVENT_SESSIONS: binding }),
+    headers: signedResetHeaders(rawBody),
+    body: rawBody,
+  })
+  const receipt = await response.json()
+  assert.equal(response.status, 200)
+  assert.equal(receipt.verified, true)
+  assert.equal(receipt.emptyCount, 1)
+  assert.equal(receipt.purgedCount, 0)
+  const { objectIds: _objectIds, ...metadata } = body
+  assert.deepEqual(forwarded, [{
+    id: RESET_OBJECT_ID,
+    path: '/_internal/event-reset/verify-empty',
+    body: { ...metadata, dataEpoch: 'reset-42' },
+  }])
+})
+
 test('Event reset Durable Object purge rejects wrong targets, fingerprints and missing or bad signatures before object access', async () => {
   let objectAccesses = 0
   const binding = {
@@ -505,6 +540,53 @@ test('Event session Durable Objects delete alarms before all storage and expose 
   const response = await retired.fetch(new Request(`${ORIGIN}/message`, { method: 'POST' }))
   assert.equal(response.status, 404)
   assert.equal(response.headers.get('cache-control'), 'no-store')
+})
+
+test('Event session Durable Object empty probe reads only one KV key and the alarm', async () => {
+  const classes = [
+    [EventPlanningSession, 'EventPlanningSession', 'EVENT_SESSIONS'],
+    [EnrollmentSession, 'EnrollmentSession', 'ENROLLMENT_SESSIONS'],
+    [ReviewSession, 'ReviewSession', 'REVIEW_SESSIONS'],
+  ]
+  for (const [SessionClass, className, namespace] of classes) {
+    const operations = []
+    const values = new Map([['private', { value: 'must-not-be-returned' }]])
+    let alarm = Date.now()
+    const session = new SessionClass({ storage: {
+      async get(key) { return values.get(key) },
+      async put(key, value) { operations.push('put'); values.set(key, value) },
+      async list({ limit }) { operations.push(`list:${limit}`); return new Map([...values].slice(0, limit)) },
+      async getAlarm() { operations.push('getAlarm'); return alarm },
+      async deleteAlarm() { operations.push('deleteAlarm'); alarm = null },
+      async deleteAll() { operations.push('deleteAll'); values.clear() },
+    } }, frozenResetEnv())
+    const body = { ...resetEnvelope(className, namespace), operation: 'verify-empty' }
+    delete body.objectIds
+    const rawBody = JSON.stringify(body)
+    const verify = () => session.fetch(new Request('https://event-reset.invalid/_internal/event-reset/verify-empty', {
+      method: 'POST', headers: signedResetHeaders(rawBody), body: rawBody,
+    }))
+
+    let response = await verify()
+    assert.equal(response.status, 409, className)
+    assert.equal((await response.json()).empty, false)
+    assert.deepEqual(operations, ['list:1', 'getAlarm'], className)
+    values.clear()
+    alarm = null
+    response = await verify()
+    assert.equal(response.status, 200, className)
+    const result = await response.text()
+    assert.doesNotMatch(result, /must-not-be-returned/)
+    assert.equal(JSON.parse(result).empty, true)
+    assert.deepEqual(operations, ['list:1', 'getAlarm', 'list:1', 'getAlarm'], className)
+
+    const mismatch = await session.fetch(new Request('https://event-reset.invalid/_internal/event-reset/verify-empty', {
+      method: 'POST', headers: signedResetHeaders(JSON.stringify(resetEnvelope(className, namespace))),
+      body: JSON.stringify(resetEnvelope(className, namespace)),
+    }))
+    assert.equal(mismatch.status, 409, className)
+    assert.equal(operations.length, 4, className)
+  }
 })
 
 test('purging a review session closes SSE and prevents an in-flight AI reply from rewriting storage', async () => {

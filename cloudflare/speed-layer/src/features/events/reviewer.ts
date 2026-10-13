@@ -10,7 +10,7 @@ import {
   type AiSessionAppContext,
   type DurableObjectStateLike,
 } from '../ai/aiSession'
-import { EVENT_DURABLE_OBJECT_PURGE_PATH, eventSessionObjectName, handleEventDurableObjectPurgeRequest } from './eventReset'
+import { EVENT_DURABLE_OBJECT_PURGE_PATH, EVENT_DURABLE_OBJECT_VERIFY_EMPTY_PATH, eventSessionObjectName, handleEventDurableObjectPurgeRequest, inspectEventDurableObjectStorageEmpty } from './eventReset'
 
 const DEFAULT_SESSION_ID = 'default'
 const SESSION_STORAGE_KEY = 'review-session-state'
@@ -209,13 +209,14 @@ export class ReviewSession extends AiChatSession<ReviewDraft, MultilingualString
   }
 
   async fetch(request: Request): Promise<Response> {
-    if (new URL(request.url).pathname === EVENT_DURABLE_OBJECT_PURGE_PATH) {
+    if ([EVENT_DURABLE_OBJECT_PURGE_PATH, EVENT_DURABLE_OBJECT_VERIFY_EMPTY_PATH].includes(new URL(request.url).pathname)) {
       return handleEventDurableObjectPurgeRequest(
         request,
         this.env,
         'REVIEW_SESSIONS',
         'ReviewSession',
         () => this.purgeForEventReset(),
+        () => inspectEventDurableObjectStorageEmpty(this.durableState.storage),
       )
     }
     return this.handleRequest(request, getSessionId(request))

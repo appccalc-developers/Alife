@@ -1,6 +1,6 @@
 import type { Env } from '../../index'
 import type { DurableObjectStateLike } from '../ai/aiSession'
-import { handleEventDurableObjectPurgeRequest } from './eventReset'
+import { handleEventDurableObjectPurgeRequest, inspectEventDurableObjectStorageEmpty } from './eventReset'
 
 /**
  * Cleanup-only adapter for the retired Event 1.x enrollment session namespace.
@@ -26,6 +26,7 @@ export class EnrollmentSession {
         }
         await this.durableState.storage.deleteAll()
       },
+      () => inspectEventDurableObjectStorageEmpty(this.durableState.storage),
     )
   }
 }

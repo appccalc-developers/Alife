@@ -16,24 +16,34 @@ public sealed class Event2DestructiveMigrationGateTests
     }
 
     [Fact]
-    public void PendingMigration_RequiresBothExactCommandLineArguments()
+    public void PendingMigration_RequiresOnlyTheExactCommandLineAuthorization()
     {
         Assert.Throws<InvalidOperationException>(() =>
             Event2DestructiveMigrationGate.RequireExplicitAuthorization(Pending,
-                [Event2DestructiveMigrationGate.AllowArgument]));
+                ["--Events:AllowEvent2DestructiveMigration=false"]));
         Assert.Throws<InvalidOperationException>(() =>
             Event2DestructiveMigrationGate.RequireExplicitAuthorization(Pending,
-                [Event2DestructiveMigrationGate.AllowArgument, "--Events:VerifiedResetRunId=bad/value"]));
+                [Event2DestructiveMigrationGate.AllowArgument, Event2DestructiveMigrationGate.AllowArgument]));
+        Assert.Throws<InvalidOperationException>(() =>
+            Event2DestructiveMigrationGate.RequireExplicitAuthorization(Pending,
+                [Event2DestructiveMigrationGate.AllowArgument, "--Events:VerifiedResetRunId=obsolete"]));
     }
 
     [Fact]
-    public void PendingMigration_AllowsTheProtectedFinalReleaseArguments()
+    public void PendingMigration_AllowsTheExactAuthorizationSwitch()
     {
         Event2DestructiveMigrationGate.RequireExplicitAuthorization(Pending,
-        [
-            Event2DestructiveMigrationGate.AllowArgument,
-            "--Events:VerifiedResetRunId=event2-reset_2026.10.13"
-        ]);
+            [Event2DestructiveMigrationGate.AllowArgument]);
+    }
+
+    [Fact]
+    public void NonemptyInstanceInspection_RejectsTheMigrationEvenWithAuthorization()
+    {
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            Event2DestructiveMigrationGate.RequireEmptyInstanceInspection(false));
+
+        Assert.Contains("EVENT2_DESTRUCTIVE_RESET_REQUIRED", error.Message, StringComparison.Ordinal);
+        Event2DestructiveMigrationGate.RequireEmptyInstanceInspection(true);
     }
 
     [Fact]
