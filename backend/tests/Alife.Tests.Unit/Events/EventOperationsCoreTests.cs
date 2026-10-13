@@ -195,7 +195,7 @@ public sealed partial class EventOperationsCoreTests
     {
         await using var db = CreateDb();
         var owner = Guid.NewGuid(); var a = Guid.NewGuid(); var b = Guid.NewGuid(); var outsider = Guid.NewGuid();
-        var e = SeedEvent(db, Guid.NewGuid(), owner); var occurrence = SeedOccurrence(db, e);
+        var e = SeedEvent(db, Guid.NewGuid(), owner); var occurrence = SeedOccurrence(db, e); SeedRosterCoordinator(db, e, owner);
         db.Members.AddRange(Member(owner, "Owner"), Member(a, "A"), Member(b, "B"), Member(outsider, "Other"));
         SeedPlan(db, e, Fact("people.volunteersRequired", true)); await db.SaveChangesAsync();
         var auth = Authorization(owner); var service = new EventOperationsService(db, auth);
@@ -256,10 +256,10 @@ public sealed partial class EventOperationsCoreTests
         }
         var update = new Alife.Application.Events.Commands.UpdateGroupEvent.UpdateGroupEventCommandHandler(db, auth,
             Substitute.For<IEventCacheInvalidationService>(), new EventPackageInvalidationService(db));
-        var result = await update.Handle(new(e.Id, other, "Changed", "修改", e.StartDate, e.EndDate, "{}"), default);
+        var composition = EventCompositionTestData.CurrentRequest() with { BasePlanVersion = e.ActivePlanVersion };
+        var result = await update.Handle(new(e.Id, other, "Changed", "修改", e.StartDate, e.EndDate, "{}",
+            Composition: composition, CompositionProposalHash: "unreached", PlanETag: "unreached"), default);
         Assert.Equal(AppResultStatus.Forbidden, result.Status); Assert.Equal("Event", e.TitleEn);
-        var create = new Alife.Application.Events.Commands.CreateGroupEvent.CreateGroupEventCommandHandler(db, auth, Substitute.For<IEventCacheInvalidationService>());
-        Assert.Equal(AppResultStatus.ValidationError, (await create.Handle(new(e.GroupId, other, "New", "新活动", e.StartDate, e.EndDate, "{}", AccountableOwnerMemberId: owner), default)).Status);
         var invite = new Alife.Application.Events.Composition.CreateEventRoleAssignmentCommandHandler(db, auth);
         Assert.Equal(AppResultStatus.ValidationError, (await invite.Handle(new(e.Id, owner, new("TEAM.WORK:event.accountableOwner", other), "no-transfer"), default)).Status);
         var pending = new EventRoleAssignment { Id = Guid.NewGuid(), EventId = e.Id, MemberId = other, RoleRequirementKey = "TEAM.WORK:event.accountableOwner",
@@ -296,7 +296,8 @@ public sealed partial class EventOperationsCoreTests
     private static GroupEvent SeedEvent(AlifeDbContext db, Guid groupId, Guid owner) {
         var value = new GroupEvent { Id = Guid.NewGuid(), GroupId = groupId, CreatedByMemberId = owner,
             AccountableOwnerMemberId = owner, TitleEn = "Event", TitleZh = "活動", StartDate = DateTime.UtcNow.AddDays(1),
-            EndDate = DateTime.UtcNow.AddDays(1).AddHours(2), CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
+            EndDate = DateTime.UtcNow.AddDays(1).AddHours(2), PublicationStatus = EventPublicationStatus.Published,
+            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
         db.GroupEvents.Add(value);
         db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = owner, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
         return value;
@@ -306,10 +307,24 @@ public sealed partial class EventOperationsCoreTests
             EndUtc = groupEvent.EndDate, LocalDate = DateOnly.FromDateTime(groupEvent.StartDate), CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow }; db.EventOccurrences.Add(value); return value;
     }
+    private static void SeedRosterCoordinator(AlifeDbContext db, GroupEvent groupEvent, Guid memberId) =>
+        db.EventRoleAssignments.Add(new EventRoleAssignment
+        {
+            Id = Guid.NewGuid(),
+            EventId = groupEvent.Id,
+            MemberId = memberId,
+            RoleRequirementKey = "SERVICE.ROSTER:roster.coordinator",
+            AssignedByMemberId = groupEvent.AccountableOwnerMemberId,
+            Status = EventRoleAssignmentStatus.Accepted,
+            AcceptedUtc = DateTime.UtcNow,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
     private static void SeedPlan(AlifeDbContext db, GroupEvent groupEvent, params EventFactInputDto[] facts) {
         var allFacts = facts;
-        var plan = new EventCompositionEngine().Compose(new(EventCompositionDefinitions.LegacySchemaVersion, null,
-            new(allFacts), []), new EventCompositionContext("\"baseline\"", HasAccountableOwner: true)).Value!;
+        var plan = new EventCompositionEngine().Compose(
+            EventCompositionTestData.CurrentRequest(facts: allFacts),
+            new EventCompositionContext("\"baseline\"", HasAccountableOwner: true)).Value!;
         groupEvent.ActivePlanVersion = 1;
         db.EventPlanSnapshots.Add(new EventPlanSnapshot { Id = Guid.NewGuid(), EventId = groupEvent.Id, Version = 1,
             SourceFactSetId = Guid.NewGuid(), SchemaVersion = plan.SchemaVersion, ProposalHash = plan.ProposalHash,

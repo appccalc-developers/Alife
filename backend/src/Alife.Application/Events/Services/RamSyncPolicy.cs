@@ -7,7 +7,7 @@ namespace Alife.Application.Events.Services;
 
 // This projection never sends free text, people, private reports, locations or health data to AI.
 // It extracts possible activity signals locally, then asks AI to identify risks for those signals.
-public sealed record RamSyncActivity(string Key, string Type);
+public sealed record RamSyncActivity(string Key, string[] Attributes);
 public sealed record RamSyncContext(string[] Modules, string[] ActivityTypes, bool Overnight,
     bool Outdoor, bool Children, int ProgrammeItems, int VenueCount, RamSyncActivity[]? Activities = null);
 public sealed record RamSyncRisk(string ActivityType, string CategoryCode, RamText Hazard,
@@ -51,8 +51,8 @@ public static class RamSyncPolicy
         if (modules.Contains("FOOD.HOSPITALITY") && !types.Contains("meal")) types.Add("meal");
         if (types.Count == 0) types.Add("generic");
         var plan = context.ActivityPlan?.Data;
-        var activities = plan?.Activities.Select((a,i) => new RamSyncActivity("a" + i, a.Type)).ToArray() ?? [];
-        return new(modules, types.Concat(activities.Select(a => a.Type)).Distinct().ToArray(), plan?.IsOvernight == true || types.Contains("camp"), plan?.IsOuting == true || types.Contains("water") || types.Contains("hiking"),
+        var activities = plan?.Activities.Select((a,i) => new RamSyncActivity("a" + i, a.Attributes)).ToArray() ?? [];
+        return new(modules, types.Concat(new[] { "generic" }).Concat(activities.SelectMany(a => a.Attributes)).Distinct().ToArray(), plan?.IsOvernight == true || activities.Any(a => a.Attributes.Contains("camp")), plan?.IsOuting == true || activities.Any(a => a.Attributes.Contains("outdoor")),
             modules.Contains("SAFEGUARDING.CHILD"), context.Programme.Sum(p => p.Items.Count), context.Venues.Count + context.WeeklyVenues.Count, activities);
     }
 
@@ -66,12 +66,12 @@ public static class RamSyncPolicy
         var generated = new List<RamRisk>();
         foreach (var risk in risks)
         {
-            if (!new[] { "generic", "hiking", "water", "sport", "transport", "camp", "meal", "outdoor", "other" }.Contains(risk.ActivityType) ||
+            if (!RamPolicyDefaults.ActivityTypes.Contains(risk.ActivityType) ||
                 !new[] { "environment", "activity", "participants", "transport", "emergency" }.Contains(risk.CategoryCode) ||
                 new[] { risk.Hazard, risk.Consequence, risk.ControlMeasures, risk.AdditionalAction }.Any(t => t is null || string.IsNullOrWhiteSpace(t.En) || string.IsNullOrWhiteSpace(t.Zh) || t.En.Length > 2000 || t.Zh.Length > 2000))
                 throw new InvalidDataException("Invalid bilingual risk.");
             var source = draft.Activities.Select((a,i) => new { Activity = a, Key = "a" + i }).SingleOrDefault(a => a.Key == risk.ActivityKey);
-            if (source is null) throw new InvalidDataException("Unknown source activity.");
+            if (source is null || risk.ActivityType != "generic" && !ActivityAttributes.Read(source.Activity).Contains(risk.ActivityType)) throw new InvalidDataException("Unknown source activity or attribute.");
             var activityId = source.Activity.Id;
             if (kept.Any(r => r.ActivityId == activityId && r.CategoryCode == risk.CategoryCode && r.Hazard == risk.Hazard)) continue;
             generated.Add(new() { Id = "ai-" + Guid.NewGuid().ToString("N"), ActivityId = activityId, CategoryCode = risk.CategoryCode,

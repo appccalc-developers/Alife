@@ -1,14 +1,6 @@
 import { eventDetailPresentationText } from '../i18n/eventDetailPresentation.ts'
-import type { EventEnrollmentRecord } from '../types/enrollment'
 import type { EventDto, GroupEventRecord, MultilingualString } from '../types/event'
 import { normalizeImageUrl } from '../services/imageWorkerApi'
-
-type EnrollmentPayload = {
-  applicantName?: string
-  consentStatus?: string
-  paymentFiles?: Array<{ fileName?: string; url?: string }>
-  submittedAtUtc?: string
-}
 
 const labels = eventDetailPresentationText.labels
 
@@ -42,13 +34,11 @@ const fallbackEventDto = (record: GroupEventRecord): EventDto => ({
   maxCapacity: 0,
   capacityUnit: 'People',
   hardConstraints: [],
-  optionalActivities: [],
   baseFeePerAdult: null,
   baseFeePerChild: null,
   currency: 'USD',
   posterImageUrl: null,
   galleryUrls: [],
-  legacySummary: null,
 })
 
 export const parseEventDto = (record: GroupEventRecord): EventDto => {
@@ -63,7 +53,6 @@ export const parseEventDto = (record: GroupEventRecord): EventDto => {
         description: parsed.description ?? { zh: '', en: '' },
         locationName: parsed.locationName ?? { zh: '', en: '' },
         hardConstraints: Array.isArray(parsed.hardConstraints) ? parsed.hardConstraints : [],
-        optionalActivities: Array.isArray(parsed.optionalActivities) ? parsed.optionalActivities : [],
         galleryUrls: Array.isArray(parsed.galleryUrls) ? parsed.galleryUrls : [],
       }
       return {
@@ -81,15 +70,6 @@ export const parseEventDto = (record: GroupEventRecord): EventDto => {
     ...fallback,
     posterImageUrl: fallback.posterImageUrl ? normalizeImageUrl(fallback.posterImageUrl) : fallback.posterImageUrl,
     galleryUrls: fallback.galleryUrls.map(normalizeImageUrl),
-  }
-}
-
-export const parseEnrollmentPayload = (record: EventEnrollmentRecord): EnrollmentPayload => {
-  try {
-    const parsed = JSON.parse(record.enrollmentJson) as EnrollmentPayload
-    return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch {
-    return {}
   }
 }
 

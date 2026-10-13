@@ -8,44 +8,12 @@ using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using NSubstitute;
 
 namespace Alife.Tests.Unit.Events;
 
 public sealed class EventCollaborationSqlTests
 {
-    [DisposableSqlFact]
-    public async Task ActualMigration_PreservesLegacyEnrollmentChildAndApprovalEvidence()
-    {
-        await using var fixture = new Database(); await using var db = fixture.Open();
-        try
-        {
-            await db.Database.EnsureCreatedAsync();
-            var seed = await Seed(db);
-            var enrollment = new EventEnrollment { Id=Guid.NewGuid(),EventId=seed.Event.Id,GroupId=seed.Event.GroupId,MemberId=seed.Owner,
-                Status="confirmed",EnrollmentJson="{\"family\":[\"unproven\"],\"consent\":\"original\"}",CreatedUtc=DateTime.UtcNow,UpdatedUtc=DateTime.UtcNow };
-            db.EventEnrollments.Add(enrollment);
-            var childId=Guid.NewGuid();
-            db.EventChildRegistrations.Add(new() { Id=childId,EventId=seed.Event.Id,EnrollmentId=enrollment.Id,ChildMemberId=seed.Other,CreatedByMemberId=seed.Owner,CreatedUtc=DateTime.UtcNow });
-            var policyId=Guid.NewGuid(); db.EventPackageGovernancePolicyVersions.Add(new() { Id=policyId,Version="migration",SchemaVersion="1",RulesJson="{}",PublishedByMemberId=seed.Owner });
-            var packageId=Guid.NewGuid(); db.EventPackages.Add(new() { Id=packageId,EventId=seed.Event.Id,GovernancePolicyVersionId=policyId,GeneratedByMemberId=seed.Owner,ContentHash="original-evidence",SourceVectorHash="original-source" });
-            await db.SaveChangesAsync(); db.ChangeTracker.Clear();
-            var assembly=db.GetService<IMigrationsAssembly>();
-            var migration=assembly.CreateMigration(assembly.Migrations.Single(x => x.Key.EndsWith("_EventCollaborationWorkspaces")).Value,db.Database.ProviderName!);
-            var generator=db.GetService<IMigrationsSqlGenerator>();
-            foreach(var command in generator.Generate(migration.DownOperations)) await db.Database.ExecuteSqlRawAsync(command.CommandText);
-            foreach(var command in generator.Generate(migration.UpOperations,db.Model)) await db.Database.ExecuteSqlRawAsync(command.CommandText);
-            Assert.Equal(enrollment.EnrollmentJson,(await db.EventEnrollments.SingleAsync()).EnrollmentJson);
-            Assert.Equal(enrollment.Id,(await db.EventChildRegistrations.SingleAsync(x => x.Id==childId)).EnrollmentId);
-            Assert.Equal("original-evidence",(await db.EventPackages.SingleAsync(x => x.Id==packageId)).ContentHash);
-            Assert.Empty(await db.EventRegistrationParticipants.ToArrayAsync());
-            Assert.Equal(0,(await db.GroupEvents.SingleAsync()).CollaborationVersion);
-        }
-        finally { await fixture.DeleteAsync(); }
-    }
-
     [DisposableSqlFact]
     public async Task LastPlaceAndStandingReservations_SerializeConcurrentRequestsOnSqlServer()
     {
@@ -107,8 +75,9 @@ public sealed class EventCollaborationSqlTests
         }
         var e=new GroupEvent { Id=Guid.NewGuid(),GroupId=group.Id,CreatedByMemberId=owner,AccountableOwnerMemberId=owner,StartDate=DateTime.UtcNow.AddDays(3),EndDate=DateTime.UtcNow.AddDays(4),EventDataJson="{\"visibility\":\"public\"}",PublicationStatus=EventPublicationStatus.Published,RegistrationStatus=EventRegistrationStatus.Open,ActivePlanVersion=1 };
         db.GroupEvents.Add(e);
-        var facts=new EventFactSet { Id=Guid.NewGuid(),EventId=e.Id,Version=1,SchemaVersion="1.0.0",FactsJson="[]",SourceHash="fixture",CreatedByMemberId=owner }; db.EventFactSets.Add(facts);
-        var plan=new EventCompositionEngine().Compose(new("1.0.0",null,new([]),[new("PEOPLE.REGISTRATION",true),new("PLACE.RESOURCE",true)]),new("\"sql\"",HasAccountableOwner:true)).Value!;
+        var facts=new EventFactSet { Id=Guid.NewGuid(),EventId=e.Id,Version=1,SchemaVersion=EventCompositionDefinitions.SchemaVersion,FactsJson="[]",SourceHash="fixture",CreatedByMemberId=owner }; db.EventFactSets.Add(facts);
+        var plan=new EventCompositionEngine().Compose(EventCompositionTestData.CurrentRequest(
+            selections:[new("PEOPLE.REGISTRATION",true),new("PLACE.RESOURCE",true)]),new("\"sql\"",HasAccountableOwner:true)).Value!;
         db.EventPlanSnapshots.Add(new() { Id=Guid.NewGuid(),EventId=e.Id,SourceFactSetId=facts.Id,Version=1,SchemaVersion=plan.SchemaVersion,ProposalHash=plan.ProposalHash,ETag="\"sql-plan\"",SnapshotJson=EventCompositionPersistence.SerializePlan(plan,[]),IsActive=true,AcceptedByMemberId=owner });
         await db.SaveChangesAsync(); return new(e,owner,other);
     }

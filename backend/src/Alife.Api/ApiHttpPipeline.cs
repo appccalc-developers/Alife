@@ -1,5 +1,7 @@
+using Alife.Application.Events.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Alife.Api;
 
@@ -12,6 +14,7 @@ internal sealed class ApiHttpPipeline
         var app = new ApplicationBuilder(serviceProvider);
 
         app.UseRouting();
+        var eventFreeze = serviceProvider.GetRequiredService<EventWriteFreezeState>();
         // Apply before authorization/model binding so denied or invalid RAM requests
         // have the same privacy policy as successful controller responses.
         app.Use(async (context, next) =>
@@ -26,6 +29,41 @@ internal sealed class ApiHttpPipeline
                 context.Response.Headers.Append("Vary", "Cookie, Authorization");
             }
             await next(context);
+        });
+        app.Use(async (context, next) =>
+        {
+            if (!EventWriteFreezeState.IsEventMutation(context.Request))
+            {
+                await next(context);
+                return;
+            }
+
+            using var mutation = eventFreeze.TryEnterMutation();
+            if (mutation is not null)
+            {
+                await next(context);
+                return;
+            }
+
+            var status = eventFreeze.GetStatus();
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.Headers.CacheControl = "no-store";
+            context.Response.Headers.RetryAfter = status.RetryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (status.ResetEpoch is not null)
+                context.Response.Headers["X-Alife-Event-Reset-Epoch"] = status.ResetEpoch;
+            context.Response.Headers["X-Alife-Event-Schema-Epoch"] = status.SchemaEpoch ?? EventCompositionDefinitions.SchemaVersion;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                code = status.ConfigurationValid ? "event.reset.frozen" : "event.reset.configuration",
+                message = status.ConfigurationValid
+                    ? "Event changes are temporarily unavailable while Event data maintenance is in progress."
+                    : "Event changes are unavailable because the production Event runtime epoch is not configured.",
+                frozen = true,
+                epoch = status.Epoch,
+                resetEpoch = status.ResetEpoch,
+                schemaVersion = status.SchemaVersion,
+                schemaEpoch = status.SchemaEpoch
+            });
         });
         app.UseSwagger(options =>
         {

@@ -28,6 +28,8 @@ public static class DependencyInjection
         services.AddScoped<EventWorkService>();
         services.AddScoped<EventVenueCalendarService>();
         services.AddScoped<EventRegistrationWorkService>();
+        services.AddScoped<EventActivityOperationsService>();
+        services.AddScoped<EventActivityModuleConfigurationService>();
         services.AddScoped<EventRegistrationMaterialService>();
         services.AddScoped<EventRamGovernanceService>();
         services.AddScoped<EventRamSyncService>();

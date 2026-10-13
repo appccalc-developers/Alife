@@ -91,13 +91,11 @@ const fallbackEventDto = (record: GroupEventRecord): EventDto => ({
   maxCapacity: 0,
   capacityUnit: 'People',
   hardConstraints: [],
-  optionalActivities: [],
   baseFeePerAdult: null,
   baseFeePerChild: null,
   currency: 'USD',
   posterImageUrl: null,
   galleryUrls: [],
-  legacySummary: null,
 })
 
 const parseEventDto = (record: GroupEventRecord): EventDto => {
@@ -112,7 +110,6 @@ const parseEventDto = (record: GroupEventRecord): EventDto => {
         description: parsed.description ?? { zh: '', en: '' },
         locationName: parsed.locationName ?? { zh: '', en: '' },
         hardConstraints: Array.isArray(parsed.hardConstraints) ? parsed.hardConstraints : [],
-        optionalActivities: Array.isArray(parsed.optionalActivities) ? parsed.optionalActivities : [],
         galleryUrls: Array.isArray(parsed.galleryUrls) ? parsed.galleryUrls : [],
       }
     }

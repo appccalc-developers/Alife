@@ -6,6 +6,7 @@ using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json.Serialization;
 
 namespace Alife.Api.Controllers;
 
@@ -14,6 +15,22 @@ public sealed class EventRamGovernanceController(EventRamGovernanceService ram, 
 {
     [HttpGet("workspace")]
     public Task<IActionResult> Get(Guid eventId,CancellationToken ct) => Run(actor=>ram.GetAsync(eventId,actor,ct));
+    [HttpPut("workspace")]
+    public Task<IActionResult> Save(Guid eventId, RamWorkspaceSaveRequest request, CancellationToken ct)
+    {
+        if (request.SchemaVersion != 2)
+        {
+            this.ApplyPrivateNoStoreHeaders();
+            return Task.FromResult<IActionResult>(BadRequest(new
+            {
+                code = "event.ram.schema.unsupported",
+                message = "RAM schemaVersion must be 2."
+            }));
+        }
+
+        return Run(actor => ram.SaveAsync(eventId, actor,
+            new RamSaveRequest(request.RamDataJson, request.PolicyVersionId, request.ExpectedETag), ct));
+    }
     [HttpGet("sync")]
     public Task<IActionResult> Sync(Guid eventId,CancellationToken ct) => Run(actor=>ram.SyncStateAsync(eventId,actor,ct));
     [HttpPost("sync/{syncAction}")]
@@ -30,6 +47,13 @@ public sealed class EventRamGovernanceController(EventRamGovernanceService ram, 
         return actor.HasValue?this.ToActionResult(await action(actor.Value)):Unauthorized();
     }
 }
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record RamWorkspaceSaveRequest(
+    int SchemaVersion,
+    [property: JsonRequired] string RamDataJson,
+    Guid? PolicyVersionId,
+    [property: JsonRequired] string ExpectedETag);
 
 [ApiController, Authorize, Route("api/admin/churches/{churchId:guid}/ram-policies")]
 public sealed class AdminRamPoliciesController(EventRamGovernanceService ram,ICurrentMemberAccessor members) : ControllerBase

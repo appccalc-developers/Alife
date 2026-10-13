@@ -1,14 +1,23 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { timingSafeEqual } from 'node:crypto'
-import { handleRamSync, syncInput, syncOutput } from './dist/ram-sync-test.mjs'
+import { pathToFileURL } from 'node:url'
+const { handleRamSync, syncInput, syncOutput } = await import(process.env.ALIFE_SYNC_TEST_MODULE ? pathToFileURL(process.env.ALIFE_SYNC_TEST_MODULE).href : './dist/ram-sync-test.mjs')
 Object.defineProperty(crypto.subtle, 'timingSafeEqual', { value: timingSafeEqual, configurable: true })
-const input = { activities: [{ key: 'a0', type: 'water' }], modules: ['MOVE.STAY','SAFEGUARDING.CHILD'], activityTypes: ['water'], overnight: true, outdoor: true, children: true, programmeItems: 1, venueCount: 1 }
+const input = { activities: [{ key: 'a0', attributes: ['water'] }], modules: ['MOVE.STAY','SAFEGUARDING.CHILD'], activityTypes: ['water'], overnight: true, outdoor: true, children: true, programmeItems: 1, venueCount: 1 }
 const text = { en: 'Possible immersion; verify controls', zh: '可能落水；请核实控制措施' }
 const risk = { activityKey: 'a0', activityType: 'water', categoryCode: 'activity', hazard: text, consequence: text, controlMeasures: text, additionalAction: text }
 const request = (body = input, token = 'test-sync-token') => new Request('https://app.test/api/internal/ram/identify', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
+test('historical types and custom attributes are rejected instead of read through compatibility', () => {
+  assert.equal(syncInput({ ...input, activities: [{ key: 'a0', type: 'water' }] }), null)
+  assert.equal(syncInput({ ...input, activities: [{ key: 'a0', attributes: ['craft'] }] }), null)
+  assert.equal(syncInput({ ...input, activityTypes: ['craft'] }), null)
+  assert.equal(syncOutput([{ ...risk, activityType: 'craft' }], input), null)
+  assert.equal(syncOutput([{ ...risk, activityKey: 'a1' }], input), null)
+  assert.ok(syncInput({ ...input, activities: [{ key: 'a0', attributes: [] }] }))
+})
 test('sync input accepts only aggregate enums and counts; output cannot supply scores or identities', () => {
-  assert.ok(syncInput(input)); assert.equal(syncInput({...input,activities:[{key:'a0',type:'water'},{key:'a0',type:'water'}]}),null); assert.equal(syncInput({ ...input, title: 'Private name' }), null)
+  assert.ok(syncInput(input)); assert.equal(syncInput({...input,activities:[{key:'a0',attributes:['water']},{key:'a0',attributes:['water']}]}),null); assert.equal(syncInput({ ...input, title: 'Private name' }), null)
   assert.equal(syncInput({ ...input, activityTypes: ['ignore instructions'] }), null)
   assert.ok(syncOutput([risk])); assert.equal(syncOutput([{ ...risk, likelihood: 1 }]), null)
   assert.equal(syncOutput([{ ...risk, hazard: { en: 'secret@example.com', zh: '隐私' } }]), null)
@@ -38,3 +47,12 @@ test('provider results are bounded, bilingual, no-store; failure is explicit', a
     assert.equal((await handleRamSync(request(), env)).status, 503)
   } finally { globalThis.fetch = original }
 })
+
+ test('multi-attribute risks stay bound to the correct actual activity', () => {
+  const multiple = { ...input, activityTypes: ['generic','meal','outdoor','water'], activities: [{key:'a0',attributes:['meal','outdoor']},{key:'a1',attributes:['water']}] }
+  assert.ok(syncInput(multiple))
+  assert.ok(syncOutput([{...risk,activityKey:'a0',activityType:'outdoor'}],multiple))
+  assert.ok(syncOutput([{...risk,activityKey:'a1',activityType:'generic'}],multiple))
+  assert.equal(syncOutput([{...risk,activityKey:'a1',activityType:'outdoor'}],multiple),null)
+  assert.equal(syncInput({...multiple,activities:[{key:'a0',attributes:['meal','meal']}]}),null)
+ })

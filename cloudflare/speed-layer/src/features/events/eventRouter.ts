@@ -1,6 +1,5 @@
 import { Router } from '../../shared/router'
 import planner from './planner'
-import enrolment from './enrolment'
 import reviewer from './reviewer'
 import { handleRamGuidance } from './ramGuidance'
 import { handleRamAssistance } from './ramAssistance'
@@ -12,11 +11,6 @@ eventRouter.post('/api/events/ram-guidance', (request, env) => handleRamGuidance
 eventRouter.post('/api/events/ram-assistance', (request, env) => handleRamAssistance(request, env))
 
 eventRouter.all('/api/events/details-session/*', async (req, env) => planner.fetch(req, env))
-
-// Route enrollment sessions
-eventRouter.all('/api/enrollments/session/*', async (req, env) => {
-  return enrolment.fetch(req, env)
-})
 
 // Route review sessions
 eventRouter.all('/api/reviews/session/*', async (req, env) => {

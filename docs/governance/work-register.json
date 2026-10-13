@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedOn": "2026-10-10",
+  "updatedOn": "2026-10-13",
   "baseline": {
     "sourceCommit": "4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31",
     "branch": "codex/826-public-3d-church-trial",
@@ -8,6 +8,51 @@
     "productCertification": "No fresh application, database, provider or deployment certification in this task."
   },
   "tasks": [
+    {
+      "id": "ALIFE-EVENT-2-RESET",
+      "title": "Cut over Event runtime to 2.0 and purge pre-launch Event instances",
+      "priority": "P0",
+      "dependsOn": [],
+      "owners": [
+        "AGENTS.md",
+        "docs/events/EVENT-CONTRACT.md",
+        "docs/events/EVENT-2-RESET.md",
+        "docs/events/event-contract.json"
+      ],
+      "status": "in_progress",
+      "implementation": "partial",
+      "verification": "partial",
+      "acceptance": [
+        "Composition 2.0.0 is the only accepted Event runtime contract; Event 1.x requests fail with event.schema.unsupported and retired routes return 404.",
+        "The dedicated preview/apply/verify reset preserves templates, policies, venue resources and non-Event data while deleting Event instances and exact Event-only files under fingerprinted recovery gates.",
+        "Local reset completes with a verified backup and repeat no-op; production uses the protected manual workflow, verified SQL/R2 recovery copies, one freeze epoch and 30-day separately finalised retention.",
+        "Before production, publish the protected preparation release and verify a separate non-public ccalc-event-reset-recovery bucket, four pairwise distinct reset secrets of at least 32 characters and exact UTF-8/sidecar key limits.",
+        "Normal migration, seed, application startup and deployment cannot invoke the reset or recreate a demo Event."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-13",
+          "source": "Final private local reset evidence under C:/Data/Alife/Temp/Event2Reset/event2-local-reset-20261013T010000Z and its empty-state repeat; verified recovery backup under C:/Data/Alife/Backups/Event2Reset/event2-local-reset-20261012T224210Z",
+          "environment": "Only localhost,14333 / alife_db; local Azure SQL-compatible development instance and DbMigrator; no production workflow or R2 objects",
+          "check": "Restore from verified backup; preview with fingerprint ac495ebc7072cb8dbad00115f7a636073da7c92481b208cb1f4c313d3f991d26; apply and verify; remove apply.json to simulate process loss after SQL commit and rerun approved apply; run fresh empty preview/apply with fingerprint 5ecebbbd1e21eb22a55458e5900ad631f789d1883ae3ab991c50ed2193b867ca; apply forward migration and explicit questionnaire initialization; inspect preserved resources and retired tables",
+          "outcome": "Preview identified 23 Event roots, 350 affected SQL rows and zero files; apply deleted 350. Verify found zero Event instance rows and unchanged counts/hashes for 50 preserved tables. The post-commit retry reconstructed apply evidence with recoveredAfterCommit=true only after proving the exact empty post-state. Fresh no-op changed zero rows/files. Local forward migration removed old enrollment/workflow instance tables; all 16 current templates are version 4 (composition 2.0/questionnaire 2), and seven venue resources and the RAM policy remain.",
+          "limitations": "Zero file candidates do not exercise nonempty R2 backup/restore. Local migration and SQL evidence do not certify production, deployed preparation/final runtimes, live provider behavior or the separately protected 30-day finalize."
+        },
+        {
+          "date": "2026-10-13",
+          "source": "Final current-source no-op evidence under C:/Data/Alife/Temp/Event2Reset/event2-local-reset-20261013-final-noop",
+          "environment": "Local current-source Event reset verification; no production workflow or R2 objects",
+          "check": "Run preview/apply/verify with schema profile event-2.0, schema hash 939cd7e358e2ab91e259e096aa9168efec4012a5d9510240b3fd8487c69102ad and fingerprint af7305eb12be50040ecc33e3a9f3354f192a37d5bfba0eb3db3669c1116ecee6",
+          "outcome": "Preview found 0 Event roots, 0 SQL rows and 0 files; apply deleted 0 rows; verify found instanceRows=0, preservedTables=50 and fileFailures=0. The earlier nonempty rehearsal remains the deletion and recovery-path evidence.",
+          "limitations": "A no-op cannot exercise nonempty SQL deletion or R2 recovery. This local evidence does not certify production, deployed provider behavior or the separately protected 30-day finalize."
+        }
+      ],
+      "blockers": [
+        "A protected preparation release must be published before the production reset can run; production target identity, protected-environment approval, recovery-copy references and live preview fingerprint are available only during that authorised run.",
+        "Verify the non-public R2 recovery bucket, four distinct long secrets and UTF-8/sidecar manifest-key constraints in the production preparation environment."
+      ],
+      "nextAction": "Complete current-source backend/frontend/Worker checks, publish the protected preparation release, provision and verify production R2/secrets and SQL recovery, then approve and run the separate production preview/reset/final 2.0 workflow; retain recovery assets for 30 complete days before protected finalize."
+    },
     {
       "id": "ALIFE-PAGE-CACHE-SAFETY",
       "title": "Repair private page viewer isolation, PWA API exclusion and deletion freshness",
@@ -152,17 +197,59 @@
         "docs/events/EVENT-CONTRACT.md",
         "docs/events/IMPLEMENTATION-STATUS.md"
       ],
-      "status": "planned",
-      "implementation": "unassessed",
-      "verification": "unverified",
+      "status": "in_progress",
+      "implementation": "partial",
+      "verification": "partial",
       "acceptance": [
         "Link each scoped Event requirement to its existing status, implementation and current evidence.",
         "Keep partial/target modules explicit; verify plan acceptance, specialist approval and Package gates separately.",
-        "Complete agreed module gaps and compatibility/role/cache checks using the Event reading/update matrix."
+        "Complete agreed module gaps and compatibility/role/cache checks using the Event reading/update matrix.",
+        "Verify schema-1.3 Event-level decisions, version-2 project switches and attribute questions while retaining schema-1.2 historical answers and hashes."
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-12",
+          "source": "Current Event 1.3 composition, project questionnaire, module and JSON contracts in the shared working tree",
+          "environment": "Local Windows Node Event documentation generator and JSON parsing",
+          "check": "Parsed machine contract and work register; checked sixteen current questions, sixteen version-4 templates and twenty-four preset projects; generated Event projections, ran generator --check and its four tests; scoped git diff --check",
+          "outcome": "Contract cardinality and JSON parsing passed; Event generator and check validated twelve modules, four archetypes, sixteen activity types, 189 API contracts and three equivalent overview structures; generator tests passed 4/4 and scoped diff has no whitespace errors.",
+          "limitations": "Documentation checks do not establish backend/frontend behavior, local database successor application, live browser/API integration or deployment; current-source application verification is still required."
+        },
+        {
+          "date": "2026-10-11",
+          "source": "Current shared working tree; EventActivityTemplateCatalog, EventProjectQuestionCatalog, EventTemplateProjectDefaults and matching machine contract/status",
+          "environment": "Local Windows .NET 10 unit tests with fixture storage; Node Event documentation generator",
+          "check": "18 focused template-admin/project-catalogue cases after rebuilding Application, Infrastructure, API and UnitTests; node docs/events/scripts/generate-event-docs.mjs and --check",
+          "outcome": "All 18 cases pass: fixed nineteen-question directory, sixteen templates/twenty-four presets, required arrays and valid answers, unchanged v2 EF seed identity, retained administrator/historical metadata and idempotent version initialization. Machine contract records composition schema 1.2 and retained 1.1/1.0 inputs; generated documents and local links pass.",
+          "limitations": "This evidence covers the template/catalogue slice. Additive local schema application, project operational slices, complete UI/role/provider flows and deployment are not established by these checks."
+        },
+        {
+          "date": "2026-10-11",
+          "source": "Current shared working tree; EventActivityOperationsController, EventActivityModuleConfigurationsController, Activity Plan/compose changes and Event project machine/topic contracts",
+          "environment": "Local Windows source inspection and explicitly identified localhost,14333 / alife_db SQL database",
+          "check": "Verified target identity; SQL BACKUP with RESTORE VERIFYONLY; applied additive 20261011113522_AddEventProjectOperations migration and template successor initialization; repeated DbMigrator run; reviewed exact API/DTO/privacy boundaries",
+          "outcome": "Recovery backup C:/Data/Alife/Backups/alife_db-event-projects-20261011.bak verified (43,126,784 bytes). First local run applied one migration and created sixteen template version-3 successors; second run applied zero migrations and created zero templates. Source and contracts cover project policies, occurrence offers, selection, age/guardian consent, fee/space handling and five typed arrangements while retaining one Event-level module owner/report/approval.",
+          "limitations": "This local database evidence does not establish live multi-account/provider behavior, shared/production database state or deployment. Backend and frontend tests are recorded separately below."
+        },
+        {
+          "date": "2026-10-11",
+          "source": "Current project-questionnaire and Event preparation frontend, scoped unit/browser fixtures and locale resources",
+          "environment": "Local Windows frontend TypeScript, Node unit/locale checks and browser fixture with intercepted Event APIs",
+          "check": "tsc -b; seven locale checks; six project-questionnaire unit cases; complete npm run test:event-composition; project browser fixture in Chinese/English at 320/1280px; focused three-case rerun after correcting a static component-layout assertion",
+          "outcome": "TypeScript and locale checks passed; project-questionnaire 6/6, complete Event composition suite 97/97, focused component-layout rerun 3/3 and four browser scenarios passed.",
+          "limitations": "Browser Event APIs were fixtures; live backend/browser provider integration is not established by this evidence."
+        },
+        {
+          "date": "2026-10-11",
+          "source": "Current Event project operations, project composition and child execution readiness backend; RAM Worker synchronization",
+          "environment": "Local Windows .NET build and isolated in-memory UnitTests; Worker targeted test fixtures",
+          "check": "Built Domain, Application, Infrastructure, API and UnitTests; ran combined Event project/operations/privacy/fee/minors/scope-proof/execute-readiness, safeguarding bridge, Package and creation/composition filter; ran Worker RAM sync and companion targeted filters",
+          "outcome": "Backend build succeeded with zero warnings/errors and 207/207 filtered unit tests passed (zero failures/skips). Current child-project execution blocker has Off and DryRun hard-gate regressions; Worker targeted filters passed 5/5 and 3/3.",
+          "limitations": "In-memory and Worker fixture checks do not establish live provider or multi-account browser behavior. Whole speed-layer TypeScript check still has pre-existing errors outside this task; shared/production migration and deployment were not performed."
+        }
+      ],
       "blockers": [],
-      "nextAction": "Read only relevant current-status entries and split Event work packages."
+      "nextAction": "Verify the schema-1.3 questionnaire and template successors against current backend/frontend/browser checks, complete live-account integration and local reference-integrity checks, resolve unrelated speed-layer TypeScript errors separately, and retain module partial/target boundaries in Event status."
     },
     {
       "id": "ALIFE-COMMUNITY",

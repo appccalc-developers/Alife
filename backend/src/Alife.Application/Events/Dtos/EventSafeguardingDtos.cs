@@ -26,7 +26,7 @@ public sealed record EventChildAttendanceDto(
     Guid? CollectorId, string? CollectorDisplayName, string ETag);
 
 public sealed record EventSafeguardingChildDto(
-    Guid Id, Guid EnrollmentId, Guid ChildMemberId, string DisplayName, string? PhotoUrl,
+    Guid Id, Guid? RegistrationParticipantId, Guid? ChildMemberId, string DisplayName, string? PhotoUrl,
     bool ConsentCurrent, bool AuthorisedCollectionComplete,
     IReadOnlyList<EventChildGuardianDto> Guardians,
     IReadOnlyList<EventChildCollectorDto> AuthorisedCollectors,
@@ -43,7 +43,7 @@ public sealed record EventSafeguardingAuditDto(
     DateTime OccurredUtc);
 
 public sealed record EventSafeguardingMemberOptionDto(Guid MemberId, string DisplayName);
-public sealed record EventSafeguardingEnrollmentOptionDto(Guid EnrollmentId, Guid MemberId, string DisplayName);
+public sealed record EventSafeguardingRegistrationParticipantOptionDto(Guid RegistrationParticipantId, Guid? MemberId, string DisplayName);
 
 public sealed record EventSafeguardingWorkspaceDto(
     Guid EventId,
@@ -52,7 +52,7 @@ public sealed record EventSafeguardingWorkspaceDto(
     EventSafeguardingPolicySummaryDto? SelectedPolicy,
     IReadOnlyList<EventSafeguardingPolicySummaryDto> AvailablePolicies,
     IReadOnlyList<EventOccurrenceDto> Occurrences,
-    IReadOnlyList<EventSafeguardingEnrollmentOptionDto> EnrollmentOptions,
+    IReadOnlyList<EventSafeguardingRegistrationParticipantOptionDto> RegistrationParticipantOptions,
     IReadOnlyList<EventSafeguardingMemberOptionDto> MemberOptions,
     IReadOnlyList<EventSafeguardingChildDto> Children,
     IReadOnlyList<EventSafeguardingWorkerEvidenceDto> WorkerEvidence,
@@ -62,7 +62,7 @@ public sealed record EventSafeguardingWorkspaceDto(
     string DataClassification);
 
 public sealed record EventSafeguardingMyChildDto(
-    Guid ChildRegistrationId, Guid ChildMemberId, string DisplayName, string? PhotoUrl,
+    Guid ChildRegistrationId, Guid? ChildMemberId, Guid RegistrationParticipantId, string DisplayName, string? PhotoUrl,
     bool IsGuardian, Guid? GuardianRelationshipId, string? GuardianETag,
     EventGuardianRelationshipStatus? GuardianStatus,
     bool ConsentCurrent, IReadOnlyList<EventChildCollectorDto> AuthorisedCollectors,
@@ -72,7 +72,7 @@ public sealed record EventSafeguardingMyContextDto(
     Guid EventId, IReadOnlyList<EventSafeguardingMyChildDto> Children, string DataClassification);
 
 public sealed record ConfigureEventSafeguardingRequest(Guid PolicyVersionId);
-public sealed record CreateEventChildRegistrationRequest(Guid EnrollmentId, string? PhotoUrl);
+public sealed record CreateEventChildRegistrationRequest(Guid RegistrationParticipantId, string? PhotoUrl = null);
 public sealed record CreateEventChildGuardianRequest(Guid GuardianMemberId, string RelationshipLabel);
 public sealed record RecordEventChildConsentRequest(EventGuardianConsentDecision Decision);
 public sealed record CreateEventChildCollectorRequest(string DisplayName, string RelationshipLabel);

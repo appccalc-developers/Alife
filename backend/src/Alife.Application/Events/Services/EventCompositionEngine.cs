@@ -36,7 +36,41 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
 
     public AppResult<EventPlanProposalDto> Compose(EventPlanComposeRequest request, EventCompositionContext context)
     {
+        if (!EventCompositionDefinitions.IsSupportedSchema(request.SchemaVersion))
+        {
+            return AppResult<EventPlanProposalDto>.Validation(
+                $"schemaVersion must be {EventCompositionDefinitions.SchemaVersion}.",
+                EventCompositionDefinitions.UnsupportedSchemaErrorCode);
+        }
+
         var activityTypesByCode = context.ActivityTypesByCode ?? EventCompositionDefinitions.ActivityTypesByCode;
+        // Creation proposals are tied to the exact template version the organiser reviewed.
+        // Existing Events are recomposed from their saved project list and are not retargeted
+        // when an administrator publishes a later template version.
+        if (context.BaselineETag == "\"plan-new\"" &&
+            request.ActivityTypeCode is { } selectedCode &&
+            activityTypesByCode.TryGetValue(selectedCode, out var selectedType))
+        {
+            if (request.ActivityTypeVersion.HasValue && request.ActivityTypeVersion != selectedType.Version ||
+                selectedType.PresetProjects.Count > 0 && request.ActivityTypeVersion != selectedType.Version)
+                return AppResult<EventPlanProposalDto>.PreconditionFailed("The activity template changed. Reload and review its preset projects before creating the Event.");
+            if (request.ActivityPlan is { } selectedPlan)
+            {
+                var expectedKeys = selectedType.PresetProjects.Select(p => p.PresetKey).ToHashSet(StringComparer.Ordinal);
+                var included = selectedPlan.Activities.Where(a => a.SourcePresetKey is not null).ToArray();
+                var includedKeys = included.Select(a => a.SourcePresetKey!).ToArray();
+                var removedKeys = request.RemovedPresetKeys ?? [];
+                if (included.Any(a => a.SourceTemplateVersion != selectedType.Version))
+                    return AppResult<EventPlanProposalDto>.PreconditionFailed("A preset project comes from a different template version. Reload and review the template.");
+                if (includedKeys.Distinct(StringComparer.Ordinal).Count() != includedKeys.Length ||
+                    removedKeys.Distinct(StringComparer.Ordinal).Count() != removedKeys.Count ||
+                    includedKeys.Any(k => !expectedKeys.Contains(k)) ||
+                    removedKeys.Any(k => !expectedKeys.Contains(k)) ||
+                    includedKeys.Intersect(removedKeys, StringComparer.Ordinal).Any() ||
+                    !expectedKeys.SetEquals(includedKeys.Concat(removedKeys)))
+                    return AppResult<EventPlanProposalDto>.Validation("Every template preset must be confirmed or explicitly removed once.");
+            }
+        }
         var validation = Validate(request, activityTypesByCode);
         if (validation is not null)
         {
@@ -59,6 +93,8 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             .Where(x => !x.Value.Selected)
             .Select(x => x.Key)
             .ToHashSet(StringComparer.Ordinal);
+        var projectSources = new List<EventProjectModuleSourceDto>();
+        var projectRequiredModules = new HashSet<string>(StringComparer.Ordinal);
 
         var states = EventCompositionDefinitions.Modules.ToDictionary(
             x => x.Code,
@@ -88,31 +124,6 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
                 string.IsNullOrWhiteSpace(selection.Reason) ? "human-selected" : "human-selected-with-reason");
         }
 
-        if (activityType is not null)
-        {
-            foreach (var code in activityType.PreselectedModules.Where(code => !explicitDeselections.Contains(code)))
-            {
-                Promote(states[code], EventModuleDecisionStatus.Selected,
-                    $"activity-type:{activityType.Code}:preselected");
-            }
-        }
-
-        // The 1.0 contract used module defaults directly from an archetype. The
-        // 1.1 contract moves those defaults to the more precise activity type;
-        // archetypes continue to describe structure only.
-        if (archetype is not null &&
-            string.Equals(request.SchemaVersion, EventCompositionDefinitions.LegacySchemaVersion, StringComparison.Ordinal))
-        {
-            foreach (var code in archetype.RequiredModules.Where(code => !explicitDeselections.Contains(code)))
-            {
-                Promote(states[code], EventModuleDecisionStatus.Selected, $"archetype:{archetype.Code}:required-default");
-            }
-            foreach (var code in archetype.RecommendedModules.Where(code => !explicitDeselections.Contains(code)))
-            {
-                Promote(states[code], EventModuleDecisionStatus.Recommended, $"archetype:{archetype.Code}:recommended-default");
-            }
-        }
-
         foreach (var module in EventCompositionDefinitions.Modules.Where(x => !explicitDeselections.Contains(x.Code)))
         {
             foreach (var rule in module.ActivationRules.Where(x => x.Decision == EventModuleDecisionStatus.Recommended))
@@ -124,13 +135,47 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             }
         }
 
+        foreach (var activity in request.ActivityPlan!.Activities)
+        {
+            foreach (var attribute in activity.Attributes.Where(attribute =>
+                attribute is "hiking" or "water" or "camp" or "outdoor"))
+            {
+                Promote(states["SAFETY.RAM"], EventModuleDecisionStatus.Required,
+                    $"project-attribute:{activity.Id}:{attribute}");
+                projectRequiredModules.Add("SAFETY.RAM");
+                projectSources.Add(new EventProjectModuleSourceDto("SAFETY.RAM", activity.Id,
+                    [$"attribute:{attribute}"]));
+            }
+            foreach (var question in EventProjectQuestionCatalog.Definitions)
+            {
+                if (question.AppliesToAttributes.Length > 0 &&
+                    !question.AppliesToAttributes.Any(activity.Attributes.Contains)) continue;
+                if (activity.Answers is null || !activity.Answers.TryGetValue(question.Code, out var answer) ||
+                    answer.Value != "yes") continue;
+                foreach (var moduleCode in question.RequiredModules)
+                {
+                    Promote(states[moduleCode], answer.Confirmed
+                        ? EventModuleDecisionStatus.Required : EventModuleDecisionStatus.Selected,
+                        $"project:{activity.Id}:{question.Code}");
+                    projectRequiredModules.Add(moduleCode);
+                    projectSources.Add(new EventProjectModuleSourceDto(moduleCode, activity.Id, [question.Code]));
+                }
+            }
+        }
+
         CloseDependencies(states);
+
+        var protectedProjectModules = new HashSet<string>(projectRequiredModules, StringComparer.Ordinal);
+        var pendingDependencies = new Queue<string>(projectRequiredModules);
+        while (pendingDependencies.TryDequeue(out var code))
+            foreach (var dependency in EventCompositionDefinitions.ModulesByCode[code].Dependencies)
+                if (protectedProjectModules.Add(dependency)) pendingDependencies.Enqueue(dependency);
 
         // A saved preparation choice controls the enabled tools, not the underlying
         // facts or ownership. Formal submission validates requirements separately.
         if (context.IsPreparationDraft)
         {
-            foreach (var code in explicitDeselections)
+            foreach (var code in explicitDeselections.Where(code => !protectedProjectModules.Contains(code)))
             {
                 states[code].Status = EventModuleDecisionStatus.Inactive;
                 states[code].Reasons.Clear();
@@ -172,6 +217,11 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
         var satisfiedRules = context.SatisfiedReadinessRules ?? new HashSet<string>(StringComparer.Ordinal);
         var moduleBlockers = BuildModuleBlockers(decisions, satisfiedRules, context.HasAccountableOwner);
         var blockers = moduleBlockers.Values.SelectMany(x => x).ToList();
+        if (projectRequiredModules.Contains("FESTIVAL.OPERATIONS") ||
+            request.SchemaVersion == EventCompositionDefinitions.SchemaVersion &&
+            IsConfirmedTrue(confirmedFacts, "scale.multiZone"))
+            blockers.Add(Text("Multi-zone operations are required, but this capability is not available yet.",
+                "活动需要多区域现场营运，但该功能目前尚不可用。"));
         if (context.GovernanceMode == EventGovernanceMode.ChurchSponsored &&
             context.SponsorshipStatus != EventSponsorshipStatus.Approved)
         {
@@ -210,10 +260,14 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             activityType?.Code,
             activityType?.Version,
             null,
-            EventArrangementConfirmationPolicy.LegacySummary(request.ModuleConfirmations) ?? request.ArrangementConfirmations?.OrderBy(x => x.Key, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Value),
-            EventArrangementConfirmationPolicy.NormalizeModules(request.ModuleConfirmations));
+            EventArrangementConfirmationPolicy.NormalizeModules(request.ModuleConfirmations),
+            Hash(ActivityAttributes.FactsJson(request.ActivityPlan!)),
+            projectSources.GroupBy(x => (x.ModuleCode, x.ActivityId))
+                .Select(group => new EventProjectModuleSourceDto(group.Key.ModuleCode, group.Key.ActivityId,
+                    group.SelectMany(x => x.QuestionCodes).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray()))
+                .OrderBy(x => x.ModuleCode, StringComparer.Ordinal).ThenBy(x => x.ActivityId, StringComparer.Ordinal).ToArray());
 
-        var legacyHashInput = new
+        var hashInput = new
             {
                 proposal.SchemaVersion,
                 proposal.BaselineETag,
@@ -223,7 +277,6 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
                 proposal.ActivityTypeCode,
                 proposal.ActivityTypeVersion,
                 proposal.WorkflowRecommendation,
-                proposal.ArrangementConfirmations,
                 proposal.Facts,
                 proposal.ModuleDecisions,
                 proposal.RoleRequirements,
@@ -235,7 +288,8 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             };
         return AppResult<EventPlanProposalDto>.Success(proposal with
         {
-            ProposalHash = proposal.ModuleConfirmations is null ? Hash(legacyHashInput) : Hash(new { legacyHashInput, proposal.ModuleConfirmations })
+            ProposalHash = Hash(new { hashInput, proposal.ModuleConfirmations, proposal.ActivityPlanHash, proposal.ProjectSources,
+                removedPresetKeys = request.RemovedPresetKeys?.Order(StringComparer.Ordinal).ToArray() ?? [] })
         });
     }
 
@@ -254,13 +308,43 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
                 if (Matches(rule, confirmedFacts)) Promote(states[module.Code], EventModuleDecisionStatus.Required, rule.ReasonCode);
         Promote(states["TEAM.WORK"], EventModuleDecisionStatus.Required, "policy-accountable-owner");
         CloseDependencies(states);
-        return EventCompositionDefinitions.Modules
+        var missing = EventCompositionDefinitions.Modules
             .Where(x => states[x.Code].Status == EventModuleDecisionStatus.Required && !enabled.Contains(x.Code))
             .Select(x => Text(
                 $"Before formal submission, enable {x.Name.En} in Arrangements or review the facts that require it.",
                 $"正式提交审批前，请在活动安排中启用「{x.Name.Zh}」，或重新核对需要此功能的活动资料。"))
-            .ToArray();
+            .ToList();
+        if (plan.ProjectSources?.Any(x => x.ModuleCode == "PEOPLE.REGISTRATION" &&
+                (plan.SchemaVersion != EventCompositionDefinitions.SchemaVersion ||
+                 x.QuestionCodes.Contains("projectSelection", StringComparer.Ordinal))) == true &&
+            confirmedFacts.TryGetValue("people.registrationMode", out var registrationMode) &&
+            registrationMode.Value?.ValueKind == JsonValueKind.String &&
+            registrationMode.Value.Value.GetString() == "none")
+            missing.Add(Text(
+                "Project enrolment needs Event registration. Explicitly enable Event registration before formal submission.",
+                "项目选报需要先开启活动报名；正式提交前请明确启用活动报名。"));
+        if (plan.ProjectSources?.Any(x => x.ModuleCode == "FESTIVAL.OPERATIONS") == true ||
+            plan.SchemaVersion == EventCompositionDefinitions.SchemaVersion &&
+            IsConfirmedTrue(confirmedFacts, "scale.multiZone"))
+            missing.Add(Text("Multi-zone operations are not available for formal submission yet.",
+                "多区域现场营运尚不可用，暂不能正式提交。"));
+        if (plan.SchemaVersion == EventCompositionDefinitions.SchemaVersion)
+        {
+            foreach (var factCode in EventProjectQuestionCatalog.MovedEventFactCodes.Values)
+            {
+                if (confirmedFacts.TryGetValue(factCode, out var fact) &&
+                    IsHumanConfirmedBoolean(fact)) continue;
+                missing.Add(Text(
+                    $"Confirm an explicit yes or no for the Event-level question {factCode} before formal submission.",
+                    $"正式提交前，请明确确认活动层级问题「{factCode}」为是或否。"));
+            }
+        }
+        return missing;
     }
+
+    public static IReadOnlyList<LocalizedTextDto> FormalSubmissionModuleBlockers(EventPlanProposalDto plan, ActivityPlanData? activities) =>
+        FormalSubmissionModuleBlockers(plan).Concat(
+            EventProjectQuestionCatalog.FormalBlockers(activities)).ToArray();
 
     private static string? Validate(
         EventPlanComposeRequest request,
@@ -268,17 +352,6 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
     {
         if (request.ModuleConfirmations?.Keys.Any(key => !EventCompositionDefinitions.ModulesByCode.ContainsKey(key)) == true)
             return "Unknown module confirmation code.";
-        if (request.ArrangementConfirmations?.Keys.Any(key =>
-                key is not ("people" or "safety" or "programme" or "travel" or "food" or "money" or "followup")) == true)
-            return "Unknown arrangement confirmation section.";
-        var isCurrent = string.Equals(
-            request.SchemaVersion, EventCompositionDefinitions.SchemaVersion, StringComparison.Ordinal);
-        var isLegacy = string.Equals(
-            request.SchemaVersion, EventCompositionDefinitions.LegacySchemaVersion, StringComparison.Ordinal);
-        if (!isCurrent && !isLegacy)
-        {
-            return $"schemaVersion must be {EventCompositionDefinitions.SchemaVersion} or {EventCompositionDefinitions.LegacySchemaVersion}.";
-        }
         if (request.Facts?.Items is null)
         {
             return "facts.items is required.";
@@ -288,14 +361,29 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
         {
             return "Unknown archetypeCode.";
         }
-        if (isCurrent && string.IsNullOrWhiteSpace(request.ArchetypeCode))
+        if (string.IsNullOrWhiteSpace(request.ArchetypeCode))
         {
-            return "archetypeCode is required in schemaVersion 1.1.0.";
+            return "archetypeCode is required in current composition schemas.";
         }
-        if (isCurrent && string.IsNullOrWhiteSpace(request.ActivityTypeCode))
+        if (string.IsNullOrWhiteSpace(request.ActivityTypeCode))
         {
-            return "activityTypeCode is required in schemaVersion 1.1.0.";
+            return "activityTypeCode is required in current composition schemas.";
         }
+        if (request.ActivityPlan is null)
+            return $"activityPlan is required in schemaVersion {request.SchemaVersion}.";
+        if (request.ActivityPlan.QuestionnaireVersion != 2)
+            return $"activityPlan.questionnaireVersion must be 2 in schemaVersion {EventCompositionDefinitions.SchemaVersion}.";
+        if (request.ModuleConfirmations is null)
+            return "moduleConfirmations is required in schemaVersion 2.0.0.";
+        if (request.ModuleConfirmations.Count != EventCompositionDefinitions.Modules.Count ||
+            EventCompositionDefinitions.Modules.Any(module =>
+                !request.ModuleConfirmations.ContainsKey(module.Code)))
+            return "moduleConfirmations must contain every current Event module exactly once.";
+        if (request.ActivityPlan is not null && EventActivityPlanService.Validate(request.ActivityPlan) is { } activityError)
+            return activityError;
+        if (request.ActivityPlan?.Activities.Any(activity => activity.Answers?.Keys.Any(code =>
+            !EventProjectQuestionCatalog.Codes.Contains(code)) == true) == true)
+            return "Unknown activity project question code.";
         EventActivityTypeDefinition? activityType = null;
         if (!string.IsNullOrWhiteSpace(request.ActivityTypeCode) &&
             !activityTypesByCode.TryGetValue(request.ActivityTypeCode, out activityType))
@@ -307,11 +395,6 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
         {
             return "activityTypeCode does not belong to archetypeCode.";
         }
-        if (isLegacy && !string.IsNullOrWhiteSpace(request.ActivityTypeCode))
-        {
-            return "activityTypeCode is not supported in schemaVersion 1.0.0.";
-        }
-
         var duplicateFact = request.Facts.Items
             .Where(x => !string.IsNullOrWhiteSpace(x.Code))
             .GroupBy(x => x.Code, StringComparer.Ordinal)
@@ -333,9 +416,9 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
         {
             return $"Unknown fact code: {unknownFact.Code}.";
         }
-        if (request.Facts.Items.Any(x => x.Source is EventFactSource.TrustedContext or EventFactSource.LegacyBackfill))
+        if (request.Facts.Items.Any(x => x.Source == EventFactSource.TrustedContext))
         {
-            return "trustedContext and legacyBackfill fact sources are server-controlled.";
+            return "trustedContext fact sources are server-controlled.";
         }
         if (request.Facts.Items.Any(x => x.Source == EventFactSource.AiCandidate &&
             x.Certainty == EventFactCertainty.Confirmed))
@@ -406,6 +489,15 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
         };
         return rule.Operator == "neq" ? !equal : equal;
     }
+
+    private static bool IsConfirmedTrue(
+        IReadOnlyDictionary<string, EventFactInputDto> confirmedFacts, string code) =>
+        confirmedFacts.TryGetValue(code, out var fact) && fact.Value?.ValueKind == JsonValueKind.True;
+
+    private static bool IsHumanConfirmedBoolean(EventFactInputDto fact) =>
+        fact.Source == EventFactSource.Human &&
+        fact.Certainty == EventFactCertainty.Confirmed &&
+        fact.Value?.ValueKind is JsonValueKind.True or JsonValueKind.False;
 
     private static void CloseDependencies(IReadOnlyDictionary<string, DecisionState> states)
     {

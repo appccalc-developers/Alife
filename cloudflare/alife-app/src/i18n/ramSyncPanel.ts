@@ -1,7 +1,6 @@
 // Fixed bilingual copy for components/events/RamSyncPanel.tsx.
 export const ramSyncPanelText = {
     defineAndSaveActivitiesInTasksAndHandoffsFirst: { en: 'Define and save activities in Tasks and handoffs first.', zh: '请先在任务与交接中定义并保存活动项目。' } as const,
-    upgradeAndSaveTheLegacyAssessmentInTheRam: { en: 'Upgrade and save the legacy assessment in the RAM editor before synchronizing.', zh: '请先在 RAM 编辑器中升级并保存旧版资料，再重新同步。' } as const,
     synchronizationFailedExistingContentIsPreservedRetryWhenReady: { en: 'Synchronization failed. Existing content is preserved. Retry when ready.', zh: '同步失败，原有内容已保留。可重试。' } as const,
     aiSyncing: { en: 'AI syncing', zh: 'AI 同步中' } as const,
     upToDate: { en: 'Up to date', zh: '已更新并核对' } as const,

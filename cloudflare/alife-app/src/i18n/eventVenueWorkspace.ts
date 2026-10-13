@@ -7,7 +7,7 @@ export const eventVenueWorkspaceText = {
     onlyTheEventOwnerOwningGroupLeadersOrAn: { en: 'Only the event owner, owning-group leaders, or an accepted resource.coordinator can manage venue reservations.', zh: '只有活動負責人、所屬小組領袖或已接受 resource.coordinator 角色的人員可管理場地預訂。' } as const,
     venueWorkspaceUnavailable: { en: 'Venue workspace unavailable', zh: '無法載入場地工作區' } as const,
     retry: { en: 'Retry', zh: '重試' } as const,
-    venuesAreReusableManagedResourcesLegacySessionPlaceText: { en: 'Venues are reusable managed resources. Legacy Session place text remains compatible but is not reservation authority.', zh: 'Venue 是可重用的受管資源；舊有 Session place 文字保持兼容，但不作為預訂依據。' } as const,
+    venuesAreReusableManagedResources: { en: 'Venues are reusable managed resources. Confirmed reservations are the authoritative space record.', zh: 'Venue 是可重用的受管资源；已确认的预订是权威场地记录。' } as const,
     blocked: { en: 'Blocked', zh: '尚有阻塞' } as const,
     ready: { en: 'Ready', zh: '已準備' } as const,
     readyLabel: { en: 'Ready', zh: '通過' } as const,

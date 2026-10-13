@@ -17,7 +17,6 @@ export const eventRamWorkspaceText = {
     savedRating: { en: 'Saved rating', zh: '已保存评分' } as const,
     ramIsRequiredForThisEvent: { en: 'RAM is required for this event', zh: '此活动必须提供 RAM' } as const,
     everyFormalRamRequiresIndependentReview: { en: 'Every formal RAM requires independent review', zh: '所有正式 RAM 均需独立审核' } as const,
-    legacyRecordsAndApprovalsAreRetainedSavingAnUpgrade: { en: 'Legacy records and approvals are retained. Saving an upgrade starts the new rules; old ratings become initial ratings only. Residual ratings and signatures require human completion.', zh: '旧版资料和批准保留。首次保存新版会进入新版规则；旧评分仅作为初始评分，剩余评分与签署须人工完成。' } as const,
     thisChurchHasNoPublishedRamPolicyDraftsCan: { en: 'This church has no published RAM policy. Drafts can be saved; confirmation and formal submission are blocked.', zh: '所属教会尚未发布 RAM 政策。可保存草稿，暂不能请求确认或正式提交。' } as const,
     churchPolicyVersion: { en: 'Church policy version', zh: '教会政策版本' } as const,
     useCurrentPublishedPolicy: { en: 'Use current published policy', zh: '使用当前发布政策' } as const,

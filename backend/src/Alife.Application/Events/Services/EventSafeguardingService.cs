@@ -41,8 +41,10 @@ public sealed class EventSafeguardingService(
         if (!await IsModuleEnabled(eventId, ct))
             return AppResult<EventSafeguardingMyContextDto>.Conflict("SAFEGUARDING.CHILD is not enabled by the accepted plan.");
         var related = await ChildQuery(eventId).AsNoTracking()
-            .Where(x => x.ChildMemberId == memberId || x.Guardians.Any(g => g.GuardianMemberId == memberId && g.Status != EventGuardianRelationshipStatus.Ended))
-            .OrderBy(x => x.ChildMember.DisplayName).ToListAsync(ct);
+            .Where(x => x.IsActive && (x.ChildMemberId == memberId ||
+                x.RegistrationParticipant != null && x.RegistrationParticipant.MemberId == memberId ||
+                x.Guardians.Any(g => g.GuardianMemberId == memberId && g.Status != EventGuardianRelationshipStatus.Ended)))
+            .OrderBy(x => x.RegistrationParticipant!.DisplayName).ToListAsync(ct);
         if (related.Count == 0) return AppResult<EventSafeguardingMyContextDto>.Forbidden("No child or guardian context is available for this event.");
         var configuration = await db.EventSafeguardingConfigurations.AsNoTracking().FirstOrDefaultAsync(x => x.EventId == eventId, ct);
         return AppResult<EventSafeguardingMyContextDto>.Success(ToMyContext(eventId, memberId, configuration?.PolicyVersionId, related));
@@ -93,16 +95,25 @@ public sealed class EventSafeguardingService(
         if (!access.IsSuccess) return Failure<EventSafeguardingWorkspaceDto, GroupEvent>(access);
         if (request.PhotoUrl?.Length > 1200) return AppResult<EventSafeguardingWorkspaceDto>.Validation("Photo URL is too long.");
         if (!await HasRecognizedPolicy(eventId, ct)) return AppResult<EventSafeguardingWorkspaceDto>.Conflict("A recognized versioned safeguarding policy must be loaded first.");
-        var enrollment = await db.EventEnrollments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == request.EnrollmentId && x.EventId == eventId, ct);
-        if (enrollment is null) return AppResult<EventSafeguardingWorkspaceDto>.Validation("Child registration must reference an existing enrollment for this event.");
+        if (request.RegistrationParticipantId == Guid.Empty)
+            return AppResult<EventSafeguardingWorkspaceDto>.Validation("Reference a child registration participant.");
+        var participant = await db.EventRegistrationParticipants.AsNoTracking().Include(x => x.Application)
+            .FirstOrDefaultAsync(x => x.Id == request.RegistrationParticipantId && x.Application.EventId == eventId, ct);
+        if (participant is null || !participant.IsChild || participant.SeatStatus is "cancelled" or "expired")
+            return AppResult<EventSafeguardingWorkspaceDto>.Validation("Child registration must reference a current, explicitly identified child participant in this event.");
         var retry = await BeginIdempotent("safeguarding.child.register", eventId, memberId, request, idempotencyKey, ct);
         if (!retry.IsSuccess) return Failure<EventSafeguardingWorkspaceDto, EventIdempotencyRecord?>(retry);
         if (retry.Value is not null) return AppResult<EventSafeguardingWorkspaceDto>.Success(await BuildWorkspace(access.Value!, null, true, ct));
-        if (await db.EventChildRegistrations.AsNoTracking().AnyAsync(x => x.EventId == eventId && (x.EnrollmentId == enrollment.Id || x.ChildMemberId == enrollment.MemberId) && x.IsActive, ct))
-            return AppResult<EventSafeguardingWorkspaceDto>.Conflict("This enrollment already has an active child safeguarding registration.");
+        var participantId = participant.Id;
+        var childMemberId = participant.MemberId;
+        if (await db.EventChildRegistrations.AsNoTracking().AnyAsync(x => x.EventId == eventId && x.IsActive &&
+            (x.RegistrationParticipantId == participantId ||
+             childMemberId.HasValue && x.ChildMemberId == childMemberId), ct))
+            return AppResult<EventSafeguardingWorkspaceDto>.Conflict("This child already has an active safeguarding registration.");
         var now = DateTime.UtcNow;
-        var child = new EventChildRegistration { Id = Guid.NewGuid(), EventId = eventId, EnrollmentId = enrollment.Id,
-            ChildMemberId = enrollment.MemberId, PhotoUrl = Normalize(request.PhotoUrl), CreatedByMemberId = memberId,
+        var child = new EventChildRegistration { Id = Guid.NewGuid(), EventId = eventId,
+            RegistrationParticipantId = participant.Id, ChildMemberId = childMemberId,
+            PhotoUrl = Normalize(request.PhotoUrl), CreatedByMemberId = memberId,
             CreatedUtc = now };
         db.EventChildRegistrations.Add(child);
         AddAudit("safeguarding.child.register", access.Value!, memberId, child.Id, now);
@@ -273,6 +284,8 @@ public sealed class EventSafeguardingService(
         var retry = await BeginIdempotent("safeguarding.occurrence.check-in", occurrenceId, memberId, new { childId }, idempotencyKey, ct);
         if (!retry.IsSuccess) return Failure<EventSafeguardingWorkspaceDto, EventIdempotencyRecord?>(retry);
         if (retry.Value is not null) return AppResult<EventSafeguardingWorkspaceDto>.Success(await BuildWorkspace(duty.Value!, occurrenceId, await IsLead(eventId, memberId, ct), ct));
+        if (child.RegistrationParticipant?.SeatStatus is "cancelled" or "expired")
+            return AppResult<EventSafeguardingWorkspaceDto>.Conflict("The participant's event seat is no longer active.");
         if (!Matches(ifMatch, ChildETag(child))) return AppResult<EventSafeguardingWorkspaceDto>.PreconditionFailed("The child record changed; reload before check-in.");
         var configuration = await db.EventSafeguardingConfigurations.Include(x => x.PolicyVersion).FirstOrDefaultAsync(x => x.EventId == eventId, ct);
         var roles = await db.EventRoleAssignments.AsNoTracking().Where(x => x.EventId == eventId).ToListAsync(ct);
@@ -326,7 +339,7 @@ public sealed class EventSafeguardingService(
         var configuration = await db.EventSafeguardingConfigurations.AsNoTracking().Include(x => x.PolicyVersion)
             .FirstOrDefaultAsync(x => x.EventId == groupEvent.Id, ct);
         var children = await ChildQuery(groupEvent.Id).AsNoTracking().Where(x => x.IsActive)
-            .OrderBy(x => x.ChildMember.DisplayName).ToListAsync(ct);
+            .OrderBy(x => x.RegistrationParticipant!.DisplayName).ToListAsync(ct);
         var roles = await db.EventRoleAssignments.AsNoTracking().Where(x => x.EventId == groupEvent.Id).ToListAsync(ct);
         var workerEvidence = await db.EventSafeguardingWorkerEligibility.AsNoTracking().Where(x => x.EventId == groupEvent.Id)
             .Include(x => x.Member).OrderBy(x => x.Member.DisplayName).ToListAsync(ct);
@@ -338,8 +351,9 @@ public sealed class EventSafeguardingService(
         var policies = fullAccess ? await db.EventSafeguardingPolicyVersions.AsNoTracking().Where(x => policyIds.Contains(x.GroupId) && x.IsPublished &&
                 x.EffectiveFromUtc <= now && (!x.RetiredUtc.HasValue || x.RetiredUtc > now))
             .OrderBy(x => x.PolicyCode).ThenByDescending(x => x.Version).ToListAsync(ct) : [];
-        var enrollmentOptions = fullAccess ? await db.EventEnrollments.AsNoTracking().Where(x => x.EventId == groupEvent.Id)
-            .Select(x => new EventSafeguardingEnrollmentOptionDto(x.Id, x.MemberId, x.Member.DisplayName ?? string.Empty))
+        var registrationParticipantOptions = fullAccess ? await db.EventRegistrationParticipants.AsNoTracking()
+            .Where(x => x.Application.EventId == groupEvent.Id && x.IsChild && x.SeatStatus != "cancelled" && x.SeatStatus != "expired")
+            .Select(x => new EventSafeguardingRegistrationParticipantOptionDto(x.Id, x.MemberId, x.DisplayName))
             .OrderBy(x => x.DisplayName).ToListAsync(ct) : [];
         var memberMap = new Dictionary<Guid, string>();
         if (fullAccess)
@@ -347,7 +361,10 @@ public sealed class EventSafeguardingService(
             var groupMembers = await db.GroupMemberships.AsNoTracking().Where(x => x.GroupId == groupEvent.GroupId && x.Status == MembershipStatus.Approved)
                 .Select(x => new { x.MemberId, x.Member.DisplayName }).ToListAsync(ct);
             foreach (var value in groupMembers) memberMap[value.MemberId] = value.DisplayName ?? string.Empty;
-            foreach (var value in enrollmentOptions) memberMap[value.MemberId] = value.DisplayName;
+            var registeredMembers = await db.EventRegistrationParticipants.AsNoTracking()
+                .Where(x => x.Application.EventId == groupEvent.Id && x.MemberId.HasValue && x.SeatStatus != "cancelled" && x.SeatStatus != "expired")
+                .Select(x => new { MemberId = x.MemberId!.Value, x.DisplayName }).ToListAsync(ct);
+            foreach (var value in registeredMembers) memberMap[value.MemberId] = value.DisplayName;
         }
         var memberOptions = memberMap.OrderBy(x => x.Value).Select(x => new EventSafeguardingMemberOptionDto(x.Key, x.Value)).ToArray();
         var audit = fullAccess ? await db.AuditLogs.AsNoTracking().Where(x => x.EventId == groupEvent.Id && x.Action.StartsWith("safeguarding."))
@@ -356,22 +373,22 @@ public sealed class EventSafeguardingService(
         return new(groupEvent.Id, occurrenceId, fullAccess ? "lead" : "checkInDuty",
             configuration is null ? null : ToPolicy(configuration.PolicyVersion),
             policies.Select(ToPolicy).ToArray(),
-            occurrences.Select(x => new EventOccurrenceDto(x.Id, x.EventId, x.StartUtc, x.EndUtc, x.LocalDate, x.Status, x.IsLegacyBackfill)).ToArray(),
-            enrollmentOptions, memberOptions,
+            occurrences.Select(x => new EventOccurrenceDto(x.Id, x.EventId, x.StartUtc, x.EndUtc, x.LocalDate, x.Status)).ToArray(),
+            registrationParticipantOptions, memberOptions,
             children.Select(x => ToChild(x, occurrenceId, configuration?.PolicyVersionId, fullAccess)).ToArray(),
             fullAccess ? workerEvidence.Select(ToWorkerEvidence).ToArray() : [], audit, readiness,
             configuration is null ? EmptyConfigurationETag(groupEvent.Id) : ConfigurationETag(configuration), Classification);
     }
 
     private IQueryable<EventChildRegistration> ChildQuery(Guid eventId) => db.EventChildRegistrations.Where(x => x.EventId == eventId)
-        .Include(x => x.Event).Include(x => x.Enrollment).Include(x => x.ChildMember)
+        .Include(x => x.Event).Include(x => x.RegistrationParticipant).Include(x => x.ChildMember)
         .Include(x => x.Guardians).ThenInclude(x => x.GuardianMember)
         .Include(x => x.ConsentRecords)
         .Include(x => x.AuthorisedCollectors)
         .Include(x => x.AttendanceRecords).ThenInclude(x => x.Collector);
 
     private IQueryable<EventChildGuardianRelationship> GuardianQuery(Guid eventId) => db.EventChildGuardianRelationships
-        .Where(x => x.ChildRegistration.EventId == eventId)
+        .Where(x => x.ChildRegistration.EventId == eventId && x.ChildRegistration.IsActive)
         .Include(x => x.ChildRegistration).ThenInclude(x => x.Event)
         .Include(x => x.ChildRegistration).ThenInclude(x => x.ChildMember);
 
@@ -459,7 +476,8 @@ public sealed class EventSafeguardingService(
 
     private async Task<bool> IsEventMember(GroupEvent groupEvent, Guid memberId, CancellationToken ct)
         => await authorization.IsApprovedMemberAsync(groupEvent.GroupId, memberId, ct) ||
-           await db.EventEnrollments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == memberId, ct);
+           await db.EventRegistrationApplications.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.OrganiserMemberId == memberId, ct) ||
+           await db.EventRegistrationParticipants.AsNoTracking().AnyAsync(x => x.Application.EventId == groupEvent.Id && x.MemberId == memberId, ct);
 
     private async Task<AppResult<EventSafeguardingWorkspaceDto>> SaveWorkspace(
         GroupEvent groupEvent, Guid actorMemberId, Guid? occurrenceId, bool fullAccess,
@@ -522,8 +540,8 @@ public sealed class EventSafeguardingService(
             .OrderByDescending(x => x.RecordedUtc).FirstOrDefault()?.Decision == EventGuardianConsentDecision.Granted);
         var collectors = child.AuthorisedCollectors.Where(x => x.IsActive && confirmed.Any(g => g.Id == x.AuthorisedByGuardianRelationshipId)).ToArray();
         var attendance = occurrenceId.HasValue ? child.AttendanceRecords.FirstOrDefault(x => x.EventOccurrenceId == occurrenceId) : null;
-        return new(child.Id, fullAccess ? child.EnrollmentId : Guid.Empty, fullAccess ? child.ChildMemberId : Guid.Empty,
-            child.ChildMember.DisplayName ?? string.Empty, child.PhotoUrl,
+        return new(child.Id, fullAccess ? child.RegistrationParticipantId : null,
+            fullAccess ? child.ChildMemberId : null, ChildDisplayName(child), child.PhotoUrl,
             consent, collectors.Length > 0,
             fullAccess ? child.Guardians.Select(x => new EventChildGuardianDto(x.Id, x.GuardianMemberId,
                 x.GuardianMember.DisplayName ?? string.Empty, x.RelationshipLabel, x.Status, GuardianETag(x))).ToArray() : [],
@@ -538,7 +556,7 @@ public sealed class EventSafeguardingService(
             var consent = relationship is not null && policyId.HasValue && child.ConsentRecords
                 .Where(x => x.GuardianRelationshipId == relationship.Id && x.PolicyVersionId == policyId)
                 .OrderByDescending(x => x.RecordedUtc).FirstOrDefault()?.Decision == EventGuardianConsentDecision.Granted;
-            return new EventSafeguardingMyChildDto(child.Id, child.ChildMemberId, child.ChildMember.DisplayName ?? string.Empty,
+            return new EventSafeguardingMyChildDto(child.Id, child.ChildMemberId, child.RegistrationParticipantId, ChildDisplayName(child),
                 child.PhotoUrl, relationship is not null, relationship?.Id,
                 relationship is null ? null : GuardianETag(relationship), relationship?.Status, consent,
                 relationship is not null ? child.AuthorisedCollectors.Where(x => x.AuthorisedByGuardianRelationshipId == relationship.Id)
@@ -548,6 +566,8 @@ public sealed class EventSafeguardingService(
 
     private static EventChildAttendanceDto ToAttendance(EventChildAttendance x)
         => new(x.Id, x.EventOccurrenceId, x.State, x.CheckedInUtc, x.CheckedOutUtc, x.CollectorId, x.Collector?.DisplayName, AttendanceETag(x));
+    private static string ChildDisplayName(EventChildRegistration child)
+        => child.RegistrationParticipant?.DisplayName ?? child.ChildMember?.DisplayName ?? string.Empty;
     private static EventSafeguardingWorkerEvidenceDto ToWorkerEvidence(EventSafeguardingWorkerEligibility x)
         => new(x.Id, x.MemberId, x.Member.DisplayName ?? string.Empty, x.RoleRequirementKey, x.EligibilityEvidenceCode,
             x.EvidenceReference, x.IsEligible, x.VerifiedByMemberId, x.VerifiedUtc, WorkerEvidenceETag(x));

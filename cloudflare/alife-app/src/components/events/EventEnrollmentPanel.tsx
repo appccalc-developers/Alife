@@ -1,159 +1,100 @@
+import { Link } from 'react-router-dom'
 import { eventEnrollmentPanelText } from '../../i18n/eventEnrollmentPanel.ts'
-import { useEffect, useState } from 'react'
-import EnrollmentChatDialog from '../group/EnrollmentChatDialog'
-import AppActionButton from '../layout/AppActionButton'
+import type { RegistrationApplication, RegistrationPerson, RegistrationWork } from '../../services/eventRegistrationWorkService'
+import { registrationStatus } from '../../services/eventRegistrationWorkService'
 import AppBadge from '../layout/AppBadge'
 import { EventToolSection as AppSectionCard } from './ArrangementTileDeck'
-import useConfirmation from '../../hooks/useConfirmation'
-import { enrollmentSessionService } from '../../services/enrollmentSessionService'
-import { normalizeApiError } from '../../services/http'
-import type { EventEnrollmentRecord, EnrollmentCapacity } from '../../types/enrollment'
-import type { EventDto, GroupEventRecord } from '../../types/event'
-import { getLabels, formatDateTime, parseEnrollmentPayload, isBeforeDeadline } from '../../utils/eventDetailPresentation'
 
-const EnrollmentPanel = ({
-  event,
-  eventDto,
-  enrollments,
+const activeParticipant = (participant: RegistrationPerson) =>
+  !['cancelled', 'expired'].includes(participant.seatStatus)
+
+const applicationBelongsTo = (application: RegistrationApplication, memberId: string | undefined) =>
+  Boolean(memberId) && (application.organiserMemberId === memberId || application.participants.some(participant =>
+    participant.memberId === memberId || participant.guardianMemberId === memberId))
+
+const EventEnrollmentPanel = ({
+  eventId,
+  work,
   language,
   memberId,
   isGuest,
   loading,
-  onRefresh,
 }: {
-  event: GroupEventRecord
-  eventDto: EventDto
-  enrollments: EventEnrollmentRecord[]
+  eventId: string
+  work: RegistrationWork | null
   language: string
   memberId?: string
   isGuest: boolean
   loading: boolean
-  onRefresh: () => Promise<void>
 }) => {
-  const text = getLabels(language)
-  const { requestConfirmation, confirmationModal } = useConfirmation()
-  const [deletingId, setDeletingId] = useState('')
-  const [message, setMessage] = useState('')
-  const currentEnrollment = memberId ? enrollments.find((item) => item.memberId === memberId && item.status !== 'cancelled') : undefined
-  const [capacity, setCapacity] = useState<EnrollmentCapacity | null>(null)
   const zh = language === 'zh'
-  const statusText = (row: EventEnrollmentRecord) => row.status === 'cancelled' ? (zh ? eventEnrollmentPanelText.cancelled.zh : eventEnrollmentPanelText.cancelled.en) : row.status === 'waitlisted' ? (zh ? eventEnrollmentPanelText.waitlistPosition.zh(row.waitlistPosition ?? '—') : eventEnrollmentPanelText.waitlistPosition.en(row.waitlistPosition ?? '—')) : (zh ? eventEnrollmentPanelText.confirmed.zh : eventEnrollmentPanelText.confirmed.en)
-  useEffect(() => {
-    let active = true
-    if (!isGuest) void enrollmentSessionService.capacity(event.id).then(value => { if (active) setCapacity(value) }).catch(() => { if (active) setCapacity(null) })
-    return () => { active = false }
-  }, [event.id, memberId, isGuest, enrollments])
-  const canWithdraw = isBeforeDeadline(eventDto.registrationDeadline)
-
-  const withdraw = async () => {
-    if (!currentEnrollment || !await requestConfirmation({
-      title: text.withdrawTitle,
-      description: text.withdrawConfirm,
-      confirmLabel: text.withdraw,
-      tone: 'danger',
-    })) return
-    setDeletingId(currentEnrollment.id)
-    setMessage('')
-    try {
-      await enrollmentSessionService.deleteEnrollment(event.id, currentEnrollment.id)
-      setMessage(text.withdrawSuccess)
-      await onRefresh()
-    } catch (reason) {
-      setMessage(normalizeApiError(reason).message)
-    } finally {
-      setDeletingId('')
-    }
-  }
+  const ownApplications = work?.applications.filter(application => applicationBelongsTo(application, memberId)) ?? []
+  const ownParticipants = ownApplications.flatMap(application => application.participants).filter(activeParticipant)
+  const capacity = work?.policy?.rules.capacity ?? 0
+  const openLabel = work?.publiclyOpen
+    ? (zh ? eventEnrollmentPanelText.registrationOpen.zh : eventEnrollmentPanelText.registrationOpen.en)
+    : (zh ? eventEnrollmentPanelText.registrationClosed.zh : eventEnrollmentPanelText.registrationClosed.en)
 
   return (
-    <>
     <div className="space-y-5">
-      {capacity ? <AppSectionCard title={zh ? eventEnrollmentPanelText.registrationCapacity.zh : eventEnrollmentPanelText.registrationCapacity.en} summary={zh ? eventEnrollmentPanelText.peopleConfirmedWaitlistedCapacity.zh(capacity.confirmed, capacity.waitlisted, capacity.capacity) : eventEnrollmentPanelText.peopleConfirmedWaitlistedCapacity.en(capacity.confirmed, capacity.waitlisted, capacity.capacity)}><p className="text-sm">{zh ? eventEnrollmentPanelText.capacityConfirmedWaitlisted.zh(capacity.capacity, capacity.confirmed, capacity.waitlisted) : eventEnrollmentPanelText.capacityConfirmedWaitlisted.en(capacity.capacity, capacity.confirmed, capacity.waitlisted)}</p>{!capacity.isOpen ? <p className="mt-2 text-sm text-amber-800">{zh ? eventEnrollmentPanelText.registrationIsClosedOrItsConditionsAreNotMet.zh : eventEnrollmentPanelText.registrationIsClosedOrItsConditionsAreNotMet.en}</p> : null}{capacity.overCapacity ? <p role="alert" className="mt-2 text-sm text-amber-800">{zh ? eventEnrollmentPanelText.existingConfirmedRegistrationsExceedCapacityTheirPlacesAreRetained.zh : eventEnrollmentPanelText.existingConfirmedRegistrationsExceedCapacityTheirPlacesAreRetained.en}</p> : null}</AppSectionCard> : null}
-      {message ? (
-        <AppSectionCard dense>
-          <p className={message === text.withdrawSuccess ? 'text-sm text-emerald-700' : 'text-sm text-rose-700'}>{message}</p>
+      {loading ? <p role="status" className="text-sm text-slate-500">{zh ? eventEnrollmentPanelText.loading.zh : eventEnrollmentPanelText.loading.en}</p> : null}
+      {work ? (
+        <AppSectionCard
+          title={zh ? eventEnrollmentPanelText.registrationCapacity.zh : eventEnrollmentPanelText.registrationCapacity.en}
+          summary={zh
+            ? eventEnrollmentPanelText.peopleConfirmedWaitlistedCapacity.zh(work.confirmed, work.waitlisted, capacity)
+            : eventEnrollmentPanelText.peopleConfirmedWaitlistedCapacity.en(work.confirmed, work.waitlisted, capacity)}
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <AppBadge variant={work.publiclyOpen ? 'success' : 'neutral'}>{openLabel}</AppBadge>
+            <p className="text-sm text-slate-700">
+              {zh
+                ? eventEnrollmentPanelText.capacityConfirmedWaitlisted.zh(capacity, work.confirmed, work.waitlisted)
+                : eventEnrollmentPanelText.capacityConfirmedWaitlisted.en(capacity, work.confirmed, work.waitlisted)}
+            </p>
+          </div>
+          {!work.publiclyOpen ? <p className="mt-2 text-sm text-amber-800">{zh ? eventEnrollmentPanelText.registrationIsClosedOrItsConditionsAreNotMet.zh : eventEnrollmentPanelText.registrationIsClosedOrItsConditionsAreNotMet.en}</p> : null}
         </AppSectionCard>
       ) : null}
 
-      {currentEnrollment ? (
+      {isGuest ? (
+        <AppSectionCard dense title={zh ? eventEnrollmentPanelText.signInToRegister.zh : eventEnrollmentPanelText.signInToRegister.en}>
+          <p className="text-sm text-slate-600">{zh ? eventEnrollmentPanelText.signInHint.zh : eventEnrollmentPanelText.signInHint.en}</p>
+        </AppSectionCard>
+      ) : work ? (
         <AppSectionCard
           dense
-          title={statusText(currentEnrollment)} summary={statusText(currentEnrollment)}
-          action={
-            canWithdraw ? (
-              <AppActionButton variant="danger" disabled={Boolean(deletingId)} onClick={() => void withdraw()}>
-                {deletingId ? text.withdrawing : text.withdraw}
-              </AppActionButton>
-            ) : null
-          }
+          title={zh ? eventEnrollmentPanelText.myRegistration.zh : eventEnrollmentPanelText.myRegistration.en}
+          summary={ownParticipants.length
+            ? (zh ? eventEnrollmentPanelText.myParticipants.zh(ownParticipants.length) : eventEnrollmentPanelText.myParticipants.en(ownParticipants.length))
+            : (zh ? eventEnrollmentPanelText.noCurrentRegistration.zh : eventEnrollmentPanelText.noCurrentRegistration.en)}
         >
-          <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3">
-            <AppBadge variant={currentEnrollment.status === 'waitlisted' ? 'warning' : 'success'}>{statusText(currentEnrollment)}</AppBadge>
-            {currentEnrollment.status === 'waitlisted' ? <p className="mt-2 text-sm">{zh ? eventEnrollmentPanelText.aPlaceIsNotYetConfirmedYouWillReceive.zh : eventEnrollmentPanelText.aPlaceIsNotYetConfirmedYouWillReceive.en}</p> : null}
-            {!canWithdraw ? <p className="mt-2 text-sm text-emerald-900">{text.withdrawClosed}</p> : null}
-          </div>
+          {ownParticipants.length ? (
+            <ul className="space-y-2">
+              {ownParticipants.map(participant => (
+                <li key={participant.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <span className="font-medium text-slate-950">{participant.displayName}</span>
+                  <AppBadge variant={participant.seatStatus === 'waitlisted' ? 'warning' : participant.seatStatus === 'confirmed' ? 'success' : 'neutral'}>
+                    {registrationStatus(participant.seatStatus, zh)}
+                  </AppBadge>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-sm text-slate-600">{zh ? eventEnrollmentPanelText.noCurrentRegistration.zh : eventEnrollmentPanelText.noCurrentRegistration.en}</p>}
+          <Link className="mt-4 inline-flex min-h-11 items-center font-semibold text-[#176b5a] underline" to={`/events/${eventId}/registration-work`}>
+            {zh ? eventEnrollmentPanelText.openRegistrationWorkspace.zh : eventEnrollmentPanelText.openRegistrationWorkspace.en}
+          </Link>
         </AppSectionCard>
-      ) : isGuest ? (
-        <AppSectionCard dense title={text.enrollNow}>
-          <p className="text-sm text-slate-600">{text.guestEnrollmentHint}</p>
+      ) : !loading ? (
+        <AppSectionCard dense title={zh ? eventEnrollmentPanelText.registrationUnavailable.zh : eventEnrollmentPanelText.registrationUnavailable.en}>
+          <p className="text-sm text-slate-600">{zh ? eventEnrollmentPanelText.registrationUnavailableHint.zh : eventEnrollmentPanelText.registrationUnavailableHint.en}</p>
+          <Link className="mt-4 inline-flex min-h-11 items-center font-semibold text-[#176b5a] underline" to={`/events/${eventId}/registration-work`}>
+            {zh ? eventEnrollmentPanelText.openRegistrationWorkspace.zh : eventEnrollmentPanelText.openRegistrationWorkspace.en}
+          </Link>
         </AppSectionCard>
-      ) : (
-        <AppSectionCard dense title={text.enrollNow}>
-          <EnrollmentChatDialog
-            variant="page"
-            groupId={event.groupId}
-            event={event}
-            memberId={memberId}
-            language={language}
-            onSuccess={(successMessage) => {
-              setMessage(successMessage)
-              window.setTimeout(() => {
-                onRefresh().catch(() => undefined)
-              }, 300)
-            }}
-          />
-        </AppSectionCard>
-      )}
-
-      <AppSectionCard dense title={`${text.enrollments} (${enrollments.length})`} summary={loading ? text.loading : (language === 'zh' ? eventEnrollmentPanelText.enrollments.zh(enrollments.length) : eventEnrollmentPanelText.enrollments.en(enrollments.length))}>
-        {loading ? <p className="text-sm text-slate-500">{text.loading}</p> : null}
-        {!loading && enrollments.length === 0 ? <p className="text-sm text-slate-500">{text.noEnrollments}</p> : null}
-        <div className="space-y-2">
-          {enrollments.map((enrollment) => {
-            const payload = parseEnrollmentPayload(enrollment)
-            const isCurrentUser = enrollment.memberId === memberId
-            const applicantName = payload.applicantName || enrollment.memberId.slice(0, 8)
-            const paymentCount = payload.paymentFiles?.length ?? 0
-            return (
-              <div
-                key={enrollment.id}
-                className={[
-                  'rounded-lg border px-3 py-3',
-                  isCurrentUser ? 'border-emerald-300 bg-emerald-50 ring-2 ring-emerald-100' : 'border-slate-200 bg-white',
-                ].join(' ')}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-slate-950">{applicantName}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {text.submitted}: {formatDateTime(payload.submittedAtUtc || enrollment.createdUtc, language) || '-'}
-                    </p>
-                  </div>
-                  <AppBadge variant={enrollment.status === 'waitlisted' ? 'warning' : enrollment.status === 'cancelled' ? 'neutral' : 'success'}>{statusText(enrollment)}</AppBadge>
-                </div>
-                <p className="mt-2 text-xs text-slate-500">
-                  {text.paymentFiles}: {paymentCount}
-                </p>
-              </div>
-            )
-          })}
-        </div>
-      </AppSectionCard>
+      ) : null}
     </div>
-    {confirmationModal}
-    </>
   )
 }
 
-
-export default EnrollmentPanel
+export default EventEnrollmentPanel

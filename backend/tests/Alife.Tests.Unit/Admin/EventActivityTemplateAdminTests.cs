@@ -163,7 +163,7 @@ public sealed class EventActivityTemplateAdminTests
         Assert.True(result.IsSuccess, result.Message);
         Assert.Equal("shared-meal", result.Value!.Template.Code);
         Assert.Equal("simple-social", result.Value.Template.ArchetypeCode);
-        Assert.Equal(3, result.Value.Template.Version);
+        Assert.Equal(5, result.Value.Template.Version);
         Assert.True(result.Value.IsSystemPreset);
         Assert.False(result.Value.IsActive);
         Assert.DoesNotContain("shared-meal",
@@ -209,7 +209,7 @@ public sealed class EventActivityTemplateAdminTests
         accessor.GetCurrentMemberId().Returns(actorId);
         mediator.Send(Arg.Any<ListAdminEventActivityTemplatesQuery>(), Arg.Any<CancellationToken>())
             .Returns(AppResult<AdminEventActivityTemplateCatalogDto>.Success(new(
-                [], new([], 0, 1, 25, 0), [], [], [], true)));
+                [], new([], 0, 1, 25, 0), [], [], [], true, EventProjectQuestionCatalog.Definitions)));
         var controller = new AdminEventTemplatesController(mediator, accessor)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
@@ -233,7 +233,7 @@ public sealed class EventActivityTemplateAdminTests
                 "simple-social",
                 new([]),
                 [],
-                ActivityTypeCode: activityTypeCode),
+                ActivityTypeCode: activityTypeCode, ActivityPlan: new([], QuestionnaireVersion: 2)),
             new("\"baseline\"", ActivityTypesByCode: definitions));
 
     private static CreateAdminEventActivityTemplateRequest CreateRequest(
@@ -251,6 +251,7 @@ public sealed class EventActivityTemplateAdminTests
             modules ?? ["PEOPLE.REGISTRATION", "COMMS.FOLLOWUP"],
             null,
             slots ?? [],
+            [],
             true);
 
     private static UpdateAdminEventActivityTemplateRequest UpdateRequest(
@@ -264,6 +265,7 @@ public sealed class EventActivityTemplateAdminTests
             source.Template.PreselectedModules,
             source.Template.RecommendedWorkflowTemplateCode,
             source.Template.PresetServiceSlots,
+            source.Template.PresetProjects,
             isActive);
 
     private static async Task<Guid> SeedActorAsync(

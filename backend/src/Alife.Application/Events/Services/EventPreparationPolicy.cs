@@ -20,7 +20,6 @@ public static class EventPreparationPolicy
     // must not restore old visibility/registration facts after that brief changes.
     public static EventPlanComposeRequest WithSavedDetails(GroupEvent item, EventPlanComposeRequest composition)
     {
-        if (item.PublicationStatus == EventPublicationStatus.LegacyImplicit) return composition;
         var facts = SavedDetailFacts(item);
         return composition with { Facts = new(composition.Facts.Items.Where(x => !facts.ContainsKey(x.Code))
             .Concat(facts.Select(x => new EventFactInputDto(x.Key, JsonSerializer.SerializeToElement(x.Value), EventFactCertainty.Confirmed, EventFactSource.Human))).ToArray()) };
@@ -28,8 +27,6 @@ public static class EventPreparationPolicy
 
     public static bool NeedsPlanReview(GroupEvent item, EventPlanProposalDto plan)
     {
-        if (item.PublicationStatus == EventPublicationStatus.LegacyImplicit) return false;
-        // Older accepted plans may predate these brief facts; preserve that contract.
         return SavedDetailFacts(item).Where(expected => plan.Facts.Items.Any(fact => fact.Code == expected.Key &&
             fact.Certainty == EventFactCertainty.Confirmed && fact.Value is { ValueKind: JsonValueKind.String })).Any(expected => !plan.Facts.Items.Any(fact => fact.Code == expected.Key &&
             fact.Certainty == EventFactCertainty.Confirmed && fact.Value is { ValueKind: JsonValueKind.String } value && value.GetString() == expected.Value));
@@ -39,7 +36,12 @@ public static class EventPreparationPolicy
     {
         using var data = JsonDocument.Parse(item.EventDataJson);
         var registration = data.RootElement.TryGetProperty("maxCapacity", out var capacity) && capacity.ValueKind == JsonValueKind.Number && capacity.TryGetInt32(out var count) && count > 0;
-        return new() { ["visibility"] = EventVisibilityPolicy.ReadVisibility(item.EventDataJson), ["people.registrationMode"] = registration ? "required" : "none" };
+        var registrationMode = data.RootElement.TryGetProperty("registrationMode", out var explicitMode) &&
+            explicitMode.ValueKind == JsonValueKind.String &&
+            explicitMode.GetString() is "required" or "none"
+            ? explicitMode.GetString()!
+            : registration ? "required" : "none";
+        return new() { ["visibility"] = EventVisibilityPolicy.ReadVisibility(item.EventDataJson), ["people.registrationMode"] = registrationMode };
     }
     // Expiry/invalidation blocks publication, but does not silently unlock approved preparation.
     public static IQueryable<EventPackage> FrozenPackages(IAlifeDbContext db, Guid eventId) => db.EventPackages.Where(x =>

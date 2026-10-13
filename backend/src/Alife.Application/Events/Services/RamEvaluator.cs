@@ -8,7 +8,14 @@ public static class RamEvaluator
 {
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, Json);
-    public static RamV2Draft Parse(string json) => JsonSerializer.Deserialize<RamV2Draft>(json, Json) ?? new();
+    public static RamV2Draft Parse(string json)
+    {
+        var draft = JsonSerializer.Deserialize<RamV2Draft>(json, Json);
+        if (draft is null || draft.SchemaVersion != 2 || draft.Activities is null ||
+            draft.Activities.Any(a => a is null || !ActivityAttributes.Valid(a.Attributes)))
+            throw new JsonException("RAM requires schema version 2 and fixed activity attribute arrays.");
+        return draft;
+    }
     public static bool HasText(RamText? text) => text is not null && (!string.IsNullOrWhiteSpace(text.En) || !string.IsNullOrWhiteSpace(text.Zh));
     private static bool Bilingual(RamText? text) => text is not null && !string.IsNullOrWhiteSpace(text.En) && !string.IsNullOrWhiteSpace(text.Zh);
     public static int Rank(string level) => level switch { "Green" => 1, "Yellow" => 2, "Red" => 3, _ => 0 };
@@ -34,13 +41,13 @@ public static class RamEvaluator
         if (!p.Categories.Select(x => x.Code).Order().SequenceEqual(RamPolicyDefaults.CategoryCodes.Order()) || p.Categories.Any(x => !Bilingual(x.Name) || !Bilingual(x.Guidance)))
             errors.Add("ram.policy.categories: The five SOP categories and bilingual guidance are required.");
         if (p.Questions.Length > 500 || p.Questions.GroupBy(x => (x.ActivityType,x.Code)).Any(x => x.Count() > 1) || p.Questions.Any(x => string.IsNullOrWhiteSpace(x.Code) || !RamPolicyDefaults.ActivityTypes.Contains(x.ActivityType) || !RamPolicyDefaults.CategoryCodes.Contains(x.CategoryCode) || !Bilingual(x.Text) || !Bilingual(x.Guidance)))
-            errors.Add("ram.policy.questions: Use unique question codes per activity type and complete bilingual content.");
+            errors.Add("ram.policy.questions: Use unique question codes per applicable attribute and complete bilingual content.");
         if (p.ReviewRules.ReviewReminderDays is < 1 or > 365 || string.IsNullOrWhiteSpace(p.Source)) errors.Add("ram.policy.source: Source and a 1â€“365 day review reminder are required.");
         return errors;
     }
 
     public static IEnumerable<RamQuestion> Questions(RamPolicyData policy, RamActivity activity) =>
-        policy.Questions.Where(x => x.ActivityType == "generic" || x.ActivityType == activity.Type);
+        policy.Questions.Where(x => x.ActivityType == "generic" || ActivityAttributes.Read(activity).Contains(x.ActivityType)).DistinctBy(QuestionKey);
     // Question keys include both activity identity and question set, never just question text/code.
     public static string QuestionKey(RamQuestion question) => $"{question.ActivityType}:{question.Code}";
 
@@ -49,7 +56,7 @@ public static class RamEvaluator
         var errors = new List<string>();
         if (draft.Activities is null || draft.Hazards is null || draft.Answers is null ||
             draft.Activities.Any(x=>x is null) || draft.Hazards.Any(x=>x is null) || draft.Answers.Any(x=>x is null)) throw new JsonException("RAM arrays and their entries cannot be null.");
-        if (draft.Activities.Length == 0 || draft.Activities.Length > 50 || draft.Activities.Any(x => string.IsNullOrWhiteSpace(x.Id) || !HasText(x.Name)) || draft.Activities.Select(x => x.Id).Distinct().Count() != draft.Activities.Length)
+        if (draft.Activities.Length == 0 || draft.Activities.Length > 50 || draft.Activities.Any(x => string.IsNullOrWhiteSpace(x.Id) || !HasText(x.Name) || !ActivityAttributes.Valid(x.Attributes)) || draft.Activities.Select(x => x.Id).Distinct().Count() != draft.Activities.Length)
             errors.Add("ram.activities: Add distinct activities with names.");
         if (draft.ParticipantCount is null or < 1) errors.Add("ram.participants: Confirm the participant count.");
         if (draft.AuthorAttendsAndLeads is null) errors.Add("ram.onsite: Confirm whether the author will attend and lead.");

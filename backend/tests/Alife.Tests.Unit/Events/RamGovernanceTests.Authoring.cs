@@ -31,7 +31,7 @@ public sealed partial class RamGovernanceTests
         var context = await f.Service.AuthoringContextAsync(f.Event, null, f.Author, default);
         Assert.True(context.IsSuccess);
         Assert.Equal(AppResultStatus.ValidationError, (await f.Service.CheckDraftAsync(new(f.Event, null, "{}", Guid.NewGuid()), f.Author, default)).Status);
-        var check = await f.Service.CheckDraftAsync(new(f.Event, null, "{}"), f.Author, default);
+        var check = await f.Service.CheckDraftAsync(new(f.Event, null, "{\"schemaVersion\":2}"), f.Author, default);
         Assert.True(check.IsSuccess);
         var after = await f.Db.EventRamAssessments.AsNoTracking().SingleAsync();
         Assert.Equal(before.RamDataJson, after.RamDataJson); Assert.Equal(before.ConcurrencyToken, after.ConcurrencyToken);

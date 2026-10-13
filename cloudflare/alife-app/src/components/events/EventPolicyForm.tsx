@@ -1,5 +1,6 @@
 import { eventPolicyFormText } from '../../i18n/eventPolicyForm.ts'
-import { useEffect, useId, useRef, useState } from 'react'
+import { Check } from 'lucide-react'
+import EventPolicyHelp from './EventPolicyHelp'
 import type { PolicyEditorDefaults, PolicyRules, PolicyTier, EventPackagePolicyAdmin } from '../../types/eventPackagePolicyAdmin'
 import { policyTiers, validityDays } from '../../utils/eventPackagePolicyEditor'
 
@@ -31,71 +32,54 @@ export const policySummary = (rules: PolicyRules | null, key: string, catalog: P
   }
 }
 
-type Props = { rules: PolicyRules; mode: EventPackagePolicyAdmin['enforcementMode']; catalog: PolicyEditorDefaults; zh: boolean; disabled: boolean; onRules: (rules: PolicyRules) => void; onMode: (mode: EventPackagePolicyAdmin['enforcementMode']) => void }
-export default function EventPolicyForm({ rules, mode, catalog, zh, disabled, onRules, onMode }: Props) {
-  const [activeTier, setActiveTier] = useState<PolicyTier>('enhanced')
-  const tabId = useId()
-  const tabsRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const tabs = tabsRef.current
-    if (!tabs) return
-    const reveal = () => {
-      const current = tabs.querySelector<HTMLElement>('[aria-selected="true"]')
-      if (!current) return
-      const bounds = tabs.getBoundingClientRect()
-      const item = current.getBoundingClientRect()
-      if (item.left < bounds.left) tabs.scrollLeft -= bounds.left - item.left
-      else if (item.right > bounds.right) tabs.scrollLeft += item.right - bounds.right
-    }
-    reveal()
-    const observer = new ResizeObserver(reveal)
-    observer.observe(tabs)
-    return () => observer.disconnect()
-  }, [activeTier, zh])
+type Props = { rules: PolicyRules; mode: EventPackagePolicyAdmin['enforcementMode']; catalog: PolicyEditorDefaults; zh: boolean; readOnly: boolean; disabled: boolean; onRules: (rules: PolicyRules) => void; onMode: (mode: EventPackagePolicyAdmin['enforcementMode']) => void }
+export default function EventPolicyForm({ rules, mode, catalog, zh, readOnly, disabled, onRules, onMode }: Props) {
+  const copy = (text: { en: string; zh: string }) => zh ? text.zh : text.en
   const update = (edit: (next: PolicyRules) => void) => { const next = structuredClone(rules); edit(next); onRules(next) }
+  const tierColor = (tier: PolicyTier) => tier === 'enhanced' ? 'text-[#9F1239]' : tier === 'standard' ? 'text-[#31544b]' : 'text-[#66766f]'
   return <div className="min-w-0 space-y-5">
-    <label className="block text-sm font-semibold">{zh ? eventPolicyFormText.enforcement.zh : eventPolicyFormText.enforcement.en}<select disabled={disabled} aria-label={zh ? eventPolicyFormText.enforcement.zh : eventPolicyFormText.enforcement.en} className={policyFieldClass} value={mode} onChange={e => onMode(e.target.value as Props['mode'])}>{(['off', 'dryRun', 'enforced'] as const).map(m => <option key={m} value={m}>{modeLabel(m, zh)}</option>)}</select></label>
-    <p className="rounded-xl bg-[#e3f0eb] p-3 text-sm leading-6 text-[#31544b]">{zh ? eventPolicyFormText.dryRunRecordsOperationsThatTheseRulesWouldBlock.zh : eventPolicyFormText.dryRunRecordsOperationsThatTheseRulesWouldBlock.en}</p>
-    <div><h3 className="font-bold">{zh ? eventPolicyFormText.approvalTiersAndTriggers.zh : eventPolicyFormText.approvalTiersAndTriggers.en}</h3><p className="mt-1 text-sm text-[#66766f]">{zh ? eventPolicyFormText.ifAnyEnhancedConditionMatchesUseEnhancedApprovalElse.zh : eventPolicyFormText.ifAnyEnhancedConditionMatchesUseEnhancedApprovalElse.en}</p></div>
-    <div ref={tabsRef} role="tablist" aria-label={zh ? eventPolicyFormText.approvalDecisionOrder.zh : eventPolicyFormText.approvalDecisionOrder.en} className="flex flex-nowrap gap-1 overflow-x-auto border-b border-[#2f4b42]/15"
-      onKeyDown={event => {
-        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
-        event.preventDefault()
-        const index = policyTiers.indexOf(activeTier)
-        const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? policyTiers.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + policyTiers.length) % policyTiers.length
-        const next = policyTiers[nextIndex]!
-        setActiveTier(next)
-        tabsRef.current?.querySelector<HTMLButtonElement>(`[data-tier="${next}"]`)?.focus()
-      }}>
-      {policyTiers.map(tier => <button key={tier} type="button" role="tab" data-tier={tier}
-        id={`${tabId}-${tier}`} aria-controls={`${tabId}-panel`} aria-selected={activeTier === tier} tabIndex={activeTier === tier ? 0 : -1}
-        onClick={() => setActiveTier(tier)}
-        className={`min-h-11 shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#176b5a] ${activeTier === tier ? 'border-[#176b5a] bg-[#e3f0eb] text-[#176b5a]' : 'border-transparent text-[#66766f] hover:bg-[#f4f8f6]'}`}>
-        {tier === 'enhanced' ? (zh ? eventPolicyFormText.if.zh : eventPolicyFormText.if.en) : tier === 'standard' ? (zh ? eventPolicyFormText.elseIf.zh : eventPolicyFormText.elseIf.en) : (zh ? eventPolicyFormText.else.zh : eventPolicyFormText.else.en)} · {tierLabel(tier, zh)}
-      </button>)}
-    </div>
-    {[activeTier].map(tier => {
+    <div><div className="flex items-center gap-1"><label htmlFor="policy-enforcement" className="text-sm font-semibold">{copy(eventPolicyFormText.enforcement)}</label><EventPolicyHelp zh={zh} label={copy(eventPolicyFormText.enforcement)} text={copy(eventPolicyFormText.dryRunRecordsOperationsThatTheseRulesWouldBlock)} /></div>
+      <select id="policy-enforcement" disabled={disabled} className={policyFieldClass} value={mode} onChange={e => onMode(e.target.value as Props['mode'])}>{(['off', 'dryRun', 'enforced'] as const).map(m => <option key={m} value={m}>{modeLabel(m, zh)}</option>)}</select></div>
+    <div className="flex items-center gap-1"><h3 className="font-bold">{copy(eventPolicyFormText.approvalTiersAndTriggers)}</h3><EventPolicyHelp zh={zh} label={copy(eventPolicyFormText.approvalDecisionOrder)} text={copy(eventPolicyFormText.ifAnyEnhancedConditionMatchesUseEnhancedApprovalElse)} /></div>
+    <div className="grid items-start gap-3 xl:grid-cols-3">{policyTiers.map(tier => {
       const rule = rules.tierRules.find(r => r.tier === tier)!
-      return <section key={tier} role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tier}`} tabIndex={0} className="space-y-3 rounded-xl border border-[#2f4b42]/15 p-3 sm:p-4">
-        <h4 className="font-bold text-[#176b5a]">{tierLabel(tier, zh)}</h4>
-        <p className="text-sm text-[#66766f]">{tier === 'light' ? (zh ? eventPolicyFormText.elseWhenNeitherEnhancedNorStandardConditionsMatchUse.zh : eventPolicyFormText.elseWhenNeitherEnhancedNorStandardConditionsMatchUse.en) : tier === 'standard' ? (zh ? eventPolicyFormText.elseIfNoEnhancedConditionMatchesButAnyCondition.zh : eventPolicyFormText.elseIfNoEnhancedConditionMatchesButAnyCondition.en) : (zh ? eventPolicyFormText.ifAnyConditionBelowMatchesUseEnhancedApprovalWithout.zh : eventPolicyFormText.ifAnyConditionBelowMatchesUseEnhancedApprovalWithout.en)}</p>
-        {tier !== 'light' && ([['whenAnyConfirmedFactCodes', catalog.facts, zh ? eventPolicyFormText.confirmedArrangements.zh : eventPolicyFormText.confirmedArrangements.en], ['whenAnyActivityTypeCodes', catalog.activityTypes, zh ? eventPolicyFormText.activityTemplates.zh : eventPolicyFormText.activityTemplates.en], ['whenAnyModuleCodes', catalog.modules, zh ? eventPolicyFormText.enabledManagementFeatures.zh : eventPolicyFormText.enabledManagementFeatures.en]] as const).map(([key, options, label]) => <details key={key} open={key === 'whenAnyConfirmedFactCodes'}>
-          <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">{label} · {rule[key].length}</summary>
-          <div className="grid gap-x-4 md:grid-cols-2">{options.map(option => <label key={option.code} className="flex min-h-11 items-center gap-3 text-sm"><input disabled={disabled} type="checkbox" checked={rule[key].includes(option.code)} onChange={e => update(next => { const item = next.tierRules.find(r => r.tier === tier)!; item[key] = e.target.checked ? [...item[key], option.code] : item[key].filter(c => c !== option.code) })} /><span>{zh ? option.label.zh || option.label.en : option.label.en || option.label.zh}</span></label>)}</div>
-        </details>)}
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-sm">{zh ? eventPolicyFormText.minimumEligibleApprovers.zh : eventPolicyFormText.minimumEligibleApprovers.en}<input disabled={disabled} className={policyFieldClass} required type="number" min="1" max="5" step="1" value={rules.authorityByTier[tier].minimumApproverCount || ''} onChange={e => update(next => { next.authorityByTier[tier].minimumApproverCount = Number(e.target.value) })} /></label>
-          <label className="text-sm">{zh ? eventPolicyFormText.approvalValidityDays.zh : eventPolicyFormText.approvalValidityDays.en}<input disabled={disabled} className={policyFieldClass} required type="number" min="0.00001" max="3650" step="any" value={rules.approvalValidityByTier[tier] === '' ? '' : validityDays(rules.approvalValidityByTier[tier])} onChange={e => update(next => { next.approvalValidityByTier[tier] = Number(e.target.value) > 0 ? `PT${Math.round(Number(e.target.value) * 86400000) / 1000}S` : '' })} /></label>
+      const count = rule.whenAnyConfirmedFactCodes.length + rule.whenAnyActivityTypeCodes.length + rule.whenAnyModuleCodes.length
+      const explanation = tier === 'light' ? eventPolicyFormText.elseWhenNeitherEnhancedNorStandardConditionsMatchUse : tier === 'standard' ? eventPolicyFormText.elseIfNoEnhancedConditionMatchesButAnyCondition : eventPolicyFormText.ifAnyConditionBelowMatchesUseEnhancedApprovalWithout
+      return <section key={tier} aria-labelledby={`policy-tier-${tier}`} className="min-w-0 rounded-xl border border-[#2f4b42]/15 bg-white p-3 sm:p-4">
+        <div className="mb-3 flex items-center justify-between gap-2"><h4 id={`policy-tier-${tier}`} className={`font-bold ${tierColor(tier)}`}>{tierLabel(tier, zh)}</h4><EventPolicyHelp zh={zh} label={tierLabel(tier, zh)} text={copy(explanation)} /></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <label className="text-sm">{copy(eventPolicyFormText.minimumEligibleApprovers)}<input disabled={disabled} className={policyFieldClass} required type="number" min="1" max="5" step="1" value={rules.authorityByTier[tier].minimumApproverCount || ''} onChange={e => update(next => { next.authorityByTier[tier].minimumApproverCount = Number(e.target.value) })} /></label>
+          <label className="text-sm">{copy(eventPolicyFormText.approvalValidityDays)}<input disabled={disabled} className={policyFieldClass} required type="number" min="0.00001" max="3650" step="any" value={rules.approvalValidityByTier[tier] === '' ? '' : validityDays(rules.approvalValidityByTier[tier])} onChange={e => update(next => { next.approvalValidityByTier[tier] = Number(e.target.value) > 0 ? `PT${Math.round(Number(e.target.value) * 86400000) / 1000}S` : '' })} /></label>
         </div>
+        <details className="mt-4 border-t border-[#2f4b42]/10"><summary className={`min-h-11 cursor-pointer py-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a] ${tierColor(tier)}`}>
+          {tier === 'light' ? copy(eventPolicyFormText.fallbackConditions) : (zh ? eventPolicyFormText.selectedTriggers.zh(count) : eventPolicyFormText.selectedTriggers.en(count))}</summary>
+          {tier === 'light' ? <p className="pb-2 text-sm leading-6 text-[#66766f]">{copy(explanation)}</p> : <div className="space-y-4 pb-2">
+            {([['whenAnyConfirmedFactCodes', catalog.facts, eventPolicyFormText.confirmedArrangements], ['whenAnyActivityTypeCodes', catalog.activityTypes, eventPolicyFormText.activityTemplates], ['whenAnyModuleCodes', catalog.modules, eventPolicyFormText.enabledManagementFeatures]] as const).map(([key, options, label]) => {
+              const visibleOptions = readOnly ? options.filter(option => rule[key].includes(option.code)) : options
+              if (!visibleOptions.length) return null
+              return <div key={key} className="space-y-1"><h5 className="text-xs font-semibold text-[#66766f]">{copy(label)}</h5>{visibleOptions.map(option => {
+                const checked = rule[key].includes(option.code)
+                const name = zh ? option.label.zh || option.label.en : option.label.en || option.label.zh
+                const selectionClass = checked ? `border-[#2f4b42]/15 bg-[#f4f8f6] font-semibold ${tierColor(tier)}` : 'border-transparent text-[#66766f]'
+                return readOnly ? <div key={option.code} className={`flex min-h-11 items-center gap-2 rounded-lg border px-2 py-2 text-sm ${selectionClass}`}><Check aria-hidden="true" className="h-4 w-4 shrink-0" /><span>{name}</span></div> : <label key={option.code} className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-2 py-2 text-sm ${selectionClass}`}><input disabled={disabled} type="checkbox" checked={checked} className="shrink-0 accent-[#176b5a]" onChange={e => update(next => { const item = next.tierRules.find(r => r.tier === tier)!; item[key] = e.target.checked ? [...item[key], option.code] : item[key].filter(c => c !== option.code) })} /><span>{name}</span></label>
+              })}</div>
+            })}
+            {!count && <p className="text-sm text-[#66766f]">{copy(eventPolicyFormText.noTriggers)}</p>}
+          </div>}
+        </details>
       </section>
-    })}
-    <label className="block text-sm">{zh ? eventPolicyFormText.hoursBeforeTheEventWhenFinalConfirmationOpens.zh : eventPolicyFormText.hoursBeforeTheEventWhenFinalConfirmationOpens.en}<input disabled={disabled} className={policyFieldClass} type="number" required min="1" step="1" value={rules.preEventConfirmationWindowHours || ''} onChange={e => update(next => { next.preEventConfirmationWindowHours = Number(e.target.value) })} /></label>
-    <div className="space-y-2"><label className="flex min-h-11 items-center gap-3 text-sm"><input disabled={disabled} type="checkbox" checked={rules.delegationRules.enabled} onChange={e => update(next => { next.delegationRules.enabled = e.target.checked })} />{zh ? eventPolicyFormText.allowEligibleApprovalDelegation.zh : eventPolicyFormText.allowEligibleApprovalDelegation.en}</label>
-      {rules.delegationRules.enabled && <div className="flex flex-wrap gap-4">{policyTiers.map(tier => <label className="flex min-h-11 items-center gap-2 text-sm" key={tier}><input disabled={disabled} type="checkbox" checked={rules.delegationRules.allowedTiers?.includes(tier) ?? false} onChange={e => update(next => { const values = next.delegationRules.allowedTiers ?? []; next.delegationRules.allowedTiers = e.target.checked ? [...values, tier] : values.filter(t => t !== tier) })} />{tierLabel(tier, zh)}</label>)}</div>}
-      <label className="flex min-h-11 items-center gap-3 text-sm"><input disabled={disabled} type="checkbox" checked={rules.conditionWaiverAllowed} onChange={e => update(next => { next.conditionWaiverAllowed = e.target.checked })} />{zh ? eventPolicyFormText.allowEligiblePeopleToExplicitlyWaiveApprovalConditions.zh : eventPolicyFormText.allowEligiblePeopleToExplicitlyWaiveApprovalConditions.en}</label>
+    })}</div>
+    <div className="grid gap-4 md:grid-cols-2">
+      <label className="block text-sm">{copy(eventPolicyFormText.hoursBeforeTheEventWhenFinalConfirmationOpens)}<input disabled={disabled} className={policyFieldClass} type="number" required min="1" step="1" value={rules.preEventConfirmationWindowHours || ''} onChange={e => update(next => { next.preEventConfirmationWindowHours = Number(e.target.value) })} /></label>
+      <label className="block text-sm">{copy(eventPolicyFormText.transitionDeadlineUtcReviewBeforePublishing)}<input disabled={disabled} className={policyFieldClass} type="datetime-local" required value={rules.legacyRollout.transitionDeadlineUtc.slice(0, 16)} onChange={e => update(next => { next.legacyRollout.transitionDeadlineUtc = e.target.value ? `${e.target.value}:00Z` : '' })} /></label>
     </div>
-    <label className="block text-sm">{zh ? eventPolicyFormText.transitionDeadlineUtcReviewBeforePublishing.zh : eventPolicyFormText.transitionDeadlineUtcReviewBeforePublishing.en}<input disabled={disabled} className={policyFieldClass} type="datetime-local" required value={rules.legacyRollout.transitionDeadlineUtc.slice(0, 16)} onChange={e => update(next => { next.legacyRollout.transitionDeadlineUtc = e.target.value ? `${e.target.value}:00Z` : '' })} /></label>
-    <p className="text-sm leading-6 text-[#66766f]">{zh ? eventPolicyFormText.defaultValidityThe72HourWindowAndThe90.zh : eventPolicyFormText.defaultValidityThe72HourWindowAndThe90.en}</p>
-    <div className="rounded-xl bg-[#f4f8f6] p-3 text-sm leading-6"><strong>{zh ? eventPolicyFormText.materialChangesAndSafetyRules.zh : eventPolicyFormText.materialChangesAndSafetyRules.en}</strong><p>{zh ? eventPolicyFormText.materialChangesToDatesVenueChildrenTravelMoneyRisk.zh : eventPolicyFormText.materialChangesToDatesVenueChildrenTravelMoneyRisk.en}</p></div>
+    <div className="space-y-2"><label className="flex min-h-11 items-center gap-3 text-sm"><input disabled={disabled} type="checkbox" checked={rules.delegationRules.enabled} onChange={e => update(next => { next.delegationRules.enabled = e.target.checked })} />{copy(eventPolicyFormText.allowEligibleApprovalDelegation)}</label>
+      {rules.delegationRules.enabled && <div className="flex flex-wrap gap-4">{policyTiers.filter(tier => !readOnly || rules.delegationRules.allowedTiers?.includes(tier)).map(tier => <label className={`flex min-h-11 items-center gap-2 text-sm ${tierColor(tier)}`} key={tier}><input disabled={disabled} type="checkbox" checked={rules.delegationRules.allowedTiers?.includes(tier) ?? false} onChange={e => update(next => { const values = next.delegationRules.allowedTiers ?? []; next.delegationRules.allowedTiers = e.target.checked ? [...values, tier] : values.filter(t => t !== tier) })} />{tierLabel(tier, zh)}</label>)}</div>}
+      <label className="flex min-h-11 items-center gap-3 text-sm"><input disabled={disabled} type="checkbox" checked={rules.conditionWaiverAllowed} onChange={e => update(next => { next.conditionWaiverAllowed = e.target.checked })} />{copy(eventPolicyFormText.allowEligiblePeopleToExplicitlyWaiveApprovalConditions)}</label>
+    </div>
+    <div className="flex flex-wrap items-center gap-x-5 border-t border-[#2f4b42]/10 pt-2 text-sm text-[#66766f]">
+      <div className="flex items-center">{copy(eventPolicyFormText.configurationNotes)}<EventPolicyHelp zh={zh} warning label={copy(eventPolicyFormText.configurationNotes)} text={copy(eventPolicyFormText.defaultValidityThe72HourWindowAndThe90)} /></div>
+      <div className="flex items-center">{copy(eventPolicyFormText.materialChangesAndSafetyRules)}<EventPolicyHelp zh={zh} warning label={copy(eventPolicyFormText.materialChangesAndSafetyRules)} text={copy(eventPolicyFormText.materialChangesToDatesVenueChildrenTravelMoneyRisk)} /></div>
+    </div>
   </div>
 }

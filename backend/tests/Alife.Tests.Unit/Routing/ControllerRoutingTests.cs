@@ -67,6 +67,28 @@ public sealed class ControllerRoutingTests
         Assert.NotEmpty(context.GetEndpoint()!.Metadata.GetOrderedMetadata<IAuthorizeData>());
     }
 
+    [Fact]
+    public async Task RamWorkspaceSave_UsesCurrentWorkspaceRoute()
+    {
+        await using var app = CreateApp();
+        var context = await MatchAsync(app, "PUT", $"/api/events/{EventId}/ram/workspace");
+
+        AssertAction<EventRamGovernanceController>(context, nameof(EventRamGovernanceController.Save));
+        Assert.NotEmpty(context.GetEndpoint()!.Metadata.GetOrderedMetadata<IAuthorizeData>());
+    }
+
+    [Theory]
+    [InlineData("PUT", "")]
+    [InlineData("POST", "/submit")]
+    [InlineData("POST", "/approve")]
+    public async Task RetiredRamWriteRoutes_Return404(string method, string suffix)
+    {
+        await using var app = CreateApp();
+        var context = await MatchAsync(app, method, $"/api/events/{EventId}/ram{suffix}");
+
+        Assert.Null(context.GetEndpoint());
+    }
+
     [Theory]
     [InlineData("pause")]
     [InlineData("resume")]

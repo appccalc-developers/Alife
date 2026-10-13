@@ -21,9 +21,9 @@ public partial class AlifeDbContext
             b.Property(x => x.EvaluatedContextHash).HasMaxLength(64);
             b.Property(x => x.AiRiskDraftJson).HasDefaultValue("[]");
             b.HasIndex(x => new { x.IsUpdated, x.SyncDueUtc });
-            b.Property(x => x.SchemaVersion).HasDefaultValue(1);
+            b.Property(x => x.SchemaVersion).HasDefaultValue(2);
             b.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
-            b.Property(x => x.Validity).HasMaxLength(32).HasDefaultValue("Legacy");
+            b.Property(x => x.Validity).HasMaxLength(32).HasDefaultValue("Draft");
             b.Property(x => x.ResidualLevel).HasMaxLength(16).HasDefaultValue("Incomplete");
         });
         model.Entity<EventRamPolicyVersion>(b =>

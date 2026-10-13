@@ -15,6 +15,8 @@ import { Link } from 'react-router-dom'
 import { resolveEventSurface } from './eventSurfaceRegistry'
 import EventDetailsAssistant from './creation/EventDetailsAssistant'
 import { eventService, invalidateGroupEventsCache } from '../../services/eventService'
+import { eventActivityPlanService } from '../../services/eventActivityPlanService'
+import { EventProjectFactContext } from './EventActivityPlanPanel'
 import { eventCompositionService } from '../../services/eventCompositionService'
 import { eventPreparationService } from '../../services/eventPreparationService'
 import { eventOperationsService } from '../../services/eventOperationsService'
@@ -71,14 +73,21 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
     const composed = composeCreationDraft(draft, type)
     return ({ ...composed, facts: { ...composed.facts, items: omitServerControlledEventFacts([
       ...(plan?.plan.facts.items ?? []).filter(x => !composed.facts.items.some(fact => fact.code === x.code)), ...composed.facts.items]) },
-    schemaVersion: plan?.plan.schemaVersion === '1.0.0' ? '1.0.0' : '1.1.0', archetypeCode: plan?.plan.archetypeCode, activityTypeCode: plan?.plan.activityTypeCode,
+    schemaVersion: '2.0.0', archetypeCode: plan?.plan.archetypeCode, activityTypeCode: plan?.plan.activityTypeCode,
+    activityTypeVersion: plan?.plan.activityTypeVersion ?? type.version, removedPresetKeys: undefined,
     basePlanVersion: plan?.planVersion, humanSelections: Object.entries(draft.moduleOverrides).map(([moduleCode, selected]) => ({ moduleCode, selected })) }) }, [draft, type, plan])
   const signature = JSON.stringify(input), current = review?.signature === signature
   const planChanged = Boolean(basePlanTag && plan?.eTag && basePlanTag !== plan.eTag)
-  const canSaveDetails = Boolean(record) && !readOnly && !ramDirty && !ramBusy && !anyToolBusy && !busy && !loading && !aiBusy && !planChanged && !previewing && !reloadRequired
-  const canSaveArrangements = stage === 'arrangements' && Boolean(record) && !readOnly && !unsavedTools && !Object.values(moduleDirty).some(Boolean) && !ramDirty && !ramBusy && !anyToolBusy && !busy && !loading && !aiBusy && !previewing && !reloadRequired && !planChanged && review !== null && Boolean(current) && !detailsDirty
+  const canSaveDetails = Boolean(record?.updatedUtc && plan && review && current) && !readOnly && !ramDirty && !ramBusy && !anyToolBusy && !busy && !loading && !aiBusy && !planChanged && !previewing && !reloadRequired
+  const canSaveArrangements = ['details', 'arrangements'].includes(stage) && Boolean(record) && !readOnly && !unsavedTools && !Object.values(moduleDirty).some(Boolean) && !ramDirty && !ramBusy && !anyToolBusy && !busy && !loading && !aiBusy && !previewing && !reloadRequired && !planChanged && review !== null && Boolean(current) && !detailsDirty
   const dirty = unsavedTools || Object.values(moduleDirty).some(Boolean) || detailsDirty || arrangementsDirty || reloadRequired || ramDirty
   const seriesSignature = (value: typeof draft) => JSON.stringify([value.intervalWeeks, value.timeZone, value.startLocal, value.endLocal])
+  useEffect(() => {
+    // A successful detail PUT atomically accepts a new plan. Adopt only the plan
+    // version echoed by that PUT; a different server version remains a true stale edit.
+    if (record?.activePlanVersion != null && plan?.planVersion === record.activePlanVersion && plan.eTag !== basePlanTag)
+      setBasePlanTag(plan.eTag)
+  }, [record?.activePlanVersion, plan?.planVersion, plan?.eTag, basePlanTag])
   useEffect(() => { onDirty(dirty); return () => onDirty(false) }, [dirty, onDirty])
   useEffect(() => { onBusy(busy || aiBusy || ramBusy || ramDirty || anyToolBusy); return () => onBusy(false) }, [busy, aiBusy, ramBusy, ramDirty, anyToolBusy, onBusy])
   useEffect(() => { live.current = true; return () => { live.current = false; sequence.current++ } }, [])
@@ -86,10 +95,10 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [records, list] = await Promise.all([eventService.getGroupEvents(groupId, viewer), eventOperationsService.listOccurrences(eventId)])
+      const [records, list, activityPlan] = await Promise.all([eventService.getGroupEvents(groupId, viewer), eventOperationsService.listOccurrences(eventId), eventActivityPlanService.get(eventId)])
       const item = records.find(x => x.id === eventId)
       if (!item) throw new Error(eventSavedPreparationStepsText.load)
-      const next = savedCreationDraft(item, planRef.current)
+      const next = {...savedCreationDraft(item, planRef.current), activityPlan:activityPlan.data}
       const available = list.filter(x => x.status !== 'cancelled')
       const arrangements = available.length ? await eventPreparationService.getArrangements(eventId, available[0].id) : null
       if (!live.current) return
@@ -130,7 +139,7 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
 
   const [detailsFocusRequest, setDetailsFocusRequest] = useState<DetailsFocusRequest>()
   const saveDetails = async () => {
-    if (!record || anyToolBusy || ramDirty || ramBusy || lock.current || readOnly || planChanged || reloadRequired) return false
+    if (!record?.updatedUtc || !plan || !review || !current || previewing || anyToolBusy || ramDirty || ramBusy || lock.current || readOnly || planChanged || reloadRequired) return false
     const issue = creationDraftIssue(draft, type, archetype, zh)
     if (issue) { setError(issue.message); setDetailsFocusRequest(previous => ({ field: issue.field, version: (previous?.version ?? 0) + 1 })); return false }
     lock.current = true; setBusy(true); setError(''); setNotice('')
@@ -139,13 +148,14 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
       const startDate = localTimeToUtc(draft.startLocal, draft.timeZone), endDate = localTimeToUtc(draft.endLocal, draft.timeZone)
       const required = draft.overrides.registrationMode === 'required'
       const next: EventDto = { ...original, title: draft.title, description: draft.description, locationName: draft.locationName, startDate, endDate, timeZone: draft.timeZone,
-        visibility: draft.overrides.visibility, maxCapacity: required ? Number(draft.maxCapacity) : 0, contactProfileIds: record.contactProfileIds ?? original.contactProfileIds ?? [] }
+        visibility: draft.overrides.visibility, registrationMode:required?'required':'none', maxCapacity: required ? Number(draft.maxCapacity) : 0, contactProfileIds: record.contactProfileIds ?? original.contactProfileIds ?? [] }
       delete next.ram
       if ('registrationRulesVersion' in original) { next.maxCapacity = original.maxCapacity; next.registrationDeadline = original.registrationDeadline }
       else if (!required) next.registrationDeadline = startDate
       else if (!original.maxCapacity) next.registrationDeadline = new Date(Date.parse(startDate) - 86400000).toISOString()
       const seriesDetails = data?.series && seriesBase !== seriesSignature(draft) ? creationSeries(draft, { ...archetype, isSeries: true }) : null
       const result = await eventService.updateGroupEvent(eventId, next, record.updatedUtc,
+        { composition: review.input, proposalHash: review.proposal.proposalHash, planETag: plan.eTag },
         seriesDetails && data?.series ? { eTag: data.series.eTag, details: { ...seriesDetails, exceptionDates: data.series.exceptionDates, rollingOccurrenceWeeks: data.series.rollingOccurrenceWeeks } } : undefined)
       if (live.current) {
         setRecord(result); setDetailsBase(detailSignature(draft)); setSeriesBase(seriesSignature(draft))
@@ -177,7 +187,7 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
         const fresh = savedCreationDraft(freshRecord, accepted)
         fresh.timeZone = JSON.parse(freshRecord.eventDataJson).timeZone || next?.series?.timeZone || draft.timeZone
         fresh.startLocal = localPreparationDate(freshRecord.startDate, fresh.timeZone); fresh.endLocal = localPreparationDate(freshRecord.endDate, fresh.timeZone)
-        const nextDraft = { ...fresh, intervalWeeks: draft.intervalWeeks,
+        const nextDraft = { ...fresh, activityPlan:draft.activityPlan, intervalWeeks: draft.intervalWeeks,
           arrangements: next ? savedArrangementDraft(next, fresh.timeZone) : draft.arrangements }
         setRecord(freshRecord); setDraft(nextDraft); setData(next); setDetailsBase(detailSignature(nextDraft)); setSeriesBase(seriesSignature(nextDraft))
         setArrangementsBase(savedSelectionSignature(nextDraft)); setReloadRequired(false)
@@ -191,7 +201,12 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
   const toolSaved = async (moduleCode: string) => {
     setSavedModules(previous => ({ ...previous, [moduleCode]: (previous[moduleCode] || 0) + 1 }))
     setDraft(previous => invalidateArrangementConfirmation(previous, moduleCode))
-    if (moduleCode === 'TEAM.WORK') await roleState.reload()
+    if (moduleCode === 'TEAM.WORK') {
+      const activityPlan=await eventActivityPlanService.get(eventId)
+      setDraft(previous=>({...invalidateArrangementConfirmation(previous,moduleCode),activityPlan:activityPlan.data}))
+      setReview(null);setCompositionRevision(value=>value+1)
+      await roleState.reload()
+    }
     // Operational editors own their rows. Refresh concurrency without replacing pending brief/fact edits.
     try {
       await invalidateGroupEventsCache(groupId)
@@ -252,5 +267,5 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
       <AppActionButton variant="ghost" onClick={() => { document.querySelector<HTMLElement>('nav[tabindex="-1"]')?.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }) }}>{zh ? eventSavedPreparationStepsText.backToTop.zh : eventSavedPreparationStepsText.backToTop.en}</AppActionButton>
     </footer> : null}
   </div>
-  return workspaceItems.some(x => x.surfaceKey === 'service.roster') ? <EventRosterProvider eventId={eventId} groupId={groupId}>{content}</EventRosterProvider> : content
+  return <EventProjectFactContext.Provider value={draft.factValues}>{workspaceItems.some(x => x.surfaceKey === 'service.roster') ? <EventRosterProvider eventId={eventId} groupId={groupId}>{content}</EventRosterProvider> : content}</EventProjectFactContext.Provider>
 }

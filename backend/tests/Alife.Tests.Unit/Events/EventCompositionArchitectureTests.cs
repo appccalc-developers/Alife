@@ -22,7 +22,7 @@ namespace Alife.Tests.Unit.Events;
 public class EventCompositionArchitectureTests
 {
     [Fact]
-    public void PersistenceModel_IsolatesCompositionTablesFromLegacyPlanningLineage()
+    public void PersistenceModel_UsesDedicatedCompositionTables()
     {
         using var dbContext = CreateDbContext();
 
@@ -53,7 +53,7 @@ public class EventCompositionArchitectureTests
 
         Assert.True(result.IsSuccess);
         AssertStatus(result.Value!, "TEAM.WORK", EventModuleDecisionStatus.Required);
-        AssertStatus(result.Value!, "PEOPLE.REGISTRATION", EventModuleDecisionStatus.Recommended);
+        AssertStatus(result.Value!, "PEOPLE.REGISTRATION", EventModuleDecisionStatus.Inactive);
         AssertStatus(result.Value!, "COMMS.FOLLOWUP", EventModuleDecisionStatus.Recommended);
         AssertStatus(result.Value!, "MONEY.FINANCE", EventModuleDecisionStatus.Inactive);
         AssertStatus(result.Value!, "SAFETY.RAM", EventModuleDecisionStatus.Inactive);
@@ -182,70 +182,16 @@ public class EventCompositionArchitectureTests
     }
 
     [Fact]
-    public async Task RetiredWorkflowSurface_IsExcludedForCurrentNoPlanAndLegacySnapshotEvents()
-    {
-        var currentProposal = new EventCompositionEngine().Compose(
-            CurrentRequest("simple-social", "shared-meal"),
-            new EventCompositionContext("\"current\"", CheckedUtc: DateTime.UnixEpoch));
-        var legacyProposal = Compose(null);
-        Assert.DoesNotContain(currentProposal.Value!.Navigation, item => item.SurfaceKey == "workspace.workflow");
-        Assert.DoesNotContain(legacyProposal.Value!.Navigation, item => item.SurfaceKey == "workspace.workflow");
-
-        await using var dbContext = CreateDbContext();
-        var groupId = Guid.NewGuid();
-        var ownerId = Guid.NewGuid();
-        var noPlanEvent = CreateEvent(groupId, ownerId);
-        var legacyEvent = CreateEvent(groupId, ownerId);
-        legacyEvent.ActivePlanVersion = 1;
-        var factSet = new EventFactSet
-        {
-            Id = Guid.NewGuid(), EventId = legacyEvent.Id, Version = 1,
-            FactsJson = "[]", SourceHash = legacyProposal.Value.Facts.SourceHash,
-            CreatedByMemberId = ownerId, CreatedUtc = DateTime.UtcNow
-        };
-        var storedLegacyPlan = legacyProposal.Value with
-        {
-            Navigation = legacyProposal.Value.Navigation.Append(new EventWorkspaceItemDto(
-                "workspace.workflow", null, "tab", "workflow", null,
-                new LocalizedTextDto("Workflow & outputs", "流程與產出物"), 18,
-                EventReadinessStatus.NotReady, [], ["workflow.view", "workflow.manage"])).ToArray()
-        };
-        dbContext.GroupEvents.AddRange(noPlanEvent, legacyEvent);
-        dbContext.EventFactSets.Add(factSet);
-        dbContext.EventPlanSnapshots.Add(new EventPlanSnapshot
-        {
-            Id = Guid.NewGuid(), EventId = legacyEvent.Id, SourceFactSetId = factSet.Id,
-            Version = 1, ProposalHash = storedLegacyPlan.ProposalHash,
-            ETag = EventCompositionPersistence.CreatePlanETag(1, storedLegacyPlan.ProposalHash),
-            SnapshotJson = EventCompositionPersistence.SerializePlan(storedLegacyPlan, []),
-            AcceptedByMemberId = ownerId, AcceptedUtc = DateTime.UtcNow,
-            IsActive = true, CreatedUtc = DateTime.UtcNow
-        });
-        dbContext.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = ownerId, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
-        await dbContext.SaveChangesAsync();
-
-        var authorization = Substitute.For<IGroupAuthorizationService>();
-        var handler = new GetEventWorkspaceQueryHandler(dbContext, authorization);
-        var noPlanWorkspace = await handler.Handle(
-            new GetEventWorkspaceQuery(noPlanEvent.Id, ownerId), CancellationToken.None);
-        var legacyWorkspace = await handler.Handle(
-            new GetEventWorkspaceQuery(legacyEvent.Id, ownerId), CancellationToken.None);
-
-        Assert.DoesNotContain(noPlanWorkspace.Value!.Items, item => item.SurfaceKey == "workspace.workflow");
-        Assert.DoesNotContain(legacyWorkspace.Value!.Items, item => item.SurfaceKey == "workspace.workflow");
-    }
-
-    [Fact]
     public void ActivityTypeCatalogue_HasFourArchetypesAndSixteenResolvableUniqueTypes()
     {
-        Assert.Equal("1.1.0", EventCompositionDefinitions.SchemaVersion);
+        Assert.Equal("2.0.0", EventCompositionDefinitions.SchemaVersion);
         Assert.Equal(4, EventCompositionDefinitions.Archetypes.Count);
         Assert.Equal(16, EventCompositionDefinitions.ActivityTypes.Count);
         Assert.Equal(16, EventCompositionDefinitions.ActivityTypes.Select(x => x.Code).Distinct().Count());
         Assert.All(EventCompositionDefinitions.Archetypes, archetype => Assert.Equal(4, archetype.ActivityTypes.Count));
         Assert.All(EventCompositionDefinitions.ActivityTypes, activityType =>
         {
-            Assert.Equal(2, activityType.Version);
+            Assert.Equal(5, activityType.Version);
             Assert.True(EventCompositionDefinitions.ArchetypesByCode.ContainsKey(activityType.ArchetypeCode));
             Assert.Equal("People", activityType.Defaults.CapacityUnit);
             Assert.DoesNotContain("MONEY.FINANCE", activityType.PreselectedModules);
@@ -314,16 +260,14 @@ public class EventCompositionArchitectureTests
             "\"workflow\"", CheckedUtc: DateTime.UnixEpoch));
 
         Assert.True(proposal.IsSuccess);
-        Assert.Equal(2, proposal.Value!.ActivityTypeVersion);
+        Assert.Equal(5, proposal.Value!.ActivityTypeVersion);
         Assert.Null(proposal.Value.WorkflowRecommendation);
         Assert.Empty(proposal.Value.WorkflowContributions);
         Assert.DoesNotContain(proposal.Value.Navigation, item => item.SurfaceKey == "workspace.workflow");
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task CurrentRecurringCreate_AtomicallyCreatesSeriesOccurrencesRamAndSnapshot(bool includeActivityPlan)
+    [Fact]
+    public async Task CurrentRecurringCreate_AtomicallyCreatesSeriesOccurrencesRamAndSnapshot()
     {
         await using var dbContext = CreateDbContext();
         var groupId = Guid.NewGuid();
@@ -334,6 +278,16 @@ public class EventCompositionArchitectureTests
         var engine = new EventCompositionEngine();
         var handler = new CreateGroupEventCommandHandler(dbContext, authorization, cache, engine);
         var composition = CurrentRequest("recurring-gathering", "small-group-fellowship");
+        var presetProject = Assert.Single(composition.ActivityPlan!.Activities);
+        var projectAnswers = presetProject.Answers!.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+        projectAnswers["serviceTeam"] = new("yes", "human", true);
+        composition = composition with
+        {
+            ActivityPlan = composition.ActivityPlan with
+            {
+                Activities = [presetProject with { Answers = projectAnswers }]
+            }
+        };
         var proposal = engine.Compose(composition, new EventCompositionContext(
             "\"plan-new\"", HasAccountableOwner: true));
         Assert.True(proposal.IsSuccess);
@@ -345,20 +299,21 @@ public class EventCompositionArchitectureTests
         };
         var command = new CreateGroupEventCommand(
             groupId, leaderId, "Fellowship", "团契",
-            firstLocal, firstLocal.AddHours(2), "{\"visibility\":\"groupVisible\"}",
+            firstLocal, firstLocal.AddHours(2),
+            EventCompositionTestData.CurrentEventData("Fellowship", "团契", firstLocal, firstLocal.AddHours(2)),
             Composition: composition,
             CompositionProposalHash: proposal.Value!.ProposalHash,
             IdempotencyKey: "series-create",
             SeriesSetup: new CreateEventSeriesSetupRequest(
                 new("Fellowship", "团契"), $"FREQ=WEEKLY;INTERVAL=1;BYDAY={weekday}",
                 "Pacific/Auckland", firstLocal, 120, [], 12),
-            Arrangements: includeActivityPlan ? new(ActivityPlan: new([new("source-activity","generic",new("Fellowship","团契"),new("Indoor gathering","室内聚会"))],20)) : null);
+            Arrangements: new());
 
         var result = await handler.Handle(command, CancellationToken.None);
         var retry = await handler.Handle(command, CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
-        Assert.True(retry.IsSuccess);
+        Assert.True(result.IsSuccess, result.Message);
+        Assert.True(retry.IsSuccess, retry.Message);
         Assert.Single(await dbContext.EventSeries.ToListAsync());
         // The local and UTC dates can differ near midnight. Verify weekly spacing and
         // the bounded horizon rather than an assumed count relative to the test machine's zone.
@@ -367,17 +322,15 @@ public class EventCompositionArchitectureTests
         Assert.Equal(generatedDates.Count, generatedDates.Distinct().Count());
         Assert.All(generatedDates.Zip(generatedDates.Skip(1)), pair => Assert.Equal(7, pair.Second.DayNumber - pair.First.DayNumber));
         Assert.Single(await dbContext.EventRamAssessments.ToListAsync());
-        if (includeActivityPlan)
-        {
-            Assert.Single(await dbContext.EventActivityPlans.ToListAsync());
-            var ram=await dbContext.EventRamAssessments.SingleAsync();
-            Assert.Equal(2,ram.SchemaVersion); Assert.Equal("Draft",ram.Validity);
-            Assert.Equal("source-activity",RamEvaluator.Parse(ram.RamDataJson).Activities.Single().Id);
-            Assert.False(ram.IsUpdated); Assert.Null(ram.ApprovedByMemberId);
-        }
+        Assert.Single(await dbContext.EventActivityPlans.ToListAsync());
+        var ram=await dbContext.EventRamAssessments.SingleAsync();
+        Assert.Equal(2,ram.SchemaVersion); Assert.Equal("Draft",ram.Validity);
+        Assert.Equal(composition.ActivityPlan!.Activities.Select(x => x.Id),
+            RamEvaluator.Parse(ram.RamDataJson).Activities.Select(x => x.Id));
+        Assert.False(ram.IsUpdated); Assert.Null(ram.ApprovedByMemberId);
         var snapshot = await dbContext.EventPlanSnapshots.SingleAsync();
         Assert.Equal("small-group-fellowship", snapshot.ActivityTypeCode);
-        Assert.Equal(2, snapshot.ActivityTypeVersion);
+        Assert.Equal(5, snapshot.ActivityTypeVersion);
         var createdEvent = await dbContext.GroupEvents.SingleAsync();
         var occurrences = await dbContext.EventOccurrences.OrderBy(x => x.StartUtc).ToListAsync();
         var firstOccurrence = occurrences[0];
@@ -418,9 +371,10 @@ public class EventCompositionArchitectureTests
         var start = DateTime.UtcNow.AddDays(2);
         var result = await handler.Handle(new CreateGroupEventCommand(
             groupId, leaderId, "Meal", "聚餐", start, start.AddHours(2),
-            "{\"visibility\":\"groupVisible\"}", Composition: composition,
+            EventCompositionTestData.CurrentEventData("Meal", "聚餐", start, start.AddHours(2)), Composition: composition,
             CompositionProposalHash: proposal.Value!.ProposalHash,
-            IdempotencyKey: "meal-without-roster"), CancellationToken.None);
+            IdempotencyKey: "meal-without-roster",
+            Arrangements: new()), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Single(await dbContext.EventOccurrences.ToListAsync());
@@ -443,7 +397,7 @@ public class EventCompositionArchitectureTests
         var start = DateTime.SpecifyKind(DateTime.Today.AddDays(7).AddHours(19), DateTimeKind.Unspecified);
         var result = await handler.Handle(new CreateGroupEventCommand(
             groupId, leaderId, "Prayer", "祷告会", start, start.AddHours(1),
-            "{\"visibility\":\"groupVisible\"}", Composition: composition,
+            EventCompositionTestData.CurrentEventData("Prayer", "祷告会", start, start.AddHours(1)), Composition: composition,
             CompositionProposalHash: proposal.Value!.ProposalHash, IdempotencyKey: "invalid-series",
             SeriesSetup: new CreateEventSeriesSetupRequest(new("Prayer", "祷告会"), "FREQ=DAILY",
                 "Pacific/Auckland", start, 60, [], 12)), CancellationToken.None);
@@ -494,6 +448,12 @@ public class EventCompositionArchitectureTests
         var groupEvent = CreateEvent(groupId, ownerId);
         dbContext.GroupEvents.Add(groupEvent);
         dbContext.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = ownerId, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
+        var composition = EventPreparationPolicy.WithSavedDetails(groupEvent, Request(null));
+        dbContext.EventActivityPlans.Add(new EventActivityPlan
+        {
+            EventId = groupEvent.Id,
+            DataJson = RamEvaluator.Serialize(composition.ActivityPlan!)
+        });
         await dbContext.SaveChangesAsync();
         var authorization = Substitute.For<IGroupAuthorizationService>();
         authorization.IsLeaderOrCoLeaderAsync(groupId, ownerId, Arg.Any<CancellationToken>()).Returns(true);
@@ -501,12 +461,12 @@ public class EventCompositionArchitectureTests
         var engine = new EventCompositionEngine();
         var handler = new AcceptEventPlanCommandHandler(dbContext, authorization, engine, cache,
             new EventPackageInvalidationService(dbContext));
-        var composition = Request(null);
         var currentETag = EventCompositionPersistence.CreateEmptyPlanETag(groupEvent);
         var proposal = engine.Compose(composition, new EventCompositionContext(
             currentETag,
             SatisfiedReadinessRules: EventCompositionPersistence.GetSatisfiedReadinessRules(groupEvent),
-            HasAccountableOwner: true));
+            HasAccountableOwner: true,
+            IsPreparationDraft: true));
         Assert.True(proposal.IsSuccess);
         var acceptRequest = new AcceptEventPlanRequest(proposal.Value!.ProposalHash, [], composition);
         var command = new AcceptEventPlanCommand(
@@ -524,7 +484,7 @@ public class EventCompositionArchitectureTests
             IfMatch = "\"stale\""
         }, CancellationToken.None);
 
-        Assert.True(accepted.IsSuccess);
+        Assert.True(accepted.IsSuccess, accepted.Message);
         Assert.True(retry.IsSuccess);
         Assert.Equal(accepted.Value!.PlanVersion, retry.Value!.PlanVersion);
         Assert.Equal(AppResultStatus.Conflict, keyReuse.Status);
@@ -650,7 +610,7 @@ public class EventCompositionArchitectureTests
     }
 
     [Fact]
-    public async Task CompatibleCreate_WithPlan_IsAtomicAndIdempotent_AndLegacyCreateGetsOccurrence()
+    public async Task CurrentCreate_WithPlan_IsAtomicAndIdempotent_AndCreatesOccurrence()
     {
         await using var dbContext = CreateDbContext();
         var groupId = Guid.NewGuid();
@@ -668,8 +628,11 @@ public class EventCompositionArchitectureTests
             groupId, leaderId, "Meal", "聚餐",
             new DateTime(2026, 9, 1, 8, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc),
-            "{\"visibility\":\"groupVisible\"}", [], null,
-            composition, proposal.Value!.ProposalHash, IdempotencyKey: "create-once");
+            EventCompositionTestData.CurrentEventData("Meal", "聚餐",
+                new DateTime(2026, 9, 1, 8, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc)), [], null,
+            composition, proposal.Value!.ProposalHash, IdempotencyKey: "create-once",
+            Arrangements: new());
 
         var created = await handler.Handle(command, CancellationToken.None);
         var retry = await handler.Handle(command, CancellationToken.None);
@@ -759,7 +722,17 @@ public class EventCompositionArchitectureTests
     private static EventPlanComposeRequest Request(
         string? archetype,
         params EventFactInputDto[] facts)
-        => new(EventCompositionDefinitions.LegacySchemaVersion, archetype, new EventFactSetInput(facts), []);
+    {
+        var resolvedArchetype = archetype ?? "simple-social";
+        var activityType = resolvedArchetype switch
+        {
+            "camp-retreat" => "spiritual-retreat",
+            "recurring-gathering" => "prayer-meeting",
+            "festival-celebration" => "public-outreach",
+            _ => "fellowship-social"
+        };
+        return CurrentRequest(resolvedArchetype, activityType, facts);
+    }
 
     private static EventPlanComposeRequest CurrentRequest(
         string archetype,
@@ -767,8 +740,18 @@ public class EventCompositionArchitectureTests
         IReadOnlyList<EventFactInputDto>? facts = null,
         IReadOnlyList<ModuleSelectionInput>? selections = null,
         bool useRecommendedWorkflow = false)
-        => new(EventCompositionDefinitions.SchemaVersion, archetype, new EventFactSetInput(facts ?? []),
-            selections ?? [], null, activityType, useRecommendedWorkflow);
+    {
+        EventCompositionDefinitions.ActivityTypesByCode.TryGetValue(activityType, out var definition);
+        var request = EventCompositionTestData.CurrentRequest(
+            facts,
+            selections,
+            definition is null ? EventActivityPlanService.Empty : EventCompositionTestData.ConfirmedPresetPlan(definition),
+            archetype,
+            activityType,
+            definition?.Version ?? 1,
+            []);
+        return request with { UseRecommendedWorkflow = useRecommendedWorkflow };
+    }
 
     private static EventFactInputDto Fact(string code, object value)
         => new(code, JsonSerializer.SerializeToElement(value),
@@ -815,6 +798,7 @@ public class EventCompositionArchitectureTests
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Event", "活動",
             DateTime.UtcNow, DateTime.UtcNow.AddHours(1), "{\"visibility\":\"public\"}",
             DateTime.UtcNow, DateTime.UtcNow, [], ram, EventVisibilityPolicy.Public,
-            Guid.NewGuid(), EventGovernanceMode.ChurchSponsored, sponsorship);
+            Guid.NewGuid(), EventGovernanceMode.ChurchSponsored, sponsorship,
+            PublicationStatus: EventPublicationStatus.Published);
 
 }

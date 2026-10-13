@@ -30,7 +30,7 @@ public sealed partial class EventRegistrationWorkService
         var policy = await db.EventRegistrationPolicies.FirstOrDefaultAsync(x => x.EventId == eventId, ct);
         if (policy is null) return AppResult<Guid>.Conflict("Registration rules not found.");
         var rules = Rules(policy); var now = DateTime.UtcNow;
-        if (operation is not ("cancel" or "refund" or "revoke-proxy") && (application.PolicyVersion != policy.Version && !application.Participants.All(x => x.IsLegacy))) return AppResult<Guid>.Conflict("Registration rules changed. A manager must replace this invitation; new consent is required.");
+        if (operation is not ("cancel" or "refund" or "revoke-proxy") && application.PolicyVersion != policy.Version) return AppResult<Guid>.Conflict("Registration rules changed. A manager must replace this invitation; new consent is required.");
         if (operation is not ("cancel" or "refund" or "revoke-proxy") && rules.DeadlineUtc < now) return AppResult<Guid>.Conflict("Registration deadline has passed.");
         if (application.IsInvitation && application.InvitedUtc is null && operation is not ("send-invitation" or "cancel" or "revoke-proxy") && !manager) return AppResult<Guid>.Forbidden("The invitation has not been sent.");
         if (application.IsInvitation && application.InvitedUtc.HasValue && application.ReservationExpiresUtc <= now &&
@@ -52,7 +52,7 @@ public sealed partial class EventRegistrationWorkService
                 if (application.ReservationExpiresUtc <= now) return AppResult<Guid>.Conflict("The invitation deadline has passed.");
                 await ExpireAsync(e, ct);
                 var reservedCount = await db.EventRegistrationParticipants.CountAsync(x => x.Application.EventId == eventId && (x.SeatStatus == "confirmed" || x.SeatStatus == "reserved" && x.Application.ReservationExpiresUtc > now), ct);
-                if (await db.EventRegistrationParticipants.AnyAsync(x => x.Application.EventId == eventId && x.SeatStatus == "waitlisted", ct) || reservedCount + application.Participants.Count > rules.Capacity) return AppResult<Guid>.Conflict("Not enough unallocated capacity for this invitation; existing waiters have priority.");
+                if (await db.EventRegistrationParticipants.AnyAsync(x => x.Application.EventId == eventId && x.SeatStatus == "waitlisted", ct) || reservedCount + application.Participants.Count > EffectiveCapacity(rules)) return AppResult<Guid>.Conflict("Not enough unallocated capacity for this invitation; existing waiters have priority.");
                 application.InvitedUtc = now;
                 foreach (var p in application.Participants) p.SeatStatus = "reserved";
                 Notice(e, application.OrganiserMemberId, actor, "event.registration.invited", application.Id);
@@ -115,16 +115,16 @@ public sealed partial class EventRegistrationWorkService
                     var missing = await MissingAsync(rules, policy, e, application, person, ct);
                     if (missing is not null) return AppResult<Guid>.Conflict(missing);
                 }
-                if (!rules.AllowWaitlist && (application.AllowSplit || application.Participants.All(x => toComplete.Contains(x) || x.ProcedureStatus is "complete" or "legacy" || x.SeatStatus is "cancelled" or "expired")))
+                if (!rules.AllowWaitlist && (application.AllowSplit || application.Participants.All(x => toComplete.Contains(x) || x.ProcedureStatus == "complete" || x.SeatStatus is "cancelled" or "expired")))
                 {
                     await ExpireAsync(e, ct);
                     var occupied = await db.EventRegistrationParticipants.CountAsync(x => x.Application.EventId == eventId && (x.SeatStatus == "confirmed" || x.SeatStatus == "reserved" && x.Application.ReservationExpiresUtc > now), ct);
                     var needed = application.Participants.Count(x => x.SeatStatus == "draft" && (toComplete.Contains(x) || x.ProcedureStatus == "complete"));
-                    if (needed > rules.Capacity - occupied || needed > 0 && await db.EventRegistrationParticipants.AnyAsync(x => x.Application.EventId == eventId && x.SeatStatus == "waitlisted", ct))
+                    if (needed > EffectiveCapacity(rules) - occupied || needed > 0 && await db.EventRegistrationParticipants.AnyAsync(x => x.Application.EventId == eventId && x.SeatStatus == "waitlisted", ct))
                         return AppResult<Guid>.Conflict("There are not enough places and waitlisting is disabled. / 名额不足，且此活动未开放候补。");
                 }
                 foreach (var person in toComplete) person.ProcedureStatus = "complete";
-                if (application.AllowSplit || application.Participants.All(x => x.ProcedureStatus is "complete" or "legacy" || x.SeatStatus is "cancelled" or "expired"))
+                if (application.AllowSplit || application.Participants.All(x => x.ProcedureStatus == "complete" || x.SeatStatus is "cancelled" or "expired"))
                     foreach (var person in application.Participants.Where(x => x.ProcedureStatus == "complete" && x.SeatStatus is "draft" or "reserved"))
                         person.SeatStatus = person.SeatStatus == "reserved" ? "confirmed" : "waitlisted";
                 break;
@@ -147,14 +147,13 @@ public sealed partial class EventRegistrationWorkService
             foreach (var person in application.Participants.Where(x => x.SeatStatus == "waitlisted")) person.SeatStatus = "draft";
             await db.SaveChangesAsync(ct);
         }
-        await SyncLegacyAsync(application, ct);
+        if (activityOperations is not null) await activityOperations.ReconcileEventAsync(eventId, ct);
         await db.SaveChangesAsync(ct); if (tx is not null) await tx.CommitAsync(ct);
         return AppResult<Guid>.Success(application.Id);
     }
 
     private async Task<string?> MissingAsync(RegistrationRules rules, EventRegistrationPolicy policy, GroupEvent e, EventRegistrationApplication app, EventRegistrationParticipant person, CancellationToken ct)
     {
-        if (person.IsLegacy) return person.MemberId.HasValue && await EventWorkAccess.MemberAsync(db, e.GroupId, person.MemberId.Value, ct) ? null : "Legacy membership is no longer active.";
         if (person.ConsentedUtc is null) return "Personal or guardian consent is still required. / 仍需本人或监护人同意。";
         if (!await Eligible(rules, e, person.MemberId, app.IsInvitation, ct)) return "Participant eligibility is not satisfied.";
         if (rules.ManualReview && !person.EligibilityVerified) return "Manual eligibility review is pending.";
@@ -187,13 +186,14 @@ public sealed partial class EventRegistrationWorkService
     {
         await ExpireAsync(e, ct);
         var rules = Rules(policy); var now = DateTime.UtcNow;
-        if (!await ApprovedAsync(e, ct) || e.RegistrationStatus != EventRegistrationStatus.Open || now > rules.DeadlineUtc || now < rules.OpensUtc) return;
+        if (!await ApprovedAsync(e, ct) || e.RegistrationStatus != EventRegistrationStatus.Open || now > rules.DeadlineUtc || now < rules.OpensUtc)
+        { if (activityOperations is not null) await activityOperations.ReconcileEventAsync(e.Id, ct); return; }
         var applications = await db.EventRegistrationApplications.Include(x => x.Participants).Where(x => x.EventId == e.Id).OrderBy(x => x.QueuedUtc).ThenBy(x => x.Id).ToListAsync(ct);
-        var free = rules.Capacity - applications.SelectMany(x => x.Participants).Count(x => x.SeatStatus is "confirmed" or "reserved");
+        var free = EffectiveCapacity(rules) - applications.SelectMany(x => x.Participants).Count(x => x.SeatStatus is "confirmed" or "reserved");
         foreach (var app in applications.Where(x => x.Participants.Any(p => p.SeatStatus == "waitlisted")))
         {
             var waiting = app.Participants.Where(x => x.SeatStatus == "waitlisted").OrderBy(x => x.Id).ToArray();
-            if (app.PolicyVersion != policy.Version && !waiting.All(x => x.IsLegacy)) break;
+            if (app.PolicyVersion != policy.Version) break;
             var valid = new List<EventRegistrationParticipant>();
             foreach (var person in waiting) if (await MissingAsync(rules, policy, e, app, person, ct) is null) valid.Add(person);
             if (valid.Count != waiting.Length && !app.AllowSplit) break;
@@ -203,25 +203,21 @@ public sealed partial class EventRegistrationWorkService
             if (promoted.Length > 0)
             {
                 app.ConcurrencyToken = Guid.NewGuid(); Audit(e.Id, EventDutyAccess.OwnerId(e), "waitlist.promoted", JsonSerializer.Serialize(promoted.Select(x => x.Id)), app.Id);
-                Notice(e, app.OrganiserMemberId, EventDutyAccess.OwnerId(e), "event.registration.confirmed", app.Id); await SyncLegacyAsync(app, ct);
+                Notice(e, app.OrganiserMemberId, EventDutyAccess.OwnerId(e), "event.registration.confirmed", app.Id);
             }
             if (free <= 0) break;
         }
         await db.SaveChangesAsync(ct);
-    }
-    private async Task SyncLegacyAsync(EventRegistrationApplication app, CancellationToken ct)
-    {
-        if (app.LegacyEnrollmentId is null) return;
-        var row = await db.EventEnrollments.FirstOrDefaultAsync(x => x.Id == app.LegacyEnrollmentId && x.EventId == app.EventId, ct);
-        if (row is null) return;
-        var person = app.Participants.Single(x => x.IsLegacy);
-        if (person.SeatStatus == row.Status) return;
-        db.EventEnrollmentHistory.Add(new() { Id = Guid.NewGuid(), EnrollmentId = row.Id, Status = row.Status, EnrollmentJson = row.EnrollmentJson, QueuedUtc = row.QueuedUtc, StatusChangedUtc = row.StatusChangedUtc, ArchivedUtc = DateTime.UtcNow });
-        row.Status = person.SeatStatus; row.StatusChangedUtc = DateTime.UtcNow; row.UpdatedUtc = DateTime.UtcNow; row.ConcurrencyToken = Guid.NewGuid();
+        if (activityOperations is not null) await activityOperations.ReconcileEventAsync(e.Id, ct);
     }
     public async Task ExpireDueAsync(CancellationToken ct)
     {
         var ids = await db.EventRegistrationApplications.AsNoTracking().Where(x => x.ReservationExpiresUtc <= DateTime.UtcNow && x.Participants.Any(p => p.SeatStatus == "reserved")).Select(x => x.EventId).Distinct().Take(100).ToArrayAsync(ct);
+        if (activityOperations is not null)
+        {
+            var projectIds = await db.EventActivityParticipations.AsNoTracking().Where(p => p.SeatStatus == "reserved" && p.ReservedUntilUtc <= DateTime.UtcNow).Select(p => p.Offer.EventId).Distinct().Take(100).ToArrayAsync(ct);
+            ids = ids.Concat(projectIds).Distinct().ToArray();
+        }
         foreach (var id in ids)
         {
             await using var tx = await db.BeginSerializableTransactionAsync(ct); await db.LockEventRegistrationAsync(id, ct);

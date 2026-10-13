@@ -5,7 +5,7 @@ import AppModal from '../layout/AppModal'
 import AppActionButton from '../layout/AppActionButton'
 import { ramService } from '../../services/ramGovernanceService'
 import { normalizeApiError } from '../../services/http'
-import { upgradeRam, type RamWorkspace } from '../../types/ramGovernance'
+import { parseRamDraft, type RamWorkspace } from '../../types/ramGovernance'
 import { useRamSync, RamSyncBadge, ramSyncErrorText } from './RamSyncPanel'
 
 export default function RamReviewModal({ eventId, zh, onClose, onReviewed }: { eventId: string; zh: boolean; onClose: () => void; onReviewed: () => Promise<void> }) {
@@ -16,7 +16,7 @@ export default function RamReviewModal({ eventId, zh, onClose, onReviewed }: { e
     if (data?.sync.isUpdated) void ramService.workspace(eventId).then(value => { if (live) setWorkspace(value) }).catch(e => { if (live) setFailure(normalizeApiError(e).message) })
     return () => { live = false }
   }, [eventId, data?.eTag, data?.sync.isUpdated])
-  const risks = workspace ? upgradeRam(workspace.assessment?.ramDataJson).hazards : []
+  const risks = workspace ? parseRamDraft(workspace.assessment?.ramDataJson).hazards : []
   const current = Boolean(data?.sync.isUpdated && workspace?.assessment?.eTag === data.eTag)
   const confirm = async () => {
     if (!data || !accepted || !current) return

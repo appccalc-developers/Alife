@@ -18,7 +18,7 @@ public sealed record RamPolicyPublishRequest(string ExpectedETag, bool ConfirmEv
 public sealed class RamActivity
 {
     public string Id { get; set; } = "";
-    public string Type { get; set; } = "generic";
+    [JsonRequired] public string[] Attributes { get; set; } = [];
     public RamText Name { get; set; } = new();
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public RamText? Conditions { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Guid? OccurrenceId { get; set; }
@@ -46,7 +46,7 @@ public sealed class RamRisk
 public sealed record RamAnswer(string ActivityId, string QuestionCode, RamText Answer, bool NotApplicable = false, RamText? Reason = null);
 public sealed class RamV2Draft
 {
-    public int SchemaVersion { get; set; } = 2;
+    [JsonRequired] public int SchemaVersion { get; set; } = 2;
     public RamActivity[] Activities { get; set; } = [];
     public RamRisk[] Hazards { get; set; } = [];
     public RamAnswer[] Answers { get; set; } = [];
@@ -59,7 +59,6 @@ public sealed class RamV2Draft
     public RamText WeatherConfirmation { get; set; } = new();
     public RamText Accommodation { get; set; } = new();
     public RamText Transport { get; set; } = new();
-    [JsonExtensionData] public Dictionary<string, JsonElement>? LegacyFields { get; set; }
 }
 public sealed record RamEvaluation(RamV2Draft Draft, string ResidualLevel, IReadOnlyList<string> Errors);
 public sealed record RamSaveRequest(string RamDataJson, Guid? PolicyVersionId, string ExpectedETag);

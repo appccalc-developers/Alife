@@ -1,5 +1,16 @@
 // Fixed bilingual copy for components/events/EventEnrollmentPanel.tsx.
 export const eventEnrollmentPanelText = {
+    loading: { en: 'Loading registration…', zh: '正在读取报名资料……' } as const,
+    registrationOpen: { en: 'Registration open', zh: '报名开放' } as const,
+    registrationClosed: { en: 'Registration closed', zh: '报名关闭' } as const,
+    signInToRegister: { en: 'Sign in to register', zh: '登录后报名' } as const,
+    signInHint: { en: 'Sign in with your member account to open the private registration workspace.', zh: '请使用会员账号登录后进入私密报名空间。' } as const,
+    myRegistration: { en: 'My registration', zh: '我的报名' } as const,
+    myParticipants: { en: (value0: unknown) => `${value0} participant(s) in this application`, zh: (value0: unknown) => `本申请共 ${value0} 位参加者` },
+    noCurrentRegistration: { en: 'No active registration is recorded for your account.', zh: '你的账号目前没有有效报名。' } as const,
+    openRegistrationWorkspace: { en: 'Open registration workspace', zh: '进入报名空间' } as const,
+    registrationUnavailable: { en: 'Registration details unavailable', zh: '暂时无法读取报名详情' } as const,
+    registrationUnavailableHint: { en: 'Open the private registration workspace to retry or review access.', zh: '请进入私密报名空间重试或检查访问权限。' } as const,
     cancelled: { en: 'Cancelled', zh: '已取消' } as const,
     waitlistPosition: { en: (value0: unknown) => `Waitlist position ${value0}`, zh: (value0: unknown) => `候补第 ${value0} 位` },
     confirmed: { en: 'Confirmed', zh: '正式报名' } as const,

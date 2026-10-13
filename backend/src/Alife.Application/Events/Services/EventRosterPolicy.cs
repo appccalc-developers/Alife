@@ -20,7 +20,7 @@ public static class EventRosterPolicy
     public static async Task<bool> AllowsOrdinaryStaffingAsync(IAlifeDbContext db, Guid eventId, CancellationToken ct)
     {
         var frozen = await EventPreparationPolicy.FrozenPackages(db, eventId).AsNoTracking().ToListAsync(ct);
-        return frozen.Count == 0 || frozen.All(x => x.RosterRulesVersion >= CurrentVersion);
+        return frozen.Count == 0 || frozen.All(x => x.RosterRulesVersion == CurrentVersion);
     }
 
     public static async Task<bool> IsReadyForExecutionAsync(IAlifeDbContext db, GroupEvent e, Guid? occurrenceId, CancellationToken ct)

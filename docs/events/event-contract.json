@@ -1,9 +1,7 @@
 {
   "schemaId": "alife.event-composition",
-  "schemaVersion": "1.1.0",
-  "acceptedLegacySchemaVersions": [
-    "1.0.0"
-  ],
+  "schemaVersion": "2.0.0",
+  "acceptedLegacySchemaVersions": [],
   "contractStatus": "targetArchitecture",
   "authorityOrder": [
     "AGENTS.md and security/privacy/cache invariants",
@@ -11,6 +9,23 @@
     "event-contract.json exact codes, enums and references",
     "Explanatory examples"
   ],
+  "event2Reset": {
+    "documentation": "EVENT-2-RESET.md",
+    "scope": "all Event instances and Event-scoped operational data; preserve templates, policy versions, workflow templates, venue resources and every non-Event domain",
+    "command": "Alife.DbMigrator --Events:PurgeInstances=preview|apply|verify",
+    "productionGate": "protected workflow_dispatch environment production-event-reset; verified SQL/R2 recovery references; common freeze epoch; matching code, target, schema and human-approved preview fingerprint",
+    "recoveryBucket": "pre-created non-public R2 bucket ccalc-event-reset-recovery, separate from source ccalc and bound as EVENT_RESET_RECOVERY_BUCKET; normal application identity cannot read recovery objects",
+    "fileSecrets": "EVENT_RESET_FILE_API_TOKEN, EVENT_RESET_FILE_SIGNING_SECRET, EVENT_RESET_FILE_FINALIZE_TOKEN and EVENT_RESET_FILE_FINALIZE_SIGNING_SECRET are pairwise distinct, each at least 32 characters, mapped to separate Images Worker admin/signing/finalize/finalize-signing bindings; missing, short or duplicate values fail closed",
+    "fileKeys": "exact UTF-8 object keys are at most 1024 bytes and 1024 characters, with no leading/trailing slash, backslash, controls, ? * [ ], empty or dot path component; source keys cannot start quarantine/; recovery and derived .metadata.json sidecar keys must independently satisfy these rules and recovery keys start quarantine/event-reset/",
+    "transaction": "sp_getapplock plus SERIALIZABLE; recompute fingerprint and compare exact row counts before commit",
+    "persistentDataEpoch": "EVENT_DATA_EPOCH is a required production identifier; it scopes backend HybridCache, Speed Layer Cache API/KV/logical Event keys and Event Durable Object names, equals the approved reset epoch during protected reset, and remains after unfreeze",
+    "backendSqlPhase": "after write drain and scheduled-job acknowledgement the Azure Function App is proved Stopped for three consecutive control-plane probes for preview/apply/verify; an always-run recovery step restarts it frozen after success or intermediate failure, and successful evidence requires re-verification",
+    "retentionDays": 30,
+    "browserDraftEpoch": 3,
+    "eventSessionEpoch": 2,
+    "ordinaryStartupMayPurge": false,
+    "ordinaryDeploymentMayPurge": false
+  },
   "eventDetailsAssistant": {
     "contractVersion": 1,
     "documentation": "AI-DETAILS-ASSISTANT.md",
@@ -56,7 +71,6 @@
     "sharedAssistantPolicyVersion": "1.0.0",
     "localDraftVersion": 3,
     "acceptedLocalDraftVersions": [
-      2,
       3
     ],
     "recurrenceIntervalWeeks": {
@@ -149,7 +163,8 @@
     ],
     "privacy": "exclude backend records, member/participant lists, uploads and approval records from provider context; activity-plan context is limited to the current bilingual Event title and description",
     "dates": "existing device-local form time basis; explicit IANA zone; validate local times and registration pair before atomic adoption; existing UTC save contract",
-    "presentation": "shared responsive details workspace, conversation/voice, send-left/voice-right action row, completion and pending-field focus; activity-plan and registration assistants use approximately one and a half viewport heights with internal conversation scrolling; all registration bilingual fields use current-language-first disclosure"
+    "presentation": "shared responsive details workspace, conversation/voice, send-left/voice-right action row, completion and pending-field focus; activity-plan and registration assistants use approximately one and a half viewport heights with internal conversation scrolling; all registration bilingual fields use current-language-first disclosure",
+    "activityFormat": "required fixed attributes arrays; existing actual activity IDs/occurrence links retained; no activity type or dynamic code-list input"
   },
   "enums": {
     "governanceMode": [
@@ -177,8 +192,7 @@
     "factSource": [
       "human",
       "trustedContext",
-      "aiCandidate",
-      "legacyBackfill"
+      "aiCandidate"
     ],
     "moduleDecisionStatus": [
       "required",
@@ -289,12 +303,6 @@
       "off",
       "dryRun",
       "enforced"
-    ],
-    "legacyEventPackageTransition": [
-      "formalPackageRequired",
-      "legacyReadOnlyPackage",
-      "timeLimitedCompatibility",
-      "safetyCriticalBlocked"
     ],
     "eventChangeClassification": [
       "cosmetic",
@@ -459,28 +467,8 @@
         ],
         "default": "delegationDisabledUnlessExplicitlyEnabled"
       },
-      "legacyRollout": {
-        "modes": [
-          "off",
-          "dryRun",
-          "enforced"
-        ],
-        "requiredFields": [
-          "effectiveFromUtc",
-          "transitionDeadlineUtc",
-          "cohortRule",
-          "safetyCriticalModuleCodes",
-          "transitionByMode"
-        ],
-        "transitionByMode": {
-          "off": "legacyReadOnlyPackage",
-          "dryRun": "timeLimitedCompatibility",
-          "enforced": "formalPackageRequired"
-        },
-        "safetyCriticalOverride": "safetyCriticalBlocked"
-      },
       "unknownPropertyRule": "failClosed",
-      "authorityRule": "Only an immutable published policy version can set tiers, thresholds, authority, validity, change classification, delegation or rollout."
+      "authorityRule": "Only an immutable published policy version can set tiers, thresholds, authority, validity, change classification or delegation. Enforcement mode belongs to that published policy version and never fabricates an approval."
     }
   },
   "eventPackageApproval": {
@@ -546,6 +534,7 @@
       "event.package.condition.open",
       "event.package.condition.expired",
       "event.execute.occurrenceReviewRequired",
+      "event.execute.childProjectConsentRequired",
       "event.payment.capabilityUnavailable",
       "event.specialistApproval.missing",
       "event.specialistApproval.expired",
@@ -554,7 +543,6 @@
       "event.publicCopy.notApproved",
       "event.readiness.blocked",
       "event.execution.confirmationMissing",
-      "event.legacy.transitionRequired",
       "event.authorization.denied"
     ],
     "postInvalidationActions": [
@@ -590,26 +578,27 @@
       }
     ],
     "planB": "deferred",
-    "rosterRulesVersion": "New Package version 2; historical default 1; ordinary staffing excluded from approved configuration and checked live before per-date execution"
+    "rosterRulesVersion": "Package roster rules version 2; ordinary staffing is excluded from approved configuration and checked live before per-date execution"
   },
   "invariants": [
     "One Event has exactly one owningGroupId and one accountable owner.",
     "Visibility and sponsorship are independent dimensions.",
     "A Child Event has at most one parent level.",
     "Every Event has at least one EventOccurrence; one-off Events have exactly one initial occurrence.",
-    "Every schema 1.1 creation has one globally unique activityTypeCode belonging to its archetype; legacy snapshots keep it null.",
+    "Every schema 2.0 creation has one globally unique activityTypeCode belonging to its archetype.",
     "The four archetype codes and their structure/security semantics are immutable system settings; event templates may be created only inside those four categories.",
-    "The event-template catalogue starts with sixteen system presets at version 2. Template code and archetypeCode are immutable; edit, activate and deactivate create an audited next version.",
-    "Only the current active template version is accepted for schema 1.1 compose, recompose and create. Deactivation never rewrites an existing Event or EventPlanSnapshot.",
-    "Activity-type presets never confirm child, RAM, transport, money, venue or capacity facts, and MONEY.FINANCE is never type-preselected.",
+    "The sixteen historical template lines are retained; an explicit audited initializer creates 2.0-capable current successors with the sixteen current project questions while preserving current administrator settings and every immutable historical version.",
+    "Only current active 2.0-capable templates are accepted for new creation. Deactivation never rewrites an existing 2.0 Event or EventPlanSnapshot; saved recompose reads its accepted template version and persisted Activity Plan.",
+    "Template presets never confirm Event facts, safety approvals, fees, locations, attendance or organized transport. In schema 2.0 actual projects and their applicable answers plus Event-level decisions drive module requirements; attributes remain independent and MONEY.FINANCE is never inferred from template code.",
     "Every initial system-preset activity type version 2 preselects SERVICE.ROSTER and supplies a non-empty, bilingual, editable presetServiceSlots list. Any later template that preselects SERVICE.ROSTER must do the same; accepting a plan creates unassigned slots per occurrence with that occurrence's start/end, while declining SERVICE.ROSTER creates none. Explicit reviewed creation serviceSlots replace those defaults; an omitted array preserves them.",
+    "Schema 2.0 requires an explicit activityPlan with questionnaireVersion 2, preserves stable actual project IDs and rejects creation until retained template presets and template-selected yes switches are manually confirmed. Answers never rewrite attributes or Event-level facts.",
     "Preset service-slot counts are planning defaults only: they never establish safeguarding policy, worker-to-child ratios, eligibility policy or member assignment.",
     "Missing or candidate facts never satisfy a confirmed false condition.",
     "Compose and recompose never mutate persisted event state.",
     "Only explicit human acceptance creates an immutable EventPlanSnapshot.",
     "An accepted snapshot retains every referenced archetype, module and policy version.",
     "A module with persisted operational data cannot be removed silently. Explicit saved-draft tool deselection retains its records and snapshots; it is not data retirement.",
-    "Generic EventWorkflowRun, Step, Artifact and template APIs are retired. Historical tables and stored Plan fields remain untouched, and new Events create no generic workflow records.",
+    "Generic EventWorkflowRun, Step and Artifact instance APIs and tables are removed after the reset. Versioned workflow templates remain preserved definitions; new Events create no generic workflow instances.",
     "AI cannot confirm facts, assign authority, approve, waive, sponsor, persist or publish.",
     "Unknown modules, policies, enum values and surface keys fail closed.",
     "Product wire text remains { en, zh }; document locale zh-Hant does not change the key.",
@@ -621,9 +610,9 @@
     "Approval never automatically publishes, opens registration, accepts payment or confirms execution.",
     "A Package for a Child Event is independent; Series state and parent approval never approve it.",
     "Package generation and submission fail on any changed required source rather than persisting mixed-time evidence.",
-    "Existing Events receive no invented Package approval and enter enforcement only through an audited rollout policy.",
+    "Event 2.0 lifecycle gates never invent Package approval. Off and dryRun report unmet requirements without blocking solely on Package approval; enforced blocks until the current requirements are satisfied.",
     "Plan B is not planned; revise the Event design guidance before introducing it or automated contingency activation.",
-    "New Events fix accountableOwnerMemberId to the authenticated creator; a different legacy request value is rejected. Ownership invitations, including pending legacy transfers, cannot change ownership. Existing stored owners and decisions are preserved; a missing legacy owner resolves only to the creator.",
+    "New Events fix accountableOwnerMemberId to the authenticated creator; a different request value is rejected. Ownership invitations cannot change ownership, and every Event 2.0 owner and decision remains explicit and auditable.",
     "Only the accountable owner edits Event details, Plan and preparation configuration. Group leadership and accepted event.lead, ram.author or ram.approver do not grant Event-plan editing; specialist module actions and independent review retain their own authority.",
     "Each Event role has one explicit ordered candidate group in one enabled module. Assignments and substitutions require group membership plus existing eligibility and availability; no whole-group fallback or automatic rotation. Candidate status grants neither module authority nor acceptance."
   ],
@@ -678,7 +667,7 @@
     },
     {
       "code": "ADR-13",
-      "decision": "Package enforcement uses off, dryRun and enforced modes; legacy Events never receive invented approvals and rollout remains reversible."
+      "decision": "Package enforcement uses off, dryRun and enforced modes. Mode changes never invent, reactivate or rewrite an approval."
     }
   ],
   "aggregates": [
@@ -696,12 +685,13 @@
         "preselectedModules",
         "recommendedWorkflowTemplateCode",
         "presetServiceSlots",
+        "presetProjects",
         "isActive",
         "isSystemPreset",
         "createdBy",
         "concurrencyToken"
       ],
-      "implementedAs": "current event_activity_template_versions table seeded with 16 system presets; code and archetypeCode are immutable after creation"
+      "implementedAs": "event_activity_template_versions; immutable original v2 EF seeds remain; explicit initialization copies current rows into successor versions with presetProjects while retaining earlier bodies and administrator settings"
     },
     {
       "code": "EventSeries",
@@ -726,7 +716,7 @@
         "sponsorshipStatus",
         "activePlanVersion"
       ],
-      "implementedAs": "GroupEvent during compatibility phases"
+      "implementedAs": "current GroupEvent persistence root"
     },
     {
       "code": "EventOccurrence",
@@ -748,7 +738,7 @@
         "executionGateMode",
         "executionConcurrencyToken"
       ],
-      "implementedAs": "current event_composition_occurrences table; one row per legacy GroupEvent backfill"
+      "implementedAs": "current event_composition_occurrences table; one or more occurrence rows per Event"
     },
     {
       "code": "Session",
@@ -923,15 +913,15 @@
     },
     {
       "code": "EventChildRegistration",
-      "cardinality": "0..* per Event; exactly one existing EventEnrollment reference",
+      "cardinality": "0..* per Event; exactly one same-Event EventRegistrationParticipant reference",
       "owns": [
-        "enrollmentId",
-        "childMemberId",
+        "registrationParticipantId",
+        "optionalChildMemberId",
         "optionalPhotoUrl",
         "active",
         "concurrencyToken"
       ],
-      "implementedAs": "current event_safeguarding_child_registrations roleRestricted table; child status is explicit, never age-inferred"
+      "implementedAs": "current event_safeguarding_child_registrations roleRestricted table; child status is explicit and never age-inferred"
     },
     {
       "code": "EventChildGuardianRelationship",
@@ -1149,7 +1139,6 @@
       "code": "EventTask",
       "cardinality": "0..* per Event",
       "owns": [
-        "workflowStepId",
         "localizedTitle",
         "localizedDescription",
         "assignedMemberId",
@@ -1160,7 +1149,7 @@
         "restricted",
         "concurrencyToken"
       ],
-      "implementedAs": "current event_operations_tasks table; optional link to the single EventWorkflowStep engine"
+      "implementedAs": "current event_operations_tasks table; Event 2.0 tasks are independent of the retired generic workflow instance engine"
     },
     {
       "code": "EventTaskDependency",
@@ -1271,7 +1260,19 @@
     "unknownFactRule": "unknown and candidate facts do not equal false and cannot deactivate a safety, privacy, sponsorship or authority requirement",
     "proposalRule": "composition returns an immutable proposal value with proposalHash and no side effects",
     "acceptanceRule": "server recomputes, compares proposalHash and If-Match, applies idempotency, then creates a new immutable snapshot",
-    "retirementRule": "a module with data, money, files, roles, submissions or approvals enters a blocking retirement workflow"
+    "retirementRule": "a module with data, money, files, roles, submissions or approvals enters a blocking retirement workflow",
+    "projectRequirements": {
+      "schema": "2.0.0 only; Event 1.x payloads and stored instances have no runtime compatibility contract after the authorised reset",
+      "input": "explicit draft ActivityPlanData during creation; activityTypeVersion pins reviewed template (required when presets exist) and removedPresetKeys explicitly account for deleted presets; saved recompose/accept replaces client projects with the authorized persisted Activity Plan",
+      "templateConcurrency": "creation against a preset-bearing template requires its current activityTypeVersion; mismatch returns HTTP 412; retained sourcePresetKeys and removedPresetKeys must be a disjoint exact partition of that version's preset keys, with no duplicates/unknown keys. Saved Event recompose does not compare against later template versions",
+      "attributes": "hiking, water, camp and outdoor require SAFETY.RAM; no attribute is automatically added and Event-level flags remain separately edited",
+      "answers": "2.0 uses eight explicit yes/no project switches, eight attribute-filtered specialist questions and three tri-state Event facts; an applicable project yes or confirmed Event yes adds demand, no in another project cannot cancel it, and mandatory facts/policy prevail. Inactive attribute-specific answers remain stored but create no demand",
+      "switchIndependence": "2.0 common switches are independent; age, capacity, fee, minors, space, roster or programme never imply projectSelection. Project policy and draft occurrence offer can be saved with projectSelection=no. Only projectSelection=yes conflicts with Event registrationMode=none",
+      "formalSubmission": "2.0 drafts may keep unknown Event facts and specialist answers; formal Package submission requires human-sourced certainty=confirmed boolean values for safety.requiresRam, comms.followupRequired and scale.multiZone, human-confirmed yes/no on each applicable specialist question, confirmed template-origin project review and confirmation of template-selected yes switches",
+      "dependencies": "required and selected project modules retain dependency closure even when an unrelated tool is deselected",
+      "unavailable": "FESTIVAL.OPERATIONS remains inactive; a demanded unavailable capability adds a readiness blocker rather than creating a placeholder flow",
+      "proposal": "activityPlanHash, questionnaireVersion, projectSources, Event-level fact answers and sorted removedPresetKeys participate in the current proposal hash; project source entries bind moduleCode to actual activityId and questionCodes, Event decisions identify Event-level origins; removal keys are audited at creation; saved accept recomputes against the stored Activity Plan"
+    }
   },
   "modules": [
     {
@@ -2329,7 +2330,7 @@
   "activityTypes": [
     {
       "code": "shared-meal",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "simple-social",
       "name": {
         "en": "Shared meal",
@@ -2389,11 +2390,46 @@
           "requiredCount": 2,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "shared-meal",
+          "name": {
+            "en": "Shared meal",
+            "zh": "共同用餐"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [
+            "meal"
+          ],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "yes",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "fellowship-social",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "simple-social",
       "name": {
         "en": "Fellowship social",
@@ -2443,11 +2479,44 @@
           "requiredCount": 2,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "fellowship",
+          "name": {
+            "en": "Fellowship and conversation",
+            "zh": "联谊交流"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "local-outing",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "simple-social",
       "name": {
         "en": "Local outing",
@@ -2499,11 +2568,44 @@
           "requiredCount": 1,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "visit",
+          "name": {
+            "en": "Visits and sightseeing",
+            "zh": "参访游览"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "outdoor-activity",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "simple-social",
       "name": {
         "en": "Outdoor activity",
@@ -2555,11 +2657,46 @@
           "requiredCount": 1,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "outdoor-project",
+          "name": {
+            "en": "Outdoor activity",
+            "zh": "户外项目"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [
+            "outdoor"
+          ],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "yes",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "church-camp",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "camp-retreat",
       "name": {
         "en": "Church camp",
@@ -2632,11 +2769,110 @@
           "requiredCount": 3,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "main-gathering",
+          "name": {
+            "en": "Themed gathering",
+            "zh": "主题聚会"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        },
+        {
+          "presetKey": "overnight-stay",
+          "name": {
+            "en": "Overnight stay",
+            "zh": "住宿安排"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [
+            "camp"
+          ],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "yes",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        },
+        {
+          "presetKey": "shared-meal",
+          "name": {
+            "en": "Shared meal",
+            "zh": "共同用餐"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [
+            "meal"
+          ],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "yes",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "spiritual-retreat",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "camp-retreat",
       "name": {
         "en": "Spiritual retreat",
@@ -2700,11 +2936,77 @@
           "requiredCount": 2,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "devotional-sharing",
+          "name": {
+            "en": "Devotional reflection and sharing",
+            "zh": "灵修分享"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        },
+        {
+          "presetKey": "overnight-stay",
+          "name": {
+            "en": "Overnight stay",
+            "zh": "住宿安排"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [
+            "camp"
+          ],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "yes",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "children-youth-camp",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "camp-retreat",
       "name": {
         "en": "Children/youth camp",
@@ -2769,11 +3071,110 @@
           "requiredCount": 2,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "group-camp-activity",
+          "name": {
+            "en": "Camp group activities",
+            "zh": "分组营会活动"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "yes",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        },
+        {
+          "presetKey": "overnight-stay",
+          "name": {
+            "en": "Overnight stay",
+            "zh": "住宿安排"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [
+            "camp"
+          ],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "yes",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        },
+        {
+          "presetKey": "shared-meal",
+          "name": {
+            "en": "Shared meal",
+            "zh": "共同用餐"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [
+            "meal"
+          ],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "yes",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "training-camp",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "camp-retreat",
       "name": {
         "en": "Training camp",
@@ -2837,11 +3238,77 @@
           "requiredCount": 2,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "training-course",
+          "name": {
+            "en": "Training course",
+            "zh": "培训课程"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        },
+        {
+          "presetKey": "overnight-stay",
+          "name": {
+            "en": "Overnight stay",
+            "zh": "住宿安排"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [
+            "camp"
+          ],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "yes",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "small-group-fellowship",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "recurring-gathering",
       "name": {
         "en": "Small-group fellowship",
@@ -2892,11 +3359,44 @@
           "requiredCount": 1,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "group-sharing",
+          "name": {
+            "en": "Small-group sharing",
+            "zh": "小组分享"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": true
+        }
       ]
     },
     {
       "code": "worship-service",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "recurring-gathering",
       "name": {
         "en": "Worship service",
@@ -2956,11 +3456,44 @@
           "requiredCount": 1,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "worship-message",
+          "name": {
+            "en": "Worship and message",
+            "zh": "敬拜与信息"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": true
+        }
       ]
     },
     {
       "code": "bible-study-course",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "recurring-gathering",
       "name": {
         "en": "Bible study/course",
@@ -3012,11 +3545,44 @@
           "requiredCount": 1,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "study-discussion",
+          "name": {
+            "en": "Bible study and discussion",
+            "zh": "查经与讨论"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": true
+        }
       ]
     },
     {
       "code": "prayer-meeting",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "recurring-gathering",
       "name": {
         "en": "Prayer meeting",
@@ -3058,11 +3624,44 @@
           "requiredCount": 1,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "prayer",
+          "name": {
+            "en": "Shared prayer",
+            "zh": "共同祷告"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": true
+        }
       ]
     },
     {
       "code": "community-festival",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "festival-celebration",
       "name": {
         "en": "Community festival",
@@ -3135,11 +3734,75 @@
           "requiredCount": 3,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "community-interaction",
+          "name": {
+            "en": "Community interaction",
+            "zh": "社区互动"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        },
+        {
+          "presetKey": "live-programme",
+          "name": {
+            "en": "Live programme",
+            "zh": "现场节目"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "church-celebration",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "festival-celebration",
       "name": {
         "en": "Church celebration",
@@ -3212,11 +3875,75 @@
           "requiredCount": 3,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "celebration-programme",
+          "name": {
+            "en": "Celebration programme",
+            "zh": "庆典节目"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        },
+        {
+          "presetKey": "welcome-conversation",
+          "name": {
+            "en": "Welcome and conversation",
+            "zh": "交流接待"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "public-outreach",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "festival-celebration",
       "name": {
         "en": "Public outreach",
@@ -3279,11 +4006,44 @@
           "requiredCount": 4,
           "eligibilityCode": "approvedGroupMember"
         }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "outreach-conversation",
+          "name": {
+            "en": "Outreach conversation",
+            "zh": "外展交流"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "no",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
+        }
       ]
     },
     {
       "code": "concert-performance",
-      "version": 2,
+      "version": 4,
       "archetypeCode": "festival-celebration",
       "name": {
         "en": "Concert/performance",
@@ -3354,6 +4114,39 @@
           },
           "requiredCount": 4,
           "eligibilityCode": "approvedGroupMember"
+        }
+      ],
+      "presetProjects": [
+        {
+          "presetKey": "stage-performance",
+          "name": {
+            "en": "Stage performance",
+            "zh": "舞台演出"
+          },
+          "conditions": {
+            "en": "",
+            "zh": ""
+          },
+          "attributes": [],
+          "defaultAnswers": {
+            "projectSelection": "no",
+            "ageEligibility": "no",
+            "capacityLimit": "no",
+            "projectFee": "no",
+            "minorsParticipate": "no",
+            "spaceReservation": "no",
+            "serviceTeam": "no",
+            "programmeProduction": "yes",
+            "foodService": "unknown",
+            "organizedTransport": "unknown",
+            "organizedStay": "unknown",
+            "hikingRouteSafety": "unknown",
+            "waterSafety": "unknown",
+            "sportSafety": "unknown",
+            "weatherPlan": "unknown",
+            "fitnessAttestation": "unknown"
+          },
+          "repeatForEachOccurrence": false
         }
       ]
     }
@@ -3979,7 +4772,7 @@
       "method": "GET",
       "path": "/api/admin/event-templates",
       "request": "search, archetypeCode, active status, sort and page filters",
-      "response": "four immutable AdminEventArchetypeDto categories plus paged current template versions and controlled options",
+      "response": "four immutable AdminEventArchetypeDto categories, paged current template versions with presetProjects, controlled options and required fixed questionDefinitions",
       "auth": "admin.events.manageTemplates",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false
@@ -3987,7 +4780,7 @@
     {
       "method": "POST",
       "path": "/api/admin/event-templates",
-      "request": "CreateAdminEventActivityTemplateRequest with one fixed archetypeCode",
+      "request": "CreateAdminEventActivityTemplateRequest with fixed archetypeCode and required presetProjects array; each defaultAnswers uses fixed question codes and yes/no/unknown; optional defaultConfiguration contains only nullable organiser-review hints",
       "response": "AdminEventActivityTemplateDto version 1",
       "auth": "admin.events.manageTemplates",
       "cache": "private, no-store; Vary Cookie and Authorization",
@@ -3998,7 +4791,7 @@
     {
       "method": "PUT",
       "path": "/api/admin/event-templates/{code}",
-      "request": "UpdateAdminEventActivityTemplateRequest; code and archetypeCode absent and immutable",
+      "request": "UpdateAdminEventActivityTemplateRequest with required presetProjects array and optional nullable defaultConfiguration per project; code and archetypeCode absent and immutable; explicit [] removes presets only from the next version",
       "response": "AdminEventActivityTemplateDto next version",
       "auth": "admin.events.manageTemplates",
       "cache": "private, no-store; Vary Cookie and Authorization",
@@ -4010,7 +4803,7 @@
       "method": "GET",
       "path": "/api/event-archetypes",
       "request": "groupId query optional",
-      "response": "EventArchetypeDto[] including only current active templates grouped under the four immutable archetypes",
+      "response": "EventArchetypeDto[] including only current active templates with presetProjects grouped under the four immutable archetypes",
       "auth": "authenticated",
       "cache": "private, no-store",
       "mutation": false
@@ -4018,8 +4811,8 @@
     {
       "method": "POST",
       "path": "/api/groups/{groupId}/event-plans/compose",
-      "request": "EventPlanComposeRequest; optional moduleConfirmations maps twelve module codes to independent review booleans; arrangementConfirmations retained as derived legacy section summary",
-      "response": "EventPlanProposalDto",
+      "request": "complete EventPlanComposeRequest with schemaVersion 2.0.0, ActivityPlanData questionnaireVersion 2, tri-state Event facts, current activityTypeVersion, removedPresetKeys and complete moduleConfirmations; Event 1.x returns 400 event.schema.unsupported",
+      "response": "EventPlanProposalDto with activityPlanHash, projectSources: {moduleCode, activityId, questionCodes}[] and Event-level module sources in schema 2.0",
       "auth": "event.compose",
       "cache": "private, no-store",
       "mutation": false
@@ -4027,8 +4820,8 @@
     {
       "method": "POST",
       "path": "/api/groups/{groupId}/events",
-      "request": "existing CreateGroupEventRequest plus optional composition, SeriesSetup and arrangements (CREATION-ARRANGEMENTS.md); workflowTemplateCode is no longer accepted",
-      "response": "GroupEventSummaryDto with optional plan metadata and current publication projection; composition-backed creation starts draft with registration closed; legacy clients remain compatible",
+      "request": "CreateGroupEventRequest with complete schema-2.0 composition, SeriesSetup and arrangements; matching explicit project lists require questionnaireVersion 2, confirmed retained presets and template-selected yes switches, explicit Event fact answers, current activityTypeVersion, removedPresetKeys and moduleConfirmations; stale template HTTP 412; Event 1.x returns 400 event.schema.unsupported",
+      "response": "GroupEventSummaryDto with required Plan metadata and current publication projection; every creation starts draft with registration closed",
       "auth": "existing group management",
       "cache": "no-store",
       "mutation": true,
@@ -4038,7 +4831,7 @@
       "method": "GET",
       "path": "/api/events/{id}/plan",
       "request": null,
-      "response": "EventPlanSnapshotDto; current moduleConfirmations and legacy section summary project audited changes as false; accepted historical snapshots remain immutable",
+      "response": "EventPlanSnapshotDto with complete moduleConfirmations; accepted schema-2.0 snapshots remain immutable",
       "auth": "viewer filtered by event and data class",
       "cache": "private, no-store",
       "mutation": false,
@@ -4047,8 +4840,8 @@
     {
       "method": "POST",
       "path": "/api/events/{id}/plan/recompose",
-      "request": "EventPlanComposeRequest; optional moduleConfirmations maps twelve module codes to independent review booleans; arrangementConfirmations retained as derived legacy section summary",
-      "response": "EventPlanProposalDto",
+      "request": "complete schema-2.0 EventPlanComposeRequest using the authorized server-stored ActivityPlanData, questionnaireVersion 2, current Event facts, accepted template version and moduleConfirmations; later compatible template publication does not block saved Event recompose",
+      "response": "EventPlanProposalDto with activityPlanHash, projectSources: {moduleCode, activityId, questionCodes}[] and Event-level module sources in schema 2.0",
       "auth": "event.compose",
       "cache": "private, no-store",
       "mutation": false,
@@ -4221,7 +5014,7 @@
       "method": "GET",
       "path": "/api/events/{id}/lifecycle-gates",
       "request": "optional occurrenceId query",
-      "response": "EventLifecycleDto with structured bilingual Publish, Registration, Payment and Execute gate results; Payment is fail-closed with capabilityUnavailable until a payment boundary exists",
+      "response": "EventLifecycleDto with structured bilingual Publish, Registration, Payment and Execute gate results; Execute includes the current generic child-project-consent blocker for confirmed child participations in the Event or requested occurrence; Payment is fail-closed with capabilityUnavailable until a payment boundary exists",
       "auth": "viewer-specific event access; protected details filtered by permission",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false
@@ -4278,7 +5071,7 @@
       "method": "POST",
       "path": "/api/events/{id}/execution/confirm",
       "request": "ConfirmEventExecutionRequest with scope and no actor identity",
-      "response": "Event execution readiness summary and gate evidence version",
+      "response": "Event execution readiness summary and gate evidence version; current confirmed child project participation may hard-block with generic event.execute.childProjectConsentRequired even under Off/DryRun governance, without child identity or evidence",
       "auth": "event.execution.confirm",
       "cache": "no-store",
       "mutation": true,
@@ -4880,7 +5673,7 @@
     {
       "method": "POST",
       "path": "/api/events/{id}/safeguarding/children",
-      "request": "CreateEventChildRegistrationRequest referencing existing EventEnrollment",
+      "request": "CreateEventChildRegistrationRequest with exactly one same-Event enrollmentId or explicit current child registrationParticipantId",
       "response": "EventSafeguardingWorkspaceDto",
       "auth": "safeguarding.manage",
       "cache": "private, no-store",
@@ -5075,48 +5868,21 @@
     },
     {
       "method": "GET",
-      "path": "/api/events/{eventId}/ram",
-      "request": "none",
-      "response": "EventRamAssessmentDto, legacy fields plus version/validity/ETag",
-      "auth": "RAM reader",
-      "cache": "private, no-store; Vary Cookie and Authorization",
-      "mutation": false
-    },
-    {
-      "method": "PUT",
-      "path": "/api/events/{eventId}/ram",
-      "request": "RamDataJson; SchemaVersion=2, PolicyVersionId, ExpectedETag for v2",
-      "response": "server-calculated EventRamAssessmentDto; legacy overwrite rejected for v2",
-      "auth": "Event manager or accepted ram.author",
-      "cache": "private, no-store; Vary Cookie and Authorization",
-      "mutation": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/events/{eventId}/ram/submit",
-      "request": "RamActionRequest and Idempotency-Key; old empty requests require upgrade",
-      "response": "confirmed immutable revision submitted for independent review",
-      "auth": "RAM editor",
-      "cache": "private, no-store; Vary Cookie and Authorization",
-      "mutation": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/events/{eventId}/ram/approve",
-      "request": "RamActionRequest and Idempotency-Key; red requires healthSafetySigned and reason",
-      "response": "review decision; no Event publication",
-      "auth": "admin.events.audit plus church membership and independent actor",
-      "cache": "private, no-store; Vary Cookie and Authorization",
-      "mutation": true
-    },
-    {
-      "method": "GET",
       "path": "/api/events/{eventId}/ram/workspace",
       "request": "none",
       "response": "assessment, referenced/latest published policy, allowed history/actions, accepted on-site candidates, capabilities and private read-only complete accepted Event Plan context",
       "auth": "RAM reader",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{eventId}/ram/workspace",
+      "request": "RamWorkspaceSaveRequest {schemaVersion=2,ramDataJson,policyVersionId,expectedETag}; fixed activity attributes are required",
+      "response": "server-calculated EventRamAssessmentDto; old-format payloads rejected without conversion",
+      "auth": "Event manager or accepted ram.author",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
     },
     {
       "method": "GET",
@@ -5321,7 +6087,7 @@
       "method": "GET",
       "path": "/api/events/ram-authoring/access",
       "request": "eventId OR groupId",
-      "response": "minimal sourceVersion for Worker authorization",
+      "response": "sourceVersion and fixed generic-plus-seven scope codes for authorized Worker use",
       "auth": "creation-group authority OR saved RAM editor",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false
@@ -5338,7 +6104,7 @@
     {
       "method": "POST",
       "path": "/api/events/form-assistance",
-      "request": "eventId, tasks/registration/activityPlan scope, revision, language, IANA timeZone, allowlisted form, optional title/description context, message and bounded history",
+      "request": "eventId, tasks/registration/activityPlan scope, revision, language, IANA timeZone, allowlisted form, optional title/description context, message and bounded history; every activity carries required fixed attributes array and actual ID; no type or dynamic activityTypes catalogue input",
       "response": "validated form, adoptedFields, bilingual assistantReply and matching revision; never save",
       "auth": "Worker verifies current backend task manager/preparation edit, registration rule edit, or activity-plan edit authority",
       "cache": "private, no-store; Vary Cookie and Authorization",
@@ -5347,7 +6113,7 @@
     {
       "method": "POST",
       "path": "/api/events/ram-assistance",
-      "request": "reviewed allowlisted brief/snippet and authorized scope/sourceVersion",
+      "request": "reviewed allowlisted brief/snippet, required fixed attributes array, generic-or-selected risk activityType, category/language and authorized scope/sourceVersion",
       "response": "text suggestions/questions/sourceVersion; never save",
       "auth": "Worker verifies origin creation/RAM edit authority",
       "cache": "private, no-store; Vary Cookie and Authorization",
@@ -5355,18 +6121,9 @@
     },
     {
       "method": "GET",
-      "path": "/api/events/{eventId}/enrollments/capacity",
-      "request": "none",
-      "response": "capacity, confirmed, waitlisted, overCapacity, isOpen, canManage",
-      "auth": "current approved group member",
-      "cache": "private, no-store; Vary Cookie and Authorization",
-      "mutation": false
-    },
-    {
-      "method": "GET",
       "path": "/api/events/{eventId}/roster/page",
       "request": "page (four future occurrences), optional focusOccurrenceId to resolve an invitation link to its future page",
-      "response": "EventRosterPageDto; canManage indicates version-1 published accepted-coordinator batch authority (version-0 owner/coordinator compatibility), while canConfigure retains separate preparation configuration authority",
+      "response": "EventRosterPageDto; canManage indicates published accepted-coordinator batch authority, while canConfigure retains separate preparation configuration authority",
       "auth": "current coordinator/owner/candidate/assignee; private viewer-filtered projection",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false
@@ -5376,7 +6133,7 @@
       "path": "/api/events/{eventId}/roster/batch",
       "request": "EventRosterBatchRequest + Idempotency-Key",
       "response": "EventRosterDto[] or atomic conflict",
-      "auth": "version 1: published Event and current accepted SERVICE.ROSTER:roster.coordinator role; version 0: current roster coordinator/owner compatibility; frozen/critical rules",
+      "auth": "published Event and current accepted SERVICE.ROSTER:roster.coordinator role; frozen/critical rules",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true
     },
@@ -5394,7 +6151,7 @@
       "path": "/api/events/{eventId}/roster/extend",
       "request": "If-Match defaultsETag; no people",
       "response": "EventRosterPageDto",
-      "auth": "current roster coordinator/owner; default version and legacy freeze checks",
+      "auth": "current roster coordinator/owner; current default-version ETag and approval-freeze checks",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true
     },
@@ -5572,7 +6329,7 @@
     {
       "method": "POST",
       "path": "/api/internal/ram/identify",
-      "request": "bounded aggregate signals and request-local real activity keys/types; no raw personal text",
+      "request": "bounded aggregate signals and request-local actual activities {key,attributes:string[]}; fixed scope codes only; output risk scope generic or explicitly present on the same key; no raw personal text",
       "response": "bounded bilingual risk candidates",
       "auth": "dedicated RAM_SYNC_API_TOKEN on speed layer; no user authorization or cache token",
       "cache": "private, no-store; Vary Authorization; user routes also Vary Cookie",
@@ -5582,7 +6339,7 @@
       "method": "GET",
       "path": "/api/events/{id}/activity-plan",
       "request": "none",
-      "response": "ActivityPlanView: data, eTag, canEdit, legacyCandidate, adopted reports",
+      "response": "ActivityPlanView: data including optional defaultConfiguration hints, eTag, canEdit, reports, published-policy checkItems or null, fixed questionDefinitions and registrationMode; no legacyCandidate or attribute catalogue metadata",
       "auth": "current Event plan reader",
       "cache": "private, no-store; Vary Cookie, Authorization",
       "mutation": false
@@ -5590,8 +6347,8 @@
     {
       "method": "PUT",
       "path": "/api/events/{id}/activity-plan",
-      "request": "data: ActivityPlanData, expectedETag",
-      "response": "ActivityPlanView: data, eTag, canEdit, legacyCandidate, adopted reports",
+      "request": "SaveActivityPlanRequest: data with fixed required attributes, optional project answers/provenance/time/defaultConfiguration review hints, ExpectedETag; existing owner/preparation authority; any project with participation history including cancelled rows remains in the plan with its original ID/occurrence",
+      "response": "ActivityPlanView: data including optional defaultConfiguration hints, eTag, canEdit, reports, published-policy checkItems or null, fixed questionDefinitions and registrationMode; no legacyCandidate or attribute catalogue metadata",
       "auth": "current accountable owner; unfrozen preparation; matching ETag and same-Event occurrences",
       "cache": "private, no-store; Vary Cookie, Authorization",
       "mutation": true
@@ -5604,6 +6361,142 @@
       "auth": "current owner or accepted RAM author; unfrozen preparation",
       "cache": "private, no-store; Vary Authorization; user routes also Vary Cookie",
       "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/activity-operations",
+      "request": "none",
+      "response": "ActivityOperationsWorkspaceDto: ActivityProjectDto[] with current policy, offers, viewer-filtered participations and actor-specific participant options; no DOB, guardian/health detail or evidence",
+      "auth": "current Event plan reader or current finance role or related participant/confirmed guardian/proxy, or published Event visibility; participant rows filtered to manager, finance or related actor",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{eventId}/activity-operations/projects/{activityId}/policy",
+      "request": "ActivityProjectRules raw body and If-Match: new token activity-new or current policy ETag; bilingual eligibility/terms, inclusive ages, capacity 0=unlimited, waitlist, guardian-consent, minor-unit fee/currency, UTC window, space need and perOccurrence|oncePerSeries fee scope",
+      "response": "ActivityOperationsWorkspaceDto; new immutable policy version, retained old quote and reconfirmation-required current selections",
+      "auth": "current accountable owner, unfrozen preparation, stable project ID in same Event; questionnaire v2 does not require projectSelection=yes to save a policy",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{eventId}/activity-operations/projects/{activityId}/offers",
+      "request": "SaveActivityOfferRequest {occurrenceId,startUtc,endUtc}, If-Match activity-new or current offer ETag; UTC interval contained by same-Event occurrence",
+      "response": "ActivityOperationsWorkspaceDto; one offer per project/occurrence, returned to draft after change",
+      "auth": "current accountable owner, unfrozen preparation and same-Event project/occurrence; questionnaire v2 does not require projectSelection=yes for a draft offer",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/activity-operations/projects/{activityId}/fees/{operation}",
+      "request": "operation submit|approve|return; ActivityParticipationActionRequest evidence; If-Match current policy ETag; Idempotency-Key",
+      "response": "ActivityOperationsWorkspaceDto with feeApprovalStatus",
+      "auth": "current enabled MONEY.FINANCE owner for submit or independent approver for approve/return; unfrozen preparation",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "ifMatch": true,
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/activity-operations/offers/{offerId}/{operation}",
+      "request": "operation open|close|cancel; ActivityParticipationActionRequest evidence, If-Match offer ETag, Idempotency-Key; cancellation requires reason",
+      "response": "ActivityOperationsWorkspaceDto; cancellation retains participant and payment history",
+      "auth": "current accountable owner or accepted registration manager; questionnaire v2 open additionally requires confirmed projectSelection=yes, explicit required Event registration, current Package/fee/space gates and open Event registration; historical 1.2 rule retained",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "ifMatch": true,
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{eventId}/activity-operations/offers/{offerId}/space",
+      "request": "SaveActivitySpaceRequest {kind internal|external,reservationId?,name:{en,zh},status,evidence?}; If-Match activity-new or space ETag, Idempotency-Key",
+      "response": "ActivityOperationsWorkspaceDto; offer returns to draft and occurrence Package source invalidates",
+      "auth": "current Event owner or accepted resource coordinator, enabled PLACE.RESOURCE, unfrozen preparation; internal uses confirmed same-Event venue reservation and finite capacity, external confirmation needs human evidence",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "ifMatch": true,
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/activity-operations/selection/preview",
+      "request": "ActivitySelectionRequest {participantId,addOfferIds[],removeParticipationIds[]}; max 100 unique changes",
+      "response": "ActivitySelectionPreviewDto with previewToken, addedOffers, addedFeeMinor, currency and refundReviewCount; token binds actor, actual participant, policies, quotes, occupancy and source",
+      "auth": "current participant, authorized non-child proxy or confirmed guardian, or Event owner/accepted registration manager; same Event participant/offers",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/activity-operations/selection/apply",
+      "request": "ApplyActivitySelectionRequest {change,previewToken}; Idempotency-Key; server recomputes token inside serializable Event lock",
+      "response": "ActivityOperationsWorkspaceDto; quoted policy/fee version and independent project participation GUIDs",
+      "auth": "same actual participant/proxy/guardian or current Event owner/registration manager; additions require approved open Event registration and available project offers",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/activity-operations/participations/{participationId}/{operation}",
+      "request": "operation consent|verify-consent|verify-eligibility|complete|cancel|payment|refund; ActivityParticipationActionRequest {evidence?,occurredUtc?,amountMinor?,consentingMemberId?}; If-Match participation ETag and Idempotency-Key",
+      "response": "ActivityOperationsWorkspaceDto with current project seat/procedure/eligibility and charge reference; no private DOB/evidence",
+      "auth": "action-specific actual participant/confirmed guardian, current registration manager or accepted finance owner; offline child consent identifies an actual confirmed guardian; payment/refund requires approved fee/Package and manual evidence",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "ifMatch": true,
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/activity-operations/participants/{participantId}/private-data",
+      "request": "none",
+      "response": "ActivityPrivateDataDto {birthDate?,eTag}; never included in ordinary project/Event JSON",
+      "auth": "same participant account or explicitly confirmed guardian; manager/proxy alone cannot read",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{eventId}/activity-operations/participants/{participantId}/private-data",
+      "request": "SaveActivityPrivateDataRequest {birthDate,evidence?}; If-Match activity-new or private-data ETag",
+      "response": "ActivityPrivateDataDto only to same participant or confirmed guardian; age-dependent project eligibility reopens for review",
+      "auth": "same participant account or explicitly confirmed guardian; manager/proxy alone cannot write",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "ifMatch": true,
+      "audit": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/activity-project-configurations",
+      "request": "none",
+      "response": "ProjectModuleConfigurationWorkspaceDto {items,canEditKinds}; typed meal/travel/stay/programme/roster details linked to stable project ID and optional occurrence",
+      "auth": "current Event plan reader; canEditKinds requires owner or accepted specialist role and unfrozen preparation",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{eventId}/activity-project-configurations/projects/{activityId}/{kind}",
+      "request": "kind meal|travel|stay|programme|roster; SaveProjectModuleConfigurationRequest {occurrenceId?,exactly one matching typed detail}; If-Match project-config-new or current configuration ETag",
+      "response": "ProjectModuleConfigurationDto with stable GUID, project/occurrence, kind, typed details, eTag and updatedUtc",
+      "auth": "owner or accepted corresponding module lead/coordinator; unfrozen preparation, applicable yes question and same-Event references",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "ifMatch": true
     }
   ],
   "acceptanceScenarios": [
@@ -5721,7 +6614,65 @@
         "reactivation creates another version",
         "stale If-Match cannot overwrite the current version",
         "every mutation is audited",
-        "management responses are private no-store and vary by viewer credentials"
+        "management responses are private no-store and vary by viewer credentials",
+        "the current fixed project catalogue contains eight yes/no common switches and eight attribute-specific questions; three moved decisions appear once in Event Details",
+        "sixteen reviewed system templates define twenty-four editable preset projects without invented amounts, venues or transport",
+        "required presetProjects allows an explicit empty array and rejects unknown attributes, question codes and answers",
+        "explicit 2.0 initialization preserves immutable historical bodies and customized current settings; a second run adds no versions",
+        "schema 2.0 uses actual projects and Event facts for module demand, preserving stable IDs and dependency closure",
+        "retained preset projects and template-selected yes switches require human review before Event creation",
+        "stale activityTypeVersion on preset-bearing creation returns HTTP 412; retained source keys plus explicit removedPresetKeys cover every preset exactly once",
+        "removedPresetKeys affect the proposal hash and are audited at successful creation; later template versions do not block saved Event recompose"
+      ]
+    },
+    {
+      "code": "project-module-union",
+      "expected": [
+        "schema 2.0 reads actual stable project IDs and Event facts rather than a template name or direct template module preselection",
+        "generic project with no attributes matches generic RAM checks once",
+        "meal plus outdoor and water plus outdoor match generic and each selected attribute group in policy order without duplicate check IDs",
+        "one applicable project yes or confirmed Event yes retains its module even when another project answers no; Event/specialist unknown is not no",
+        "eight unchecked common project switches record no immediately",
+        "specialist questions disappear when their attributes do not match and reappear without deleting audit history",
+        "Event facts, dependency closure and mandatory RAM rules retain priority",
+        "multi-zone yes keeps unavailable FESTIVAL.OPERATIONS demand and blocks formal submission"
+      ]
+    },
+    {
+      "code": "project-selection-and-private-eligibility",
+      "expected": [
+        "Event registration none permits draft project policy and offer but prevents open/add/complete until explicitly enabled",
+        "questionnaire v2 keeps eight project switches independent; saving policy or draft offer does not require projectSelection=yes, and only this switch creates the Event-registration none conflict",
+        "each actual participant and occurrence has separate selection, capacity and FIFO waitlist; Event capacity may be unlimited",
+        "stale or cross-participant preview token, offer ID, ETag or idempotency key cannot change another record",
+        "project preview/apply require an actual confirmed Event participant seat, not merely a draft or invitation",
+        "age uses Event-local offer date with inclusive birthday and February 29 boundary; unknown DOB/time zone fails closed",
+        "birth date is available only to its account holder or confirmed guardian; ordinary Event JSON and AI contain no private evidence",
+        "a child can select only a confirmed minorsParticipate=yes project under enabled safeguarding, active child profile, confirmed guardian and latest Granted current published child-policy consent",
+        "restricted child projects require private scope-hash consent for the actual project/offer/occurrence and current attributes, conditions, interval and policy; historical plain text is not current proof",
+        "changing rules does not retroactively reprice or delete prior participation"
+      ]
+    },
+    {
+      "code": "confirmed-child-project-execution-gate",
+      "expected": [
+        "Event-wide execution checks all confirmed child project participations, while occurrence execution checks only that occurrence",
+        "unconfirmed Event seat, incomplete procedure, stale project policy, invalid current child safeguarding state or missing scope-bound consent blocks confirmation with event.execute.childProjectConsentRequired",
+        "the current generic blocker appears in lifecycle read and save/replay responses and remains hard under Off and DryRun governance",
+        "gate responses do not expose child identity, birth date, guardian identity or consent evidence"
+      ]
+    },
+    {
+      "code": "project-fee-space-and-arrangements",
+      "expected": [
+        "Event base fee and only selected project charges are separate; per-occurrence and once-per-series anchors retain quoted prices",
+        "projectFee=no is rejected while active participation carries a positive project charge or historical project payments remain net unrefunded, including after current policy fee becomes zero",
+        "open/preview/apply block when any active project policy or retained quote currency differs from Event registration currency",
+        "independent finance approval and current Package gate precede paid offer opening/payment; refund waits for covered selections to end",
+        "internal project space references a confirmed same-Event booking with interval and shared-capacity checks",
+        "external project space requires a human confirmation record, not provider approval",
+        "meal/travel/stay/programme/roster details attach to a stable project and optional occurrence under specialist role and ETag",
+        "all projects share their Event module owner, adopted report and approval"
       ]
     },
     {
@@ -5783,14 +6734,13 @@
       ]
     },
     {
-      "code": "event-package-legacy-rollout",
+      "code": "event-package-enforcement-modes",
       "expected": [
-        "legacy Event receives no invented approval",
-        "dryRun preserves current RAM, sponsorship, visibility and registration behaviour",
-        "non-sensitive differences identify Events requiring transition",
-        "enforcement begins only through audited cohort, deadline, explicit transition or safety-critical rule",
-        "rollback preserves all Package records and never reactivates an invalid Package",
-        "existing public Events and registrations do not disappear without an explainable policy outcome"
+        "off and dryRun evaluate the current Package and return non-sensitive reason codes without treating missing evidence as approval",
+        "enforced blocks the lifecycle action until current Package requirements are satisfied",
+        "changing enforcement mode preserves Package records and immutable decisions",
+        "a mode change never reactivates an invalid, expired or revoked approval",
+        "specialist safety, privacy, sponsorship and authorization gates remain independently authoritative"
       ]
     },
     {
@@ -5869,9 +6819,9 @@
     "persistence": "Continue on the same Event and accepted Plan; navigation is presentation, not a separate business-state machine.",
     "initialPublicationStatus": "draft",
     "initialRegistrationStatus": "closed",
-    "compatibility": "Initial draft/closed applies to composition-backed creation. Existing records and clients omitting composition retain legacyImplicit and existing enforcement rollout modes.",
+    "compatibility": "Every 2.0 creation starts draft/closed and requires a complete composition. Missing or Event 1.x composition returns HTTP 400 event.schema.unsupported.",
     "posterAdoption": "After active formal approval, explicit human adoption only. Poster artwork is excluded from the Package and preserves other Event data and approvals.",
-    "publication": "Explicit confirmation after active current Package approval, server capability and satisfied publish requirements. Explicit lifecycle Events require approval even under off/dryRun; legacyImplicit retains rollout compatibility. No automatic publication or registration opening.",
+    "publication": "Explicit confirmation after active current Package approval, server capability and satisfied publish requirements. Every Event requires approval even under off/dryRun. No automatic publication or registration opening.",
     "audience": {
       "public": "public website and applicable Church Life/Group Life",
       "churchVisible": "authorized church and owning-group members",
@@ -5886,7 +6836,7 @@
       "compatibility": "No request schema, database or creation-composition change; non-draft retirement remains protected"
     },
     "approvalBoundary": {
-      "stepNumberSemantics": "Legacy setup navigation mapping only. Apply the same business gates to named work areas in nonlinear preparation; step numbers do not prescribe a wizard.",
+      "stepNumberSemantics": "Named work areas are nonlinear; step numbers do not prescribe a wizard and retired setup/workflow aliases return 404.",
       "editableStepsBeforeApproval": [
         2,
         3,
@@ -5899,12 +6849,12 @@
       ],
       "submission": "Immutable approval snapshot; source preparation remains editable until approved. Changes require a new submission.",
       "freeze": "Approved Event-scope preparation stays frozen until approval revocation, including after expiry/invalidation. Server-checked serializable configuration commits.",
-      "reopening": "Manager request with bilingual reason; eligible tier reviewer with requester separation outside Light. Pending/rejected stays frozen. Approval revokes Event approval, invalidates occurrence coverage/execution, withdraws publication and closes new registration. Preserve enrollments and audit history; require new approval."
+        "reopening": "Manager request with bilingual reason; eligible tier reviewer with requester separation outside Light. Pending/rejected stays frozen. Approval revokes Event approval, invalidates occurrence coverage/execution, withdraws publication and closes new registration. Preserve registration applications, participants, project selections and audit history; require new approval."
     },
-    "detailChanges": "Whole-Event detail saves rotate Package source evidence. Recomposition/acceptance use saved visibility and registration facts; mismatch with existing confirmed Plan facts requires Arrangements review before generation/decision. Older plans without confirmed brief facts remain compatible.",
+    "detailChanges": "Whole-Event detail saves rotate Package source evidence. Recomposition/acceptance use saved visibility and registration facts; mismatch with existing confirmed Plan facts requires Arrangements review before generation/decision.",
     "arrangementPresentation": "Preparation pilot: compact indigo Event context card with template, title, event-local times/time zone, owner and independent related/all filtering. Twelve naturally sized ALIFE Prism Glass module cards (translucent domain-coloured surfaces, reflected light and functional spatial depth; opaque accessibility fallback) at 2/3/4/6 columns (768/1024/1280px), with domain identity distinct from enabled, confirmed, unsaved and capability states. One visible mounted editor, default collapsed, restored focus and compatible deep links. Details uses current-language-first bilingual disclosure and responsive form/assistant columns or one tablist, preserving drafts and conversation. Structured validation reveals hidden fields. Explicit saved-detail and module-selection saves; no AI-triggered debounce persistence. Tasks and registration rules share the contextual form assistant; other module interiors retain independent vertical summary/detail cards and defaults. No expansion state in API.",
-    "savedPreparationTimes": "Persisted Event and occurrence timestamps are UTC instants, including legacy SQL responses without a suffix. Normalize as UTC before converting once to the selected Event IANA time zone; save wall-clock edits as explicit UTC. Device time zones must not shift Event dates or occurrence-relative arrangement offsets.",
-    "sharedPreparationForm": "Creation DetailsStep/ArrangementsStep/ReviewStep reused for saved Events in Workspace; safety.ram directly renders versioned assessment, personal confirmation, independent review and printing; retired AI saved-event edit routes redirect to Workspace RAM for step=ram or saved Details otherwise; flow=setup preserves preparation return; server authorization and approval freezes remain authoritative",
+    "savedPreparationTimes": "Persisted Event and occurrence timestamps are explicit UTC instants. Convert them once to the selected Event IANA time zone and save wall-clock edits back as explicit UTC. Device time zones must not shift Event dates or occurrence-relative arrangement offsets.",
+    "sharedPreparationForm": "Creation DetailsStep/ArrangementsStep/ReviewStep reused for saved Events in Workspace; safety.ram directly renders versioned assessment, personal confirmation, independent review and printing; retired AI saved-event edit routes and setup/workflow query aliases are absent and return 404; flow=setup is the current preparation route; server authorization and approval freezes remain authoritative",
     "savedArrangements": "Scoped occurrence rows with stable IDs; optional AcceptEventPlanRequest.arrangements uses aggregate ETag and Plan transaction/idempotency. Omitted arrays retain data, member responses and advanced metadata are preserved; linked deletions and foreign IDs rejected; existing venue conflict checks retained. Read projections include current venue metadata. New rows use the selected occurrence dates; successful acceptance invalidates client Event/Church Life caches and reloads Event concurrency; incomplete post-save reads require reload before more edits.",
     "approvalAssessment": {
       "source": "Current effective published group policy before global fallback; accepted Plan; read-only authorized assessment and optional manifest snapshot",
@@ -5920,9 +6870,8 @@
       "schedule": "Preserve exception dates and rolling horizon in shared form; materialize additional future occurrences, retain existing occurrence identity and history"
     },
     "postCreateStage": "arrangements",
-    "legacySetupStage": "arrangements; retain known module as expanded section focus",
     "integratedArrangements": {
-      "surfaces": "Existing authorized team, enrollment, roster, programme, venue, child safeguarding, travel and RAM render directly in the corresponding Arrangements group; planning-only modules retain their existing readiness surface.",
+      "surfaces": "Authorized team, registration, roster, programme, venue, child safeguarding, travel and RAM tools render directly in the corresponding Arrangements group; planning-only modules retain their current readiness surface.",
       "writes": "Saved operational editors retain their APIs, permissions and ETags; module/fact acceptance omits operational arrays. Successful tool writes refresh Event concurrency and summary without replacing pending brief/fact edits.",
       "drafts": "Keep editors mounted on collapse and saved-stage navigation; new tools load after explicit module acceptance; explicit creation precedes Event-ID-dependent actions. Programme printing isolates saved session/item data from the other embedded tools.",
       "sectionConfirmation": {
@@ -5937,8 +6886,8 @@
           "followup"
         ],
         "default": false,
-        "meaning": "Legacy derived section summary; no inference into independent module confirmations",
-        "persistence": "Optional compose/Plan JSON, proposal hash and ETag/idempotency; reject omission by older clients after upgrade; audited operational changes project current flags false without rewriting history",
+        "meaning": "Retired in Event 2.0; no inference into independent module confirmations",
+        "persistence": "Not accepted in Event 2.0 writes",
         "controls": "One module Yes/No choice; no duplicate three-choice questionnaire; module choices preserve existing confirmed facts and never fabricate missing evidence, including transport/lodging"
       },
       "rolePlacement": "Fixed creator-owner is global; optional event.lead is on-site only. Roles and their ordered candidate groups/shifts live within owning modules; Team primarily shows cross-module tasks with collaboration history collapsed. Shared in-memory roster state avoids per-module duplicate reads.",
@@ -5960,8 +6909,8 @@
         ],
         "default": false,
         "meaning": "Independent organizer review; no role acceptance, RAM signature or approval authority",
-        "persistence": "Optional compose/Plan JSON; normalized false for missing keys; proposal hash/ETag/idempotency; no new table; reject old client omission after upgrade; old snapshots preserved",
-        "invalidation": "Audited moduleCode and RAM dependency; old section audit invalidates its modules; unknown scope invalidates all"
+        "persistence": "Required complete compose/Plan JSON; proposal hash/ETag/idempotency; no new table",
+        "invalidation": "Audited moduleCode and RAM dependency; unknown scope invalidates all"
       }
     }
   },
@@ -5991,22 +6940,11 @@
       "transport",
       "emergency"
     ],
-    "activityQuestionSets": [
-      "generic",
-      "hiking",
-      "water",
-      "sport",
-      "transport",
-      "camp",
-      "meal",
-      "outdoor",
-      "other"
-    ],
     "answerIdentity": [
       "activityId",
       "activityType:questionCode"
     ],
-    "questionCompleteness": "disabled in this release; historical questions, answers, policy versions and prints retained",
+    "questionCompleteness": "disabled in this release; valid fixed-scope check identities, retained answers and current-format policy/version prints remain",
     "overallLevel": "highest residual colour; Incomplete if any required assessment input is missing",
     "validityStates": [
       "Legacy",
@@ -6041,7 +6979,6 @@
     "redRule": "explicit healthSafetySigned and rationale plus independent Enhanced Event Package approval; never automatic publication",
     "concurrency": "ExpectedETag; stale 412; Idempotency-Key for actions; conflicting key reuse 409",
     "materialChange": "venue, date/duration, activity, attendance, weather confirmation, accommodation, transport, personnel or risk edits invalidate current authority; history retained; frozen preparation uses existing reopening",
-    "compatibility": "legacy GET/PUT/submit/approve routes and fields retained; legacy scores are initial only; old writes cannot overwrite v2; existing approved history preserved; new submission requires v2",
     "packageSubmissionGate": "RAM must pass independent review before Event Package submission when the accepted Plan enables SAFETY.RAM or activity/safety facts/policy require it. Explicit No is accepted when no higher-priority RAM trigger applies.",
     "reviewDiscovery": "On submit, one event.ram.reviewRequested notification is created per eligible same-root-church auditor after author/submitter/on-site separation. Church Life / Independent RAM review and Personal Center duties revalidate the exact pending revision, permission and membership on every read and disappear when no longer current. Their direct action opens the complete accepted Event Plan as private read-only context together with the restricted RAM report and review controls.",
     "aiContextAllowlist": [
@@ -6068,8 +7005,7 @@
         "/groups/{groupId}/events/{eventId}/workspace/ram"
       ],
       "creation": "private ramDataJson schemaVersion=2 saved atomically with Event; authenticated author; server scores and church policy only; always Draft and unpublished; uncreated RAM remains memory-only outside AI and localStorage",
-      "preparation": "embedded directly in Arrangements safety/RAM subsection with legacy stage=setup&module=safety.ram resolving here; top-right collapse retains mounted draft; new creation embeds private memory-only activities/risk fields saved atomically through ramDataJson",
-      "legacySavedEdit": "redirect to Workspace without mounting retired AI event editor",
+      "preparation": "embedded directly in the current Arrangements safety/RAM subsection; top-right collapse retains the mounted draft; new creation embeds private memory-only activities/risk fields saved atomically through ramDataJson",
       "languageSwitch": "no RAM refetch or draft reset"
     },
     "authoring": {
@@ -6078,6 +7014,7 @@
       "storage": "controlled component memory until explicit Save/Create; checks/AI have no persistence side effect",
       "inputAllowlist": [
         "activityType",
+        "attributes:string[] (required fixed codes; risk scope generic or present in these attributes)",
         "category",
         "language",
         "reviewed non-sensitive brief",
@@ -6129,16 +7066,64 @@
       "compatibility": "Existing RAM approval status remains unchanged; sync_status is a separate persistent column.",
       "trigger": "upstream module or plan invalidation; cosmetic notifications refresh existing RAM; same-transaction persisted due job; exclude event.ram.*",
       "worker": "Azure TimerTrigger every 30 seconds, 15-second debounce, ten events per pass, two-minute lease, five attempts with exponential backoff",
-      "aiInput": "Request-local actual activity keys and enum types plus locally derived module/activity enums, booleans and counts; no raw text or private data",
+      "aiInput": "Request-local actual activity keys and required fixed attribute arrays plus locally derived fixed module/activity enums, booleans and counts; no raw text or private data",
       "aiOutput": "1-20 bilingual risks associated with supplied activity keys; never create activities, scores, answers or identities; preserve human overrides",
       "gate": "fresh context hash plus final owner-reviewed sync; retain current independent RAM approval and Package source-vector gates",
       "privacy": "private/no-store; dedicated backend-to-Worker RAM_SYNC_API_TOKEN",
       "migration": "20260915074357_AddRamBackgroundSynchronization",
-      "manualRecalculation": "POST sync/recalculate permits fresh-source analysis; ETag, current owner/accepted RAM author, freeze and active-job checks; explicit warning before invalidating signatures"
+      "manualRecalculation": "POST sync/recalculate permits fresh-source analysis; ETag, current owner/accepted RAM author, freeze and active-job checks; explicit warning before invalidating signatures",
+      "sourceValidation": "schema version 2 and nonempty current Activity Plan required; ram.sync.invalidSchema or ram.sync.activityPlanRequired stops provider calls; no editor upgrade/adoption fallback"
     },
-    "activitySource": "TEAM.WORK activity-plan; current owner writes, RAM mirrors; explicit legacy adoption excluding AI synthetic activities; removed activity risks retained for reassignment",
+    "activitySource": "TEAM.WORK activity-plan; current owner writes, RAM mirrors; no legacy RAM adoption/candidate; ordinary source deletion preserves risk evidence for reassignment; authorized one-off cleanup removes risks/answers without a current source",
     "historyPresentation": "latest-first table with date, level, signing/review status, view/print; no filters, sort selector or pagination",
-    "scorePresentation": "immediate likelihood × impact preview; published matrix colours, gray unrated or colour pending; per-risk initial/residual numbers, group maxima and overall colour counts; never sum scores"
+    "scorePresentation": "immediate likelihood × impact preview; published matrix colours, gray unrated or colour pending; per-risk initial/residual numbers, group maxima and overall colour counts; never sum scores",
+    "activityAttributes": {
+      "codes": [
+        "hiking",
+        "water",
+        "sport",
+        "transport",
+        "camp",
+        "meal",
+        "outdoor"
+      ],
+      "campMeaning": "actual accommodation / overnight stay, not Event template",
+      "activityField": "required attributes:string[]; only seven fixed unique codes, max7; empty = generic checks only; no activity type field",
+      "matching": "generic plus every selected attribute, policy order, distinct activityType:code identity",
+      "checkItemField": "activityType retained; generic = all activities, otherwise one fixed attribute; activityType:questionCode identity unchanged",
+      "presentation": "collapsed applicable-check list in activity editor and RAM source-activity details; popover guidance; no mandatory-answer gate",
+      "independence": "no Event-template/module inference, no cross-attribute inference, no automatic changes to Event-level flags",
+      "validation": "missing/null arrays, duplicates and unknown codes rejected; no old-client or historical-code exception"
+    },
+    "activityScopes": [
+      "generic",
+      "hiking",
+      "water",
+      "sport",
+      "transport",
+      "camp",
+      "meal",
+      "outdoor"
+    ],
+    "format": "schemaVersion 2 and required fixed attributes arrays; no runtime schema-1 mapping, old-client array preservation, custom attributes or catalogue metadata; current writes use /ram/workspace and /ram/actions/{action}; retired direct RAM routes return 404",
+    "localFormatCleanup": {
+      "authorization": "explicit user-approved pre-launch data cleanup only; no runtime conversion",
+      "target": {
+        "server": "localhost,14333",
+        "database": "alife_db"
+      },
+      "command": "Alife.DbMigrator --Events:NormalizeActivities=preview|apply; exact expected server/database, output directory under C:/Data/Alife and inspected ExpectedFingerprint required for apply; bypass migrations/seed",
+      "preview": "affected Event and record IDs/counts; stable original-row fingerprint; changed/missing preview rejects apply",
+      "backup": "original-row JSON, recovery SQL and preview saved before commit; contains private local development data",
+      "conversion": "valid attrs retained/deduplicated; missing array maps known old type, unknown type becomes []; retain usable project names/conditions, remove unrecoverable projects; plans sole source, erase RAM-only sources",
+      "policy": "remove catalogue metadata and unsupported/invalid check scopes; retain valid policy sections/check items and stable answer keys",
+      "cleanup": "delete affected RAM revisions/actions/signatures and Event Packages; unlink publication/registration/execution, self-FKs, reopen requests, generated review tasks, occurrence exceptions and obsolete receipts; delete orphan risks/answers; ordinary tasks retain content and lose invalid activity links",
+      "reset": "affected Events return to draft preparation, registration closed, execution invalidated; refreshed concurrency and local Event caches",
+      "transaction": "serializable transaction, nullable FK removal before target deletion; repeated apply is no-op; same-target recovery with local app stopped",
+      "preserved": "Event/participant records, ordinary tasks, unrelated modules, sixteen Event templates and accepted Plan snapshots",
+      "boundary": "no shared database migration/cleanup, seed, deployment or provider calls",
+      "embeddedSources": "remove only EventDataJson root ram, ramDataJson, ramAssessment and arrangements.activityPlan; retain every other module field"
+    }
   },
   "roleRosterGroups": {
     "key": [
@@ -6150,7 +7135,7 @@
     "creationETag": "\"new\"",
     "privacy": "only owner/roster coordinator reads full groups; roster responses expose candidate IDs only to managers and a self-candidate flag to others; approved role candidates can read personal roster state and record only their own availability",
     "mutations": "If-Match, unique Event/role index, concurrency token and audit; group edits renew every occurrence roster ETag; assignment checks group concurrency; frozen preparation rejects configuration",
-    "compatibility": "legacy assignments/history retained; candidate groups are never inferred from group membership or prior assignments; new assignment/replacement requires explicit group setup",
+    "assignmentRule": "candidate groups are never inferred from group membership or prior assignments; every new assignment or replacement requires explicit group setup",
     "rotation": "ordered manual list only; no automatic scheduling"
   },
   "eventDuties": {
@@ -6230,7 +7215,7 @@
         "accepted",
         "declined"
       ],
-      "creation": "current UI sends requireAcceptance=true; omitted legacy API option preserves accepted behavior",
+      "creation": "requireAcceptance=true is required; the assignee must explicitly accept before preparation work or publication-material selection",
       "reassignment": "fresh invitation; clear previous current preparation and publication-material selection",
       "personalActions": [
         "accept-assignment",
@@ -6271,7 +7256,7 @@
       ],
       "configuration": "owner only, preparation freeze applies; clearReviewer explicitly removes assignment",
       "specialistTasks": "sourceType/sourceId/sourceVersion; domain actions only",
-      "legacy": "preserve Done and existing history; backfill source only from condition FK or explicit occurrence reviewTaskId"
+      "history": "completed Event 2.0 tasks and immutable submission rounds remain auditable; no title matching or fabricated specialist provenance"
     }
   },
   "capabilityAvailability": {
@@ -6294,28 +7279,6 @@
     "finance": "Version 1: independently approved manual registration fees only; other money flows remain blocked.",
     "food": "Version 1: accepted responsible lead and adopted bilingual report only; menus, allergy and kitchen operations deferred."
   },
-  "enrollmentCapacity": {
-    "version": 1,
-    "scope": "one account, one Event seat",
-    "states": [
-      "confirmed",
-      "waitlisted",
-      "cancelled"
-    ],
-    "queue": "queuedUtc then id; skip currently ineligible members; existing eligible waiters precede new requests",
-    "transaction": "serializable transaction with UPDLOCK/HOLDLOCK on Event before eligibility, seat/queue reads, mutation and notification; all writers share service",
-    "reconcile": [
-      "cancellation",
-      "registration reopening",
-      "approved capacity increase"
-    ],
-    "gate": "current membership and Event registration lifecycle, deadline, current Plan/safety RAM requirement and applicable approval conditions",
-    "closed": "retain queue without promotion",
-    "cancellation": "retain enrollment ID/JSON and linked child evidence; archive prior JSON/status; rejoining gets fresh queue time",
-    "capacity": "reject decreases below confirmed count; preserve/report legacy excess",
-    "compatibility": "legacy confirmed; null queue/status-change timestamps; no fabricated notices; full old clients without explicit X-Enrollment-Waitlist: 1 receive event.enrollment.waitlistUpgradeRequired",
-    "privacy": "private, no-store; participants see only own record/queue position; current managers see lists and capacity; client cannot submit effective status"
-  },
   "manualRoster": {
     "rulesVersion": 2,
     "pageSize": 4,
@@ -6337,7 +7300,7 @@
       "unknown qualification"
     ],
     "criticalAuthority": "existing specialist invalidation; cannot change RAM signers or professional authorization; demand/candidate changes need reopening",
-    "compatibility": "historical Packages keep version 1 until reopening and fresh approval; immutable explicit date coverage is not broadened by extension; uncovered dates need covering occurrence approval",
+    "packageCoverage": "immutable explicit date coverage is not broadened by extension; uncovered dates need covering occurrence approval under current roster rules version 2",
     "excluded": [
       "automatic rotation",
       "recommendations",
@@ -6348,7 +7311,6 @@
   "eventWorkspaces": {
     "version": 1,
     "source": "EVENT-WORKSPACES.md",
-    "legacyVersion": 0,
     "stages": [
       "preparation",
       "registration",
@@ -6421,20 +7383,28 @@
       "calendarRangeDays": 366,
       "exceptions": "append-only release/restore with reason, actor and time; restore checks conflicts",
       "concurrency": "Event and venue row locks in serializable transactions",
-      "dst": "reject invalid or ambiguous new boundaries; flag and conservatively block unresolved legacy times",
+      "dst": "reject invalid or ambiguous local boundaries before converting to explicit UTC instants",
       "catalogueAuthority": "current group leader/co-leader, separate from Event ownership"
     },
-    "migration": "20260914133318_EventCollaborationWorkspaces",
-    "compatibility": "additive; retain old IDs/routes/child links/approval evidence; no guessed legacy family or consent; reject old writes over upgraded fields"
+    "persistence": "current Event 2.0 registration, roster, venue and collaboration records retain stable IDs and immutable approval evidence; family, guardian and consent facts are always explicit"
   },
   "activityPlan": {
     "module": "TEAM.WORK",
+    "questionnaireVersion": "required value 2 on the ActivityPlanData root for schema 2.0.0; missing or other values are invalid",
     "activityFields": [
       "id",
-      "type",
+      "attributes:string[]",
       "name:{en,zh}",
       "conditions:{en,zh}",
-      "occurrenceId?"
+      "occurrenceId?",
+      "sourcePresetKey?",
+      "sourceTemplateVersion?",
+      "startUtc?",
+      "endUtc?",
+      "answers?:questionCode->{value,source,confirmed}",
+      "presetConfirmed:boolean",
+      "repeatForEachOccurrence:boolean",
+      "defaultConfiguration?:ProjectConfigurationDefaultsDto"
     ],
     "sharedFields": [
       "participantCount",
@@ -6445,9 +7415,370 @@
     ],
     "specialistSources": "adopted MOVE.STAY report; no duplicate editing",
     "authority": "current accountable owner; Event lock, ETag and unfrozen preparation",
-    "creation": "optional arrangements.activityPlan, atomic; legacy omission preserves hash shape",
-    "sourceVersion": "activity plan ETag in RAM context and TEAM.WORK Package source hash",
+    "creation": "schema 2.0.0 requires matching composition.activityPlan and arrangements.activityPlan, saved atomically with Event facts; retained source presets and template-selected yes switches require human confirmation; all provided activities require fixed attributes and questionnaireVersion 2",
+    "sourceVersion": "activity plan ETag in RAM context; canonical project answers, provenance and times participate in proposal hash and TEAM.WORK Package source hash; changes invalidate the existing RAM/Package review context",
     "migration": "20260915101331_EventActivityPlanningSources",
-    "compatibility": "explicit owner legacy adoption; nullable task activity_id; source deletion preserves linked evidence"
+    "checkItems": "ActivityPlanView.checkItems: published root-church RamQuestion[] or null before publication, protected by existing plan reader permissions; creation uses authorized authoring context",
+    "attributes": "fixed independent attribute codes only; mirror into RAM and source hash; existing invalidation retained; semantically unchanged saves preserve JSON/ETag",
+    "format": "no type, legacyCandidate, historical-name catalogue or old-client missing-array compensation; nullable task activity_id retained",
+    "questionDefinitions": "ActivityPlanView.questionDefinitions and creation authoring context carry the current fixed 16-project-question catalogue; AdminEventActivityTemplateCatalogDto.questionDefinitions is required. Event 1.x project-question semantics are not evaluated by the 2.0 runtime",
+    "projectTime": "optional UTC start/end must be supplied together with end after start; per-occurrence repetition cannot also bind occurrenceId",
+    "presetProvenance": "sourcePresetKey requires positive sourceTemplateVersion; stable string project ID is distinct from the template preset key; reviewed defaults remain editable and removable before creation",
+    "defaultConfiguration": "optional nullable organiser-review hints copied from a preset and included in the canonical project source/hash; not an active operational policy, offer, fee approval, reservation or safety fact"
+  },
+  "projectQuestionnaire": {
+    "version": 2,
+    "ownership": "fixed system catalogue; administrators edit template defaults and planners edit per-project answers, without adding question or answer codes",
+    "answerValues": [
+      "yes",
+      "no",
+      "unknown"
+    ],
+    "answerSources": [
+      "template",
+      "human"
+    ],
+    "answerShape": {
+      "value": "required yes/no/unknown",
+      "source": "required template/human",
+      "confirmed": "required boolean; human review, never approval"
+    },
+    "applicability": "eight common switches are always shown as compact project arrangements; eight specialist questions match any selected attribute; hidden specialist answers remain stored but are ignored while inapplicable",
+    "switchIndependence": "unchecked means explicit human no and checked means yes; each of the eight common switches is independent. A fee, age, capacity or other switch does not imply projectSelection; policy and draft offer saves do not require it",
+    "missingAnswer": "new/unselected common switch is explicit human no; applicable specialist missing remains unknown; there is no Event 1.x draft conversion",
+    "formalSubmission": "the three Event facts require human-sourced certainty=confirmed boolean values; applicable specialist questions require human-confirmed yes/no; every retained source preset and template-selected yes switch requires confirmation. Unknown/missing/unconfirmed applicable decisions block formal Package submission while drafts remain savable",
+    "attributes": "answers never add or remove attributes",
+    "eventDecisions": {
+      "safety.requiresRam": "overall risk review; requires SAFETY.RAM",
+      "comms.followupRequired": "participant notices and follow-up; requires COMMS.FOLLOWUP",
+      "scale.multiZone": "multi-zone coordination; requires unavailable FESTIVAL.OPERATIONS and blocks formal submission when yes"
+    },
+    "eventDecisionShape": "Event fact {code, value:boolean|null, certainty:confirmed|unknown|candidate, source}; formal confirmation requires human source, certainty=confirmed and boolean value",
+    "historicalVersion": null,
+    "directory": [
+      {
+        "code": "projectSelection",
+        "question": {
+          "en": "Do participants need to select or register for this project?",
+          "zh": "参加者是否需要选择或报名此项目？"
+        },
+        "appliesToAttributes": [],
+        "requiredModules": [
+          "PEOPLE.REGISTRATION"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "ageEligibility",
+        "question": {
+          "en": "Does this project have age eligibility requirements?",
+          "zh": "此项目是否有年龄资格要求？"
+        },
+        "appliesToAttributes": [],
+        "requiredModules": [
+          "PEOPLE.REGISTRATION"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "capacityLimit",
+        "question": {
+          "en": "Does this project have a participant limit?",
+          "zh": "此项目是否限制参加人数？"
+        },
+        "appliesToAttributes": [],
+        "requiredModules": [
+          "PEOPLE.REGISTRATION"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "projectFee",
+        "question": {
+          "en": "Does this project charge a registration fee?",
+          "zh": "此项目是否收取报名费用？"
+        },
+        "appliesToAttributes": [],
+        "requiredModules": [
+          "PEOPLE.REGISTRATION",
+          "MONEY.FINANCE"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "minorsParticipate",
+        "question": {
+          "en": "Will minors participate in this project?",
+          "zh": "此项目是否有未成年人参加？"
+        },
+        "appliesToAttributes": [],
+        "requiredModules": [
+          "PEOPLE.REGISTRATION",
+          "SAFEGUARDING.CHILD"
+        ],
+        "dependencies": [
+          "TEAM.WORK",
+          "PEOPLE.REGISTRATION"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "spaceReservation",
+        "question": {
+          "en": "Does this project need a venue or room reservation?",
+          "zh": "此项目是否需要预订场地或房间？"
+        },
+        "appliesToAttributes": [],
+        "requiredModules": [
+          "PLACE.RESOURCE"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "serviceTeam",
+        "question": {
+          "en": "Does this project need a service team or roster?",
+          "zh": "此项目是否需要服务团队或排班？"
+        },
+        "appliesToAttributes": [],
+        "requiredModules": [
+          "SERVICE.ROSTER"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "programmeProduction",
+        "question": {
+          "en": "Does this project need programme or production planning?",
+          "zh": "此项目是否需要流程或节目制作规划？"
+        },
+        "appliesToAttributes": [],
+        "requiredModules": [
+          "PROGRAM.PRODUCTION"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "foodService",
+        "question": {
+          "en": "Does this meal need organized food service?",
+          "zh": "此聚餐是否需要组织食品服务？"
+        },
+        "appliesToAttributes": [
+          "meal"
+        ],
+        "requiredModules": [
+          "FOOD.HOSPITALITY"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "organizedTransport",
+        "question": {
+          "en": "Does this transport involve an organized journey?",
+          "zh": "此交通项目是否涉及统一组织的行程？"
+        },
+        "appliesToAttributes": [
+          "transport"
+        ],
+        "requiredModules": [
+          "MOVE.STAY"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "organizedStay",
+        "question": {
+          "en": "Does this overnight project need organized accommodation?",
+          "zh": "此过夜项目是否需要统一组织住宿？"
+        },
+        "appliesToAttributes": [
+          "camp"
+        ],
+        "requiredModules": [
+          "MOVE.STAY",
+          "SAFETY.RAM"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "hikingRouteSafety",
+        "question": {
+          "en": "Does this hike need route and hiking safety planning?",
+          "zh": "此徒步项目是否需要路线和徒步安全规划？"
+        },
+        "appliesToAttributes": [
+          "hiking"
+        ],
+        "requiredModules": [
+          "SAFETY.RAM"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "waterSafety",
+        "question": {
+          "en": "Does this water activity need water safety planning?",
+          "zh": "此水上项目是否需要水上安全规划？"
+        },
+        "appliesToAttributes": [
+          "water"
+        ],
+        "requiredModules": [
+          "SAFETY.RAM"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "sportSafety",
+        "question": {
+          "en": "Does this sport need sport safety planning?",
+          "zh": "此运动项目是否需要运动安全规划？"
+        },
+        "appliesToAttributes": [
+          "sport"
+        ],
+        "requiredModules": [
+          "SAFETY.RAM"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "weatherPlan",
+        "question": {
+          "en": "Does this outdoor project need a weather and contingency plan?",
+          "zh": "此户外项目是否需要天气和应变方案？"
+        },
+        "appliesToAttributes": [
+          "outdoor"
+        ],
+        "requiredModules": [
+          "SAFETY.RAM"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      },
+      {
+        "code": "fitnessAttestation",
+        "question": {
+          "en": "Does participation need a fitness or capability attestation?",
+          "zh": "参加此项目是否需要体能或能力声明？"
+        },
+        "appliesToAttributes": [
+          "hiking",
+          "water",
+          "sport"
+        ],
+        "requiredModules": [
+          "PEOPLE.REGISTRATION",
+          "SAFETY.RAM"
+        ],
+        "dependencies": [
+          "TEAM.WORK"
+        ],
+        "unavailableModules": []
+      }
+    ],
+    "presetProjectShape": {
+      "presetKey": "unique within a template; ^[a-z][a-z0-9-]{0,79}$",
+      "name": "{en,zh}; each nonblank and at most 300 characters",
+      "conditions": "{en,zh}; each at most 4000 characters; empty allowed",
+      "attributes": "required unique array of the seven fixed attributes; empty allowed",
+      "defaultAnswers": "current fixed questionnaire-version-2 project question codes only; eight common switches default no unless explicitly preset yes and eight specialist questions may remain unknown",
+      "eventFactSuggestions": "optional array containing only safety.requiresRam, comms.followupRequired and scale.multiZone when a previous v3 preset answer was yes; pending Event-level suggestions only, never confirmed facts or direct module triggers",
+      "repeatForEachOccurrence": "boolean; recurring presets remain one source project and operations bind to actual occurrences",
+      "defaultConfiguration": "optional ProjectConfigurationDefaultsDto: nullable eligibility {en,zh}, minimumAge, maximumAge, capacity, allowWaitlist, requiresGuardianConsent, feeMinor, currency, feeChargeScope and terms {en,zh}; null fields remain undecided and never activate an offer/policy"
+    },
+    "templateLimits": {
+      "maximumPresetProjects": 50,
+      "systemTemplateCount": 16,
+      "systemPresetProjectCount": 24
+    },
+    "defaultPolicy": "only the named project meaning supplies yes; unselected common switches are no, specialist answers otherwise unknown, and the three Event facts remain unknown; no amounts, venues, attendance, age bounds, safety approvals or actual transport guessed",
+    "initialization": "nullable PresetProjectsJson is the pre-feature marker; explicit [] is never refilled. An explicit serializable audited initializer copies current persisted v3 templates to v4 successors, retains historical bodies and administrator metadata, maps old affirmative moved answers to optional eventFactSuggestions without confirming facts, and returns zero on repetition. Catalogue reads have no write side effects."
+  },
+  "projectOperations": {
+    "version": 1,
+    "migration": "20261011113522_AddEventProjectOperations applied only to verified, backed-up localhost,14333 / alife_db; first run one migration and sixteen template-v3 successors, repeat run zero migrations and zero successors; no shared/production application",
+    "identity": "operational policy/offer/participation/consent/payment/space/configuration rows have their own GUIDs; activityId is the stable string ID from the same Event Activity Plan, never a template preset key",
+    "eventBoundary": "one Event registration, module owner, specialist report and approval; project/occurrence rows are distinct sources and cannot widen Event eligibility or bypass module dependencies, RAM or Package gates",
+    "registrationPrerequisite": "questionnaire v2 permits policy and draft offer saves without projectSelection=yes and while Event registration is none. Opening a selection offer requires confirmed projectSelection=yes, explicit Event registration required, current versioned Event registration policy, enabled module, Package gate and open Event registration; preview/apply/completion also require a confirmed Event participant seat. Only projectSelection=yes conflicts with registration none in 1.3 composition; historical 1.2 retains its broader rule",
+    "switchConsistency": "all eight common switches are independent. Closing a switch conflicts only with its own effective policy, open offer, participation or configuration; a policy or draft offer alone does not hold projectSelection on. projectFee=no conflicts with active charged participation or positive net historical project payments even if current policy fee is zero; server rejects instead of hiding demand or erasing records",
+    "policy": {
+      "rules": "ActivityProjectRules: eligibility/terms {en,zh}, inclusive minimumAge/maximumAge, capacity 0=unlimited, allowWaitlist, requiresGuardianConsent, feeMinor integer, ISO 4217 currency, UTC opens/deadline, needsSpace, feeChargeScope",
+      "feeChargeScopes": ["perOccurrence", "oncePerSeries"],
+      "historicalPrices": "each selection retains quoted feeMinor and feePolicyVersionId; later edits require procedure reconfirmation but never reprice a prior quote",
+      "approval": "paid policy needs current independent MONEY.FINANCE owner submission and approver decision before offer opening/payment; Event Package gate remains separate",
+      "change": "policy edits append a version, return offers to draft and invalidate relevant preparation/Package evidence"
+    },
+    "offer": {
+      "identity": "one offer per project and Event occurrence, with interval contained in that occurrence",
+      "statuses": ["draft", "open", "closed", "cancelled"],
+      "capacity": "project offer capacity 0 is unlimited; each occurrence reconciles confirmed/reserved seats and FIFO waitlist independently under the Event registration lock",
+      "cancellation": "cancel requires reason, retains participation/fee history and needs separate notification/refund handling"
+    },
+    "selection": {
+      "preview": "previewToken binds actor, actual participant, Event application state, project source version, offers/policy ETags, quoted fees and occupancy; stale preview fails on apply",
+      "apply": "serializable Event lock, same-Event participant/offers, explicit Idempotency-Key; selection is not procedure completion or seat confirmation",
+      "eligibility": "Event requirements are an upper bound; project may narrow age or require manual fitness/eligibility verification. Preview/apply require an actual confirmed Event participant seat. Date is local to Event IANA time zone at the offer start; birthday is inclusive and February 29 maps to February 28 in non-leap years. Invalid/unknown zone or missing DOB fails closed",
+      "privateBirthDate": "only the actual participant account or explicit confirmed guardian may provide/read; managers/proxies see only server eligibility state",
+      "minorConsent": "a child may select/complete only a project with confirmed minorsParticipate=yes and enabled SAFEGUARDING.CHILD, an active actual-participant child profile, confirmed guardian relationship and latest Granted consent under a current published child policy; hiking, water, overnight or policy-required cases additionally need named-guardian project/occurrence consent. Private proof hashes the actual participation, project/offer/occurrence, current attributes/conditions, offer interval and policy version; changed scope or historical plain-text evidence is not current proof",
+      "seatStatuses": ["draft", "pendingEvent", "reserved", "confirmed", "waitlisted", "cancelled", "expired"],
+      "procedures": "project eligibility, consent and fee are checked separately; daily participant/payment actions do not individually rewrite Event Package approval"
+    },
+    "fees": "Event base fee plus only selected project charges in one Event currency; open, preview and apply require every active current project fee policy and retained quoted charge to match that currency, without conversion. perOccurrence is default, oncePerSeries uses a concrete charge participation anchor; manual payment/refund uses the anchor and independent finance approval. Refund requires all participations covered by the charge to end; Event paid total cannot substitute",
+    "space": "internal project space links an existing confirmed same-Event reservation, checks occurrence/time/finite capacity and overlapping allocations; external space is manual request/confirmation with evidence, not provider integration; changes return offer to draft and invalidate occurrence evidence",
+    "structuredKinds": {
+      "meal": "FOOD.HOSPITALITY; bilingual serviceMethod, preparationPlace, dietaryHandling, foodSafetyPlan",
+      "travel": "MOVE.STAY; bilingual origin, destination, timetable and optional same-Event journeyId",
+      "stay": "MOVE.STAY; bilingual site/roomingPlan and optional UTC checkIn/checkOut",
+      "programme": "PROGRAM.PRODUCTION; same-Event programItemIds and bilingual productionNotes",
+      "roster": "SERVICE.ROSTER; same-Event serviceSlotIds and bilingual staffingNotes"
+    },
+    "structuredConfiguration": "one typed detail matching kind per stable activityId and optional same-Event occurrenceId; only applicable yes project question unlocks; same Event module owner/report/approval; exact ETag and current specialist role/owner; unfrozen preparation",
+    "execution": "confirmed child project participations in the requested Event/occurrence scope are rechecked for confirmed parent Event seat, completed project procedure, current project policy, current child eligibility/guardian/published child-policy grant and scope-bound project consent; any failure hard-blocks ConfirmExecution with generic event.execute.childProjectConsentRequired even in Off/DryRun governance. GetLifecycle and save/replay responses recompute this current blocker without child identity or evidence",
+    "privacy": "all activity-operations and project-configuration APIs private/no-store, Vary Cookie and Authorization; ordinary Event JSON, AI prompts, Package and shared caches exclude DOB, health, guardian/consent evidence and payment proof; viewer-specific participant projection",
+    "history": "previous template versions, Plan snapshots and quoted project prices remain readable; any project with participation history, even after cancellation, remains in the Activity Plan so its bilingual name/conditions explain string-ID-linked policy, offer, fee and consent records. Cancel/notify/settle the old offer and create a new project for another occurrence; direct deletion or occurrence rebinding is rejected"
   }
 }

@@ -240,24 +240,6 @@ public sealed class EventVenueReservationTests
     }
 
     [Fact]
-    public async Task LegacySessionPlace_RemainsReadableAndUnchanged()
-    {
-        await using var db = CreateDb();
-        var seeded = Seed(db);
-        const string legacyPlace = "{\"en\":\"Old hall note\",\"zh\":\"舊場地備註\"}";
-        db.EventSessions.Add(new EventSession { Id = Guid.NewGuid(), OccurrenceId = seeded.Occurrence.Id,
-            TitleEn = "Session", TitleZh = "環節", StartUtc = StartUtc, EndUtc = StartUtc.AddMinutes(30),
-            PlaceJson = legacyPlace, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
-        await db.SaveChangesAsync();
-
-        var workspace = await new EventVenueService(db, Authorization()).GetWorkspaceAsync(seeded.Event.Id, seeded.Owner, default);
-
-        Assert.True(workspace.IsSuccess);
-        Assert.True(workspace.Value!.LegacySessionPlacePreserved);
-        Assert.Equal(legacyPlace, (await db.EventSessions.SingleAsync()).PlaceJson);
-    }
-
-    [Fact]
     public async Task VenueEvidence_FlowsThroughSharedReadinessAndProtectsModuleRetirement()
     {
         await using var db = CreateDb();
@@ -289,7 +271,7 @@ public sealed class EventVenueReservationTests
         var eventId = Guid.NewGuid(); var memberId = Guid.NewGuid(); var groupId = Guid.NewGuid();
         var service = Substitute.For<IEventVenueService>();
         service.GetWorkspaceAsync(eventId, memberId, Arg.Any<CancellationToken>()).Returns(
-            AppResult<EventVenueWorkspaceDto>.Success(new(eventId, groupId, [], [], [], new(true, true, true, []), true, true, true)));
+            AppResult<EventVenueWorkspaceDto>.Success(new(eventId, groupId, [], [], [], new(true, true, true, []), true, true)));
         var accessor = Substitute.For<ICurrentMemberAccessor>(); accessor.GetCurrentMemberId().Returns(memberId);
         var controller = new EventVenuesController(service, accessor)
         { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
@@ -324,8 +306,8 @@ public sealed class EventVenueReservationTests
     private static void SeedPlacePlan(AlifeDbContext db, GroupEvent groupEvent)
     {
         var facts = new[] { Fact("place.resourcesRequired", true) };
-        var plan = new EventCompositionEngine().Compose(new(EventCompositionDefinitions.LegacySchemaVersion, null,
-            new(facts), []), new EventCompositionContext("\"baseline\"", HasAccountableOwner: true)).Value!;
+        var plan = new EventCompositionEngine().Compose(EventCompositionTestData.CurrentRequest(facts: facts),
+            new EventCompositionContext("\"baseline\"", HasAccountableOwner: true)).Value!;
         groupEvent.ActivePlanVersion = 1;
         db.EventPlanSnapshots.Add(new EventPlanSnapshot { Id = Guid.NewGuid(), EventId = groupEvent.Id, Version = 1,
             SourceFactSetId = Guid.NewGuid(), SchemaVersion = plan.SchemaVersion, ProposalHash = plan.ProposalHash,

@@ -13,6 +13,8 @@ public sealed record UpdateGroupEventCommand(
     DateTime EndDate,
     string EventDataJson,
     IReadOnlyList<Guid>? ContactProfileIds = null,
-    string? RamDataJson = null,
+    EventPlanComposeRequest? Composition = null,
+    string? CompositionProposalHash = null,
+    string? PlanETag = null,
     string? IfMatch = null,
     PreparationSeriesUpdate? SeriesUpdate = null) : IRequest<AppResult<GroupEventSummaryDto>>;

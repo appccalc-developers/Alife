@@ -320,29 +320,6 @@ public static class SeedData
 		sectionsInserted += await EnsureDemoHomePageAsync(dbContext, fellowship.Id, admin.Id, now, cancellationToken);
 		sectionsInserted += await EnsureDemoHomePageAsync(dbContext, serviceTeam.Id, admin.Id, now, cancellationToken);
 
-		// Persist the participant and memberships before creating the demo enrollment.
-		await dbContext.SaveChangesAsync(cancellationToken);
-
-		var picnic = await EnsureEventAsync(
-			dbContext,
-			Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff1"),
-			fellowship.Id,
-			leader.Id,
-			"Community Picnic",
-			"社区野餐",
-			now.Date.AddDays(7).AddHours(11),
-			now.Date.AddDays(7).AddHours(14),
-			now,
-			cancellationToken);
-
-		if (!await dbContext.Members.AnyAsync(x => x.Id == member.Id, cancellationToken))
-		{
-			throw new InvalidOperationException($"Demo member {member.Id} was not persisted before Event enrollment seeding.");
-		}
-
-		await EnsureEnrollmentAsync(dbContext, fellowship.Id, picnic.Id, member.Id, now, cancellationToken);
-		await EnsureNotificationAsync(dbContext, member.Id, leader.Id, fellowship.Id, picnic.Id, "event.invitation", now, cancellationToken);
-
 		await dbContext.SaveChangesAsync(cancellationToken);
 		return sectionsInserted;
 	}
@@ -691,105 +668,6 @@ public static class SeedData
 		}, cancellationToken);
 
 		return 2;
-	}
-
-	private static async Task<GroupEvent> EnsureEventAsync(
-		AlifeDbContext dbContext,
-		Guid id,
-		Guid groupId,
-		Guid createdByMemberId,
-		string titleEn,
-		string titleZh,
-		DateTime startDate,
-		DateTime endDate,
-		DateTime now,
-		CancellationToken cancellationToken)
-	{
-		var groupEvent = await dbContext.GroupEvents.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-		if (groupEvent is not null)
-		{
-			return groupEvent;
-		}
-
-		groupEvent = new GroupEvent
-		{
-			Id = id,
-			GroupId = groupId,
-			CreatedByMemberId = createdByMemberId,
-			AccountableOwnerMemberId = createdByMemberId,
-			TitleEn = titleEn,
-			TitleZh = titleZh,
-			StartDate = startDate,
-			EndDate = endDate,
-			EventDataJson = JsonSerializer.Serialize(new
-			{
-				title = new { en = titleEn, zh = titleZh },
-				location = new { en = "Church Hall", zh = "教会大厅" },
-				description = new { en = "Seeded local demo event.", zh = "本地演示活动。" }
-			}),
-			CreatedUtc = now,
-			UpdatedUtc = now,
-			IsDeleted = false
-		};
-
-		await dbContext.GroupEvents.AddAsync(groupEvent, cancellationToken);
-		return groupEvent;
-	}
-
-	private static async Task EnsureEnrollmentAsync(
-		AlifeDbContext dbContext,
-		Guid groupId,
-		Guid eventId,
-		Guid memberId,
-		DateTime now,
-		CancellationToken cancellationToken)
-	{
-		if (await dbContext.EventEnrollments.AnyAsync(x => x.EventId == eventId && x.MemberId == memberId, cancellationToken))
-		{
-			return;
-		}
-
-		await dbContext.EventEnrollments.AddAsync(new EventEnrollment
-		{
-			Id = Guid.NewGuid(),
-			GroupId = groupId,
-			EventId = eventId,
-			MemberId = memberId,
-			EnrollmentJson = JsonSerializer.Serialize(new { status = "confirmed", note = "Seeded demo enrollment" }),
-			CreatedUtc = now,
-			UpdatedUtc = now
-		}, cancellationToken);
-	}
-
-	private static async Task EnsureNotificationAsync(
-		AlifeDbContext dbContext,
-		Guid recipientMemberId,
-		Guid createdByMemberId,
-		Guid? groupId,
-		Guid? eventId,
-		string actionType,
-		DateTime now,
-		CancellationToken cancellationToken)
-	{
-		var notificationId = DeterministicGuid(recipientMemberId, $"{actionType}:{groupId}:{eventId}");
-		if (await dbContext.NotificationMessages.AnyAsync(x => x.Id == notificationId, cancellationToken))
-		{
-			return;
-		}
-
-		await dbContext.NotificationMessages.AddAsync(new NotificationMessage
-		{
-			Id = notificationId,
-			RecipientMemberId = recipientMemberId,
-			CreatedByMemberId = createdByMemberId,
-			GroupId = groupId,
-			EventId = eventId,
-			OccurredUtc = now,
-			ActionType = actionType,
-			ActionDataJson = JsonSerializer.Serialize(new { seeded = true, source = "DbMigrator" }),
-			CreatedUtc = now,
-			UpdatedUtc = now
-		}, cancellationToken);
 	}
 
 	private static string TextJson(string en, string zh)

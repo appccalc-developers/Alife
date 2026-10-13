@@ -1,9 +1,9 @@
 // Fixed bilingual copy for components/events/EventActivityPlanPanel.tsx.
 export const eventActivityPlanPanelText = {
+    loadingCheckItems: { en: 'Loading check items…', zh: '正在载入检查项…' } as const,
     expectedParticipants: { en: 'Expected participants', zh: '预计人数' } as const,
     unnamedActivity: { en: 'Unnamed activity', zh: '未命名活动' } as const,
     activityName: { en: 'Activity name', zh: '活动名称' } as const,
-    activityType: { en: 'Activity type', zh: '活动类型' } as const,
     activityConditions: { en: 'Activity conditions', zh: '活动条件' } as const,
     occurrence: { en: 'Occurrence', zh: '适用场次' } as const,
     entireEvent: { en: 'Entire event', zh: '全活动' } as const,
@@ -17,9 +17,7 @@ export const eventActivityPlanPanelText = {
     activities: { en: 'activities', zh: '个活动项目' } as const,
     loading: { en: 'Loading', zh: '正在读取' } as const,
     reload: { en: 'Reload', zh: '重新读取' } as const,
-    activitiesFromLegacyRamNotAdopted: { en: 'Activities from legacy RAM (not adopted)', zh: '旧 RAM 中的活动资料（待采纳）' } as const,
-    noActivityDefinitionsToAdopt: { en: 'No activity definitions to adopt', zh: '没有可直接采纳的真实活动' } as const,
-    loadAsDraftThenReviewAndSave: { en: 'Load as draft, then review and save', zh: '载入为草稿，核对后保存' } as const,
+    unsupportedSchema: { en: 'This activity plan uses an unsupported Event schema.', zh: '此活动计划使用了不受支持的 Event 数据格式。' } as const,
     activitiesAndConditionsWorkspace: { en: 'Activities and conditions workspace', zh: '活动项目与条件工作区' } as const,
     activityConditionsForm: { en: 'Activity conditions form', zh: '活动条件表单' } as const,
     aiActivityAssistant: { en: 'AI activity assistant', zh: 'AI 活动资料助手' } as const,

@@ -6,14 +6,13 @@ import { ramService } from '../../services/ramGovernanceService'
 import { normalizeApiError } from '../../services/http'
 import { setUnsavedChangesGuard } from '../../utils/unsavedChangesGuard'
 import type { RamDraft, RamPrint, RamWorkspace } from '../../types/ramGovernance'
-import { displayRamText as text, ramActionLabels, ramValidityLabels, upgradeRam } from '../../types/ramGovernance'
+import { displayRamText as text, ramActionLabels, ramValidityLabels, parseRamDraft } from '../../types/ramGovernance'
 import { RamLevelBadge, ramInput } from './RamFields'
 import NativeSectionCard from '../layout/AppSectionCard'
 import { EventToolSection as AppSectionCard } from './ArrangementTileDeck'
 import AppActionButton from '../layout/AppActionButton'
 import AppConfirmationModal from '../layout/AppConfirmationModal'
 import RamPrintView from './RamPrintView'
-import RamLegacyDetails from './RamLegacyDetails'
 import RamDraftEditor, { RamChangeList } from './RamDraftEditor'
 import { ramChanges } from '../../utils/ramAuthoring'
 import { useAuthStore } from '../../stores/auth'
@@ -42,20 +41,20 @@ export default function EventRamWorkspace({ eventId, language, onDirtyChange, on
     const sequence = ++loadSequence.current
     const data = await ramService.workspace(eventId)
     if (sequence !== loadSequence.current) return
-    setWorkspace(data); setDraft(upgradeRam(data.assessment?.ramDataJson)); setDirty(false); setNewVersion(false)
-    setPolicyId(data.assessment?.schemaVersion === 2 ? data.assessment.policyVersionId : data.policy?.id || null)
+    setWorkspace(data); setDraft(parseRamDraft(data.assessment?.ramDataJson)); setDirty(false); setNewVersion(false)
+    setPolicyId(data.assessment ? data.assessment.policyVersionId : data.policy?.id || null)
   }, [eventId, viewerId])
   useEffect(() => { let live = true; setWorkspace(null); setDraft(null); setPrint(null); setError(''); void load().catch(e => { if (live) setError(normalizeApiError(e).message) }); return () => { live = false; loadSequence.current++ } }, [load])
   useEffect(() => { setUnsavedChangesGuard(dirty, zh ? eventRamWorkspaceText.ramHasUnsavedChanges.zh : eventRamWorkspaceText.ramHasUnsavedChanges.en, 'confirm'); return () => setUnsavedChangesGuard(false) }, [dirty, zh])
   useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false) }, [dirty, onDirtyChange])
   useEffect(() => { onBusyChange?.(busy || authoringBusy); return () => onBusyChange?.(false) }, [busy, authoringBusy, onBusyChange])
   const run = async (work: () => Promise<void>) => { setBusy(true); setError(''); setSuccess(false); try { await work(); setSuccess(true) } catch (e) { setError(normalizeApiError(e).message); setPending(null) } finally { setBusy(false) } }
-  const update = (change: Partial<RamDraft>) => { setDraft(d => { if (!d) return d; const next = { ...d, ...change }; setDirty(JSON.stringify(next) !== JSON.stringify(upgradeRam(workspace?.assessment?.ramDataJson))); return next }); setSuccess(false) }
+  const update = (change: Partial<RamDraft>) => { setDraft(d => { if (!d) return d; const next = { ...d, ...change }; setDirty(JSON.stringify(next) !== JSON.stringify(parseRamDraft(workspace?.assessment?.ramDataJson))); return next }); setSuccess(false) }
   const save = () => run(async () => {
     if (!draft) return
     await beforeAction?.()
     const record = await ramService.save(eventId, draft, policyId, workspace?.assessment?.eTag || 'new')
-    setWorkspace(w => w ? { ...w, assessment: record } : w); setDraft(upgradeRam(record.ramDataJson)); setDirty(false); await onSaved?.()
+    setWorkspace(w => w ? { ...w, assessment: record } : w); setDraft(parseRamDraft(record.ramDataJson)); setDirty(false); await onSaved?.()
   })
   const act = (action: string) => run(async () => {
     const ram = workspace?.assessment
@@ -72,17 +71,16 @@ export default function EventRamWorkspace({ eventId, language, onDirtyChange, on
   const editable = workspace.canEdit && !busy
   const actionsDisabled = pendingEventChanges || busy || authoringBusy || dirty || ram?.schemaVersion !== 2
   const policy = workspace.policy?.data
-  const previousSubmitted = workspace.history.filter(r => workspace.actions.some(a => a.revisionId === r.id && (a.action === 'submit' || a.action === 'legacy-submitted'))).sort((a, b) => b.version - a.version)[0]
+  const previousSubmitted = workspace.history.filter(r => workspace.actions.some(a => a.revisionId === r.id && a.action === 'submit')).sort((a, b) => b.version - a.version)[0]
   const history = [...workspace.history].sort((a,b)=>b.version-a.version)
   const titles: Record<string, string> = { 'request-confirmation': zh ? eventRamWorkspaceText.freezeVersionAndRequestPersonalConfirmation.zh : eventRamWorkspaceText.freezeVersionAndRequestPersonalConfirmation.en, confirm: zh ? eventRamWorkspaceText.iConfirmIWillAttendAndLeadThisVersion.zh : eventRamWorkspaceText.iConfirmIWillAttendAndLeadThisVersion.en, submit: zh ? eventRamWorkspaceText.requestIndependentRamReview.zh : eventRamWorkspaceText.requestIndependentRamReview.en, approve: zh ? eventRamWorkspaceText.approveIndependentRamReview.zh : eventRamWorkspaceText.approveIndependentRamReview.en, return: zh ? eventRamWorkspaceText.returnForChanges.zh : eventRamWorkspaceText.returnForChanges.en, 'request-review': zh ? eventRamWorkspaceText.requestReReview.zh : eventRamWorkspaceText.requestReReview.en, 'snapshot-draft': zh ? eventRamWorkspaceText.savePrintSnapshot.zh : eventRamWorkspaceText.savePrintSnapshot.en }
   return <div className="space-y-5" data-ram-workspace>
     <RamSyncPanel eventId={eventId} zh={zh} disabled={dirty || busy || authoringBusy || pendingEventChanges} onVersionChange={etag => { if (etag !== (workspace.assessment?.eTag || 'new')) { if (dirty || busy || authoringBusy) setNewVersion(true); else void load().catch(e => setError(normalizeApiError(e).message)) } }} />
     {newVersion ? <p role="alert" className="text-sm text-amber-900">{zh ? eventRamWorkspaceText.aNewerVersionIsAvailableCopyAnyEditsYou.zh : eventRamWorkspaceText.aNewerVersionIsAvailableCopyAnyEditsYou.en}</p> : null}
     {showEventPlan && workspace.eventPlanContext ? <RamEventPlanContext context={workspace.eventPlanContext} zh={zh} /> : null}
-    {comparison ? <NativeSectionCard title={zh ? eventRamWorkspaceText.compareWithV.zh(comparison.revision.version) : eventRamWorkspaceText.compareWithV.en(comparison.revision.version)}><RamChangeList changes={ramChanges(upgradeRam(comparison.ramDataJson), draft)} zh={zh} /><p className="mt-3 text-sm">{comparison.actions.filter(a => a.action === 'return').map(a => a.reason).join('；')}</p></NativeSectionCard> : null}
+    {comparison ? <NativeSectionCard title={zh ? eventRamWorkspaceText.compareWithV.zh(comparison.revision.version) : eventRamWorkspaceText.compareWithV.en(comparison.revision.version)}><RamChangeList changes={ramChanges(parseRamDraft(comparison.ramDataJson), draft)} zh={zh} /><p className="mt-3 text-sm">{comparison.actions.filter(a => a.action === 'return').map(a => a.reason).join('；')}</p></NativeSectionCard> : null}
     <NativeSectionCard title={zh ? eventRamWorkspaceText.riskAssessmentAndManagement.zh : eventRamWorkspaceText.riskAssessmentAndManagement.en} subtitle={zh ? eventRamWorkspaceText.identifyInitialRatingControlsResidualRatingPersonalConfirmationIndependent.zh : eventRamWorkspaceText.identifyInitialRatingControlsResidualRatingPersonalConfirmationIndependent.en}>
       <div className="flex flex-wrap items-center gap-3"><strong>{text(ramValidityLabels[ram?.validity || 'Draft'], zh)}</strong><span className="text-sm">{zh ? eventRamWorkspaceText.savedRating.zh : eventRamWorkspaceText.savedRating.en}</span><RamLevelBadge level={ram?.residualLevel} zh={zh} /><span className="text-sm">{workspace.isRequired ? (zh ? eventRamWorkspaceText.ramIsRequiredForThisEvent.zh : eventRamWorkspaceText.ramIsRequiredForThisEvent.en) : (zh ? eventRamWorkspaceText.everyFormalRamRequiresIndependentReview.zh : eventRamWorkspaceText.everyFormalRamRequiresIndependentReview.en)}</span></div>
-      {ram?.schemaVersion === 1 ? <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm">{zh ? eventRamWorkspaceText.legacyRecordsAndApprovalsAreRetainedSavingAnUpgrade.zh : eventRamWorkspaceText.legacyRecordsAndApprovalsAreRetainedSavingAnUpgrade.en}</p> : null}
       {!workspace.policy ? <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm">{zh ? eventRamWorkspaceText.thisChurchHasNoPublishedRamPolicyDraftsCan.zh : eventRamWorkspaceText.thisChurchHasNoPublishedRamPolicyDraftsCan.en}</p> : <p className="mt-3 text-sm">{zh ? eventRamWorkspaceText.churchPolicyVersion.zh : eventRamWorkspaceText.churchPolicyVersion.en}: {workspace.policy.version} {policyId !== workspace.policy.id && workspace.canEdit ? <AppActionButton variant="secondary" onClick={() => { setPolicyId(workspace.policy!.id); setDirty(true) }}>{zh ? eventRamWorkspaceText.useCurrentPublishedPolicy.zh : eventRamWorkspaceText.useCurrentPublishedPolicy.en}</AppActionButton> : null}</p>}
       <p className="mt-3 text-sm text-[#66766f]">{zh ? eventRamWorkspaceText.scoresAndLevelsAreCalculatedByTheServerWhen.zh : eventRamWorkspaceText.scoresAndLevelsAreCalculatedByTheServerWhen.en}</p>
       {workspace.canEdit && workspace.latestPolicy && workspace.latestPolicy.id !== policyId ? <AppActionButton variant="secondary" disabled={busy} onClick={() => { setPolicyId(workspace.latestPolicy!.id); setWorkspace(w => w ? { ...w, policy: w.latestPolicy || null } : w); setDirty(true) }}>{zh ? eventRamWorkspaceText.adoptLatestPolicyV.zh(workspace.latestPolicy.version) : eventRamWorkspaceText.adoptLatestPolicyV.en(workspace.latestPolicy.version)}</AppActionButton> : null}
@@ -94,9 +92,8 @@ export default function EventRamWorkspace({ eventId, language, onDirtyChange, on
         <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-emerald-800 underline" to={`/events/${eventId}/ram`}>{zh ? eventRamWorkspaceText.personalConfirmationPage.zh : eventRamWorkspaceText.personalConfirmationPage.en}</Link>
       </div>
     </NativeSectionCard>
-    {ram ? <RamLegacyDetails json={ram.ramDataJson} zh={zh} /> : null}
     {previousSubmitted ? <NativeSectionCard title={zh ? eventRamWorkspaceText.lastSubmittedVersionAndReturnComments.zh : eventRamWorkspaceText.lastSubmittedVersionAndReturnComments.en}><AppActionButton disabled={busy} onClick={() => void run(async () => setComparison(await ramService.version(eventId, previousSubmitted.id)))}>{zh ? eventRamWorkspaceText.compareWithLastSubmittedV.zh(previousSubmitted.version) : eventRamWorkspaceText.compareWithLastSubmittedV.en(previousSubmitted.version)}</AppActionButton>{workspace.actions.filter(a => a.revisionId === previousSubmitted.id && a.action === 'return').map(a => <p key={a.id} className="mt-3 whitespace-pre-wrap text-sm text-amber-900">{a.reason}</p>)}</NativeSectionCard> : null}
-    <RamDraftEditor eventId={eventId} {...{ draft, update, policy, editable, dirty, zh }} policyVersionId={policyId} savedDraft={upgradeRam(ram?.ramDataJson)} conditionsKey={JSON.stringify(workspace.eventPlanContext)} contextVersion={ram?.eTag} assistanceDisabled={pendingEventChanges} onBusy={setAuthoringBusy} />
+    <RamDraftEditor eventId={eventId} {...{ draft, update, policy, editable, dirty, zh }} policyVersionId={policyId} savedDraft={parseRamDraft(ram?.ramDataJson)} conditionsKey={JSON.stringify(workspace.eventPlanContext)} contextVersion={ram?.eTag} assistanceDisabled={pendingEventChanges} onBusy={setAuthoringBusy} />
     <div data-ram-field="ram.onsite"><AppSectionCard summary={text(ramValidityLabels[ram?.validity || 'Draft'], zh)} title={zh ? eventRamWorkspaceText.personalConfirmationAndIndependentRamReview.zh : eventRamWorkspaceText.personalConfirmationAndIndependentRamReview.en}>
       <div className="space-y-4"><label className="block text-sm font-semibold">{zh ? eventRamWorkspaceText.willTheAuthorPersonallyAttendAndLead.zh : eventRamWorkspaceText.willTheAuthorPersonallyAttendAndLead.en}<select className={ramInput} disabled={!editable} value={draft.authorAttendsAndLeads === null ? '' : String(draft.authorAttendsAndLeads)} onChange={e => update({ authorAttendsAndLeads: e.target.value === '' ? null : e.target.value === 'true', onsiteMemberId: null })}><option value="">{zh ? eventRamWorkspaceText.choose.zh : eventRamWorkspaceText.choose.en}</option><option value="true">{zh ? eventRamWorkspaceText.yes.zh : eventRamWorkspaceText.yes.en}</option><option value="false">{zh ? eventRamWorkspaceText.noAnotherMemberWithAnAcceptedDutyWillLead.zh : eventRamWorkspaceText.noAnotherMemberWithAnAcceptedDutyWillLead.en}</option></select></label>
         {draft.authorAttendsAndLeads === false ? <label className="block text-sm">{zh ? eventRamWorkspaceText.onSiteLeader.zh : eventRamWorkspaceText.onSiteLeader.en}<select className={ramInput} disabled={!editable} value={draft.onsiteMemberId || ''} onChange={e => update({ onsiteMemberId: e.target.value || null })}><option value="">{zh ? eventRamWorkspaceText.selectAMemberWithAnAcceptedEventDuty.zh : eventRamWorkspaceText.selectAMemberWithAnAcceptedEventDuty.en}</option>{workspace.onsiteCandidates.map(p => <option key={p.memberId} value={p.memberId}>{p.name}</option>)}</select></label> : null}

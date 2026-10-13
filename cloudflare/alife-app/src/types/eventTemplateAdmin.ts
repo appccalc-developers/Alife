@@ -41,6 +41,7 @@ export type AdminEventActivityTemplateCatalog = {
   iconKeys: string[]
   workflowTemplateCodes: string[]
   canManage: boolean
+  questionDefinitions: import('./eventProjectQuestionnaire').EventProjectQuestionDefinition[]
 }
 
 export type AdminEventActivityTemplateValues = {
@@ -51,6 +52,7 @@ export type AdminEventActivityTemplateValues = {
   preselectedModules: string[]
   recommendedWorkflowTemplateCode: string | null
   presetServiceSlots: EventActivityTypeServiceSlotPreset[]
+  presetProjects: import('./eventProjectQuestionnaire').EventTemplatePresetProject[]
   isActive: boolean
 }
 

@@ -12,6 +12,7 @@ import {
   resolveWorkspaceMutationFailure,
 } from '../src/utils/eventWorkspaceState.ts'
 import type { EventDto } from '../src/types/event.ts'
+import { parseRamDraft } from '../src/types/ramGovernance.ts'
 import type { EventArchetype } from '../src/types/eventComposition.ts'
 import {
   applyAiCopyDraft,
@@ -52,10 +53,10 @@ test('workspace errors map to explicit permission, stale, conflict and generic s
   assert.equal(resolveWorkspaceMutationFailure(422), 'error')
 })
 
-test('workspace recomposition omits server-controlled facts from legacy plans', () => {
+test('workspace recomposition omits server-controlled trusted-context facts', () => {
   const planFacts = [
     {
-      code: 'event.exists', value: true, certainty: 'confirmed', source: 'legacyBackfill',
+      code: 'event.exists', value: true, certainty: 'confirmed', source: 'trustedContext',
     },
     {
       code: 'safety.requiresRam', value: true, certainty: 'confirmed', source: 'human',
@@ -103,7 +104,7 @@ test('four-archetype catalogue filters sixteen unique activity types and unknown
 test('AI adoption is limited to bilingual copy and safety-derived values remain candidates', () => {
   const aiDraft = exampleEvent()
   aiDraft.title = { en: 'AI title', zh: 'AI 标题' }
-  aiDraft.ram!.outingSafety.transportRequired = true
+  aiDraft.ram!.activities = [{ id: 'transport', attributes: ['transport'], name: { en: 'Bus', zh: 'Bus' } }]
   aiDraft.ram!.isOuting = true
   const current = {
     title: { en: 'Current', zh: '目前' },
@@ -115,7 +116,7 @@ test('AI adoption is limited to bilingual copy and safety-derived values remain 
   const candidates = deriveAiCandidateFacts(aiDraft)
 
   assert.deepEqual(copy.title, aiDraft.title)
-  assert.equal(candidates['move.transportRequired'], true)
+  assert.equal(candidates['move.transportRequired'], undefined)
   assert.equal(candidates['safety.requiresRam'], true)
   assert.deepEqual(Object.keys(copy).sort(), ['description', 'locationName', 'title'])
 })
@@ -130,15 +131,6 @@ const exampleEvent = (): EventDto => ({
   title: { en: 'Event', zh: '活动' }, description: { en: '', zh: '' }, locationName: { en: '', zh: '' },
   startDate: '2026-09-01T00:00:00Z', endDate: '2026-09-01T02:00:00Z',
   registrationDeadline: '2026-08-31T00:00:00Z', maxCapacity: 20, capacityUnit: 'People',
-  hardConstraints: [], optionalActivities: [], currency: 'NZD', galleryUrls: [], visibility: 'groupVisible',
-  ram: {
-    activityName: { en: '', zh: '' }, activityDescription: { en: '', zh: '' }, participantCount: null,
-    participantAgeRange: { en: '', zh: '' }, isOuting: null, hazards: [], emergencyContacts: [],
-    leaderConfirmed: false, missingInformation: [], outingSafety: {
-      transportRequired: null, licensedDriverConfirmed: null, vehicleRegistrationConfirmed: null,
-      vehicleWofConfirmed: null, venueRiskAssessed: null, firstAidKitAvailable: null,
-      trainedFirstAiderName: '', trainedFirstAiderQualificationConfirmed: null,
-      participantHealthNeedsReviewed: null, weatherPlanReviewed: null,
-    },
-  },
+  hardConstraints: [], currency: 'NZD', galleryUrls: [], visibility: 'groupVisible',
+  ram: parseRamDraft(undefined),
 })

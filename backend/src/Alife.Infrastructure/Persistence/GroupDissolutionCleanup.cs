@@ -55,9 +55,9 @@ public partial class AlifeDbContext
             // Keep their exact identities and foreign keys instead of rewriting those events.
             if ((entity is EventPackageGovernancePolicyVersion governance && await EventPackages.AnyAsync(x => x.GovernancePolicyVersionId == governance.Id, ct))
                 || (entity is EventSafeguardingPolicyVersion safeguarding && await EventSafeguardingConfigurations.AnyAsync(x => x.PolicyVersionId == safeguarding.Id, ct))
-                || (entity is EventWorkflowTemplate template && await EventWorkflowRuns.AnyAsync(x => x.TemplateId == template.Id, ct))
+                || entity is EventWorkflowTemplate
                 || (entity is EventVenue venue && await EventVenueReservations.AnyAsync(x => x.VenueId == venue.Id, ct))
-                || (entity is EventEnrollment enrollment && await EventChildRegistrations.AnyAsync(x => x.EnrollmentId == enrollment.Id, ct)))
+                )
             {
                 retainAuditIdentity = true;
                 if (entity is EventVenue retainedVenue) retainedVenue.IsActive = false;

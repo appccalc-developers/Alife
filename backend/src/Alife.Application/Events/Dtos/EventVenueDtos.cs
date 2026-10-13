@@ -73,5 +73,4 @@ public sealed record EventVenueWorkspaceDto(
     IReadOnlyList<EventVenueConflictDto> Conflicts,
     EventVenueReadinessDto Readiness,
     bool CanManage,
-    bool CanManageCatalogue,
-    bool LegacySessionPlacePreserved);
+    bool CanManageCatalogue);

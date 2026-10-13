@@ -163,7 +163,7 @@ async function checkEditorialPreparation({ page, base, language, width, open, er
   assert.equal(detailSaves.length, 1);
   assert.equal(detailSaves[0].body.titleEn, 'Editorial draft retained');
   assert.equal(detailSaves[0].body.titleZh, '社区聚餐');
-  assert.equal(JSON.parse(detailSaves[0].body.eventDataJson).privateContact, 'preserved');
+  assert.equal(Object.hasOwn(JSON.parse(detailSaves[0].body.eventDataJson), 'privateContact'), false);
   await nav().getByRole('button', { name: t('Formal approval', '正式审批'), exact: true }).click();
   await page.waitForURL('**stage=approval');
   await page.getByRole('heading', { name: /This plan requires|本方案采用/ }).waitFor();

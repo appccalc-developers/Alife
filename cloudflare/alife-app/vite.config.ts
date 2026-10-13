@@ -201,10 +201,6 @@ export default defineConfig(({ command, mode }) => {
           target: aiProxyTarget,
           changeOrigin: true,
         },
-        '/api/enrollments/session': {
-          target: aiProxyTarget,
-          changeOrigin: true,
-        },
         '/api/reviews/session': {
           target: aiProxyTarget,
           changeOrigin: true,

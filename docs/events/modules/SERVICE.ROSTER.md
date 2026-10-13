@@ -2,9 +2,9 @@
 
 > Normative module contract. Owns module-specific behavior, authority and compatibility. [Current delivery and gaps](../IMPLEMENTATION-STATUS.md#service-roster) are maintained centrally; [exact machine values](../event-contract.json) remain unchanged. Read only affected sections.
 
-## Collaboration version 1
+## Current Event 2.0 contract
 
-The accepted **volunteer scheduling coordinator / 同工排班协调人** manually consolidates module needs, invites individuals, handles acceptance/decline and arranges replacements in an independent page. Preparation retains default demands, candidate configuration and early single-occurrence arrangements. The four-date batch scheduler is a version-1 coordinator responsibility after publication; ownership alone does not grant it. Publication does not stop scheduling. Version-0 owner/coordinator batch authority remains compatible on the independent route. Each occurrence has its own roster entry, including future twelve-week materialization. Demand is not confirmed personnel. Ordinary future shortages do not block plan approval; occurrence delivery still requires its applicable staff and specialist eligibility. Work and handoffs follow [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
+The accepted **volunteer scheduling coordinator / 同工排班协调人** manually consolidates module needs, invites individuals, handles acceptance/decline and arranges replacements in an independent page. Preparation retains default demands, candidate configuration and early single-occurrence arrangements. The four-date batch scheduler requires an accepted coordinator after publication; ownership alone does not grant it. Publication does not stop scheduling. Each occurrence has its own roster entry, including future twelve-week materialization. Demand is not confirmed personnel. Ordinary future shortages do not block Plan approval; occurrence delivery still requires its applicable staff and specialist eligibility. Work and handoffs follow [EVENT-WORKSPACES.md](../EVENT-WORKSPACES.md).
 
 ## Purpose
 
@@ -14,7 +14,7 @@ Turn service demand into eligible, confirmed occurrence-level assignments while 
 
 ### Activation
 
-Required when `people.volunteersRequired == true` (`service-slots-required`). Activity Type slot presets are editable defaults, not confirmed assignments or policy.
+Required when `people.volunteersRequired == true` (`service-slots-required`). Project slot presets are editable defaults, not confirmed assignments or policy.
 
 Saved-draft choices, preservation and submission revalidation follow [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
 
@@ -58,7 +58,9 @@ During saved preparation, role candidate groups and shifts appear inside each ow
 
 ## Operational behavior
 
-Four-date pages provide role/response filters, desktop date/position tables and mobile date groups. The tool waits for the server's current batch-authority projection before rendering, so an owner-only or assignee visit never flashes a coordinator tool. Coordinators stage assignments, replacements and cancellations in memory. Version-1 batch submission rechecks accepted coordinator status and publication; a revoked role or withdrawn publication rejects a stale link. The [atomic manual scheduling contract](#atomic-manual-scheduling) owns batch versions, authorization, limits, conflict preservation and notifications. Reads/writes remain private/no-store.
+Four-date pages provide role/response filters, desktop date/position tables and mobile date groups. The tool waits for the server's current batch-authority projection before rendering, so an owner-only or assignee visit never flashes a coordinator tool. Coordinators stage assignments, replacements and cancellations in memory. Batch submission rechecks accepted coordinator status and publication; a revoked role or withdrawn publication rejects a stale link. The [atomic manual scheduling contract](#atomic-manual-scheduling) owns batch versions, authorization, limits, conflict preservation and notifications. Reads/writes remain private/no-store.
+
+An applicable project with `serviceTeam=yes` may link existing same-Event/occurrence ServiceSlot IDs and bilingual staffing notes to its stable project ID. The Event owner or accepted roster coordinator edits this typed arrangement with an exact ETag while preparation is unfrozen. It identifies which project needs those slots but never assigns a member, manufactures consent or bypasses the independent four-date batch scheduler. Roster responsibility and reporting remain once per Event; project arrangement reads/writes are private/no-store.
 
 ## Personal Center handoff
 
@@ -66,7 +68,7 @@ Current approved invited assignees see live non-cancelled slot responsibilities 
 
 ## Rule 2 and default positions — 2026-09-13
 
-[Default requirements and approval coverage](#default-requirements-and-approval-coverage) owns rule-2 behavior and frozen rule-1 compatibility. Default times are start/end offsets. Repeated extension is harmless. Recurring execution must identify a date and recheck current qualification, candidate membership, availability and personal confirmation.
+[Default requirements and approval coverage](#default-requirements-and-approval-coverage) owns current rule-2 behavior. Default times are start/end offsets. Repeated extension is harmless. Recurring execution must identify a date and recheck current qualification, candidate membership, availability and personal confirmation.
 
 ## Whole-Event roster entry (2026-09-15)
 
@@ -79,12 +81,12 @@ The main SERVICE.ROSTER preparation editor aggregates roles from every module, i
 
 ## Atomic manual scheduling
 
-future occurrences are sorted ascending, four per page. Managers stage choices in memory, review one summary and submit one idempotent batch carrying each occurrence and candidate-group ETag. Any conflict rejects the entire batch, including notifications. The server validates current group qualification, availability, duplicate member and pending-plus-confirmed count for every position. Old single-date assignment uses the same batch service. Invitees alone accept/decline; declined/ended/replaced records remain historical, and replacements require new consent. In-app invitations/results/end notices commit with business changes. Results go only to the still-authorized assigner and current Event owner. Existing duty projections and old links revalidate current authority and assignment state.
+Future occurrences are sorted ascending, four per page. Managers stage choices in memory, review one summary and submit one idempotent batch carrying each occurrence and candidate-group ETag. Any conflict rejects the entire batch, including notifications. The server validates current group qualification, availability, duplicate member and pending-plus-confirmed count for every position. Single-date assignment uses the same batch service. Invitees alone accept/decline; declined/ended/replaced records remain historical, and replacements require new consent. In-app invitations/results/end notices commit with business changes. Results go only to the still-authorized assigner and current Event owner. Existing duty projections and stale links revalidate current authority and assignment state.
 
 
 ## Default requirements and approval coverage
 
-Event-scoped immutable default versions contain role/count/relative time/eligibility only. Initial creation may adopt explicitly reviewed demands; old Events require explicit selection of a source occurrence. Extending 12 weeks creates missing dates and empty positions, respecting recurrence/time zone/exceptions and preserving existing rows/responses. A v2 Package freezes requirements, candidate configuration and default version; ordinary staffing and replies are live execution data and do not alter its source hash. Ordinary future vacancies do not block Plan approval, while execution of each recurring date requires enough currently eligible, available, personally confirmed members. Critical RAM/child/transport/command/on-site/qualified duties and unknown qualifications retain specialist review/invalidation; roster APIs cannot grant professional authority or change signers. Config/candidate changes still require reopening. Legacy frozen Packages keep rule 1; replacement after reopening uses rule 2. A Package retains its explicitly approved date window when further dates are materialized: extension neither invalidates nor silently expands that coverage. Newly uncovered dates need a covering occurrence approval before execution.
+Event-scoped immutable default versions contain role/count/relative time/eligibility only. Initial creation may adopt explicitly reviewed demands; adopting defaults later requires explicit selection of a source occurrence. Extending 12 weeks creates missing dates and empty positions, respecting recurrence/time zone/exceptions and preserving existing rows/responses. A v2 Package freezes requirements, candidate configuration and default version; ordinary staffing and replies are live execution data and do not alter its source hash. Ordinary future vacancies do not block Plan approval, while execution of each recurring date requires enough currently eligible, available, personally confirmed members. Critical RAM/child/transport/command/on-site/qualified duties and unknown qualifications retain specialist review/invalidation; roster APIs cannot grant professional authority or change signers. Config/candidate changes still require reopening. Approved Package evidence remains immutable; replacement after reopening uses current rule 2. A Package retains its explicitly approved date window when further dates are materialized: extension neither invalidates nor silently expands that coverage. Newly uncovered dates need a covering occurrence approval before execution.
 
 
 ## Saved preparation compatibility

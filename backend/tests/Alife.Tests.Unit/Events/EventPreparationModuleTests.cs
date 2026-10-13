@@ -15,12 +15,26 @@ public sealed partial class EventPackageFoundationTests
     private static readonly string[] PreparationModules =
         ["TEAM.WORK", "PEOPLE.REGISTRATION", "SERVICE.ROSTER", "SAFETY.RAM", "SAFEGUARDING.CHILD"];
 
+    private static Dictionary<string, bool> Confirmations(params string[] confirmed)
+    {
+        var selected = confirmed.ToHashSet(StringComparer.Ordinal);
+        return EventCompositionDefinitions.Modules.ToDictionary(
+            module => module.Code, module => selected.Contains(module.Code), StringComparer.Ordinal);
+    }
+
     private static EventPlanComposeRequest PreparationComposition(bool selected, int version) => new(
-        "1.1.0", "simple-social", new(new[] { "people.volunteersRequired", "safety.requiresRam", "people.childrenPresent" }
-            .Select(code => new EventFactInputDto(code, JsonSerializer.SerializeToElement(true),
-                EventFactCertainty.Confirmed, EventFactSource.Human)).ToArray()),
+        EventCompositionDefinitions.SchemaVersion, "simple-social", new(new[]
+        {
+            (Code: "people.volunteersRequired", Value: true),
+            (Code: "safety.requiresRam", Value: true),
+            (Code: "people.childrenPresent", Value: true),
+            (Code: "comms.followupRequired", Value: false),
+            (Code: "scale.multiZone", Value: false)
+        }.Select(fact => new EventFactInputDto(fact.Code, JsonSerializer.SerializeToElement(fact.Value),
+            EventFactCertainty.Confirmed, EventFactSource.Human)).ToArray()),
         EventCompositionDefinitions.Modules.Select(module => new ModuleSelectionInput(module.Code,
-            selected && PreparationModules.Contains(module.Code))).ToArray(), version, "shared-meal");
+            selected && PreparationModules.Contains(module.Code))).ToArray(), version, "shared-meal",
+        ModuleConfirmations: Confirmations(), ActivityPlan: EventActivityPlanService.Empty);
 
     [Fact]
     public async Task DraftTools_CanDisableReloadAndReenableAllFive_WithoutLosingFactsOrSavedRecords()
@@ -30,7 +44,13 @@ public sealed partial class EventPackageFoundationTests
         seeded.Event.PublicationStatus = EventPublicationStatus.Draft;
         seeded.Event.EventDataJson = "{\"visibility\":\"groupVisible\",\"maxCapacity\":30}";
         db.EventRamAssessments.Add(new() { EventId = seeded.Event.Id, RamDataJson = "{\"hazards\":[\"saved hazard\"]}" });
-        db.EventEnrollments.Add(new() { Id = Guid.NewGuid(), EventId = seeded.Event.Id, MemberId = seeded.Owner });
+        var registration = new EventRegistrationApplication
+        {
+            Id = Guid.NewGuid(), EventId = seeded.Event.Id, OrganiserMemberId = seeded.Owner,
+            CreatedByMemberId = seeded.Owner, PolicyVersion = 1, QueuedUtc = DateTime.UtcNow
+        };
+        registration.Participants.Add(new() { Id = Guid.NewGuid(), MemberId = seeded.Owner, DisplayName = "Owner", SeatStatus = "confirmed" });
+        db.EventRegistrationApplications.Add(registration);
         await db.SaveChangesAsync();
         var authorization = Authorization(); var engine = new EventCompositionEngine();
         var recompose = new RecomposeEventPlanCommandHandler(db, authorization, engine);
@@ -58,7 +78,7 @@ public sealed partial class EventPackageFoundationTests
                 x => Assert.True(x.Value!.Value.GetBoolean()));
             Assert.Equal(seeded.Owner, (await db.GroupEvents.SingleAsync()).AccountableOwnerMemberId);
             Assert.Equal("{\"hazards\":[\"saved hazard\"]}", (await db.EventRamAssessments.SingleAsync()).RamDataJson);
-            Assert.Single(await db.EventEnrollments.ToListAsync());
+            Assert.Single(await db.EventRegistrationParticipants.ToListAsync());
         }
         Assert.Equal(4, await db.EventPlanSnapshots.CountAsync());
         var service = new EventPackageService(db, authorization);
@@ -115,78 +135,33 @@ public sealed partial class EventPackageFoundationTests
         var enabled = engine.Compose(PreparationComposition(true, 1), new("baseline", IsPreparationDraft: true));
         Assert.Empty(EventCompositionEngine.FormalSubmissionModuleBlockers(enabled.Value!));
         // A selected child tool still needs registration even when the fact is unknown.
-        var dependencyOnly = engine.Compose(input with { Facts = new([]), HumanSelections =
+        var dependencyOnly = engine.Compose(input with { Facts = new(
+            EventProjectQuestionCatalog.MovedEventFactCodes.Values.Select(code =>
+                new EventFactInputDto(code, JsonSerializer.SerializeToElement(false),
+                    EventFactCertainty.Confirmed, EventFactSource.Human)).ToArray()), HumanSelections =
             [new("TEAM.WORK", true), new("SAFEGUARDING.CHILD", true), new("PEOPLE.REGISTRATION", false)] },
             new("baseline", IsPreparationDraft: true));
         Assert.Single(EventCompositionEngine.FormalSubmissionModuleBlockers(dependencyOnly.Value!));
     }
     [Fact]
-    public void ArrangementConfirmation_HashesAndValidatesMetadata_AndOwnerSurvivesDisabledTools()
+    public void ModuleConfirmation_IsIndependent_Hashed_AndRejectsUnknownModules()
     {
         var engine = new EventCompositionEngine();
-        var input = PreparationComposition(false, 1) with { ArrangementConfirmations = new Dictionary<string, bool> { ["safety"] = false } };
-        var pending = engine.Compose(input, new("baseline", IsPreparationDraft: true));
-        var confirmed = engine.Compose(input with { ArrangementConfirmations = new Dictionary<string, bool> { ["safety"] = true } }, new("baseline", IsPreparationDraft: true));
-        Assert.True(pending.IsSuccess); Assert.True(confirmed.IsSuccess);
-        Assert.NotEqual(pending.Value!.ProposalHash, confirmed.Value!.ProposalHash);
-        Assert.False(pending.Value.ArrangementConfirmations!["safety"]);
-        Assert.Equal("event.accountableOwner", Assert.Single(pending.Value.RoleRequirements).RoleCode);
-        var ram = engine.Compose(PreparationComposition(true, 1), new("baseline", IsPreparationDraft: true));
-        Assert.Contains(ram.Value!.RoleRequirements, role => role.ModuleCode == "SAFETY.RAM" && role.RoleCode == "ram.author");
-        Assert.Contains(ram.Value.RoleRequirements, role => role.ModuleCode == "SAFETY.RAM" && role.RoleCode == "ram.approver");
-        Assert.False(engine.Compose(input with { ArrangementConfirmations = new Dictionary<string, bool> { ["unknown"] = true } }, new("baseline")).IsSuccess);
-    }
-
-    [Fact]
-    public async Task ArrangementConfirmation_RoundTripsInvalidatesOnlyChangedSection_AndKeepsHistory()
-    {
-        await using var db = CreateDb();
-        var seeded = await SeedAsync(db, false, PreparationModules);
-        seeded.Event.PublicationStatus = EventPublicationStatus.Draft;
-        await db.SaveChangesAsync();
-        var engine = new EventCompositionEngine(); var authorization = Authorization();
-        var input = PreparationComposition(true, seeded.Plan.PlanVersion) with
-        { ArrangementConfirmations = new Dictionary<string, bool> { ["people"] = true, ["safety"] = true, ["food"] = false } };
-        var preview = await new RecomposeEventPlanCommandHandler(db, authorization, engine)
-            .Handle(new(seeded.Event.Id, seeded.Owner, input, seeded.Plan.ETag), default);
-        Assert.True(preview.IsSuccess, preview.Message);
-        var accepted = await new AcceptEventPlanCommandHandler(db, authorization, engine,
-            Substitute.For<IEventCacheInvalidationService>(), new EventPackageInvalidationService(db))
-            .Handle(new(seeded.Event.Id, seeded.Owner, new(preview.Value!.ProposalHash, [], input), seeded.Plan.ETag, "section-confirmation"), default);
-        Assert.True(accepted.IsSuccess, accepted.Message);
-        var get = new GetEventPlanQueryHandler(db, authorization);
-        var initial = await get.Handle(new(seeded.Event.Id, seeded.Owner), default);
-        Assert.True(initial.Value!.Plan.ArrangementConfirmations!["safety"]);
-        var invalidation = new EventPackageInvalidationService(db);
-        await invalidation.InvalidateForModuleChangeAsync(seeded.Event, seeded.Owner, "SAFETY.RAM", "event.ram.saved", "operational");
-        await db.SaveChangesAsync();
-        var updated = await get.Handle(new(seeded.Event.Id, seeded.Owner), default);
-        Assert.False(updated.Value!.Plan.ArrangementConfirmations!["safety"]);
-        Assert.True(updated.Value.Plan.ArrangementConfirmations["people"]);
-        var history = EventCompositionPersistence.ToSnapshotDto(await db.EventPlanSnapshots.SingleAsync(x => x.IsActive));
-        Assert.True(history.Plan.ArrangementConfirmations!["safety"]);
-        var oldClient = await new RecomposeEventPlanCommandHandler(db, authorization, engine).Handle(
-            new(seeded.Event.Id, seeded.Owner, input with { BasePlanVersion = updated.Value.PlanVersion, ArrangementConfirmations = null }, updated.Value.ETag), default);
-        Assert.Equal(AppResultStatus.Conflict, oldClient.Status);
-    }
-
-    [Fact]
-    public void ModuleConfirmation_IsIndependent_Hashed_AndSummarizesLegacySections()
-    {
-        var engine = new EventCompositionEngine();
-        var input = PreparationComposition(false, 1) with { ModuleConfirmations = new Dictionary<string, bool> { ["SAFETY.RAM"] = true } };
+        var input = PreparationComposition(false, 1) with { ModuleConfirmations = Confirmations("SAFETY.RAM") };
         var first = engine.Compose(input, new("baseline", IsPreparationDraft: true));
         Assert.True(first.IsSuccess, first.Message);
         Assert.DoesNotContain("moduleConfirmations", EventPackageCanonicalizer.Serialize(input with { ModuleConfirmations = null }));
         Assert.Equal(12, first.Value!.ModuleConfirmations!.Count);
         Assert.True(first.Value.ModuleConfirmations["SAFETY.RAM"]);
         Assert.False(first.Value.ModuleConfirmations["SAFEGUARDING.CHILD"]);
-        Assert.False(first.Value.ArrangementConfirmations!["safety"]);
-        var second = engine.Compose(input with { ModuleConfirmations = new Dictionary<string, bool> { ["SAFETY.RAM"] = true, ["SAFEGUARDING.CHILD"] = true } }, new("baseline", IsPreparationDraft: true));
-        Assert.True(second.Value!.ArrangementConfirmations!["safety"]);
-        Assert.NotEqual(first.Value.ProposalHash, second.Value.ProposalHash);
-        Assert.False(engine.Compose(input with { ModuleConfirmations = new Dictionary<string, bool> { ["unknown"] = true } }, new("baseline")).IsSuccess);
-        Assert.Equal(first.Value.Readiness.Status, second.Value.Readiness.Status);
+        var second = engine.Compose(input with { ModuleConfirmations = Confirmations("SAFETY.RAM", "SAFEGUARDING.CHILD") }, new("baseline", IsPreparationDraft: true));
+        Assert.True(second.IsSuccess, second.Message);
+        var secondProposal = second.Value;
+        Assert.NotNull(secondProposal);
+        Assert.NotEqual(first.Value.ProposalHash, secondProposal.ProposalHash);
+        var invalid = Confirmations(); invalid["unknown"] = true;
+        Assert.False(engine.Compose(input with { ModuleConfirmations = invalid }, new("baseline")).IsSuccess);
+        Assert.Equal(first.Value.Readiness.Status, secondProposal.Readiness.Status);
     }
 
     [Fact]
@@ -196,7 +171,7 @@ public sealed partial class EventPackageFoundationTests
         var seeded = await SeedAsync(db, false, PreparationModules);
         seeded.Event.PublicationStatus = EventPublicationStatus.Draft; await db.SaveChangesAsync();
         var input = PreparationComposition(true, seeded.Plan.PlanVersion) with
-        { ModuleConfirmations = EventCompositionDefinitions.Modules.ToDictionary(x => x.Code, _ => true), ArrangementConfirmations = new Dictionary<string, bool>() };
+        { ModuleConfirmations = EventCompositionDefinitions.Modules.ToDictionary(x => x.Code, _ => true) };
         var engine = new EventCompositionEngine(); var auth = Authorization();
         var preview = await new RecomposeEventPlanCommandHandler(db, auth, engine).Handle(new(seeded.Event.Id, seeded.Owner, input, seeded.Plan.ETag), default);
         var handler = new AcceptEventPlanCommandHandler(db, auth, engine, Substitute.For<IEventCacheInvalidationService>(), new EventPackageInvalidationService(db));

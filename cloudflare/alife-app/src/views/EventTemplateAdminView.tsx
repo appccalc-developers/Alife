@@ -20,6 +20,8 @@ import {
   validateEventTemplateAdminForm,
   type EventTemplateAdminForm,
 } from '../utils/eventTemplateAdminState'
+import EventTemplatePresetProjects from '../components/events/EventTemplatePresetProjects'
+import { eventProjectQuestionnaireText as projectCopy } from '../i18n/eventProjectQuestionnaire'
 import SystemManagementFrame from './admin/SystemManagementFrame'
 
 type EditorMode = 'closed' | 'create' | 'edit'
@@ -170,7 +172,7 @@ const EventTemplateAdminView = () => {
         <form className="space-y-6" onSubmit={(event) => void save(event)}>
           {success ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{success}</p> : null}
           {error ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</p> : null}
-          {validationCode ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{localize(validationCopy[validationCode] ?? validationCopy.slot, language)}</p> : null}
+          {validationCode ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{localize(validationCopy[validationCode] ?? (validationCode === 'projects' ? projectCopy.invalidProjects : validationCopy.slot), language)}</p> : null}
 
           <div className="grid gap-4 tablet:grid-cols-2 desktop:grid-cols-4">
             <label className={labelClass}>{isZh ? eventTemplateAdminViewText.templateCode.zh : eventTemplateAdminViewText.templateCode.en}<input className={fieldClass} disabled={editorMode === 'edit'} value={form.code} onChange={(event) => setForm((current) => ({ ...current, code: normalizeEventTemplateCode(event.target.value) }))} /></label>
@@ -187,6 +189,8 @@ const EventTemplateAdminView = () => {
           </div>
 
           <fieldset><legend className="text-sm font-black text-[#18332d]">{isZh ? eventTemplateAdminViewText.formDefaults.zh : eventTemplateAdminViewText.formDefaults.en}</legend><div className="mt-3 grid gap-4 tablet:grid-cols-2"><label className={labelClass}>{isZh ? eventTemplateAdminViewText.visibility.zh : eventTemplateAdminViewText.visibility.en}<select className={fieldClass} value={form.defaults.visibility} onChange={(event) => setForm((current) => ({ ...current, defaults: { ...current.defaults, visibility: event.target.value as EventTemplateAdminForm['defaults']['visibility'] } }))}><option value="groupVisible">groupVisible</option><option value="churchVisible">churchVisible</option><option value="public">public</option></select></label><label className={labelClass}>{isZh ? eventTemplateAdminViewText.registration.zh : eventTemplateAdminViewText.registration.en}<select className={fieldClass} value={form.defaults.registrationMode} onChange={(event) => setForm((current) => ({ ...current, defaults: { ...current.defaults, registrationMode: event.target.value as 'none' | 'required' } }))}><option value="none">none</option><option value="required">required</option></select></label></div></fieldset>
+
+          <EventTemplatePresetProjects projects={form.presetProjects} definitions={catalog.questionDefinitions ?? []} zh={isZh} onChange={presetProjects=>setForm(current=>({...current,presetProjects}))}/>
 
           <fieldset><legend className="text-sm font-black text-[#18332d]">{isZh ? eventTemplateAdminViewText.preselectedCapabilities.zh : eventTemplateAdminViewText.preselectedCapabilities.en}</legend><p className="mt-1 text-xs leading-5 text-[#66766f]">{isZh ? eventTemplateAdminViewText.teamWorkIsAlwaysImplicitMoneyFinanceStillRequires.zh : eventTemplateAdminViewText.teamWorkIsAlwaysImplicitMoneyFinanceStillRequires.en}</p><div className="mt-3 grid gap-2 tablet:grid-cols-2 desktop:grid-cols-3">{catalog.moduleOptions.map((module) => { const checked = form.preselectedModules.includes(module.code); return <label key={module.code} className={`flex min-h-16 items-start gap-3 rounded-xl border p-3 ${checked ? 'border-[#176b5a]/35 bg-[#e3f0eb]/70' : 'border-[#2f4b42]/10 bg-white'}`}><input className="mt-1" type="checkbox" checked={checked} onChange={(event) => setForm((current) => ({ ...current, preselectedModules: event.target.checked ? [...current.preselectedModules, module.code] : current.preselectedModules.filter((code) => code !== module.code) }))} /><span className="min-w-0"><strong className="block text-sm text-[#18332d]">{localize(module.name, language)}</strong><span className="break-all text-xs text-[#66766f]">{module.code}</span></span></label> })}</div></fieldset>
 

@@ -10,7 +10,6 @@ import useConfirmation from '../../hooks/useConfirmation'
 
 export function ramSyncErrorText(error: string, zh: boolean) {
   if (error === 'ram.sync.activityPlanRequired') return zh ? ramSyncPanelText.defineAndSaveActivitiesInTasksAndHandoffsFirst.zh : ramSyncPanelText.defineAndSaveActivitiesInTasksAndHandoffsFirst.en
-  if (error === 'ram.sync.upgradeRequired') return zh ? ramSyncPanelText.upgradeAndSaveTheLegacyAssessmentInTheRam.zh : ramSyncPanelText.upgradeAndSaveTheLegacyAssessmentInTheRam.en
   return zh ? ramSyncPanelText.synchronizationFailedExistingContentIsPreservedRetryWhenReady.zh : ramSyncPanelText.synchronizationFailedExistingContentIsPreservedRetryWhenReady.en
 }
 

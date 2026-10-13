@@ -23,13 +23,11 @@ public static class EventVisibilityPolicy
         "maxCapacity",
         "capacityUnit",
         "hardConstraints",
-        "optionalActivities",
         "baseFeePerAdult",
         "baseFeePerChild",
         "currency",
         "posterImageUrl",
         "galleryUrls",
-        "legacySummary",
         "visibility"
     ];
 
@@ -120,8 +118,7 @@ public static class EventVisibilityPolicy
     }
 
     public static bool IsPublished(GroupEventSummaryDto groupEvent)
-        => (groupEvent.PublicationStatus == EventPublicationStatus.LegacyImplicit ||
-            groupEvent.PublicationStatus == EventPublicationStatus.Published && groupEvent.PublicationGateSatisfied) &&
+        => groupEvent.PublicationStatus == EventPublicationStatus.Published && groupEvent.PublicationGateSatisfied &&
            groupEvent.RamStatus == EventRamStatus.Approved &&
            (groupEvent.GovernanceMode != EventGovernanceMode.ChurchSponsored ||
             groupEvent.SponsorshipStatus == EventSponsorshipStatus.Approved);

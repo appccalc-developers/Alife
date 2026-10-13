@@ -5,6 +5,14 @@ namespace Alife.Application.Common.Interfaces;
 
 public interface IAlifeDbContext
 {
+    DbSet<EventActivityPolicyVersion> EventActivityPolicyVersions { get; }
+    DbSet<EventActivityOffer> EventActivityOffers { get; }
+    DbSet<EventActivityParticipation> EventActivityParticipations { get; }
+    DbSet<EventParticipantPrivateData> EventParticipantPrivateData { get; }
+    DbSet<EventActivityConsent> EventActivityConsents { get; }
+    DbSet<EventActivityPayment> EventActivityPayments { get; }
+    DbSet<EventActivitySpaceRequest> EventActivitySpaceRequests { get; }
+    DbSet<EventActivityModuleConfiguration> EventActivityModuleConfigurations { get; }
     DbSet<EventModuleReport> EventModuleReports { get; }
     DbSet<EventRegistrationPolicy> EventRegistrationPolicies { get; }
     DbSet<EventRegistrationApplication> EventRegistrationApplications { get; }
@@ -80,14 +88,9 @@ public interface IAlifeDbContext
     DbSet<EventRamPolicyVersion> EventRamPolicyVersions { get; }
     DbSet<EventRamRevision> EventRamRevisions { get; }
     DbSet<EventRamAction> EventRamActions { get; }
-    DbSet<EventEnrollment> EventEnrollments { get; }
-    DbSet<EventEnrollmentHistory> EventEnrollmentHistory { get; }
     DbSet<EventRosterDefaults> EventRosterDefaults { get; }
     DbSet<EventReview> EventReviews { get; }
     DbSet<EventWorkflowTemplate> EventWorkflowTemplates { get; }
-    DbSet<EventWorkflowRun> EventWorkflowRuns { get; }
-    DbSet<EventWorkflowStep> EventWorkflowSteps { get; }
-    DbSet<EventArtifact> EventArtifacts { get; }
     DbSet<NotificationMessage> NotificationMessages { get; }
     DbSet<Announcement> Announcements { get; }
     DbSet<ContentPost> ContentPosts { get; }

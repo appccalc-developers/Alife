@@ -21,7 +21,7 @@ export const eventSafeguardingWorkspaceText = {
     readinessBlockers: { en: 'Readiness blockers', zh: '准备度阻塞项' } as const,
     childRegistrations: { en: (value0: unknown, value1: unknown) => `${value0} · ${value1} child registrations`, zh: (value0: unknown, value1: unknown) => `${value0} · ${value1} 项儿童报名` },
     policyChildRegistration: { en: 'Policy & child registration', zh: '政策与儿童报名' } as const,
-    selectOnlyAPublishedPolicyAndExplicitlyLinkAn: { en: 'Select only a published policy and explicitly link an existing EventEnrollment. Age and enrollment JSON are never used to infer child status.', zh: '这里只选择已发布政策并把既有 EventEnrollment 明确标记为儿童报名；不会从年龄或报名 JSON 推断。' } as const,
+    selectOnlyAPublishedPolicyAndExplicitlyLinkAn: { en: 'Select a published policy and explicitly link an existing registration participant. Child status and consent remain explicit protected records.', zh: '请选择已发布政策，并明确关联现有报名参加者。儿童身份与同意继续作为受保护记录明确保存。' } as const,
     policyVersionSelected: { en: 'Policy version selected.', zh: '政策版本已选择。' } as const,
     publishedPolicyVersion: { en: 'Published policy version', zh: '已发布政策版本' } as const,
     choosePolicy: { en: 'Choose policy', zh: '选择政策' } as const,

@@ -29,7 +29,7 @@ public sealed class EventVenueCalendarService(IAlifeDbContext db, IGroupAuthoriz
     private async Task<bool> ViewEvent(GroupEvent e, Guid actor, CancellationToken ct)
     {
         if (await EventWorkAccess.PlanReaderAsync(db, e, actor, ct)) return true;
-        if (e.PublicationStatus is not (EventPublicationStatus.Published or EventPublicationStatus.LegacyImplicit)) return false;
+        if (e.PublicationStatus != EventPublicationStatus.Published) return false;
         var scope = EventVisibilityPolicy.ReadVisibility(e.EventDataJson);
         if (scope == "public" || await EventWorkAccess.MemberAsync(db, e.GroupId, actor, ct)) return true;
         var root = await EventCompositionPersistence.FindChurchRootIdAsync(db, e.GroupId, ct);

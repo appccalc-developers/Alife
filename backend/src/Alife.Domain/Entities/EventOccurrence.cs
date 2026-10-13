@@ -13,7 +13,6 @@ public sealed class EventOccurrence
     public string AttendanceJson { get; set; } = "{}";
     public string ExceptionsJson { get; set; } = "[]";
     public string IncidentsJson { get; set; } = "[]";
-    public bool IsLegacyBackfill { get; set; }
     public DateTime CreatedUtc { get; set; }
     public DateTime UpdatedUtc { get; set; }
     public Guid ProgrammeConcurrencyToken { get; set; } = Guid.NewGuid();

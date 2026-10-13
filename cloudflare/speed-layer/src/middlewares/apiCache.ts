@@ -1,4 +1,5 @@
 import type { Env } from '../index'
+import { eventDataEpoch, isEventCachePath, scopeEventCacheKey } from '../features/events/eventEpoch'
 import {
   type SharedCacheContext,
   type MembershipAuthzRecord,
@@ -315,7 +316,7 @@ export async function readSharedCachedResponse(env: Env, request: Request, conte
     return undefined
   }
 
-  return readStoredResponse(env, createApiCacheKey(request))
+  return readStoredResponse(env, createApiCacheKey(request, env))
 }
 
 export function canReadSharedCache(context: SharedCacheContext) {
@@ -346,7 +347,7 @@ export async function getAuthorizedGroupCachedResponse(
   fetchFromOrigin: () => Promise<Response>,
   ttlSeconds: number,
 ): Promise<{ response: Response; cacheStatus: 'HIT' | 'MISS' | 'BYPASS' }> {
-  const cached = await readStoredResponse(env, createAuthorizedGroupCacheKey(groupId, cacheKind))
+  const cached = await readStoredResponse(env, createAuthorizedGroupCacheKey(groupId, cacheKind, env))
   if (cached) {
     return { response: cached, cacheStatus: 'HIT' }
   }
@@ -360,7 +361,7 @@ export async function getAuthorizedGroupCachedResponse(
 
   await writeStoredResponse(
     env,
-    createAuthorizedGroupCacheKey(groupId, cacheKind),
+    createAuthorizedGroupCacheKey(groupId, cacheKind, env),
     withEdgeCacheControl(taggedResponse.clone()),
     ttlSeconds,
   )
@@ -414,7 +415,7 @@ function hasDraftPageRole(record: MembershipAuthzRecord | undefined) {
 }
 
 export async function writeSharedCachedResponse(env: Env, request: Request, response: Response) {
-  await writeStoredResponse(env, createApiCacheKey(request), response, getApiCacheTtlSeconds(request))
+  await writeStoredResponse(env, createApiCacheKey(request, env), response, getApiCacheTtlSeconds(request))
 }
 
 export async function writeStoredResponse(env: Env, key: string, response: Response, ttlSeconds: number) {
@@ -475,14 +476,14 @@ export function createStoredResponseCacheRequest(key: string) {
   return new Request(`${STORED_RESPONSE_CACHE_URL_PREFIX}${encodeURIComponent(key)}`, { method: 'GET' })
 }
 
-export function createApiCacheKey(requestOrPath: Request | string) {
+export function createApiCacheKey(requestOrPath: Request | string, env?: Env) {
   const url = typeof requestOrPath === 'string'
     ? new URL(requestOrPath, 'https://alife.local')
     : new URL(requestOrPath.url)
 
   const groupPolicy = getAuthorizedGroupCachePolicy(url.pathname)
   if (groupPolicy) {
-    return createAuthorizedGroupCacheKey(groupPolicy.groupId, groupPolicy.cacheKind)
+    return createAuthorizedGroupCacheKey(groupPolicy.groupId, groupPolicy.cacheKind, env)
   }
 
   url.hash = ''
@@ -491,15 +492,17 @@ export function createApiCacheKey(requestOrPath: Request | string) {
   } else {
     url.searchParams.sort()
   }
-  return `api:${url.pathname}${url.search}`
+  const key = `api:${url.pathname}${url.search}`
+  return env ? scopeEventCacheKey(env, url.pathname, key) : key
 }
 
 export function createMemberProfileApiCacheKey(memberId: string) {
   return memberId ? `member:${memberId}:me` : ''
 }
 
-export function createAuthorizedGroupCacheKey(groupId: string, cacheKind: AuthorizedGroupCacheKind) {
-  return `group:${groupId}:${cacheKind}`
+export function createAuthorizedGroupCacheKey(groupId: string, cacheKind: AuthorizedGroupCacheKind, env?: Env) {
+  const key = `group:${groupId}:${cacheKind}`
+  return env && cacheKind === 'events' ? scopeEventCacheKey(env, `/api/groups/${groupId}/events`, key) : key
 }
 
 export function createPublicGroupPagesCacheKey(groupId: string) {
@@ -553,10 +556,10 @@ export async function passivelyInvalidate(env: Env, request: Request, response: 
     : targetMemberIds
   const keys = getInvalidationKeys(request, affectedTargetMemberIds)
   const mutationCacheTasks = await getMutationCacheSyncTasks(env, request, responseForMutationCacheSync)
-  const originalCacheKey = await createCacheKey(request)
+  const originalCacheKey = await createCacheKey(request, undefined, env)
   await Promise.all([
     getEdgeCache().delete(originalCacheKey),
-    deleteApiCacheKey(env, createApiCacheKey(request)),
+    deleteApiCacheKey(env, createApiCacheKey(request, env)),
     ...keys.api.map((key) => deleteApiCacheKey(env, key)),
     ...keys.authz.map((key) => deleteAuthzKey(env, key)),
     ...mutationCacheTasks,
@@ -575,11 +578,58 @@ export async function passivelyInvalidate(env: Env, request: Request, response: 
 }
 
 export async function purgeApiPathCache(env: Env, request: Request, path: string) {
-  const cacheKey = await createCacheKey(request, path)
+  const cacheKey = await createCacheKey(request, path, env)
   await Promise.all([
     getEdgeCache().delete(cacheKey),
-    deleteApiCacheKey(env, createApiCacheKey(path)),
+    deleteApiCacheKey(env, createApiCacheKey(path, env)),
   ])
+}
+
+export async function purgeEventResetCaches(env: Env, resetRequest?: Request) {
+  if (!env.API_CACHE) throw new Error('API_CACHE binding is unavailable.')
+  const keys = new Set<string>([
+    'api:/api/events/public/upcoming',
+    createApiCacheKey('/api/events/public/upcoming', env),
+  ])
+  let cursor: string | undefined
+  do {
+    const page = await env.API_CACHE.list({ cursor })
+    for (const key of page.keys.map(item => item.name).filter(isEventResetCacheKey)) keys.add(key)
+    cursor = page.list_complete ? undefined : page.cursor
+  } while (cursor)
+  const directCacheOrigins = new Set<string>()
+  if (resetRequest) directCacheOrigins.add(new URL(resetRequest.url).origin)
+  for (const value of (env.CORS_ALLOWED_ORIGINS ?? '').split(',')) {
+    const origin = value.trim()
+    if (!origin) continue
+    try { directCacheOrigins.add(new URL(origin).origin) }
+    catch { /* Invalid CORS entries are rejected by their owning configuration path. */ }
+  }
+  const directCacheDeletes = [...directCacheOrigins].flatMap(origin => {
+    const publicUpcoming = new Request(`${origin}/api/events/public/upcoming`)
+    return [
+      getEdgeCache().delete(publicUpcoming),
+      createCacheKey(publicUpcoming, undefined, env).then(key => getEdgeCache().delete(key)),
+    ]
+  })
+  await Promise.all([
+    ...[...keys].map(key => deleteApiCacheKey(env, key)),
+    ...directCacheDeletes,
+  ])
+  return keys.size
+}
+
+export function isEventResetCacheKey(key: string) {
+  if (/^event-data:[A-Za-z0-9._-]{1,128}:/.test(key)) return true
+  const unscoped = key
+  return unscoped === 'api:/api/events/public/upcoming' || unscoped === 'api:/api/events' ||
+    unscoped.startsWith('api:/api/events/') || unscoped === 'api:/api/enrollments' ||
+    unscoped.startsWith('api:/api/enrollments/') || unscoped === 'api:/api/reviews' ||
+    unscoped.startsWith('api:/api/reviews/') || unscoped === 'api:/api/event-series' ||
+    unscoped.startsWith('api:/api/event-series/') || unscoped === 'api:/api/event-package-delegations' ||
+    unscoped.startsWith('api:/api/event-package-delegations/') || unscoped === 'api:/api/church-life/events' ||
+    /^group:[^:]+:events$/.test(unscoped) ||
+    unscoped.startsWith('map:event:')
 }
 
 export async function deleteApiCacheKey(env: Env, key: string) {
@@ -732,11 +782,6 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     }
   }
 
-  const enrollmentMatch = path.match(/^\/api\/events\/([^/]+)\/enrollments(?:\/[^/]+)?$/)
-  if (enrollmentMatch) {
-    paths.add(`/api/events/${enrollmentMatch[1]}/enrollments`)
-  }
-
   const reviewMatch = path.match(/^\/api\/events\/([^/]+)\/reviews(?:\/[^/]+)?$/)
   if (reviewMatch) {
     paths.add(`/api/events/${reviewMatch[1]}/reviews`)
@@ -781,8 +826,8 @@ async function getMutationCacheSyncTasks(env: Env, request: Request, response: R
       },
       AUTHZ_MIRROR_TTL_SECONDS,
     ),
-    deleteApiCacheKey(env, createApiCacheKey(`/api/groups/${subgroupId}`)),
-    deleteApiCacheKey(env, createAuthorizedGroupCacheKey(subgroupId, 'members')),
+    deleteApiCacheKey(env, createApiCacheKey(`/api/groups/${subgroupId}`, env)),
+    deleteApiCacheKey(env, createAuthorizedGroupCacheKey(subgroupId, 'members', env)),
   ]
 }
 
@@ -947,7 +992,7 @@ async function warmPublicPageDetail(env: Env, request: Request, pageId: string) 
 
   const taggedResponse = await withEtag(originResponse)
   const body = await taggedResponse.clone().text()
-  if (!isPublicPageDetailCacheRecord(createApiCacheKey(detailRequest), body)) {
+  if (!isPublicPageDetailCacheRecord(createApiCacheKey(detailRequest, env), body)) {
     return false
   }
 
@@ -1039,7 +1084,7 @@ export function createForbiddenGroupResponse(status?: GroupAuthzStatus) {
   )
 }
 
-export async function createCacheKey(request: Request, pathname?: string) {
+export async function createCacheKey(request: Request, pathname?: string, env?: Env) {
   const url = new URL(request.url)
   if (pathname) {
     url.pathname = pathname
@@ -1054,6 +1099,9 @@ export async function createCacheKey(request: Request, pathname?: string) {
   const credentialKey = shouldUseSharedCacheKey(url.pathname) ? '' : await createCredentialCacheKey(request)
   if (credentialKey) {
     url.searchParams.set('__alife_credential', credentialKey)
+  }
+  if (env && isEventCachePath(url.pathname)) {
+    url.searchParams.set('__alife_event_data_epoch', eventDataEpoch(env))
   }
 
   return new Request(url.toString(), { method: 'GET' })
@@ -1113,7 +1161,7 @@ export function withEdgeCacheControl(response: Response, ttlSeconds = CACHE_TTL_
 }
 
 async function readPublicCachedResponse(env: Env, request: Request) {
-  const cacheKey = await createCacheKey(request)
+  const cacheKey = await createCacheKey(request, undefined, env)
   const edgeResponse = await getEdgeCache().match(cacheKey)
   if (edgeResponse) {
     return edgeResponse
@@ -1123,7 +1171,7 @@ async function readPublicCachedResponse(env: Env, request: Request) {
     return undefined
   }
 
-  const key = createApiCacheKey(request)
+  const key = createApiCacheKey(request, env)
   const record = await env.API_CACHE.get(key, { type: 'json', cacheTtl: PUBLIC_CONTENT_KV_CACHE_TTL_SECONDS })
   const globalResponse = deserializeStoredResponse(record)
   if (!globalResponse) {
@@ -1136,11 +1184,11 @@ async function readPublicCachedResponse(env: Env, request: Request) {
 }
 
 async function writePublicCachedResponse(env: Env, request: Request, response: Response) {
-  const cacheKey = await createCacheKey(request)
+  const cacheKey = await createCacheKey(request, undefined, env)
   const tasks: Promise<unknown>[] = [getEdgeCache().put(cacheKey, response.clone())]
   if (isGlobalPublicContentPath(new URL(request.url).pathname) && env.API_CACHE) {
     tasks.push(env.API_CACHE.put(
-      createApiCacheKey(request),
+      createApiCacheKey(request, env),
       await serializeStoredResponse(response.clone()),
       { expirationTtl: PUBLIC_CONTENT_KV_TTL_SECONDS },
     ))
@@ -1150,7 +1198,7 @@ async function writePublicCachedResponse(env: Env, request: Request, response: R
 }
 
 function isGlobalPublicContentPath(pathname: string) {
-  return pathname === '/api/pages/public' || isPublishedPageDetailPath(pathname)
+  return pathname === '/api/pages/public' || pathname === '/api/events/public/upcoming' || isPublishedPageDetailPath(pathname)
 }
 
 function isPublicPageDetailCacheKey(key: string) {

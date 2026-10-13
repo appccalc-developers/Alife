@@ -10,6 +10,7 @@ import {
   type AiSessionAppContext,
   type DurableObjectStateLike,
 } from '../ai/aiSession'
+import { eventSessionObjectName } from './eventReset'
 
 const DEFAULT_SESSION_ID = 'default'
 const SESSION_STORAGE_KEY = 'review-session-state'
@@ -131,11 +132,11 @@ Rules:
 1. Work bilingually.
    - Understand Chinese or English input.
    - reflection, summary, recognizedActivities.name, and assistantReply must always contain equivalent Simplified Chinese and New Zealand English.
-2. Use supplied app context as known truth. You will receive user/member profile, group profile, event id, event data, existing enrollment data, and possibly an existing review draft. Do not ask the user for those fields again.
+2. Use supplied app context as known truth. You may receive user/member profile, group profile, event id, event data, and an existing review draft. Registration, payment, consent, health and safeguarding records must not be supplied or inferred.
    - missionStatements contains the current group description and, when present, the parent group description. Use it to keep the reflection aligned with the community's purpose and pastoral tone.
    - eventContext contains the eventDataJson/eventData for the reviewed event. Use it as the primary event context for summary, reflection, activities, schedule, and logistics.
 3. Preserve ids. Keep reviewId, eventId, groupId, and memberId unchanged unless app context supplies a more authoritative value.
-4. Build a thoughtful reflection from event context, enrollment context, photo observations, and conversation. Do not invent names or activities; mark uncertainty in assistantReply and confidence.
+4. Build a thoughtful reflection from event context, photo observations, and conversation. Do not invent names or activities; mark uncertainty in assistantReply and confidence.
 5. Treat user corrections as authoritative. If the user corrects a person name, activity name, date, or what happened, update the draft and set correction fields where useful.
 6. Read image/PDF attachments. Extract visible activities, people if the user identifies them, setting, mood, signs, schedules, meals, and group moments. Never identify a person by face alone; only use names supplied by the user or app context.
 7. photoFiles should preserve uploaded file metadata already present in the draft or app context. Inline analysis attachments that are not uploaded yet should influence reflection but should not create permanent URLs.
@@ -155,13 +156,14 @@ export default {
       extraRoutes: ['/close'],
     })
 
+    const objectName = eventSessionObjectName(env, `review-v2:${createAiSessionObjectName(request, sessionId)}`)
     if (env.REVIEW_SESSIONS) {
-      const objectId = env.REVIEW_SESSIONS.idFromName(createAiSessionObjectName(request, sessionId))
+      const objectId = env.REVIEW_SESSIONS.idFromName(objectName)
       const object = env.REVIEW_SESSIONS.get(objectId)
       return object.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
     }
 
-    const fallbackObject = new ReviewSession(getFallbackState(createAiSessionObjectName(request, sessionId)), env)
+    const fallbackObject = new ReviewSession(getFallbackState(objectName), env)
     return fallbackObject.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
   },
 }
@@ -186,7 +188,7 @@ export class ReviewSession extends AiChatSession<ReviewDraft, MultilingualString
         task: 'event-review',
         inputMode,
         language: appContext.language ?? 'bilingual',
-        appContext,
+        appContext: providerReviewContext(appContext),
         missionStatements: appContext.missionStatements ?? [],
         eventContext: appContext.eventContext ?? appContext.eventData ?? null,
         knownContextPolicy: 'Treat appContext and knownFacts fields as already known by the application; do not ask the user to repeat them.',
@@ -208,6 +210,23 @@ export class ReviewSession extends AiChatSession<ReviewDraft, MultilingualString
 
   async fetch(request: Request): Promise<Response> {
     return this.handleRequest(request, getSessionId(request))
+  }
+}
+
+function providerReviewContext(appContext: AiSessionAppContext): AiSessionAppContext {
+  const facts = isRecord(appContext.knownFacts) ? appContext.knownFacts : {}
+  return {
+    language: appContext.language,
+    memberId: appContext.memberId,
+    groupId: appContext.groupId,
+    eventId: appContext.eventId,
+    eventData: appContext.eventData,
+    missionStatements: appContext.missionStatements,
+    eventContext: appContext.eventContext,
+    knownFacts: {
+      reviewId: stringValue(facts.reviewId),
+      existingReview: normalizeReviewDraft(facts.existingReview),
+    },
   }
 }
 

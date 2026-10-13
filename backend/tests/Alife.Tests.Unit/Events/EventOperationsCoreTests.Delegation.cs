@@ -71,7 +71,7 @@ public sealed partial class EventOperationsCoreTests
     }
 
     [Fact]
-    public async Task RestrictedPreparation_CannotBeSelected_AndLegacyUpdatesPreserveBilingualNotes()
+    public async Task RestrictedPreparation_CannotBeSelected_AndUpdatesPreserveBilingualNotes()
     {
         await using var db = CreateDb(); var f = await TaskFixture(db);
         var t = (await f.Service.CreateTaskAsync(f.Event.Id, f.Owner, new(new("Task", "任务"), null, f.Assignee, null, IsRestricted: true), default)).Value!;

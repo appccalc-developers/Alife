@@ -14,7 +14,7 @@ public static class EventPlanContextCapture
         var enabled = plan?.Plan.ModuleDecisions.Where(x => x.Status != Alife.Domain.Enums.EventModuleDecisionStatus.Inactive).Select(x => x.ModuleCode).ToArray() ?? [];
         // Whitelist planning fields. Never copy embedded legacy RAM, enrollment payloads,
         // financial transactions, child records, conversations or upload locations.
-        var names = new[] { "purpose", "description", "locationName", "timeZone", "hardConstraints", "optionalActivities", "registrationDeadline", "maxCapacity", "capacityUnit" };
+        var names = new[] { "purpose", "description", "locationName", "timeZone", "hardConstraints", "registrationDeadline", "maxCapacity", "capacityUnit" };
         using var document = JsonDocument.Parse(e.EventDataJson);
         var details = document.RootElement.ValueKind == JsonValueKind.Object
             ? document.RootElement.EnumerateObject().Where(x => names.Contains(x.Name, StringComparer.Ordinal)).ToDictionary(x => x.Name, x => x.Value.Clone())

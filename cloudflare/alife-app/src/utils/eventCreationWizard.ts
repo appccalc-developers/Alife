@@ -29,9 +29,6 @@ export const deriveAiCandidateFacts = (aiDraft: EventDto): Record<string, boolea
   if ((aiDraft.baseFeePerAdult ?? 0) > 0 || (aiDraft.baseFeePerChild ?? 0) > 0) {
     candidates['money.hasMoneyFlow'] = true
   }
-  if (aiDraft.ram?.outingSafety.transportRequired != null) {
-    candidates['move.transportRequired'] = aiDraft.ram.outingSafety.transportRequired
-  }
   if (aiDraft.ram && (aiDraft.ram.isOuting === true || aiDraft.ram.hazards.length > 0)) {
     candidates['safety.requiresRam'] = true
   }

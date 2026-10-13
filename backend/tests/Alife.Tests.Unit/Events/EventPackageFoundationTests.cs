@@ -310,12 +310,13 @@ public sealed partial class EventPackageFoundationTests
         var service = new EventPackageService(db, Authorization());
         var before = await service.GenerateAsync(seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag,
             "registration-source-before", default);
-        db.EventEnrollments.Add(new EventEnrollment
+        var application = new EventRegistrationApplication
         {
-            Id = Guid.NewGuid(), GroupId = seeded.Event.GroupId, EventId = seeded.Event.Id,
-            MemberId = Guid.NewGuid(), EnrollmentJson = "{}",
-            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
-        });
+            Id = Guid.NewGuid(), EventId = seeded.Event.Id, OrganiserMemberId = seeded.Owner,
+            CreatedByMemberId = seeded.Owner, PolicyVersion = 1, QueuedUtc = DateTime.UtcNow
+        };
+        application.Participants.Add(new() { Id = Guid.NewGuid(), DisplayName = "Participant", SeatStatus = "confirmed" });
+        db.EventRegistrationApplications.Add(application);
         await db.SaveChangesAsync();
         var after = await service.GenerateAsync(seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag,
             "registration-source-after", default);
@@ -346,38 +347,45 @@ public sealed partial class EventPackageFoundationTests
     }
 
     [Fact]
-    public async Task LegacyPlan_RolloutAndRollbackClassifyWithoutInventingOrReactivatingApproval()
+    public async Task CurrentPlan_RemainsFormalAcrossPackageEnforcementModes()
     {
         await using var db = CreateDb();
-        var seeded = await SeedAsync(db, series: false, modules: ["TEAM.WORK"], legacy: true);
+        var seeded = await SeedAsync(db, series: false, modules: ["TEAM.WORK"]);
         var service = new EventPackageService(db, Authorization());
         var policy = await db.EventPackageGovernancePolicyVersions.SingleAsync();
         var off = await service.GenerateAsync(
-            seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "legacy", default);
+            seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "current-off", default);
 
         Assert.True(off.IsSuccess, off.Message);
-        Assert.Equal(LegacyEventPackageTransition.LegacyReadOnlyPackage, off.Value!.Manifest.LegacyTransition);
         policy.EnforcementMode = EventPackageEnforcementMode.DryRun;
         await db.SaveChangesAsync();
         var dryRun = await service.GenerateAsync(
-            seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "legacy-dry-run", default);
-        Assert.Equal(LegacyEventPackageTransition.TimeLimitedCompatibility, dryRun.Value!.Manifest.LegacyTransition);
+            seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "current-dry-run", default);
         policy.EnforcementMode = EventPackageEnforcementMode.Enforced;
         await db.SaveChangesAsync();
         var enforced = await service.GenerateAsync(
-            seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "legacy-enforced", default);
-        Assert.Equal(LegacyEventPackageTransition.FormalPackageRequired, enforced.Value!.Manifest.LegacyTransition);
-        Assert.Equal(EventPackageApprovalValidity.NotDecided, enforced.Value.ApprovalValidityStatus);
-        var storedEnforced = await db.EventPackages.SingleAsync(x => x.Id == enforced.Value.Id);
+            seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "current-enforced", default);
+        Assert.True(dryRun.IsSuccess, dryRun.Message);
+        Assert.True(enforced.IsSuccess, enforced.Message);
+        var enforcedPackage = enforced.Value;
+        Assert.NotNull(enforcedPackage);
+        Assert.Equal(EventPackageApprovalValidity.NotDecided, enforcedPackage.ApprovalValidityStatus);
+        var storedEnforced = await db.EventPackages.SingleAsync(x => x.Id == enforcedPackage.Id);
         storedEnforced.ApprovalValidityStatus = EventPackageApprovalValidity.Invalidated;
         policy.EnforcementMode = EventPackageEnforcementMode.Off;
         await db.SaveChangesAsync();
         var rolledBack = await service.GenerateAsync(
-            seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "legacy-rollback", default);
+            seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "current-rollback", default);
 
-        Assert.Equal(LegacyEventPackageTransition.LegacyReadOnlyPackage, rolledBack.Value!.Manifest.LegacyTransition);
+        Assert.True(rolledBack.IsSuccess, rolledBack.Message);
+        var offPackage = off.Value;
+        var dryRunPackage = dryRun.Value;
+        var rolledBackPackage = rolledBack.Value;
+        Assert.NotNull(offPackage);
+        Assert.NotNull(dryRunPackage);
+        Assert.NotNull(rolledBackPackage);
         Assert.Equal(EventPackageApprovalValidity.Invalidated, storedEnforced.ApprovalValidityStatus);
-        Assert.All(new[] { off.Value, dryRun.Value, rolledBack.Value }, item =>
+        Assert.All(new[] { offPackage, dryRunPackage, rolledBackPackage }, item =>
         {
             Assert.Equal(EventPackageStatus.Draft, item.Status);
             Assert.Equal(EventPackageApprovalValidity.NotDecided, item.ApprovalValidityStatus);
@@ -397,13 +405,7 @@ public sealed partial class EventPackageFoundationTests
             CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
         });
         (await db.EventPackageGovernancePolicyVersions.SingleAsync()).EnforcementMode = EventPackageEnforcementMode.Enforced;
-        db.EventRamAssessments.Add(new EventRamAssessment
-        {
-            EventId = seeded.Event.Id, Status = EventRamStatus.Approved, RamDataJson = "{}",
-            ApprovedByMemberId = leader, ApprovedUtc = DateTime.UtcNow,
-            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync();
+        await SeedApprovedCurrentRamAsync(db, seeded, leader);
         var service = new EventPackageService(db, Authorization());
         var generated = await service.GenerateAsync(seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "generate", default);
 
@@ -578,12 +580,6 @@ public sealed partial class EventPackageFoundationTests
         await using var db = CreateDb();
         var seeded = await SeedAsync(db, series: false, modules: ["TEAM.WORK"]);
         (await db.EventPackageGovernancePolicyVersions.SingleAsync()).EnforcementMode = EventPackageEnforcementMode.Enforced;
-        db.EventRamAssessments.Add(new EventRamAssessment
-        {
-            EventId = seeded.Event.Id, Status = EventRamStatus.Approved, RamDataJson = "{}",
-            ApprovedByMemberId = seeded.Owner, ApprovedUtc = DateTime.UtcNow,
-            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
-        });
         db.EventRoleAssignments.Add(new EventRoleAssignment
         {
             Id = Guid.NewGuid(), EventId = seeded.Event.Id, MemberId = seeded.Owner,
@@ -591,7 +587,7 @@ public sealed partial class EventPackageFoundationTests
             Status = EventRoleAssignmentStatus.Accepted, AssignedByMemberId = seeded.Owner,
             AcceptedUtc = DateTime.UtcNow, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
         });
-        await db.SaveChangesAsync();
+        await SeedApprovedCurrentRamAsync(db, seeded);
         var service = new EventPackageService(db, Authorization());
         var generated = await service.GenerateAsync(seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "generate", default);
         var submitted = await service.SubmitAsync(seeded.Event.Id, generated.Value!.Id, seeded.Owner,
@@ -712,15 +708,9 @@ public sealed partial class EventPackageFoundationTests
             Status = EventRoleAssignmentStatus.Accepted, AssignedByMemberId = seeded.Owner,
             AcceptedUtc = DateTime.UtcNow, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
         });
-        db.EventRamAssessments.Add(new EventRamAssessment
-        {
-            EventId = seeded.Event.Id, Status = EventRamStatus.Approved, RamDataJson = "{}",
-            ApprovedByMemberId = secondLeader, ApprovedUtc = DateTime.UtcNow,
-            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
-        });
         var policy = await db.EventPackageGovernancePolicyVersions.SingleAsync();
         policy.EnforcementMode = EventPackageEnforcementMode.Enforced;
-        await db.SaveChangesAsync();
+        await SeedApprovedCurrentRamAsync(db, seeded, secondLeader);
         var service = new EventPackageService(db, Authorization());
         var generated = await service.GenerateAsync(seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag,
             "waiver-generate", default);
@@ -812,13 +802,7 @@ public sealed partial class EventPackageFoundationTests
         var seeded = await SeedAsync(db, series: false, modules: ["TEAM.WORK"]);
         var policy = await db.EventPackageGovernancePolicyVersions.SingleAsync();
         policy.EnforcementMode = EventPackageEnforcementMode.Enforced;
-        db.EventRamAssessments.Add(new EventRamAssessment
-        {
-            EventId = seeded.Event.Id, Status = EventRamStatus.Approved,
-            RamDataJson = "{}", ApprovedByMemberId = seeded.Owner, ApprovedUtc = DateTime.UtcNow,
-            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync();
+        await SeedApprovedCurrentRamAsync(db, seeded);
         var service = new EventPackageService(db, Authorization());
         var generated = await service.GenerateAsync(seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "generate", default);
         var lifecycle = await service.GetLifecycleAsync(seeded.Event.Id, seeded.Owner, default);
@@ -834,7 +818,7 @@ public sealed partial class EventPackageFoundationTests
             new(EventPackageDecisionType.Approve, new("Approved for publication", "批准进入发布门禁")),
             submitted.Value!.ETag, "approve", default);
         var beforePublish = await service.GetLifecycleAsync(seeded.Event.Id, seeded.Owner, default);
-        Assert.Equal(EventPublicationStatus.LegacyImplicit, beforePublish.Value!.PublicationStatus);
+        Assert.Equal(EventPublicationStatus.Draft, beforePublish.Value!.PublicationStatus);
 
         var published = await service.PublishAsync(seeded.Event.Id, seeded.Owner,
             new(approved.Value!.Id, approved.Value.ETag, beforePublish.Value.ETag), "publish-approved", default);
@@ -882,13 +866,7 @@ public sealed partial class EventPackageFoundationTests
             registrationDeadline = DateTime.UtcNow.AddDays(5).ToString("O"),
             visibility = "groupVisible"
         });
-        db.EventRamAssessments.Add(new EventRamAssessment
-        {
-            EventId = seeded.Event.Id, Status = EventRamStatus.Approved, RamDataJson = "{}",
-            ApprovedByMemberId = seeded.Owner, ApprovedUtc = DateTime.UtcNow,
-            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync();
+        await SeedApprovedCurrentRamAsync(db, seeded);
         var service = new EventPackageService(db, Authorization());
         var generated = await service.GenerateAsync(seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "generate", default);
         var initialLifecycle = await service.GetLifecycleAsync(seeded.Event.Id, seeded.Owner, default);
@@ -927,13 +905,7 @@ public sealed partial class EventPackageFoundationTests
         seeded.Occurrences[0].StartUtc = seeded.Event.StartDate;
         seeded.Occurrences[0].EndUtc = seeded.Event.EndDate;
         seeded.Occurrences[0].LocalDate = DateOnly.FromDateTime(seeded.Event.StartDate);
-        db.EventRamAssessments.Add(new EventRamAssessment
-        {
-            EventId = seeded.Event.Id, Status = EventRamStatus.Approved, RamDataJson = "{}",
-            ApprovedByMemberId = seeded.Owner, ApprovedUtc = DateTime.UtcNow,
-            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync();
+        await SeedApprovedCurrentRamAsync(db, seeded);
         var service = new EventPackageService(db, Authorization());
         var generated = await service.GenerateAsync(seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "generate", default);
         var lifecycle = await service.GetLifecycleAsync(seeded.Event.Id, seeded.Owner, default);
@@ -1217,7 +1189,7 @@ public sealed partial class EventPackageFoundationTests
         db.EventPackages.Add(package);
         db.EventRamAssessments.Add(new EventRamAssessment
         {
-            EventId = seeded.Event.Id, Status = EventRamStatus.Approved, RamDataJson = "{}",
+            EventId = seeded.Event.Id, Status = EventRamStatus.Approved, Validity = "Valid", RamDataJson = "{}",
             ApprovedByMemberId = seeded.Owner, ApprovedUtc = DateTime.UtcNow,
             CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
         });
@@ -1268,7 +1240,7 @@ public sealed partial class EventPackageFoundationTests
     }
 
     private static async Task<Seeded> SeedAsync(AlifeDbContext db, bool series, IReadOnlyList<string> modules,
-        Guid? parentEventId = null, bool legacy = false)
+        Guid? parentEventId = null)
     {
         var now = new DateTime(2026, 9, 2, 0, 0, 0, DateTimeKind.Utc);
         var owner = Guid.NewGuid(); var groupId = Guid.NewGuid();
@@ -1286,9 +1258,13 @@ public sealed partial class EventPackageFoundationTests
             StartDate = now.AddDays(10), EndDate = now.AddDays(10).AddHours(2), CreatedUtc = now, UpdatedUtc = now,
             PlanConcurrencyToken = Guid.NewGuid(), ActivePlanVersion = 1
         };
-        var compose = new EventCompositionEngine().Compose(new(EventCompositionDefinitions.SchemaVersion,
-            "simple-social", new([]), modules.Where(x => x != "TEAM.WORK")
-                .Select(x => new ModuleSelectionInput(x, true)).ToArray(), null, "shared-meal"),
+        var compose = new EventCompositionEngine().Compose(EventCompositionTestData.CurrentRequest(
+            facts: EventProjectQuestionCatalog.MovedEventFactCodes.Values
+                .Select(code => new EventFactInputDto(code, JsonSerializer.SerializeToElement(false),
+                    EventFactCertainty.Confirmed, EventFactSource.Human))
+                .ToArray(),
+            selections: modules.Where(x => x != "TEAM.WORK")
+                .Select(x => new ModuleSelectionInput(x, true)).ToArray()),
             new EventCompositionContext("\"seed\"", CheckedUtc: now));
         Assert.True(compose.IsSuccess, compose.Message);
         var selectedPlan = compose.Value! with
@@ -1307,9 +1283,9 @@ public sealed partial class EventPackageFoundationTests
             Id = Guid.NewGuid(), EventId = groupEvent.Id, SourceFactSetId = factSet.Id, Version = 1,
             SchemaVersion = EventCompositionDefinitions.SchemaVersion, ProposalHash = selectedPlan.ProposalHash,
             ETag = "\"plan-1-seed\"", ArchetypeCode = "simple-social", ArchetypeVersion = 1,
-            ActivityTypeCode = "shared-meal", ActivityTypeVersion = 2,
+            ActivityTypeCode = "shared-meal", ActivityTypeVersion = 5,
             SnapshotJson = EventCompositionPersistence.SerializePlan(selectedPlan, []), AcceptedByMemberId = owner,
-            AcceptedUtc = now, IsActive = true, IsLegacyBackfill = legacy, CreatedUtc = now
+            AcceptedUtc = now, IsActive = true, CreatedUtc = now
         };
         var policy = new EventPackageGovernancePolicyVersion
         {
@@ -1320,8 +1296,7 @@ public sealed partial class EventPackageFoundationTests
                 "{\"tier\":\"enhanced\",\"whenAnyConfirmedFactCodes\":[\"people.childrenPresent\",\"move.transportRequired\"],\"whenAnyActivityTypeCodes\":[\"outdoor-activity\"],\"whenAnyModuleCodes\":[\"SAFEGUARDING.CHILD\",\"FESTIVAL.OPERATIONS\"]}]," +
                 "\"authorityByTier\":{\"light\":{\"minimumApproverCount\":1},\"standard\":{\"minimumApproverCount\":1},\"enhanced\":{\"minimumApproverCount\":1}}," +
                 "\"approvalValidityByTier\":{\"light\":\"P30D\",\"standard\":\"P14D\",\"enhanced\":\"P7D\"}," +
-                "\"materialChangeRules\":[],\"conditionWaiverAllowed\":false,\"delegationRules\":{\"enabled\":false}," +
-                "\"legacyRollout\":{\"effectiveFromUtc\":\"2026-09-01T00:00:00Z\",\"transitionDeadlineUtc\":\"2026-12-01T00:00:00Z\",\"cohortRule\":\"new-events-first\",\"safetyCriticalModuleCodes\":[\"SAFETY.RAM\",\"SAFEGUARDING.CHILD\"],\"transitionByMode\":{\"off\":\"legacyReadOnlyPackage\",\"dryRun\":\"timeLimitedCompatibility\",\"enforced\":\"formalPackageRequired\"}}}",
+                "\"materialChangeRules\":[],\"conditionWaiverAllowed\":false,\"delegationRules\":{\"enabled\":false}}",
             EnforcementMode = EventPackageEnforcementMode.Off, EffectiveFromUtc = now.AddDays(-1),
             PublishedByMemberId = owner, PublishedUtc = now
         };

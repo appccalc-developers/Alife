@@ -73,6 +73,14 @@ For API changes, explicitly consider authentication, role/group visibility, back
 - Make schema changes backward-compatible and migration-friendly.
 - Review migrations and generated snapshots. Apply migrations only to an approved disposable/local database, never a shared or production database without explicit approval.
 
+### Event 2.0 pre-launch reset exception
+
+The user-authorised Event 2.0 reset is a narrow exception to compatibility requirements for Event instance data and Event 1.x runtime contracts. Pre-reset Event instances, Event 1.x requests, retired Event URLs, browser drafts and temporary Event sessions do not require conversion or continued support. Event templates, policy history, venue resources and every non-Event domain remain outside this exception.
+
+From Event composition schema `2.0.0` onward, normal compatibility, immutable-history, migration and audit requirements apply again. Do not use this exception to discard or rewrite Event 2.0 data, weaken authentication or privacy, broaden cache visibility, or bypass bilingual contracts.
+
+Local or production Event-instance deletion must use the dedicated reset workflow. Before production apply, verify the exact target and freeze epoch, create and validate a recoverable SQL and file copy, produce a preview fingerprint from the same code and live schema, and obtain the protected environment's human approval for that fingerprint. Normal application startup, deployment, Terraform and ordinary database migration must never invoke the reset. Retain recovery material for the approved period and destroy it only through the separately approved finalize operation.
+
 ## Authentication, privacy, and caching
 
 - Enforce authentication and authorization on the server; frontend checks are never sufficient.

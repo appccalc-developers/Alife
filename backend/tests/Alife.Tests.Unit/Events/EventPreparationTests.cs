@@ -37,7 +37,13 @@ public sealed partial class EventPackageFoundationTests
         seeded.Event.PublicationStatus = EventPublicationStatus.Published; seeded.Event.PublishedPackageId = approved.Id;
         seeded.Event.RegistrationStatus = EventRegistrationStatus.Open;
         seeded.Occurrences[0].ExecutionStatus = EventExecutionStatus.Confirmed;
-        db.EventEnrollments.Add(new() { Id = Guid.NewGuid(), EventId = seeded.Event.Id, MemberId = seeded.Owner });
+        var registration = new EventRegistrationApplication
+        {
+            Id = Guid.NewGuid(), EventId = seeded.Event.Id, OrganiserMemberId = seeded.Owner,
+            CreatedByMemberId = seeded.Owner, PolicyVersion = 1, QueuedUtc = DateTime.UtcNow
+        };
+        registration.Participants.Add(new() { Id = Guid.NewGuid(), MemberId = seeded.Owner, DisplayName = "Owner", SeatStatus = "confirmed" });
+        db.EventRegistrationApplications.Add(registration);
         await db.SaveChangesAsync();
         var requested = await service.RequestPreparationReopenAsync(seeded.Event.Id, seeded.Owner,
             new(new("Change the plan", "需要修改方案")), " reopen-once ", default);
@@ -54,7 +60,7 @@ public sealed partial class EventPackageFoundationTests
         Assert.Equal(EventPublicationStatus.Draft, seeded.Event.PublicationStatus);
         Assert.Equal(EventRegistrationStatus.Closed, seeded.Event.RegistrationStatus);
         Assert.Equal(EventExecutionStatus.Invalidated, seeded.Occurrences[0].ExecutionStatus);
-        Assert.Single(await db.EventEnrollments.ToListAsync());
+        Assert.Single(await db.EventRegistrationParticipants.ToListAsync());
         Assert.Equal(originalDecisions + 1, await db.EventPackageDecisions.CountAsync());
         Assert.Equal(EventPackageApprovalValidity.Revoked, (await db.EventPackages.FindAsync(approved.Id))!.ApprovalValidityStatus);
         var reviewRetry = await service.ReviewPreparationReopenAsync(seeded.Event.Id, requested.Value.ReopenRequest.Id, seeded.Owner,
@@ -150,12 +156,18 @@ public sealed partial class EventPackageFoundationTests
     {
         await using var db = CreateDb(); var seeded = await SeedAsync(db, false, ["TEAM.WORK"]);
         var cache = Substitute.For<IEventCacheInvalidationService>();
-        var handler = new UpdateGroupEventCommandHandler(db, Authorization(), cache, new EventPackageInvalidationService(db));
-        var command = new UpdateGroupEventCommand(seeded.Event.Id, seeded.Owner, "Revised", "已修改", seeded.Event.StartDate, seeded.Event.EndDate, "{\"visibility\":\"groupVisible\"}");
+        var handler = new UpdateGroupEventCommandHandler(db, Authorization(), cache,
+            new EventPackageInvalidationService(db), new EventCompositionEngine());
+        var command = await ReviewedUpdateAsync(db, seeded, "Revised", "已修改");
         Assert.Equal(AppResultStatus.PreconditionFailed, (await handler.Handle(command with { IfMatch = "\"2020-01-01T00:00:00Z\"" }, default)).Status);
         Assert.True((await handler.Handle(command, default)).IsSuccess);
-        var service = new EventPackageService(db, Authorization()); await ApprovePreparationAsync(service, seeded);
-        Assert.Equal(AppResultStatus.Conflict, (await handler.Handle(command with { TitleEn = "Forbidden edit" }, default)).Status);
+        db.ChangeTracker.Clear();
+        var currentEvent = await db.GroupEvents.SingleAsync(x => x.Id == seeded.Event.Id);
+        var currentPlan = EventCompositionPersistence.ToSnapshotDto(await db.EventPlanSnapshots.SingleAsync(x => x.EventId == seeded.Event.Id && x.IsActive));
+        var current = seeded with { Event = currentEvent, Plan = currentPlan };
+        var frozenCommand = await ReviewedUpdateAsync(db, current, "Forbidden edit", "禁止修改");
+        var service = new EventPackageService(db, Authorization()); await ApprovePreparationAsync(service, current);
+        Assert.Equal(AppResultStatus.Conflict, (await handler.Handle(frozenCommand, default)).Status);
         db.ChangeTracker.Clear(); Assert.Equal("Revised", (await db.GroupEvents.FindAsync(seeded.Event.Id))!.TitleEn);
     }
 
@@ -163,11 +175,23 @@ public sealed partial class EventPackageFoundationTests
     public async Task Preparation_CopyEditsInvalidateSubmittedSnapshotBeforeDecision()
     {
         await using var db = CreateDb(); var seeded = await SeedAsync(db, false, ["TEAM.WORK"]);
+        var handler = new UpdateGroupEventCommandHandler(db, Authorization(), Substitute.For<IEventCacheInvalidationService>(),
+            new EventPackageInvalidationService(db), new EventCompositionEngine());
+        var baseline = await ReviewedUpdateAsync(db, seeded, seeded.Event.TitleEn, seeded.Event.TitleZh);
+        Assert.True((await handler.Handle(baseline, default)).IsSuccess);
+        db.ChangeTracker.Clear();
+        var readyEvent = await db.GroupEvents.SingleAsync(x => x.Id == seeded.Event.Id);
+        var readyPlan = EventCompositionPersistence.ToSnapshotDto(await db.EventPlanSnapshots.SingleAsync(x => x.EventId == seeded.Event.Id && x.IsActive));
+        seeded = seeded with { Event = readyEvent, Plan = readyPlan };
         var service = new EventPackageService(db, Authorization());
         var generated = await service.GenerateAsync(seeded.Event.Id, seeded.Owner, new(), seeded.Plan.ETag, "generate", default);
         var submitted = await service.SubmitAsync(seeded.Event.Id, generated.Value!.Id, seeded.Owner, generated.Value.ETag, "submit", default);
-        var handler = new UpdateGroupEventCommandHandler(db, Authorization(), Substitute.For<IEventCacheInvalidationService>(), new EventPackageInvalidationService(db));
-        Assert.True((await handler.Handle(new(seeded.Event.Id, seeded.Owner, "Revised title", "修改名称", seeded.Event.StartDate, seeded.Event.EndDate, seeded.Event.EventDataJson), default)).IsSuccess);
+        Assert.True(submitted.IsSuccess, submitted.Message);
+        db.ChangeTracker.Clear();
+        var currentEvent = await db.GroupEvents.SingleAsync(x => x.Id == seeded.Event.Id);
+        var current = seeded with { Event = currentEvent };
+        var command = await ReviewedUpdateAsync(db, current, "Revised title", "修改名称");
+        Assert.True((await handler.Handle(command, default)).IsSuccess);
         var result = await service.DecideAsync(seeded.Event.Id, generated.Value.Id, seeded.Owner, new(EventPackageDecisionType.Approve, new("Ready", "已就绪")), submitted.Value!.ETag, "approve-stale", default);
         Assert.Equal(AppResultStatus.Conflict, result.Status); Assert.Equal("event.package.sourceChanged", result.Message);
     }
@@ -181,8 +205,8 @@ public sealed partial class EventPackageFoundationTests
         await using var db = CreateDb(); var seeded = await SeedAsync(db, false, ["TEAM.WORK"]);
         seeded.Event.PublicationStatus = EventPublicationStatus.Draft;
         (await db.EventPackageGovernancePolicyVersions.SingleAsync()).EnforcementMode = mode;
-        db.EventRamAssessments.Add(new() { EventId = seeded.Event.Id, Status = EventRamStatus.Approved, RamDataJson = "{}" });
-        await db.SaveChangesAsync(); var service = new EventPackageService(db, Authorization());
+        await SeedApprovedCurrentRamAsync(db, seeded);
+        var service = new EventPackageService(db, Authorization());
         var lifecycle = (await service.GetLifecycleAsync(seeded.Event.Id, seeded.Owner, default)).Value!;
         var missing = await service.PublishAsync(seeded.Event.Id, seeded.Owner, new(null, null, lifecycle.ETag), "no-package", default);
         Assert.Equal(AppResultStatus.Conflict, missing.Status);
@@ -204,9 +228,9 @@ public sealed partial class EventPackageFoundationTests
         await using var db = CreateDb(); var seeded = await SeedAsync(db, false, ["TEAM.WORK"]);
         seeded.Event.PublicationStatus = EventPublicationStatus.Draft;
         seeded.Event.EventDataJson = "{\"visibility\":\"public\",\"maxCapacity\":30}";
-        var input = new EventPlanComposeRequest("1.1.0", "simple-social", new([
+        var input = EventCompositionTestData.CurrentRequest([
             new("visibility", System.Text.Json.JsonSerializer.SerializeToElement("groupVisible"), EventFactCertainty.Confirmed, EventFactSource.Human),
-            new("people.registrationMode", System.Text.Json.JsonSerializer.SerializeToElement("none"), EventFactCertainty.Confirmed, EventFactSource.Human)]), [], null, "shared-meal");
+            new("people.registrationMode", System.Text.Json.JsonSerializer.SerializeToElement("none"), EventFactCertainty.Confirmed, EventFactSource.Human)]);
         Assert.True(EventPreparationPolicy.NeedsPlanReview(seeded.Event, seeded.Plan.Plan with { Facts = new(null, input.Facts.Items, "old") }));
         var updated = EventPreparationPolicy.WithSavedDetails(seeded.Event, input);
         Assert.Equal("public", updated.Facts.Items.Single(x => x.Code == "visibility").Value!.Value.GetString());

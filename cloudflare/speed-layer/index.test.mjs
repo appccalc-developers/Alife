@@ -11,10 +11,10 @@ const formFixture = (scope = 'tasks') => ({ eventId: '11111111-1111-1111-1111-11
   ? { title: { en: '', zh: '' }, dueLocal: '', stage: 'preparation', requiresApproval: false, isRestricted: false }
   : scope === 'registration'
     ? { purpose: { en: '', zh: '' }, audience: 'group', eligibility: { en: '', zh: '' }, capacity: 30, opensLocal: '2026-10-01T09:00', deadlineLocal: '2026-10-02T09:00', allowWaitlist: true, terms: { en: '', zh: '' }, privacyNotice: { en: '', zh: '' }, cancellationTerms: { en: '', zh: '' }, channel: 'app', manualReview: false, materials: [], feeMinor: 0, currency: 'NZD', moneyFlowScope: 'unspecified', paymentInstructions: { en: '', zh: '' }, refundTerms: { en: '', zh: '' } }
-    : { activities: [{ id: 'meal-1', type: 'meal', name: { en: '', zh: '' }, conditions: { en: '', zh: '' }, occurrenceId: null }], participantCount: null, isOuting: false, isOvernight: false, isHighRisk: false } })
+    : { activities: [{ id: 'meal-1', attributes: ['meal'], name: { en: '', zh: '' }, conditions: { en: '', zh: '' }, occurrenceId: null }], participantCount: null, isOuting: false, isOvernight: false, isHighRisk: false } })
 const sendForm = (input, cookie = 'alife_auth=form-owner') => dispatch(`${ORIGIN}/api/events/form-assistance`, { method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(input), env: { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture' } })
 const formReply = (field = 'title', finishReason = 'STOP') => Response.json({ candidates: [{ finishReason, content: { parts: [{ text: JSON.stringify({ form: { [field]: { en: 'Prepare venue', zh: '准备场地' } }, evidence: [{ field, quote: '准备场地' }], assistantReply: { en: 'Review your draft.', zh: '请核对草稿。' } }) }] } }] })
-const activityReply = () => Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ form: { activities: [{ id: 'meal-1', type: 'meal', name: { en: 'Shared meal', zh: '共享聚餐' }, conditions: { en: 'Indoor hall', zh: '室内礼堂' }, occurrenceId: null }], isOuting: false }, evidence: [{ field: 'activities', quote: 'Community meal' }, { field: 'isOuting', quote: 'Gather indoors' }], assistantReply: { en: 'Review the activity conditions.', zh: '请核对活动条件。' } }) }] } }] })
+const activityReply = () => Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ form: { activities: [{ id: 'meal-1', attributes: ['meal'], name: { en: 'Shared meal', zh: '共享聚餐' }, conditions: { en: 'Indoor hall', zh: '室内礼堂' }, occurrenceId: null }], isOuting: false }, evidence: [{ field: 'activities', quote: 'Community meal' }, { field: 'isOuting', quote: 'Gather indoors' }], assistantReply: { en: 'Review the activity conditions.', zh: '请核对活动条件。' } }) }] } }] })
 
 test('form assistant authorizes each scope, uses private responses and excludes backend records', async () => {
   for (const scope of ['tasks', 'registration', 'activityPlan']) {
@@ -138,6 +138,150 @@ test('static assets fail closed when the asset binding is unavailable', async ()
   assert.equal(response.headers.get('cache-control'), 'no-store')
   assert.equal(response.headers.get('x-content-type-options'), 'nosniff')
   assert.equal(await response.text(), 'Static asset service unavailable.')
+})
+
+test('Event reset freeze blocks every Event write surface before auth, cache and origin work', async () => {
+  const env = { ...createEnv(), EVENT_SCHEMA_EPOCH: '2.0.0', EVENT_DATA_EPOCH: 'reset-42', EVENT_RUNTIME_ENVIRONMENT: 'production', EVENT_WRITE_MODE: 'frozen', EVENT_WRITE_FREEZE_EPOCH: 'reset-42', EVENT_WRITE_FREEZE_RETRY_AFTER_SECONDS: '120' }
+  const paths = [
+    '/api/events',
+    '/api/events/11111111-1111-1111-1111-111111111111/activity-plan',
+    '/api/groups/22222222-2222-2222-2222-222222222222/events',
+    '/api/groups/22222222-2222-2222-2222-222222222222/event-series',
+    '/api/event-series/11111111-1111-1111-1111-111111111111',
+    '/api/groups/22222222-2222-2222-2222-222222222222/event-plans/compose',
+    '/api/groups/22222222-2222-2222-2222-222222222222/event-venues/11111111-1111-1111-1111-111111111111/reservations',
+    '/api/groups/22222222-2222-2222-2222-222222222222/venues',
+    '/api/admin/event-templates/11111111-1111-1111-1111-111111111111',
+    '/api/admin/churches/22222222-2222-2222-2222-222222222222/ram-policies',
+    '/api/reviews/session/event-1/message',
+    '/api/ai/event-poster',
+    '/api/internal/ram/identify',
+  ]
+  for (const path of paths) {
+    const response = await dispatch(`${ORIGIN}${path}`, { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' }, env, auth: false })
+    assert.equal(response.status, 503, path)
+    assert.equal(response.headers.get('retry-after'), '120')
+    assert.equal(response.headers.get('cache-control'), 'no-store')
+    assert.equal(response.headers.get('x-alife-event-reset-epoch'), 'reset-42')
+    assert.equal((await response.json()).code, 'event.reset.frozen')
+  }
+  assert.equal(fetchCalls.length, 0)
+  originResponses.push(Response.json([]))
+  assert.equal((await dispatch(`${ORIGIN}/api/events/public/upcoming`, { env, auth: false })).status, 200)
+})
+
+test('production Event writes fail closed when schema epoch or write mode is missing', async () => {
+  for (const env of [
+    { ...createEnv(), EVENT_RUNTIME_ENVIRONMENT: 'production', EVENT_WRITE_MODE: 'open' },
+    { ...createEnv(), EVENT_RUNTIME_ENVIRONMENT: 'production', EVENT_SCHEMA_EPOCH: '2.0.0' },
+    { ...createEnv(), EVENT_RUNTIME_ENVIRONMENT: 'production', EVENT_SCHEMA_EPOCH: '2.0.0', EVENT_DATA_EPOCH: 'current', EVENT_WRITE_MODE: 'frozen' },
+    { ...createEnv(), EVENT_RUNTIME_ENVIRONMENT: 'production', EVENT_SCHEMA_EPOCH: '1.3.0', EVENT_DATA_EPOCH: 'current', EVENT_WRITE_MODE: 'open' },
+    { ...createEnv(), EVENT_RUNTIME_ENVIRONMENT: 'production', EVENT_SCHEMA_EPOCH: '2.0.0', EVENT_DATA_EPOCH: 'different', EVENT_WRITE_MODE: 'frozen', EVENT_WRITE_FREEZE_EPOCH: 'reset-42' },
+  ]) {
+    const response = await dispatch(`${ORIGIN}/api/events`, { method: 'POST', body: '{}', env, auth: false })
+    assert.equal(response.status, 503)
+    assert.equal((await response.json()).code, 'event.reset.configuration')
+  }
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('production Event reads fail closed before cache lookup when the persistent data epoch is missing', async () => {
+  cacheStore.set(`${ORIGIN}/api/events/public/upcoming?__alife_event_data_epoch=local-event-data`, Response.json([{ source: 'unsafe-fallback' }]))
+  const response = await dispatch(`${ORIGIN}/api/events/public/upcoming`, {
+    env: { ...createEnv(), EVENT_RUNTIME_ENVIRONMENT: 'production', EVENT_SCHEMA_EPOCH: '2.0.0', EVENT_WRITE_MODE: 'open' },
+    auth: false,
+  })
+
+  assert.equal(response.status, 503)
+  assert.equal((await response.json()).code, 'event.reset.configuration')
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('Event reset status requires the production 2.0 freeze and an available cache binding', async () => {
+  const keys = new Set(['api:/api/events/public/upcoming'])
+  const API_CACHE = {
+    async list() { return { keys: [...keys].map(name => ({ name })), list_complete: true } },
+    async delete(key) { keys.delete(key) },
+  }
+  const readyEnv = { ...createEnv(), API_CACHE, EVENT_SCHEMA_EPOCH: '2.0.0', EVENT_DATA_EPOCH: 'reset-42', EVENT_RUNTIME_ENVIRONMENT: ' PrOdUcTiOn ', EVENT_WRITE_MODE: 'FROZEN', EVENT_WRITE_FREEZE_EPOCH: 'reset-42' }
+  let response = await dispatch(`${ORIGIN}/api/internal/event-reset/status`, { env: readyEnv, headers: { authorization: 'Bearer test-cache-token' }, auth: false })
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), { ready: true, frozen: true, resetEpoch: 'reset-42', schemaEpoch: '2.0.0', dataEpoch: 'reset-42' })
+  response = await dispatch(`${ORIGIN}/api/internal/event-reset/status`, { env: { ...readyEnv, EVENT_SCHEMA_EPOCH: '1.3.0' }, headers: { authorization: 'Bearer test-cache-token' }, auth: false })
+  assert.equal(response.status, 503)
+  assert.equal((await response.json()).ready, false)
+  response = await dispatch(`${ORIGIN}/api/internal/event-reset/status`, { env: readyEnv, headers: { authorization: 'Bearer wrong' }, auth: false })
+  assert.equal(response.status, 403)
+})
+
+test('Event reset cache purge is epoch-bound and removes only Event keys', async () => {
+  const keys = new Set([
+    'api:/api/events/public/upcoming',
+    'api:/api/events/event-1/registration-work',
+    'api:/api/enrollments/session/retired',
+    'api:/api/reviews/session/review-1',
+    'group:group-1:events',
+    'map:event:event-1:group',
+    'event-data:old-reset:api:/api/events/event-old',
+    'event-data:reset-42:api:/api/events/event-current',
+    'event-data:reset-42:group:group-current:events',
+    'event-data:reset-42:map:event:event-current:group',
+    'api:/api/sermons',
+  ])
+  const API_CACHE = {
+    async list() { return { keys: [...keys].map(name => ({ name })), list_complete: true } },
+    async delete(key) { keys.delete(key) },
+  }
+  const env = { ...createEnv(), API_CACHE, EVENT_SCHEMA_EPOCH: '2.0.0', EVENT_DATA_EPOCH: 'reset-42', EVENT_RUNTIME_ENVIRONMENT: 'production', EVENT_WRITE_MODE: 'frozen', EVENT_WRITE_FREEZE_EPOCH: 'reset-42' }
+  cacheStore.set(`${ORIGIN}/api/events/public/upcoming`, Response.json([{ source: 'legacy-edge' }]))
+  cacheStore.set(`${ORIGIN}/api/events/public/upcoming?__alife_event_data_epoch=reset-42`, Response.json([{ source: 'current-edge' }]))
+  cacheStore.set(`${ORIGIN}/api/sermons`, Response.json([{ source: 'non-event' }]))
+  const call = body => dispatch(`${ORIGIN}/api/internal/event-reset/cache`, { method: 'POST', env, auth: false, headers: { authorization: 'Bearer test-cache-token', 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  let response = await call({ resetRunId: 'run-42', resetEpoch: 'wrong', schemaEpoch: '2.0.0', dataEpoch: 'reset-42' })
+  assert.equal(response.status, 409)
+  assert.equal(keys.size, 11)
+  response = await call({ resetRunId: 'run-42', resetEpoch: 'reset-42', schemaEpoch: '2.0.0', dataEpoch: 'reset-42' })
+  const responseBody = await response.json()
+  assert.equal(response.status, 200, JSON.stringify(responseBody))
+  assert.deepEqual(responseBody, { verified: true, resetRunId: 'run-42', resetEpoch: 'reset-42', schemaEpoch: '2.0.0', dataEpoch: 'reset-42', failures: [] })
+  assert.deepEqual([...keys], ['api:/api/sermons'])
+  assert.equal(cacheStore.has(`${ORIGIN}/api/events/public/upcoming`), false)
+  assert.equal(cacheStore.has(`${ORIGIN}/api/events/public/upcoming?__alife_event_data_epoch=reset-42`), false)
+  assert.equal(cacheStore.has(`${ORIGIN}/api/sermons`), true)
+})
+
+test('Event data epoch prevents legacy and earlier-epoch edge or KV responses from being read', async () => {
+  const url = `${ORIGIN}/api/events/public/upcoming`
+  cacheStore.set(url, Response.json([{ source: 'legacy-edge' }]))
+  cacheStore.set(`${url}?__alife_event_data_epoch=old-reset`, Response.json([{ source: 'old-edge' }]))
+  apiCacheRawStore.set('api:/api/events/public/upcoming', createStoredResponse([{ source: 'legacy-kv' }]))
+  apiCacheRawStore.set('event-data:old-reset:api:/api/events/public/upcoming', createStoredResponse([{ source: 'old-kv' }]))
+  originResponses.push(Response.json([{ source: 'origin-current' }]))
+  const env = { ...createEnvWithGlobalApiCache(), EVENT_DATA_EPOCH: 'reset-42' }
+
+  const first = await dispatch(url, { env, auth: false })
+  await flushWaitUntil()
+  const second = await dispatch(url, { env, auth: false })
+
+  assert.deepEqual(await first.json(), [{ source: 'origin-current' }])
+  assert.deepEqual(await second.json(), [{ source: 'origin-current' }])
+  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(apiCacheRawStore.has('event-data:reset-42:api:/api/events/public/upcoming'), true)
+})
+
+test('Event entity-to-group logical records are isolated by the Event data epoch', async () => {
+  const groupId = '22222222-2222-2222-2222-222222222222'
+  const eventId = '11111111-1111-1111-1111-111111111111'
+  originResponses.push(Response.json([{ id: eventId, groupId }]))
+  const env = { ...createEnv(), EVENT_DATA_EPOCH: 'reset-42' }
+
+  assert.equal((await dispatch(`${ORIGIN}/api/groups/${groupId}/events`, { env })).status, 200)
+  await flushWaitUntil()
+
+  assert.equal(apiCacheRawStore.has(`event-data:reset-42:map:event:${eventId}:group`), true)
+  assert.equal(apiCacheRawStore.has(`map:event:${eventId}:group`), false)
 })
 
 let fetchCalls
@@ -636,14 +780,14 @@ test('non-group member event reads reach origin for church visibility checks', a
   assert.equal(apiCacheGetKeys.includes(`group:${groupId}:events`), false)
 })
 
-test('event enrollments bypass shared cache because the response is viewer-specific', async () => {
+test('registration work bypasses shared cache because the response is viewer-specific', async () => {
   const groupId = '22222222-2222-2222-2222-222222222222'
   const eventId = 'event-1'
-  const url = `https://ccalc.live/api/events/${eventId}/enrollments`
+  const url = `https://ccalc.live/api/events/${eventId}/registration-work`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   apiCacheStore.set(`map:event:${eventId}:group`, JSON.stringify({ groupId }))
-  apiCacheStore.set(createApiCacheKey(url), createStoredResponse([{ id: 'another-members-enrollment', groupId, eventId }]))
-  originResponses.push(Response.json([{ id: 'own-enrollment', groupId, eventId, memberId: 'member-1' }]))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse({ applications: [{ id: 'another-members-application' }] }))
+  originResponses.push(Response.json({ eventId, groupId, applications: [{ id: 'own-application' }] }))
 
   const response = await dispatch(url, {
     headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
@@ -651,7 +795,7 @@ test('event enrollments bypass shared cache because the response is viewer-speci
 
   assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
   assert.equal(response.headers.get('cache-control'), 'no-store')
-  assert.deepEqual(await response.json(), [{ id: 'own-enrollment', groupId, eventId, memberId: 'member-1' }])
+  assert.deepEqual(await response.json(), { eventId, groupId, applications: [{ id: 'own-application' }] })
   assert.equal(fetchCalls.length, 1)
 })
 
@@ -1651,8 +1795,10 @@ test('successful event update evicts the group events list cache', async () => {
   const eventId = 'event-1'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/events`
   const publicListUrl = 'https://ccalc.live/api/events/public/upcoming'
-  cacheStore.set(cacheKey(new Request(listUrl)), Response.json([{ id: eventId, groupId }]))
-  cacheStore.set(cacheKey(new Request(publicListUrl)), Response.json([{ id: eventId, groupId }]))
+  const listCacheUrl = `${listUrl}?__alife_event_data_epoch=local-event-data`
+  const publicCacheUrl = `${publicListUrl}?__alife_event_data_epoch=local-event-data`
+  cacheStore.set(cacheKey(new Request(listCacheUrl)), Response.json([{ id: eventId, groupId }]))
+  cacheStore.set(cacheKey(new Request(publicCacheUrl)), Response.json([{ id: eventId, groupId }]))
   originResponses.push(Response.json({ id: eventId, groupId, titleEn: 'Updated' }))
 
   const response = await dispatch(`https://ccalc.live/api/events/${eventId}`, {
@@ -1662,8 +1808,8 @@ test('successful event update evicts the group events list cache', async () => {
   await flushWaitUntil()
 
   assert.equal(response.status, 200)
-  assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
-  assert.equal(cacheStore.has(cacheKey(new Request(publicListUrl))), false)
+  assert.equal(cacheStore.has(cacheKey(new Request(listCacheUrl))), false)
+  assert.equal(cacheStore.has(cacheKey(new Request(publicCacheUrl))), false)
 })
 
 test('public upcoming events use the queryless public cache', async () => {
@@ -2476,267 +2622,20 @@ test('retired Event planning endpoints bypass Durable Objects and Gemini', async
   assert.ok(fetchCalls.every(request => !request.url.includes('generativelanguage')))
 })
 
-test('POST /api/enrollments/session/:id/message returns enrollment draft', async () => {
-  const eventId = crypto.randomUUID()
-  const sessionId = `member-1-event-${eventId}-enrollment`
-  originResponses.push(Response.json({
-    candidates: [{
-      content: {
-        parts: [{
-          text: JSON.stringify({
-            eventId,
-            applicantName: 'Alice',
-            consentStatus: 'granted',
-            assistantReply: {
-              zh: '我已記下你的姓名與同意，請附上付款憑證。',
-              en: 'I captured your name and consent. Please attach your payment proof.',
-            },
-          }),
-        }],
-      },
-    }],
-  }))
-
-  const appContextParams = new URLSearchParams({
-    memberId: 'member-1',
-    groupId: '22222222-2222-2222-2222-222222222222',
-    userProfile: JSON.stringify({ displayName: 'Alice C', name: 'Alice' }),
-    eventData: JSON.stringify({ id: eventId, titleEn: 'Family Camp' }),
-  })
-  const response = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/message?${appContextParams}`, {
+test('retired enrollment session endpoints bypass Durable Objects and AI', async () => {
+  originResponses.push(Response.json({ code: 'route.not_found' }, { status: 404 }))
+  const response = await dispatch(`${ORIGIN}/api/enrollments/session/retired/message`, {
     method: 'POST',
-    body: JSON.stringify({ message: 'My name is Alice and I consent to submit this enrollment.' }),
+    body: JSON.stringify({ message: 'retired' }),
     headers: { 'content-type': 'application/json' },
-    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+    env: { ...createEnv(), API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'test-key' },
   })
-
-  assert.equal(response.status, 200)
-  const body = await response.json()
-  assert.equal(body.responseMode, 'result')
-  assert.equal(body.result.applicantName, 'Alice')
-  assert.equal(body.result.groupId, '22222222-2222-2222-2222-222222222222')
-  assert.equal(body.result.memberId, 'member-1')
-  assert.equal(body.result.applicantDisplayName, 'Alice C')
-  assert.equal(body.result.consentStatus, 'granted')
-  assert.equal(body.context.en, 'I captured your name and consent. Please attach your payment proof.')
+  assert.equal(response.status, 404)
+  assert.deepEqual(await response.json(), { code: 'route.not_found' })
   assert.equal(fetchCalls.length, 1)
-  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
-  const geminiBody = JSON.parse(fetchInits[0].body)
-  const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
-  assert.equal(prompt.appContext.eventData.titleEn, 'Family Camp')
+  assert.equal(new URL(fetchCalls[0].url).origin, 'https://api.ccalc.live')
+  assert.ok(!fetchCalls[0].url.includes('generativelanguage'))
 })
-
-test('POST /api/enrollments/session/:id/message uses provided eventId when AI omits it', async () => {
-  const eventId = crypto.randomUUID()
-  originResponses.push(Response.json({
-    candidates: [{
-      content: {
-        parts: [{
-          text: JSON.stringify({
-            applicantName: 'Alice',
-            consentStatus: 'unknown',
-            assistantReply: {
-              zh: '我已記下你的姓名，請確認是否同意提交報名。',
-              en: 'I captured your name. Please confirm whether you consent to submit the enrollment.',
-            },
-          }),
-        }],
-      },
-    }],
-  }))
-
-  const response = await dispatch(`https://ccalc.live/api/enrollments/session/manual-enrollment/message?eventId=${encodeURIComponent(eventId)}&groupId=22222222-2222-2222-2222-222222222222`, {
-    method: 'POST',
-    body: JSON.stringify({ message: 'My name is Alice.' }),
-    headers: { 'content-type': 'application/json' },
-    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
-  })
-
-  assert.equal(response.status, 200)
-  const body = await response.json()
-  assert.equal(body.responseMode, 'result')
-  assert.equal(body.result.eventId, eventId)
-  assert.equal(body.result.groupId, '22222222-2222-2222-2222-222222222222')
-})
-
-test('POST /api/enrollments/session/:id/message preserves non-uuid eventId from session id', async () => {
-  const eventId = 'spring-retreat-2026'
-  const sessionId = `member-1-event-${eventId}-enrollment`
-  originResponses.push(Response.json({
-    candidates: [{
-      content: {
-        parts: [{
-          text: JSON.stringify({
-            applicantName: 'Alice',
-            consentStatus: 'unknown',
-            assistantReply: {
-              zh: '我已記下你的姓名，請確認是否同意提交報名。',
-              en: 'I captured your name. Please confirm whether you consent to submit the enrollment.',
-            },
-          }),
-        }],
-      },
-    }],
-  }))
-
-  const response = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/message`, {
-    method: 'POST',
-    body: JSON.stringify({ message: 'My name is Alice.' }),
-    headers: { 'content-type': 'application/json' },
-    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
-  })
-
-  assert.equal(response.status, 200)
-  const body = await response.json()
-  assert.equal(body.responseMode, 'result')
-  assert.equal(body.result.eventId, eventId)
-})
-
-test('POST /api/enrollments/session/:id/commit uploads files and commits backend enrollment JSON', async () => {
-  const eventId = crypto.randomUUID()
-  const groupId = crypto.randomUUID()
-  const sessionId = `member-1-event-${eventId}-enrollment`
-  originResponses.push(Response.json({
-    candidates: [{
-      content: {
-        parts: [{
-          text: JSON.stringify({
-            eventId,
-            applicantName: 'Alice',
-            consentStatus: 'granted',
-            assistantReply: {
-              zh: '請附上付款憑證。',
-              en: 'Please attach your payment proof.',
-            },
-          }),
-        }],
-      },
-    }],
-  }))
-  originResponses.push(
-    Response.json({
-      image: { url: `https://images.ccalc.live/enrollments/${eventId}/proof.png` },
-    }, { status: 201 }),
-  )
-  originResponses.push(Response.json({ ok: true }, { status: 200 }))
-
-  await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/message`, {
-    method: 'POST',
-    body: JSON.stringify({ message: 'My name is Alice and I consent to submit this enrollment.' }),
-    headers: { 'content-type': 'application/json' },
-    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
-  })
-
-  const formData = new FormData()
-  formData.set('groupId', groupId)
-  formData.append('paymentFiles', new File(['dummy'], 'proof.png', { type: 'image/png' }))
-
-  const response = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/commit`, {
-    method: 'POST',
-    body: formData,
-    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
-  })
-
-  assert.equal(response.status, 200)
-  const body = await response.json()
-  assert.equal(body.status, 'completed')
-  assert.equal(fetchCalls.length, 3)
-  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
-  const uploadUrl = String(fetchCalls[1])
-  assert.match(
-    uploadUrl,
-    new RegExp(`^https://ccalc\\.live/images/api/images/groups/${groupId}/events/${eventId}/enrollments/[0-9a-f-]{36}$`),
-  )
-  const enrollmentId = uploadUrl.split('/').at(-1)
-  assert.equal(String(fetchCalls[2]), `https://api.ccalc.live/api/events/${eventId}/enrollments`)
-  assert.equal(fetchInits[2].method, 'POST')
-  assert.deepEqual(JSON.parse(fetchInits[2].body), {
-    id: enrollmentId,
-    enrollmentId,
-    eventId,
-    groupId,
-    applicantName: 'Alice',
-    memberId: 'member-1',
-    consent: true,
-    paymentFiles: [{
-      fileName: 'proof.png',
-      contentType: 'image/png',
-      size: 5,
-      url: `https://images.ccalc.live/enrollments/${eventId}/proof.png`,
-    }],
-    submittedAtUtc: JSON.parse(fetchInits[2].body).submittedAtUtc,
-  })
-
-  const stateResponse = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/state`, {
-    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
-  })
-  const state = await stateResponse.json()
-  assert.equal(state.draft.applicantName, '')
-  assert.equal(state.draft.consentStatus, 'unknown')
-  assert.deepEqual(state.chatHistory, [])
-})
-
-test('POST /api/enrollments/session/:id/commit allows enrollment without payment files', async () => {
-  const eventId = crypto.randomUUID()
-  const groupId = crypto.randomUUID()
-  const sessionId = `member-1-event-${eventId}-enrollment`
-  originResponses.push(Response.json({
-    candidates: [{
-      content: {
-        parts: [{
-          text: JSON.stringify({
-            eventId,
-            applicantName: 'Alice',
-            consentStatus: 'granted',
-            assistantReply: {
-              zh: '可以提交报名。',
-              en: 'You can submit the enrollment.',
-            },
-          }),
-        }],
-      },
-    }],
-  }))
-  originResponses.push(Response.json({ ok: true }, { status: 200 }))
-
-  await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/message`, {
-    method: 'POST',
-    body: JSON.stringify({ message: 'My name is Alice and I consent to submit this enrollment.' }),
-    headers: { 'content-type': 'application/json' },
-    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
-  })
-
-  const formData = new FormData()
-  formData.set('groupId', groupId)
-
-  const response = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/commit`, {
-    method: 'POST',
-    body: formData,
-    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
-  })
-
-  assert.equal(response.status, 200)
-  const body = await response.json()
-  assert.equal(body.status, 'completed')
-  assert.equal(fetchCalls.length, 2)
-  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
-  assert.equal(String(fetchCalls[1]), `https://api.ccalc.live/api/events/${eventId}/enrollments`)
-
-  const enrollmentPayload = JSON.parse(fetchInits[1].body)
-  assert.match(enrollmentPayload.enrollmentId, /^[0-9a-f-]{36}$/)
-  assert.deepEqual(enrollmentPayload, {
-    id: enrollmentPayload.enrollmentId,
-    enrollmentId: enrollmentPayload.enrollmentId,
-    eventId,
-    groupId,
-    applicantName: 'Alice',
-    memberId: 'member-1',
-    consent: true,
-    paymentFiles: [],
-    submittedAtUtc: enrollmentPayload.submittedAtUtc,
-  })
-})
-
 test('GET /api/reviews/session/:id/state keeps query-string app context compatibility', async () => {
   const eventId = crypto.randomUUID()
   const sessionId = `member-1-event-${eventId}-review`
@@ -2747,7 +2646,8 @@ test('GET /api/reviews/session/:id/state keeps query-string app context compatib
     eventId,
     eventData: JSON.stringify({ id: eventId, titleEn: 'Family Camp' }),
     knownFacts: JSON.stringify({
-      enrollments: [{ applicantName: 'Alice' }],
+      reviewId: 'review-1',
+      enrollments: [{ applicantName: 'PRIVATE PARTICIPANT' }],
     }),
   })
 
@@ -2762,7 +2662,7 @@ test('GET /api/reviews/session/:id/state keeps query-string app context compatib
   assert.equal(state.appContext.groupId, '22222222-2222-2222-2222-222222222222')
   assert.equal(state.appContext.eventId, eventId)
   assert.equal(state.appContext.eventData.titleEn, 'Family Camp')
-  assert.equal(state.appContext.knownFacts.enrollments[0].applicantName, 'Alice')
+  assert.equal(state.appContext.knownFacts.reviewId, 'review-1')
 })
 
 test('POST /api/reviews/session/:id/state accepts app context JSON body', async () => {
@@ -2778,7 +2678,7 @@ test('POST /api/reviews/session/:id/state accepts app context JSON body', async 
       eventId,
       eventData: { id: eventId, titleEn: 'Family Camp' },
       knownFacts: {
-        enrollments: [{ applicantName: 'Alice' }],
+        reviewId: 'review-1',
       },
     }),
     headers: { 'content-type': 'application/json' },
@@ -2793,7 +2693,7 @@ test('POST /api/reviews/session/:id/state accepts app context JSON body', async 
   assert.equal(state.appContext.groupId, '22222222-2222-2222-2222-222222222222')
   assert.equal(state.appContext.eventId, eventId)
   assert.equal(state.appContext.eventData.titleEn, 'Family Camp')
-  assert.equal(state.appContext.knownFacts.enrollments[0].applicantName, 'Alice')
+  assert.equal(state.appContext.knownFacts.reviewId, 'review-1')
   assert.equal(state.draft.eventId, eventId)
 })
 
@@ -2843,7 +2743,8 @@ test('POST /api/reviews/session/:id/message returns review draft and preserves a
     eventId,
     eventData: JSON.stringify({ id: eventId, titleEn: 'Family Camp' }),
     knownFacts: JSON.stringify({
-      enrollments: [{ applicantName: 'Alice' }],
+      reviewId: 'review-1',
+      enrollments: [{ applicantName: 'PRIVATE PARTICIPANT' }],
     }),
   })
   const response = await dispatch(`https://ccalc.live/api/reviews/session/${sessionId}/message?${appContextParams}`, {
@@ -2859,14 +2760,16 @@ test('POST /api/reviews/session/:id/message returns review draft and preserves a
   assert.equal(body.result.eventId, eventId)
   assert.equal(body.result.groupId, '22222222-2222-2222-2222-222222222222')
   assert.equal(body.result.memberId, 'member-1')
-  assert.match(body.result.reviewId, /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
+  assert.equal(body.result.reviewId, 'review-1')
   assert.equal(body.result.summary.en, 'A warm time of fellowship.')
   assert.equal(body.result.photoFiles.length, 0)
   assert.equal(body.context.en, 'The review draft is ready.')
   const geminiBody = JSON.parse(fetchInits[0].body)
   const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
   assert.equal(prompt.task, 'event-review')
-  assert.equal(prompt.appContext.knownFacts.enrollments[0].applicantName, 'Alice')
+  assert.equal(prompt.appContext.knownFacts.reviewId, 'review-1')
+  assert.equal(prompt.appContext.knownFacts.enrollments, undefined)
+  assert.doesNotMatch(JSON.stringify(prompt), /PRIVATE PARTICIPANT/)
 })
 
 test('POST /api/reviews/session/:id/message sends review photo as Gemini inline data', async () => {
@@ -2954,7 +2857,6 @@ function createEventPosterFormData({ groupId, event, guidance, baseImage }) {
 function isAiSessionUrl(url) {
   const pathname = new URL(url).pathname
   return /^\/api\/events\/details-session\//.test(pathname) ||
-    /^\/api\/enrollments\/session\//.test(pathname) ||
     /^\/api\/reviews\/session\//.test(pathname)
 }
 
@@ -3142,14 +3044,15 @@ function isAuthzKey(key) {
 }
 
 function isStoredResponseKey(key) {
-  return key.startsWith('api:') ||
-    key.startsWith('group:') ||
+  const unscoped = key.replace(/^event-data:[A-Za-z0-9._-]{1,128}:/, '')
+  return unscoped.startsWith('api:') ||
+    unscoped.startsWith('group:') ||
     key.startsWith('public:group:') ||
     /^member:[^:]+:me$/.test(key)
 }
 
 function isLogicalApiCacheKey(key) {
-  return key.startsWith('map:')
+  return key.replace(/^event-data:[A-Za-z0-9._-]{1,128}:/, '').startsWith('map:')
 }
 
 function readCachePutOptions(response) {
@@ -3456,12 +3359,9 @@ test('details assistant validates fields, authentication and owner isolation', a
 })
 
 
-test('enrollment, review and details use identical shared system policy with distinct scenarios', async () => {
+test('review and details use identical shared system policy with distinct scenarios', async () => {
   const reply = { zh: '请审阅', en: 'Please review' }
-  const cases = [
-    ['enrollments/session', { eventId: 'event-1', applicantName: 'Alice', consentStatus: 'unknown', assistantReply: reply }],
-    ['reviews/session', { eventId: 'event-1', reflection: reply, summary: reply, assistantReply: reply }],
-  ]
+  const cases = [['reviews/session', { eventId: 'event-1', reflection: reply, summary: reply, assistantReply: reply }]]
   for (const [route, output] of cases) {
     originResponses.push(detailsReply(output))
     const response = await dispatch(`${ORIGIN}/api/${route}/${crypto.randomUUID()}/message`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: 'Please help', appContext: { eventId: 'event-1' } }), env: { ...createEnv(), GEMINI_API_KEY: 'test-key' } })
@@ -3473,9 +3373,9 @@ test('enrollment, review and details use identical shared system policy with dis
   const payloads = fetchInits.map(x => JSON.parse(x.body))
   assert.equal(new Set(payloads.map(x => x.system_instruction.parts[0].text)).size, 1)
   const scenarios = payloads.map(x => JSON.parse(x.contents[0].parts.at(-1).text).scenarioDefinition)
-  assert.equal(new Set(scenarios).size, 3)
-  assert.match(scenarios[0], /consentStatus/)
-  assert.match(scenarios[2], /Do not produce RAM/)
+  assert.equal(new Set(scenarios).size, 2)
+  assert.match(scenarios[0], /event review assistant/)
+  assert.match(scenarios[1], /Do not produce RAM/)
 })
 
 test('details direct Durable Object enforces ownership even with a forged presentation source', async () => {
@@ -3489,12 +3389,31 @@ test('details direct Durable Object enforces ownership even with a forged presen
   assert.equal((await object.fetch(request('member-2'))).status, 403)
   assert.equal(fetchCalls.length, 1)
   assert.match(String(fetchCalls[0]), /generativelanguage/)
-  assert.equal(values.get('event-details-v1').ownerMemberId, 'member-1')
+  assert.equal(values.get('event-details-v2').ownerMemberId, 'member-1')
+})
+
+test('Event 2 details sessions use a new schema-epoch Durable Object address', async () => {
+  let objectName = ''
+  const env = {
+    ...createEnv(),
+    EVENT_SCHEMA_EPOCH: '2.0.0',
+    EVENT_DATA_EPOCH: 'reset-42',
+    EVENT_SESSIONS: {
+      idFromName: value => { objectName = value; return value },
+      get: () => ({ fetch: async () => Response.json({ ok: true }) }),
+    },
+  }
+
+  const response = await dispatch(`${ORIGIN}/api/events/details-session/reused-pre-reset-token/state`, { env })
+
+  assert.equal(response.status, 200)
+  assert.match(objectName, /^2\.0\.0:reset-42:details-v2:/)
+  assert.doesNotMatch(objectName, /details-v1:/)
 })
 
 
 test('RAM AI guidance rejects private payloads and requires origin RAM authorization', async () => {
-  const body = { eventId: '11111111-1111-1111-1111-111111111111', activityType: 'hiking', category: 'environment', language: 'en' }
+  const body = { eventId: '11111111-1111-1111-1111-111111111111', activityType: 'hiking', attributes: ['hiking'], category: 'environment', language: 'en' }
   const env = { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture-key' }
   let response = await dispatch('https://ccalc.live/api/events/ram-guidance', { method: 'POST', body: JSON.stringify({ ...body, ram: { medical: 'PRIVATE' } }), headers: { 'content-type': 'application/json' }, env })
   assert.equal(response.status, 400)
@@ -3509,10 +3428,10 @@ test('RAM AI guidance rejects private payloads and requires origin RAM authoriza
 test('RAM AI guidance sends only enums and cannot return scores or replace manual RAM', async () => {
   originResponses.push(Response.json({ privateRam: 'MUST-NOT-FORWARD' }))
   originResponses.push(Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ explanation: 'Check what is known.', questions: ['Who verifies this?'], hazards: ['Do not copy'], riskScore: 25 }) }] } }] }))
-  const response = await dispatch('https://ccalc.live/api/events/ram-guidance', { method: 'POST', headers: { 'content-type': 'application/json', cookie: 'alife_auth=fixture' }, body: JSON.stringify({ eventId: '11111111-1111-1111-1111-111111111111', activityType: 'hiking', category: 'environment', language: 'en' }), env: { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture-key' } })
+  const response = await dispatch('https://ccalc.live/api/events/ram-guidance', { method: 'POST', headers: { 'content-type': 'application/json', cookie: 'alife_auth=fixture' }, body: JSON.stringify({ eventId: '11111111-1111-1111-1111-111111111111', activityType: 'hiking', attributes: ['hiking'], category: 'environment', language: 'en' }), env: { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture-key' } })
   assert.equal(response.status, 200)
   const payload = JSON.parse(fetchInits[1].body)
-  assert.deepEqual(JSON.parse(payload.contents[0].parts[0].text), { activityType: 'hiking', category: 'environment', language: 'en' })
+  assert.deepEqual(JSON.parse(payload.contents[0].parts[0].text), { activityType: 'hiking', attributes: ['hiking'], category: 'environment', language: 'en' })
   assert.equal(fetchInits[1].body.includes('MUST-NOT-FORWARD'), false)
   assert.deepEqual(await response.json(), { explanation: 'Check what is known.', questions: ['Who verifies this?'] })
   assert.equal(response.headers.get('cache-control'), 'private, no-store')
@@ -3579,17 +3498,17 @@ test('RAM authoring authorizes both scopes and sends only the reviewed allowlist
     const before = fetchCalls.length;
     originResponses.push(Response.json({ sourceVersion: 'source-1' }));
     originResponses.push(Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ suggestions: { hazard: 'Possible slippery surface', controlMeasures: 'Ask a person to check the surface before use.' }, questions: ['Has the surface been checked?'] }) }] } }] }));
-    const body = { ...scope, language: 'en', mode: 'rewrite', activityType: 'hiking', category: 'environment', brief: 'A short group walk.', selectedText: { hazard: 'Slip' }, sourceVersion: 'source-1' };
+    const body = { ...scope, language: 'en', mode: 'rewrite', activityType: 'hiking', attributes: ['hiking'], category: 'environment', brief: 'A short group walk.', selectedText: { hazard: 'Slip' }, sourceVersion: 'source-1' };
     const response = await dispatch('https://ccalc.live/api/events/ram-assistance', { method: 'POST', headers: { 'content-type': 'application/json', cookie: 'alife_auth=fixture' }, body: JSON.stringify(body), env: { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture' } });
     assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'private, no-store');
     const sent = JSON.parse(JSON.parse(fetchInits[before + 1].body).contents[0].parts[0].text);
-    assert.deepEqual(sent, { language: 'en', mode: 'rewrite', activityType: 'hiking', category: 'environment', brief: 'A short group walk.', selectedText: { hazard: 'Slip' } });
+    assert.deepEqual(sent, { language: 'en', mode: 'rewrite', activityType: 'hiking', attributes: ['hiking'], category: 'environment', brief: 'A short group walk.', selectedText: { hazard: 'Slip' } });
     assert.equal((await response.json()).sourceVersion, 'source-1');
   }
 });
 test('RAM authoring rejects private fields, stale sources, forbidden output and provider failures', async () => {
   const env = { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture' };
-  const body = { eventId: '11111111-1111-1111-1111-111111111111', language: 'zh', mode: 'draft', activityType: 'generic', category: 'environment', brief: '室内活动', selectedText: {}, sourceVersion: '1' };
+  const body = { eventId: '11111111-1111-1111-1111-111111111111', language: 'zh', mode: 'draft', activityType: 'generic', attributes: [], category: 'environment', brief: '室内活动', selectedText: {}, sourceVersion: '1' };
   const send = value => dispatch('https://ccalc.live/api/events/ram-assistance', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(value), env });
   for (const value of [{ ...body, members: ['private'] }, { ...body, selectedText: { personResponsible: 'private' } }, { ...body, brief: 'Contact private@example.com' }]) assert.equal((await send(value)).status, 400);
   assert.equal(fetchCalls.length, 0);

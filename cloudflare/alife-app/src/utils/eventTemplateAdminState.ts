@@ -1,4 +1,6 @@
 import type { AdminEventActivityTemplate, AdminEventActivityTemplateValues } from '../types/eventTemplateAdmin'
+import { validActivityAttributes } from '../../../shared/activityAttributes.ts'
+import { generalProjectQuestionCodes, movedEventQuestionFacts, projectQuestionCodes, validProjectAnswerValue } from '../types/eventProjectQuestionnaire.ts'
 
 export type EventTemplateAdminForm = AdminEventActivityTemplateValues & {
   code: string
@@ -15,6 +17,7 @@ export const emptyEventTemplateAdminForm = (archetypeCode = 'simple-social'): Ev
   preselectedModules: [],
   recommendedWorkflowTemplateCode: null,
   presetServiceSlots: [],
+  presetProjects: [],
   isActive: true,
 })
 
@@ -31,6 +34,7 @@ export const eventTemplateToAdminForm = (value: AdminEventActivityTemplate): Eve
     ...slot,
     label: { ...slot.label },
   })),
+  presetProjects: structuredClone(value.template.presetProjects ?? []),
   isActive: value.isActive,
 })
 
@@ -48,6 +52,7 @@ export const validateEventTemplateAdminForm = (
   if (!form.description.en.trim() || !form.description.zh.trim()) return 'description'
   if (!allowedIcons.has(form.iconKey)) return 'icon'
   if (form.preselectedModules.some((code) => !allowedModules.has(code))) return 'modules'
+  if (form.presetProjects.length > 50 || new Set(form.presetProjects.map(project => project.presetKey)).size !== form.presetProjects.length || form.presetProjects.some(project => !/^[a-z][a-z0-9-]{0,79}$/.test(project.presetKey) || !project.name.en.trim() || !project.name.zh.trim() || project.name.en.length > 300 || project.name.zh.length > 300 || typeof project.conditions.en !== 'string' || typeof project.conditions.zh !== 'string' || project.conditions.en.length > 4000 || project.conditions.zh.length > 4000 || !validActivityAttributes(project.attributes) || typeof project.repeatForEachOccurrence !== 'boolean' || Object.entries(project.defaultAnswers).some(([code, value]) => !projectQuestionCodes.includes(code as typeof projectQuestionCodes[number]) || !validProjectAnswerValue(value)))) return 'projects'
   if (new Set(form.preselectedModules).size !== form.preselectedModules.length) return 'modules'
   if (form.presetServiceSlots.length && !form.preselectedModules.includes('SERVICE.ROSTER')) return 'roster-module'
   if (form.preselectedModules.includes('SERVICE.ROSTER') && !form.presetServiceSlots.length) return 'roster-slots'
@@ -76,5 +81,9 @@ export const toUpdateEventTemplateRequest = (form: EventTemplateAdminForm): Admi
     requiredCount: Number(slot.requiredCount),
     eligibilityCode: 'approvedGroupMember',
   })),
+  presetProjects: form.presetProjects.map(project => ({ ...project, name: { en: project.name.en.trim(), zh: project.name.zh.trim() }, conditions: { en: project.conditions.en.trim(), zh: project.conditions.zh.trim() }, attributes: [...project.attributes], defaultAnswers: {
+    ...Object.fromEntries(Object.entries(project.defaultAnswers).filter(([code]) => !(code in movedEventQuestionFacts))),
+    ...Object.fromEntries(generalProjectQuestionCodes.map(code => [code, project.defaultAnswers[code] === 'yes' ? 'yes' : 'no'])),
+  } })),
   isActive: form.isActive,
 })

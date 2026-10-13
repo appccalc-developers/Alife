@@ -83,7 +83,7 @@ test('draft recovery accepts incomplete edits but rejects malformed nested arran
   assert.equal(validStoredArrangements({ slots: [{ id: 5 }] }), false)
   assert.equal(validStoredArrangements({ venues: 'invalid' }), false)
   assert.equal(validStoredArrangements({}), true)
-  const saved = JSON.stringify({ version: 3, savedUtc: new Date().toISOString(), draft: value })
+  const saved = JSON.stringify({ version: 5, savedUtc: new Date().toISOString(), draft: value })
   const catalogue = [{ code: 'simple-social', activityTypes: [type] }] as EventArchetype[]
   assert.deepEqual(restoreCreationDraft(saved, catalogue)?.arrangements, value.arrangements)
 })

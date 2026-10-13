@@ -16,6 +16,7 @@ public class EventActivityTemplateVersion
     public string PreselectedModulesJson { get; set; } = "[]";
     public string? RecommendedWorkflowTemplateCode { get; set; }
     public string PresetServiceSlotsJson { get; set; } = "[]";
+    public string? PresetProjectsJson { get; set; }
     public bool IsActive { get; set; }
     public bool IsCurrent { get; set; }
     public bool IsSystemPreset { get; set; }

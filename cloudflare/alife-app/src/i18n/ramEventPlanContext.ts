@@ -25,7 +25,6 @@ export const ramEventPlanContextText = {
     location: { en: 'Location', zh: '地点' } as const,
     timeZone: { en: 'Time zone', zh: '时区' } as const,
     participationRequirements: { en: 'Participation requirements', zh: '参加要求' } as const,
-    optionalActivities: { en: 'Optional activities', zh: '可选活动' } as const,
     registrationDeadline: { en: 'Registration deadline', zh: '报名截止' } as const,
     capacity: { en: 'Capacity', zh: '容量' } as const,
     capacityUnit: { en: 'Capacity unit', zh: '计数单位' } as const,

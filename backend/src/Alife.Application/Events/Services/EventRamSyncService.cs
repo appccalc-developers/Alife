@@ -23,10 +23,9 @@ public sealed class EventRamSyncService(IAlifeDbContext db, IRamSyncAi ai, IEven
             try { await db.SaveChangesAsync(ct); } catch (DbUpdateConcurrencyException) { }
             return;
         }
-        if (ram.SchemaVersion != 2 || context.ActivityPlan?.Data.Activities.Length is null or 0)
+        if (context.ActivityPlan?.Data.Activities.Length is null or 0)
         {
-            // Upgrade is a human action. Do not spend provider calls retrying a legacy payload.
-            ram.SyncStatus = "Outdated"; ram.SyncError = ram.SchemaVersion != 2 ? "ram.sync.upgradeRequired" : "ram.sync.activityPlanRequired";
+            ram.SyncStatus = "Outdated"; ram.SyncError = "ram.sync.activityPlanRequired";
             ram.SyncDueUtc = null; ram.ConcurrencyToken = Guid.NewGuid();
             try { await db.SaveChangesAsync(ct); } catch (DbUpdateConcurrencyException) { }
             return;

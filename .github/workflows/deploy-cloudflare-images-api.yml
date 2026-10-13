@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-images-api-${{ github.ref }}
-  cancel-in-progress: true
+  group: production-event-reset
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -40,9 +40,61 @@ jobs:
           FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
           FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
         run: |
-          if [ "${#FILE_ADMIN_BACKFILL_SECRET}" -lt 32 ] || [ "${#FILE_ACCESS_SIGNING_SECRET}" -lt 32 ]; then
-            echo "Missing file storage secrets. Configure both FILE_ADMIN_BACKFILL_SECRET and FILE_ACCESS_SIGNING_SECRET."
+          set -euo pipefail
+          if [ "${#FILE_ADMIN_BACKFILL_SECRET}" -lt 32 ] || \
+             [ "${#FILE_ACCESS_SIGNING_SECRET}" -lt 32 ]; then
+            echo "One or more file storage secrets are missing or too short."
             exit 1
+          fi
+
+      - name: Refuse a normal deploy during Event reset or rollback
+        shell: bash
+        env:
+          FREEZE_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
+          FREEZE_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
+          RESET_HEALTH_URL: ${{ vars.EVENT_RESET_FINALIZE_HEALTH_URL }}
+          RESET_HEALTH_TOKEN: ${{ secrets.EVENT_RESET_FINALIZE_HEALTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$FREEZE_STATUS_URL"
+          test -n "$RESET_HEALTH_URL"
+          test "${#FREEZE_STATUS_TOKEN}" -ge 32
+          test "${#RESET_HEALTH_TOKEN}" -ge 32
+
+          freeze_status="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $FREEZE_STATUS_TOKEN" "$FREEZE_STATUS_URL")"
+          jq -e 'type == "object" and (.configurationValid | type == "boolean") and (.frozen | type == "boolean") and ((.resetEpoch == null) or (.resetEpoch | type == "string"))' <<<"$freeze_status" >/dev/null
+          test "$(jq -r '.configurationValid' <<<"$freeze_status")" = true
+          test "$(jq -r '.schemaEpoch' <<<"$freeze_status")" = '2.0.0'
+          if [ "$(jq -r '.frozen' <<<"$freeze_status")" = true ] || \
+             [ -n "$(jq -r '.resetEpoch // empty' <<<"$freeze_status")" ]; then
+            echo 'Normal Images API deployment is blocked while the Event runtime is frozen.'
+            exit 1
+          fi
+
+          health_file="$RUNNER_TEMP/images-event-reset-health.json"
+          health_code="$(curl --retry 4 --retry-all-errors --silent --show-error \
+            -H "Authorization: Bearer $RESET_HEALTH_TOKEN" \
+            -o "$health_file" -w '%{http_code}' "$RESET_HEALTH_URL")"
+          if [ "$health_code" != 200 ] && [ "$health_code" != 503 ]; then
+            echo "Event reset health returned unexpected HTTP status $health_code."
+            exit 1
+          fi
+          # A valid 2.0 Event created after reset makes reset-health return 503;
+          # the immutable migration/marker fields below remain the deploy gate.
+          jq -e 'type == "object" and has("resetRunId") and has("rollbackHold") and has("verifiedStateConfigured") and has("inventoryRecognized") and has("destructiveMigrationApplied") and has("finalizationBlocksDeployment") and has("finalReleaseBlocksDeployment") and ((.resetRunId == null) or (.resetRunId | type == "string")) and (.rollbackHold | type == "boolean") and (.verifiedStateConfigured | type == "boolean") and (.inventoryRecognized | type == "boolean") and (.destructiveMigrationApplied | type == "boolean") and (.finalizationBlocksDeployment | type == "boolean") and (.finalReleaseBlocksDeployment | type == "boolean")' "$health_file" >/dev/null
+          test "$(jq -r '.schemaEpoch' "$health_file")" = '2.0.0'
+          test "$(jq -r '.finalizationBlocksDeployment' "$health_file")" = false
+          test "$(jq -r '.finalReleaseBlocksDeployment' "$health_file")" = false
+          test "$(jq -r '.inventoryRecognized' "$health_file")" = true
+          reset_run_id="$(jq -r '.resetRunId // empty' "$health_file")"
+          if [ -z "$reset_run_id" ]; then
+            test "$(jq -r '.destructiveMigrationApplied' "$health_file")" = false
+          else
+            [[ "$reset_run_id" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
+            test "$(jq -r '.verifiedStateConfigured' "$health_file")" = true
+            test "$(jq -r '.rollbackHold' "$health_file")" = false
+            test "$(jq -r '.destructiveMigrationApplied' "$health_file")" = true
           fi
 
       - name: Deploy images API Worker
@@ -53,7 +105,8 @@ jobs:
           FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
           FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
         run: |
-          node -e 'process.stdout.write(JSON.stringify({FILE_ADMIN_BACKFILL_SECRET: process.env.FILE_ADMIN_BACKFILL_SECRET, FILE_ACCESS_SIGNING_SECRET: process.env.FILE_ACCESS_SIGNING_SECRET}))' |
+          set -euo pipefail
+          node -e 'process.stdout.write(JSON.stringify({FILE_ADMIN_BACKFILL_SECRET:process.env.FILE_ADMIN_BACKFILL_SECRET,FILE_ACCESS_SIGNING_SECRET:process.env.FILE_ACCESS_SIGNING_SECRET}))' |
             npx wrangler@4.88.0 secret bulk --config cloudflare/images-api/wrangler.toml
 
       - name: Deploy OpenAPI spec to R2
