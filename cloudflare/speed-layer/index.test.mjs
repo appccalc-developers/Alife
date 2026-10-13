@@ -5,6 +5,7 @@ import { beforeEach, test } from 'node:test'
 
 import worker from './dist/app_ccalc/index.js'
 import { EnrollmentSession, EventPlanningSession, ReviewSession } from './dist/app_ccalc/index.js'
+import { createDeployConfig } from './scripts/deploy-config.mjs'
 
 const ORIGIN = 'https://ccalc.live'
 const RESET_OBJECT_ID = 'a'.repeat(64)
@@ -575,7 +576,16 @@ test('Worker configuration keeps all three Event session namespaces without a pe
     ['ENROLLMENT_SESSIONS', 'EnrollmentSession'],
     ['REVIEW_SESSIONS', 'ReviewSession'],
   ])
-  assert.equal(config.secrets.required.includes('EVENT_RESET_DO_TOKEN'), true)
+  assert.equal(config.secrets.required.includes('EVENT_RESET_DO_TOKEN'), false)
+
+  const deployConfig = createDeployConfig(config, 'a'.repeat(32))
+  assert.equal(deployConfig.secrets.required.includes('EVENT_RESET_DO_TOKEN'), true)
+  assert.deepEqual(deployConfig.kv_namespaces, [{ binding: 'API_CACHE', id: 'a'.repeat(32) }])
+
+  const checkedInDeployConfig = JSON.parse(await readFile(new URL('./.wrangler.deploy.jsonc', import.meta.url), 'utf8'))
+  assert.equal(checkedInDeployConfig.secrets.required.includes('EVENT_RESET_DO_TOKEN'), true)
+  assert.equal(checkedInDeployConfig.migrations.some(item => item.deleted_classes), false)
+  assert.equal(checkedInDeployConfig.durable_objects.bindings.some(item => item.class_name === 'EnrollmentSession'), true)
 })
 
 test('Event data epoch prevents legacy and earlier-epoch edge or KV responses from being read', async () => {

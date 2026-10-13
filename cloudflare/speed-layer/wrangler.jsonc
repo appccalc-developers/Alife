@@ -30,8 +30,7 @@
 	"secrets": {
 		"required": [
 			"GEMINI_API_KEY",
-			"CACHE_SYNC_API_TOKEN",
-			"EVENT_RESET_DO_TOKEN"
+			"CACHE_SYNC_API_TOKEN"
 		]
 	},
 	"durable_objects": {

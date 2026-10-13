@@ -293,7 +293,7 @@ The Event 2.0 reset preserves all three class namespaces and clears their object
 | `IMAGES_API_PROXY_TARGET` | Optional image API origin override used by the standard local stack |
 | `GEMINI_MODEL` | Gemini model override |
 | `GEMINI_API_KEY` | Required Worker secret |
-| `EVENT_RESET_DO_TOKEN` | Protected Durable Object reset secret, at least 32 characters; authorizes reset requests and their HMAC-SHA256 signatures, and must not reuse `CACHE_SYNC_API_TOKEN` |
+| `EVENT_RESET_DO_TOKEN` | Protected Durable Object reset secret, at least 32 characters; the controlled deployment config requires and uploads it, ordinary Workers Builds do not receive it, and it must not reuse `CACHE_SYNC_API_TOKEN` |
 | `EVENT_RESET_DO_APPROVED_FINGERPRINT` | Temporary non-secret variable deployed only to the frozen reset artifact; must equal the human-approved Durable Object manifest fingerprint |
 | `API_CACHE` | Workers KV binding used as the global public-page L2 cache |
 | `EVENT_SESSIONS` | Durable Object namespace |
