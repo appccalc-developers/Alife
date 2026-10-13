@@ -15,8 +15,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-event-reset
-  cancel-in-progress: false
+  group: cloudflare-worker-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -44,75 +44,6 @@ jobs:
           cache-dependency-path: |
             cloudflare/alife-app/package-lock.json
             cloudflare/speed-layer/package-lock.json
-
-      - name: Refuse a normal deploy during Event reset, rollback or finalization
-        shell: bash
-        env:
-          FREEZE_STATUS_URL: ${{ vars.EVENT_RESET_FREEZE_STATUS_URL }}
-          FREEZE_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
-          RESET_HEALTH_URL: ${{ vars.EVENT_RESET_FINALIZE_HEALTH_URL }}
-          RESET_HEALTH_TOKEN: ${{ secrets.EVENT_RESET_FINALIZE_HEALTH_TOKEN }}
-          SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          test -n "$FREEZE_STATUS_URL"
-          test -n "$RESET_HEALTH_URL"
-          test -n "$SPEED_URL"
-          test "${#FREEZE_STATUS_TOKEN}" -ge 32
-          test "${#RESET_HEALTH_TOKEN}" -ge 32
-          test "${#SPEED_TOKEN}" -ge 32
-
-          freeze_status="$(curl --retry 4 --retry-all-errors --fail-with-body --silent --show-error \
-            -H "Authorization: Bearer $FREEZE_STATUS_TOKEN" "$FREEZE_STATUS_URL")"
-          test "$(jq -r '.configurationValid' <<<"$freeze_status")" = true
-          test "$(jq -r '.schemaEpoch' <<<"$freeze_status")" = '2.0.0'
-          data_epoch="$(jq -r '.dataEpoch // empty' <<<"$freeze_status")"
-          [[ "$data_epoch" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
-          test "$(jq -r '.frozen' <<<"$freeze_status")" = false
-          test -z "$(jq -r '.resetEpoch // empty' <<<"$freeze_status")"
-
-          health_file="$RUNNER_TEMP/speed-event-reset-health.json"
-          health_code="$(curl --retry 4 --retry-all-errors --silent --show-error \
-            -H "Authorization: Bearer $RESET_HEALTH_TOKEN" \
-            -o "$health_file" -w '%{http_code}' "$RESET_HEALTH_URL")"
-          if [ "$health_code" != 200 ] && [ "$health_code" != 503 ]; then
-            echo "Event reset health returned unexpected HTTP status $health_code."
-            exit 1
-          fi
-          jq -e 'type == "object" and has("resetRunId") and has("rollbackHold") and has("verifiedStateConfigured") and has("inventoryRecognized") and has("destructiveMigrationApplied") and has("finalizationBlocksDeployment") and has("finalReleaseBlocksDeployment")' "$health_file" >/dev/null
-          test "$(jq -r '.schemaEpoch' "$health_file")" = '2.0.0'
-          test "$(jq -r '.finalizationBlocksDeployment' "$health_file")" = false
-          test "$(jq -r '.finalReleaseBlocksDeployment' "$health_file")" = false
-          test "$(jq -r '.inventoryRecognized' "$health_file")" = true
-          reset_run_id="$(jq -r '.resetRunId // empty' "$health_file")"
-          pre_reset=false
-          if [ -z "$reset_run_id" ]; then
-            test "$(jq -r '.destructiveMigrationApplied' "$health_file")" = false
-            pre_reset=true
-          else
-            test "$(jq -r '.verifiedStateConfigured' "$health_file")" = true
-            test "$(jq -r '.rollbackHold' "$health_file")" = false
-            test "$(jq -r '.destructiveMigrationApplied' "$health_file")" = true
-            test "$(jq -r '.dataEpoch' "$health_file")" = "$data_epoch"
-          fi
-
-          speed_file="$RUNNER_TEMP/current-speed-reset-status.json"
-          speed_code="$(curl --retry 4 --retry-all-errors --silent --show-error \
-            -H "Authorization: Bearer $SPEED_TOKEN" \
-            -o "$speed_file" -w '%{http_code}' "$SPEED_URL/api/internal/event-reset/status")"
-          if [ "$speed_code" = 200 ] || [ "$speed_code" = 503 ]; then
-            test "$(jq -r '.schemaEpoch' "$speed_file")" = '2.0.0'
-            test "$(jq -r '.dataEpoch' "$speed_file")" = "$data_epoch"
-            test "$(jq -r '.frozen' "$speed_file")" = false
-            test -z "$(jq -r '.resetEpoch // empty' "$speed_file")"
-          elif [ "$pre_reset" != true ]; then
-            echo "Speed Layer reset status returned unexpected HTTP status $speed_code."
-            exit 1
-          else
-            echo 'Allowing the one-time pre-reset Speed Layer status bootstrap.'
-          fi
-          echo "EVENT_DATA_EPOCH=$data_epoch" >> "$GITHUB_ENV"
 
       - name: Install Frontend dependencies
         working-directory: ./cloudflare/alife-app
@@ -170,35 +101,10 @@ jobs:
         run: |
           set -euo pipefail
           EVENT_RESET_DO_SECRET_REQUIRED=false npm run prepare:deploy-config
-          node --input-type=module -e \
-            'import fs from "node:fs"; const p=".wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.EVENT_DATA_EPOCH,EVENT_WRITE_MODE:"open"}; delete c.vars.EVENT_WRITE_FREEZE_EPOCH; delete c.vars.EVENT_RESET_DO_APPROVED_FINGERPRINT; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
 
       - name: Deploy Worker
         working-directory: ./cloudflare/speed-layer
         run: npx wrangler deploy --config .wrangler.deploy.jsonc --secrets-file .dev.vars
-
-      - name: Verify Speed Layer remains open after normal deployment
-        shell: bash
-        env:
-          SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
-          SPEED_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          for attempt in {1..18}; do
-            status_file="$RUNNER_TEMP/deployed-speed-reset-status.json"
-            status_code="$(curl --silent --show-error -H "Authorization: Bearer $SPEED_TOKEN" \
-              -o "$status_file" -w '%{http_code}' "$SPEED_URL/api/internal/event-reset/status" || true)"
-            if [ "$status_code" = 503 ] && \
-               [ "$(jq -r '.frozen // true' "$status_file" 2>/dev/null || true)" = false ] && \
-               [ -z "$(jq -r '.resetEpoch // empty' "$status_file" 2>/dev/null || true)" ] && \
-               [ "$(jq -r '.schemaEpoch // empty' "$status_file" 2>/dev/null || true)" = '2.0.0' ] && \
-               [ "$(jq -r '.dataEpoch // empty' "$status_file" 2>/dev/null || true)" = "$EVENT_DATA_EPOCH" ]; then
-              exit 0
-            fi
-            sleep 10
-          done
-          echo 'Speed Layer did not return to the expected open Event 2.0 state.'
-          exit 1
 
       - name: Warm public page cache
         working-directory: ./cloudflare/speed-layer

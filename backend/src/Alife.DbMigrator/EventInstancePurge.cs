@@ -20,7 +20,9 @@ namespace Alife.DbMigrator;
 /// </summary>
 internal sealed partial class EventInstancePurge
 {
-    private const string ManifestVersion = "event-instance-purge/1";
+    private const string ManifestVersion = "event-instance-purge/2";
+    private const string NoRecoveryReference = "irreversible-no-recovery";
+    private const string NoRecoveryArgument = "--Events:NoRecovery=true";
     private const int MaximumRemoteFilesPerReset = 250;
     private const string LocalResetServer = "localhost,14333";
     private const string LocalResetDatabase = "alife_db";
@@ -160,6 +162,14 @@ internal sealed partial class EventInstancePurge
             !string.Equals(environment, "Production", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Events:PurgeEnvironment must be explicitly Local or Production.");
         var isProduction = string.Equals(environment, "Production", StringComparison.OrdinalIgnoreCase);
+        var noRecovery = configuration.GetValue<bool>("Events:NoRecovery");
+        var noRecoveryArguments = args.Count(argument =>
+            string.Equals(argument, NoRecoveryArgument, StringComparison.Ordinal));
+        if (noRecovery && (!isProduction || noRecoveryArguments != 1))
+            throw new InvalidOperationException(
+                "Irreversible Event purge is production-only and requires the exact --Events:NoRecovery=true command-line argument once.");
+        if (!noRecovery && noRecoveryArguments != 0)
+            throw new InvalidOperationException("Events:NoRecovery must match the explicit command-line argument.");
         var expectedDatabase = Require(configuration, "Events:ExpectedDatabase");
         var expectedServer = Require(configuration, "Events:ExpectedServer");
         var targetResource = Require(configuration, "Events:TargetResource");
@@ -169,8 +179,17 @@ internal sealed partial class EventInstancePurge
              !string.Equals(targetResource, LocalResetResource, StringComparison.Ordinal)))
             throw new InvalidOperationException(
                 $"Local Event purge is restricted to {LocalResetServer}/{LocalResetDatabase} with the exact local target resource.");
-        var backupReference = Require(configuration, "Events:VerifiedBackupReference");
-        var backupConnectionString = isProduction
+        if (noRecovery &&
+            (!string.IsNullOrWhiteSpace(configuration["Events:VerifiedBackupReference"]) ||
+             !string.IsNullOrWhiteSpace(configuration["Events:VerifiedBackupConnectionString"]) ||
+             configuration.GetValue<bool>("Events:BackupVerified") ||
+             !string.IsNullOrWhiteSpace(configuration["Events:FileBackupReceiptPath"])))
+            throw new InvalidOperationException(
+                "Irreversible Event purge must not claim a verified SQL or file backup.");
+        var backupReference = noRecovery
+            ? NoRecoveryReference
+            : Require(configuration, "Events:VerifiedBackupReference");
+        var backupConnectionString = isProduction && !noRecovery
             ? Require(configuration, "Events:VerifiedBackupConnectionString")
             : null;
         ValidateEvidenceDirectory(configuration, outputDirectory, isProduction);
@@ -187,6 +206,7 @@ internal sealed partial class EventInstancePurge
             Require(configuration, "Events:FreezeEpoch"),
             ValidateResetRunId(Require(configuration, "Events:ResetRunId")),
             backupReference,
+            noRecovery,
             isProduction,
             configuration.GetValue<bool>("Events:WriteFreezeConfirmed"),
             configuration.GetValue<bool>("Events:BackupVerified"),
@@ -198,7 +218,7 @@ internal sealed partial class EventInstancePurge
 
         if (isProduction && !options.WriteFreezeConfirmed)
             throw new InvalidOperationException("Production Event purge requires Events:WriteFreezeConfirmed=true.");
-        if (mode == PurgeMode.Apply && !options.BackupVerified)
+        if (mode == PurgeMode.Apply && !noRecovery && !options.BackupVerified)
             throw new InvalidOperationException("Apply requires Events:BackupVerified=true.");
         if (mode == PurgeMode.Apply && string.IsNullOrWhiteSpace(options.ExpectedFingerprint))
             throw new InvalidOperationException("Apply requires the manually approved Events:ExpectedFingerprint.");
@@ -212,7 +232,8 @@ internal sealed partial class EventInstancePurge
         string outputDirectory,
         PurgeMode mode,
         string resetRunId,
-        string? expectedFingerprint = null)
+        string? expectedFingerprint = null,
+        bool irreversibleNoRecovery = false)
     {
         if (!string.Equals(Environment.GetEnvironmentVariable("ALIFE_TEST_EVENT_PURGE_SQL"), "1", StringComparison.Ordinal))
             throw new InvalidOperationException("The isolated Event purge test factory requires ALIFE_TEST_EVENT_PURGE_SQL=1.");
@@ -239,7 +260,8 @@ internal sealed partial class EventInstancePurge
             "event-purge-integration-test",
             "event-purge-integration-test-epoch",
             ValidateResetRunId(resetRunId),
-            "local-test://verified-backup",
+            irreversibleNoRecovery ? NoRecoveryReference : "local-test://verified-backup",
+            IrreversibleNoRecovery: irreversibleNoRecovery,
             IsProduction: false,
             WriteFreezeConfirmed: true,
             BackupVerified: true,
@@ -313,6 +335,10 @@ internal sealed partial class EventInstancePurge
             await AcquireApplicationLockAsync(connection, transaction, cancellationToken);
             await ValidateTargetAsync(connection, transaction, cancellationToken);
             var manifest = await BuildManifestAsync(connection, transaction, cancellationToken, preview.Files);
+            if (_options.IrreversibleNoRecovery &&
+                manifest.Files.Any(file => file.Disposition == "delete-after-sql"))
+                throw new InvalidOperationException(
+                    "Irreversible Event purge cannot commit SQL while exclusive Event files lack a verified exact-key no-recovery deletion path.");
             if (!FixedTimeEquals(manifest.Fingerprint, _options.ExpectedFingerprint!))
             {
                 if (manifest.DeleteCounts.Values.Any(count => count != 0))
@@ -329,15 +355,16 @@ internal sealed partial class EventInstancePurge
                     throw new InvalidOperationException("The already-applied reset no longer matches its approved preserved-data evidence.");
                 if (!hasPriorApplyReceipt)
                 {
-                    // SQL may have committed immediately before the process lost the ability to
-                    // write apply.json. Recover only after the complete approved post-state and
-                    // the exact remote-file backup receipt have both been proved again.
-                    await ValidateFileReceiptAsync(
-                        _options.FileBackupReceiptPath,
-                        preview,
-                        receiptKind: "backup",
-                        requiredWhenFilesExist: true,
-                        cancellationToken);
+                    // SQL may have committed immediately before apply.json was written.
+                    // Record that outcome only after proving the approved post-state; the
+                    // recoverable mode also proves its exact remote-file backup receipt.
+                    if (!_options.IrreversibleNoRecovery)
+                        await ValidateFileReceiptAsync(
+                            _options.FileBackupReceiptPath,
+                            preview,
+                            receiptKind: "backup",
+                            requiredWhenFilesExist: true,
+                            cancellationToken);
                 }
                 await transaction.CommitAsync(cancellationToken);
                 if (!hasPriorApplyReceipt)
@@ -352,6 +379,7 @@ internal sealed partial class EventInstancePurge
                         _options.ResetRunId,
                         _options.TargetResource,
                         _options.BackupReference,
+                        _options.IrreversibleNoRecovery,
                         DateTimeOffset.UtcNow,
                         preview.DeleteCounts,
                         RecoveredAfterCommit: true), cancellationToken);
@@ -366,12 +394,13 @@ internal sealed partial class EventInstancePurge
 
             await ValidateProductionBackupAsync(manifest, cancellationToken);
 
-            await ValidateFileReceiptAsync(
-                _options.FileBackupReceiptPath,
-                manifest,
-                receiptKind: "backup",
-                requiredWhenFilesExist: true,
-                cancellationToken);
+            if (!_options.IrreversibleNoRecovery)
+                await ValidateFileReceiptAsync(
+                    _options.FileBackupReceiptPath,
+                    manifest,
+                    receiptKind: "backup",
+                    requiredWhenFilesExist: true,
+                    cancellationToken);
 
             var applied = await DeleteAsync(connection, transaction, manifest, cancellationToken);
             foreach (var expected in manifest.DeleteCounts)
@@ -392,6 +421,7 @@ internal sealed partial class EventInstancePurge
                 _options.ResetRunId,
                 _options.TargetResource,
                 _options.BackupReference,
+                _options.IrreversibleNoRecovery,
                 DateTimeOffset.UtcNow,
                 applied,
                 RecoveredAfterCommit: false), cancellationToken);
@@ -555,6 +585,7 @@ internal sealed partial class EventInstancePurge
             _options.FreezeEpoch,
             _options.ResetRunId,
             _options.BackupReference,
+            _options.IrreversibleNoRecovery,
             schemaHash,
             schemaProfile,
             migrations,
@@ -1632,14 +1663,15 @@ internal sealed partial class EventInstancePurge
             !string.Equals(receipt.FreezeEpoch, _options.FreezeEpoch, StringComparison.Ordinal) ||
             !string.Equals(receipt.ResetRunId, _options.ResetRunId, StringComparison.Ordinal) ||
             !string.Equals(receipt.TargetResource, _options.TargetResource, StringComparison.Ordinal) ||
-            !string.Equals(receipt.BackupReference, _options.BackupReference, StringComparison.Ordinal))
+            !string.Equals(receipt.BackupReference, _options.BackupReference, StringComparison.Ordinal) ||
+            receipt.IrreversibleNoRecovery != _options.IrreversibleNoRecovery)
             throw new InvalidOperationException("The prior apply receipt does not match the approved reset context.");
         return true;
     }
 
     private async Task ValidateProductionBackupAsync(Manifest source, CancellationToken cancellationToken)
     {
-        if (!_options.IsProduction)
+        if (!_options.IsProduction || _options.IrreversibleNoRecovery)
             return;
         await using var connection = new SqlConnection(_options.VerifiedBackupConnectionString!);
         await connection.OpenAsync(cancellationToken);
@@ -1663,16 +1695,18 @@ internal sealed partial class EventInstancePurge
 
     private void ValidateApprovedManifestContext(Manifest preview)
     {
-        if (!FixedTimeEquals(CalculateFingerprint(preview), preview.Fingerprint) ||
+        if (!string.Equals(preview.ManifestVersion, ManifestVersion, StringComparison.Ordinal) ||
+            !FixedTimeEquals(CalculateFingerprint(preview), preview.Fingerprint) ||
             !string.Equals(preview.CodeSha, _options.CodeSha, StringComparison.Ordinal) ||
             !FixedTimeEquals(preview.ToolBuildHash, CalculateToolBuildHash()) ||
             !string.Equals(preview.TargetResource, _options.TargetResource, StringComparison.Ordinal) ||
             !string.Equals(preview.FreezeEpoch, _options.FreezeEpoch, StringComparison.Ordinal) ||
             !string.Equals(preview.ResetRunId, _options.ResetRunId, StringComparison.Ordinal) ||
             !string.Equals(preview.BackupReference, _options.BackupReference, StringComparison.Ordinal) ||
+            preview.IrreversibleNoRecovery != _options.IrreversibleNoRecovery ||
             !ServerEquals(preview.Target.ConnectionEndpoint, _options.ExpectedServer) ||
             !string.Equals(preview.Target.Database, _options.ExpectedDatabase, StringComparison.Ordinal))
-            throw new InvalidOperationException("The approved preview evidence does not match this code, target, freeze epoch, run, or recovery copy.");
+            throw new InvalidOperationException("The approved preview evidence does not match this code, target, freeze epoch, run, or recovery mode.");
     }
 
     private static string BackupComparisonProof(Manifest manifest)
@@ -1721,6 +1755,7 @@ internal sealed partial class EventInstancePurge
             manifest.FreezeEpoch,
             manifest.ResetRunId,
             manifest.BackupReference,
+            manifest.IrreversibleNoRecovery,
             manifest.SchemaHash,
             manifest.SchemaProfile,
             manifest.Migrations,
@@ -1980,6 +2015,7 @@ internal sealed partial class EventInstancePurge
         string FreezeEpoch,
         string ResetRunId,
         string BackupReference,
+        bool IrreversibleNoRecovery,
         bool IsProduction,
         bool WriteFreezeConfirmed,
         bool BackupVerified,
@@ -1999,6 +2035,7 @@ internal sealed partial class EventInstancePurge
         string FreezeEpoch,
         string ResetRunId,
         string BackupReference,
+        bool IrreversibleNoRecovery,
         string SchemaHash,
         string SchemaProfile,
         IReadOnlyList<string> Migrations,
@@ -2043,6 +2080,7 @@ internal sealed partial class EventInstancePurge
         string ResetRunId,
         string TargetResource,
         string BackupReference,
+        bool IrreversibleNoRecovery,
         DateTimeOffset AppliedUtc,
         IReadOnlyDictionary<string, long> DeletedRows,
         bool RecoveredAfterCommit);

@@ -50,7 +50,7 @@ namespace Alife.Infrastructure.Persistence.Migrations
                 IF @event2HasInstanceRows = 1
                 BEGIN
                     THROW 51020,
-                        'EVENT2_DESTRUCTIVE_RESET_REQUIRED: Event instance rows remain. Complete the protected Event reset and verify the empty fingerprint before applying this migration.',
+                        'EVENT2_DESTRUCTIVE_RESET_REQUIRED: Event instance rows remain. Clear them through a separately authorized operation before applying this migration.',
                         1;
                 END;
                 """);

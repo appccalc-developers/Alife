@@ -277,7 +277,7 @@ Durable Object classes:
 
 Durable Objects store temporary conversation and draft state. The configured `EventPlanningSession` class name remains as a thin adapter for Details Assistant state. `EnrollmentSession` is a cleanup-only retained Event namespace with no product session route; it cannot create new sessions. The retired Event planning/extraction and enrollment-session routes are not mounted. Final Event and review records are committed by the frontend to the backend API after human review.
 
-The Event 2.0 reset preserves all three class namespaces and clears their object storage in place. Worker version uploads cannot apply Durable Object lifecycle migrations, so no delete/recreate migration is part of an ordinary version upload. The protected reset inventories objects only after validating the exact Cloudflare account, `app-ccalc` Worker, three expected class-to-binding pairs and their SQLite namespace IDs. It invokes an internal maintenance route on the publicly reachable Worker only while the matching Event epochs are frozen and only when the dedicated reset token, raw-body HMAC, temporarily deployed approved fingerprint, namespace identity and manifest batch hash all match. Each approved object runs `deleteAlarm()` and `storage.deleteAll()`. Receipt-bound retries resume the same approved manifest, and verify re-lists the namespaces until every result reports `hasStoredData: false`. Logs contain only class-level counts and hashes; Durable Object IDs remain in encrypted evidence.
+The three Event Durable Object class names and bindings remain stable. Ordinary Worker version uploads include no class deletion migration. The former protected production Event reset workflow is retired. In the separately authorised one-time Event 2.0 cutover, Event session objects are inventoried, stored data is cleared and verified empty, and the new data epoch isolates stale clients; no recovery copy is required. Reset-only maintenance handlers remain in the Worker, guarded by a matching frozen epoch, dedicated token, raw-body HMAC, approved fingerprint and exact namespace and batch identity. Normal CI tests and deploys the Worker without calling these handlers or providing the reset token and fingerprint; later object deletion needs separate authorisation.
 
 ## Configuration
 
@@ -293,8 +293,8 @@ The Event 2.0 reset preserves all three class namespaces and clears their object
 | `IMAGES_API_PROXY_TARGET` | Optional image API origin override used by the standard local stack |
 | `GEMINI_MODEL` | Gemini model override |
 | `GEMINI_API_KEY` | Required Worker secret |
-| `EVENT_RESET_DO_TOKEN` | Protected Durable Object reset secret, at least 32 characters; the controlled deployment config requires and uploads it, ordinary Workers Builds do not receive it, and it must not reuse `CACHE_SYNC_API_TOKEN` |
-| `EVENT_RESET_DO_APPROVED_FINGERPRINT` | Temporary non-secret variable deployed only to the frozen reset artifact; must equal the human-approved Durable Object manifest fingerprint |
+| `EVENT_RESET_DO_TOKEN` | Reset-only credential recognized by the dormant maintenance handler; the normal deployment config excludes it and ordinary Workers Builds do not supply it |
+| `EVENT_RESET_DO_APPROVED_FINGERPRINT` | Reset-only fingerprint accepted by the dormant maintenance handler; normal deployment does not set it |
 | `API_CACHE` | Workers KV binding used as the global public-page L2 cache |
 | `EVENT_SESSIONS` | Durable Object namespace |
 | `ENROLLMENT_SESSIONS` | Cleanup-only retained Event Durable Object namespace; no product session route |

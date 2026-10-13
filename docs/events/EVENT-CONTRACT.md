@@ -23,7 +23,7 @@ Repository [security, privacy, compatibility and publishing rules](../../AGENTS.
 | AI details and task/registration form assistants | [AI form assistance](AI-DETAILS-ASSISTANT.md) | eventDetailsAssistant, eventFormAssistant |
 | Module operations, eligibility, privacy and version exceptions | [Module catalogue](EVENT-COMPOSITION.md#capability-modules) | affected module, authorizationRules, cachePolicies, apis |
 | Event UI presentation | [Design](design/EVENT-WORKSPACE-DESIGN.md), read by task type | no new wire semantics |
-| One-time Event 2.0 instance reset, recovery and production gates | [Event 2.0 reset](EVENT-2-RESET.md) | event2Reset, schemaVersion, acceptedLegacySchemaVersions |
+| Event 2.0 instance reset boundary, one-time production operation and migration safety | [Event 2.0 reset](EVENT-2-RESET.md) | event2Reset, schemaVersion, acceptedLegacySchemaVersions |
 
 Do not load every linked source. API changes also read the matching apis/enums/authorization/cache entries; account- or role-sensitive work must retain all applicable visibility dimensions.
 
@@ -101,7 +101,11 @@ Package lifecycle and approval validity are separate. An approval may become inv
 
 The authorised pre-launch Event reset removes every Event instance and its dependent operational history before Event 2.0 becomes writable. It preserves versioned Event templates, RAM/Package/safeguarding policies, workflow templates, venue resources and non-Event data. Composition schema `2.0.0` is the new baseline; Event 1.x payloads are rejected with `event.schema.unsupported`, retired routes return `404`, and old browser or edge sessions cannot write back. From `2.0.0` onward Package, Plan, RAM and operational history again follow normal immutable-history and version-governance rules.
 
-Production reset is an isolated protected operation, never a deployment or application-start side effect. It requires a common write-freeze epoch, verified SQL and file recovery copies, a same-code/same-schema preview fingerprint and human approval of that fingerprint. Apply runs under an application lock and serializable transaction; verify proves Event instance data and Event-scoped soft references are empty while preserved data hashes remain unchanged. Recovery material is retained for 30 complete days and removed only by a separate protected finalize operation.
+The former protected production reset and recovery workflows are retired. The user has separately authorised this one-time deletion of production Event test instances without SQL/R2 recovery copies or rollback. The operation requires an exact target, frozen Event writes, reviewed live preview fingerprint and post-operation proof that Event-scoped records are empty while preserved domains are unchanged. Neither application startup nor ordinary deployment may purge Event instances. A pending migration that removes legacy Event storage must fail closed while Event instance data is nonempty; a syntactically valid reset run ID is not evidence of an empty database. Templates, policies, venue resources and non-Event data stay outside the deletion scope. No production completion is claimed until the target is verified after apply and the API 2.0 deployment is checked.
+
+The one-time production forward migration uses the isolated Event 2.0 migration-only entry point after an empty-instance inspection. It must not run the ordinary DbMigrator's non-Event seed, normalization or cache work. The exact production chain is the project-operations prerequisite followed by Event 2.0 storage removal, with the reviewed 67→75→2.0 schema transitions and retained/retired storage verification at each step.
+
+Ordinary API deployment checks the exact production SQL target and fails before runtime changes if the Event 2.0 storage migration is pending. It requires an already configured current Event data epoch and explicit open/frozen write mode; it never infers a pre-reset epoch or applies the one-time destructive migration through a deployment switch.
 
 ### ADR-14 — Project-scoped Event composition
 

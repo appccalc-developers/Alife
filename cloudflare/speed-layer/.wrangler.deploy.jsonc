@@ -23,10 +23,9 @@
     "GEMINI_MODEL": "gemini-3.1-flash-lite",
     "GEMINI_IMAGE_MODEL": "gemini-3.1-flash-image",
     "EVENT_SCHEMA_EPOCH": "2.0.0",
-    "EVENT_DATA_EPOCH": "pre-event-2-reset",
+    "EVENT_DATA_EPOCH": "event2-20261013T2243Z",
     "EVENT_RUNTIME_ENVIRONMENT": "production",
-    "EVENT_WRITE_MODE": "frozen",
-    "EVENT_WRITE_FREEZE_EPOCH": "static-check"
+    "EVENT_WRITE_MODE": "open"
   },
   "secrets": {
     "required": [

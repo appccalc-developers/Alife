@@ -34,13 +34,21 @@ builder.Services.AddScoped<IIdentityAccessService, IdentityAccessService>();
 using var host = builder.Build();
 using var scope = host.Services.CreateScope();
 
-// Read-only, offline binding check used by the protected reset workflow. It parses the
-// running Function App's configured connection without logging it or touching the database.
+// Read-only, offline binding check for standalone maintenance. It parses the
+// configured connection without logging it or touching the database.
 if (await EventResetTargetIdentityInspection.TryRunAsync(builder.Configuration, args, connectionString))
     return;
 
-// The Event 2.0 reset is an independent maintenance command. It must remain before
-// every migration, seed, normalisation, cache or one-off data path in this executable.
+// This exact one-migration command never reaches normal migration, seed,
+// sermon normalization or cache invalidation below.
+if (Event2MigrationOnly.TryCreate(builder.Configuration, args, connectionString, out var event2MigrationOnly))
+{
+    await event2MigrationOnly!.RunAsync(scope.ServiceProvider.GetRequiredService<AlifeDbContext>());
+    return;
+}
+
+// The Event 2.0 reset is an independent maintenance command. Both isolated Event
+// paths remain before ordinary migration, seed, normalization and cache work.
 if (EventInstancePurge.TryCreate(builder.Configuration, args, connectionString, out var eventPurge))
 {
     await eventPurge!.RunAsync();
@@ -48,9 +56,7 @@ if (EventInstancePurge.TryCreate(builder.Configuration, args, connectionString, 
 }
 
 // Read-only deployment gate for the one destructive Event 2.0 storage migration.
-// The final source may contain this migration while an independently reviewed preparation
-// release remains live. The workflow uses this result before any deploy or ordinary migration,
-// blocks the final source until reset verification, and gates the one destructive application.
+// Inspect the live database before the deployment decides whether to authorize migration.
 var event2MigrationGate = builder.Configuration["Events:Event2MigrationGate"];
 if (event2MigrationGate is not null)
 {
@@ -66,11 +72,26 @@ if (event2MigrationGate is not null)
     var gateDb = scope.ServiceProvider.GetRequiredService<AlifeDbContext>();
     var known = gateDb.Database.GetMigrations().Contains(Event2DestructiveMigrationGate.MigrationId, StringComparer.Ordinal);
     var applied = (await gateDb.Database.GetAppliedMigrationsAsync()).Contains(Event2DestructiveMigrationGate.MigrationId, StringComparer.Ordinal);
-    var result = new { migrationId = Event2DestructiveMigrationGate.MigrationId, known, applied, pending = known && !applied };
+    var pendingMigrationIds = (await gateDb.Database.GetPendingMigrationsAsync()).ToArray();
+    var inspection = known && !applied
+        ? await EventInstancePurge.InspectForMigrationAsync(connectionString)
+        : null;
+    var result = new
+    {
+        migrationId = Event2DestructiveMigrationGate.MigrationId,
+        known,
+        applied,
+        pending = known && !applied,
+        pendingMigrationIds,
+        instanceDataEmpty = inspection?.InstanceDataEmpty,
+        schemaProfile = inspection?.SchemaProfile,
+        rowCounts = inspection?.RowCounts
+    };
     await File.WriteAllTextAsync(
         Path.Combine(outputDirectory, "event2-migration-gate.json"),
         System.Text.Json.JsonSerializer.Serialize(result));
-    Console.WriteLine($"Event 2.0 migration gate inspected: known={known}; applied={applied}; pending={known && !applied}.");
+    Console.WriteLine($"Event 2.0 migration gate inspected: known={known}; applied={applied}; " +
+        $"pending={known && !applied}; instanceDataEmpty={inspection?.InstanceDataEmpty}.");
     return;
 }
 
@@ -129,9 +150,16 @@ await EnsureSqlServerDatabaseExistsAsync(connectionString);
 
 var dbContext = scope.ServiceProvider.GetRequiredService<AlifeDbContext>();
 var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
-// Environment variables or appsettings cannot authorize this migration. The protected
-// final-release workflow must provide both exact command-line arguments.
+// Environment variables or appsettings cannot authorize this migration. Even with the
+// literal command-line switch, every Event instance table and known Event soft reference
+// must be empty before EF applies any pending migration. The migration's SQL guard remains
+// as the final race backstop.
 Event2DestructiveMigrationGate.RequireExplicitAuthorization(pendingMigrations, args);
+if (pendingMigrations.Contains(Event2DestructiveMigrationGate.MigrationId, StringComparer.Ordinal))
+{
+    var inspection = await EventInstancePurge.InspectForMigrationAsync(connectionString);
+    Event2DestructiveMigrationGate.RequireEmptyInstanceInspection(inspection.InstanceDataEmpty);
+}
 await dbContext.Database.MigrateAsync();
 var normalizedSermons = await SermonMetadataBackfill.RunAsync(dbContext, scope.ServiceProvider.GetRequiredService<ISermonCacheInvalidationService>());
 Console.WriteLine($"Sermon metadata normalized: {normalizedSermons}.");

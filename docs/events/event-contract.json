@@ -11,47 +11,40 @@
   ],
   "event2Reset": {
     "documentation": "EVENT-2-RESET.md",
-    "scope": "all Event instances and Event-scoped operational data; preserve templates, policy versions, workflow templates, venue resources and every non-Event domain",
-    "command": "Alife.DbMigrator --Events:PurgeInstances=preview|apply|verify",
-    "productionGate": "protected workflow_dispatch environment production-event-reset; verified SQL/R2 recovery references; common freeze epoch; matching code, target and schema; human-approved SQL/file and Durable Object preview fingerprints",
-    "evidenceProtection": "the protected evidence archive is encrypted and carries an HMAC-SHA256 sidecar that must verify before decryption; ordinary logs contain counts and hashes only",
-    "recoveryBucket": "pre-created non-public R2 bucket ccalc-event-reset-recovery, separate from source ccalc and bound as EVENT_RESET_RECOVERY_BUCKET; normal application identity cannot read recovery objects",
-    "fileSecrets": "EVENT_RESET_FILE_API_TOKEN, EVENT_RESET_FILE_SIGNING_SECRET, EVENT_RESET_FILE_FINALIZE_TOKEN and EVENT_RESET_FILE_FINALIZE_SIGNING_SECRET are pairwise distinct, each at least 32 characters, mapped to separate Images Worker admin/signing/finalize/finalize-signing bindings; missing, short or duplicate values fail closed",
-    "durableObjectSecret": "EVENT_RESET_DO_TOKEN is a dedicated secret of at least 32 characters and is not reused as CACHE_SYNC_API_TOKEN or a file-reset secret",
-    "fileKeys": "exact UTF-8 object keys are at most 1024 bytes and 1024 characters, with no leading/trailing slash, backslash, controls, ? * [ ], empty or dot path component; source keys cannot start quarantine/; recovery and derived .metadata.json sidecar keys must independently satisfy these rules and recovery keys start quarantine/event-reset/",
-    "transaction": "sp_getapplock plus SERIALIZABLE; recompute fingerprint and compare exact row counts before commit",
-    "persistentDataEpoch": "EVENT_DATA_EPOCH is a required production identifier; it scopes backend HybridCache, Speed Layer Cache API/KV/logical Event keys and Event Durable Object names, equals the approved reset epoch during protected reset, and remains after unfreeze",
+    "status": "productionCutoverOpenAuthenticatedSmokePending",
+    "productionPurgeCompleted": true,
+    "productionMigrationApplied": true,
+    "productionSchemaProfileVerified": true,
+    "productionApi2Deployed": true,
+    "productionApiWritesUnfrozen": true,
+    "productionStatusVerified": true,
+    "productionRuntimeVerified": false,
+    "scope": "Event instances and Event-scoped operational data only; preserve templates, policy versions, workflow templates, venue resources and every non-Event domain",
+    "command": "Alife.DbMigrator --Events:PurgeInstances=preview|apply|verify; this one-time production-only irreversible mode additionally requires the exact --Events:NoRecovery=true argument, rejects backup claims and exclusive remote-file candidates, and binds that choice to preview/apply evidence",
+    "productionGate": "the separately authorized one-time production operation requires exact target and live schema, frozen and drained Event writes, protected preview fingerprint, serializable apply and preserved-data verification; no active production Event reset workflow",
+    "recoveryRequirement": "no standing SQL/R2 recovery-copy, rollback or retention mandate for disposable pre-launch production Event test data",
+    "migrationSafety": "ordinary startup and deployment cannot purge Event instances; read-only preflight uses --Events:Event2MigrationGate=inspect; isolated --Events:Event2MigrationOnly=apply-prerequisite|apply|verify requires the exact production target, frozen writes for mutations and empty Event storage, then applies only 20261011113522_AddEventProjectOperations (legacy-67 to legacy-75) followed by 20261012225333_Event2RemoveLegacyEventStorage (to 2.0) with no non-Event seed, sermon normalization or cache work",
+    "ordinaryDeploymentGate": "migrate-and-deploy inspects the exact SQL target and Event 2.0 migration state with --no-launch-profile; a pending Event 2.0 storage migration stops the ordinary workflow before runtime changes, with no destructive-migration switch. Deployment requires an existing current EVENT_DATA_EPOCH other than pre-event-2-reset and explicit EVENT_WRITE_MODE=open|frozen, preserving both values.",
+    "evidenceProtection": "the production deletion evidence identifies exact target, scope, preview fingerprint 3d7fcd4aa7eeab378fddedc83f112718c8fdcb73c7ca57ad8e863cc63ff8af24 and 45 unchanged preserved-table hashes without exposing sensitive record details; 74 Durable Object storages were directly probed empty despite stale management hasStoredData values",
+    "persistentDataEpoch": "EVENT_DATA_EPOCH scopes backend HybridCache, Speed Layer Cache API/KV/logical Event keys and Durable Object names; authorization, privacy and cache isolation remain required",
     "durableObjectNamespaces": [
       {
         "binding": "EVENT_SESSIONS",
         "className": "EventPlanningSession",
-        "productRoute": "/api/events/details-session/*",
-        "resetScope": "all instances"
+        "productRoute": "/api/events/details-session/*"
       },
       {
         "binding": "ENROLLMENT_SESSIONS",
         "className": "EnrollmentSession",
-        "productRoute": null,
-        "resetScope": "cleanup-only retained namespace; no new session route"
+        "productRoute": null
       },
       {
         "binding": "REVIEW_SESSIONS",
         "className": "ReviewSession",
-        "productRoute": "/api/reviews/session/*",
-        "resetScope": "all instances"
+        "productRoute": "/api/reviews/session/*"
       }
     ],
-    "durableObjectReset": {
-      "deploymentRule": "Worker version uploads cannot apply Durable Object lifecycle migrations; retain all three classes and namespaces and keep ordinary version uploads free of pending class lifecycle changes",
-      "namespaceValidation": "require the protected account, app-ccalc Worker, exactly EventPlanningSession/EVENT_SESSIONS, EnrollmentSession/ENROLLMENT_SESSIONS and ReviewSession/REVIEW_SESSIONS, one SQLite namespace ID per class and no unexpected namespace owned by that Worker",
-      "preview": "under the common Event write freeze, inventory every object in the three exact Event-only namespaces and bind the encrypted manifest, class-level counts and hashes to the approved reset fingerprint; never log Durable Object IDs",
-      "maintenanceRoute": "an internal path on the publicly reachable Worker router; available only during the exact production freeze, authenticated with EVENT_RESET_DO_TOKEN and X-Alife-Event-Reset-DO-Signature HMAC-SHA256 over the raw JSON body, with request fingerprint equal to the temporarily deployed EVENT_RESET_DO_APPROVED_FINGERPRINT",
-      "apply": "clear only approved-manifest objects after class, binding, namespace ID and batch-hash validation; delete each alarm and call storage.deleteAll(); receipts remain bound to the approved manifest",
-      "resume": "after partial completion, reuse the same approved manifest and receipts; already empty approved objects remain successful, outstanding approved objects may be retried, and namespace identity changes or objects outside the approved scope block completion",
-      "verify": "re-list all three namespaces, reject object identities outside the approved manifest and require hasStoredData=false for every remaining approved identity; changed namespace identity, failed clear or remaining stored data blocks unfreeze"
-    },
-    "backendSqlPhase": "after write drain and scheduled-job acknowledgement the Azure Function App is proved Stopped for three consecutive control-plane probes for preview/apply/verify; an always-run recovery step restarts it frozen after success or intermediate failure, and successful evidence requires re-verification",
-    "retentionDays": 30,
+    "retiredMaintenance": "existing protected Event reset endpoints remain guarded, but no production workflow invokes them; ordinary Worker version uploads must not include an unapplied Durable Object lifecycle migration",
     "browserDraftEpoch": 3,
     "eventSessionEpoch": 2,
     "ordinaryStartupMayPurge": false,

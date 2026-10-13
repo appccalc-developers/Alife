@@ -12,6 +12,7 @@ const MAX_DURABLE_OBJECT_PURGE_BODY_BYTES = 32 * 1024
 const EVENT_RESET_WORKER_SCRIPT = 'app-ccalc'
 const EVENT_RESET_DO_SIGNATURE_HEADER = 'x-alife-event-reset-do-signature'
 export const EVENT_DURABLE_OBJECT_PURGE_PATH = '/_internal/event-reset/purge'
+export const EVENT_DURABLE_OBJECT_VERIFY_EMPTY_PATH = '/_internal/event-reset/verify-empty'
 
 type EventDurableObjectClass = 'EventPlanningSession' | 'EnrollmentSession' | 'ReviewSession'
 type EventDurableObjectNamespace = 'EVENT_SESSIONS' | 'ENROLLMENT_SESSIONS' | 'REVIEW_SESSIONS'
@@ -179,7 +180,9 @@ const validateDurableObjectReset = (body: DurableObjectResetBody, env: Env) => {
   const failures: string[] = []
   const state = resetRuntime(env)
   const target = durableObjectTarget(env, metadata.className)
-  if (metadata.operation !== 'purge') failures.push('Operation must be purge.')
+  if (metadata.operation !== 'purge' && metadata.operation !== 'verify-empty') {
+    failures.push('Operation must be purge or verify-empty.')
+  }
   if (!RESET_RUN_ID.test(metadata.resetRunId)) failures.push('Invalid reset run ID.')
   if (metadata.workerScript !== EVENT_RESET_WORKER_SCRIPT) failures.push('Unexpected Worker script.')
   if (!HEX_32.test(metadata.namespaceId)) failures.push('Invalid Durable Object namespace ID.')
@@ -205,12 +208,19 @@ const durableObjectResetResponse = (
   purged: number,
   failures: string[],
   status: number,
+  emptyCount?: number,
 ) => Response.json({
   verified: failures.length === 0,
   ...metadata,
   requestedCount: requested,
   purgedCount: purged,
-  counts: { requested, purged, failed: Math.max(0, requested - purged) },
+  ...(emptyCount === undefined ? {} : { emptyCount }),
+  counts: {
+    requested,
+    purged,
+    ...(emptyCount === undefined ? {} : { empty: emptyCount }),
+    failed: Math.max(0, requested - (emptyCount ?? purged)),
+  },
   failures,
 }, { status, headers: { 'cache-control': 'no-store' } })
 
@@ -243,32 +253,40 @@ export const handleEventResetDurableObjects = async (request: Request, env: Env)
     return durableObjectResetResponse(metadata, objectIds.length, 0, failures, 400)
   }
 
-  const purgeBody = JSON.stringify(metadata)
-  const purgeSignature = await durableObjectResetSignature(env.EVENT_RESET_DO_TOKEN!, new TextEncoder().encode(purgeBody))
+  const objectBody = JSON.stringify(metadata)
+  const objectSignature = await durableObjectResetSignature(env.EVENT_RESET_DO_TOKEN!, new TextEncoder().encode(objectBody))
+  const verifyEmpty = metadata.operation === 'verify-empty'
   const results = await Promise.all(objectIds.map(async (objectId) => {
     try {
       const id = target.binding!.idFromString(objectId as string)
-      const response = await target.binding!.get(id).fetch(new Request(`https://event-reset.invalid${EVENT_DURABLE_OBJECT_PURGE_PATH}`, {
+      const response = await target.binding!.get(id).fetch(new Request(`https://event-reset.invalid${verifyEmpty ? EVENT_DURABLE_OBJECT_VERIFY_EMPTY_PATH : EVENT_DURABLE_OBJECT_PURGE_PATH}`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          [EVENT_RESET_DO_SIGNATURE_HEADER]: purgeSignature,
+          [EVENT_RESET_DO_SIGNATURE_HEADER]: objectSignature,
         },
-        body: purgeBody,
+        body: objectBody,
       }))
-      if (!response.ok) return `purge returned ${response.status}`
+      if (!response.ok) return `Durable Object operation returned ${response.status}`
       const result = await response.json() as { verified?: unknown }
-      return result.verified === true ? null : 'purge was not verified'
+      return result.verified === true ? null : 'Durable Object operation was not verified'
     } catch (error) {
-      return error instanceof Error ? error.message : 'purge failed'
+      return error instanceof Error ? error.message : 'Durable Object operation failed'
     }
   }))
   const failedCount = results.filter((value) => value !== null).length
-  const purged = objectIds.length - failedCount
-  const purgeFailures = failedCount === 0
+  const completed = objectIds.length - failedCount
+  const operationFailures = failedCount === 0
     ? []
-    : [`${failedCount} Durable Object purge request(s) failed in batch ${metadata.batchIndex}.`]
-  return durableObjectResetResponse(metadata, objectIds.length, purged, purgeFailures, failedCount === 0 ? 200 : 409)
+    : [`${failedCount} Durable Object ${metadata.operation} request(s) failed in batch ${metadata.batchIndex}.`]
+  return durableObjectResetResponse(
+    metadata,
+    objectIds.length,
+    verifyEmpty ? 0 : completed,
+    operationFailures,
+    failedCount === 0 ? 200 : 409,
+    verifyEmpty ? completed : undefined,
+  )
 }
 
 const sha256Json = async (value: unknown) => {
@@ -283,8 +301,10 @@ export const handleEventDurableObjectPurgeRequest = async (
   expectedNamespace: EventDurableObjectNamespace,
   expectedClassName: EventDurableObjectClass,
   purge: () => Promise<void>,
+  verifyEmpty?: () => Promise<boolean>,
 ) => {
-  if (request.method !== 'POST' || new URL(request.url).pathname !== EVENT_DURABLE_OBJECT_PURGE_PATH) {
+  const path = new URL(request.url).pathname
+  if (request.method !== 'POST' || path !== EVENT_DURABLE_OBJECT_PURGE_PATH && path !== EVENT_DURABLE_OBJECT_VERIFY_EMPTY_PATH) {
     return Response.json({ message: 'Durable Object cleanup route not found.' }, { status: 404, headers: { 'cache-control': 'no-store' } })
   }
   let rawBody: Uint8Array
@@ -298,6 +318,9 @@ export const handleEventDurableObjectPurgeRequest = async (
   try { body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(rawBody)) as DurableObjectResetBody }
   catch { return Response.json({ verified: false, purged: false, failures: ['Invalid JSON.'] }, { status: 400, headers: { 'cache-control': 'no-store' } }) }
   const { metadata, failures } = validateDurableObjectReset(body, env)
+  if (metadata.operation !== (path === EVENT_DURABLE_OBJECT_VERIFY_EMPTY_PATH ? 'verify-empty' : 'purge')) {
+    failures.push('Durable Object cleanup operation does not match the request path.')
+  }
   if (metadata.namespace !== expectedNamespace || metadata.className !== expectedClassName) {
     failures.push('Durable Object cleanup target does not match this class.')
   }
@@ -306,6 +329,14 @@ export const handleEventDurableObjectPurgeRequest = async (
   }
 
   try {
+    if (metadata.operation === 'verify-empty') {
+      if (!verifyEmpty) throw new Error('Durable Object storage inspection is unavailable.')
+      const empty = await verifyEmpty()
+      return Response.json({ verified: empty, empty, ...metadata, failures: empty ? [] : ['Durable Object storage is not empty.'] }, {
+        status: empty ? 200 : 409,
+        headers: { 'cache-control': 'no-store' },
+      })
+    }
     await purge()
     return Response.json({ verified: true, purged: true, ...metadata, failures: [] }, { headers: { 'cache-control': 'no-store' } })
   } catch (error) {
@@ -316,6 +347,16 @@ export const handleEventDurableObjectPurgeRequest = async (
       failures: [error instanceof Error ? error.message : 'Durable Object cleanup failed.'],
     }, { status: 500, headers: { 'cache-control': 'no-store' } })
   }
+}
+
+export const inspectEventDurableObjectStorageEmpty = async (storage: {
+  list?<T>(options?: { limit?: number }): Promise<Map<string, T>>
+  getAlarm?(): Promise<number | null>
+}): Promise<boolean> => {
+  if (!storage.list || !storage.getAlarm) throw new Error('Durable Object read-only storage inspection is unavailable.')
+  const [keys, alarm] = await Promise.all([storage.list({ limit: 1 }), storage.getAlarm()])
+  if (!(keys instanceof Map) || alarm === undefined) throw new Error('Durable Object storage inspection returned an invalid result.')
+  return keys.size === 0 && alarm === null
 }
 
 const validDurableObjectResetSecret = (value: string | undefined, cacheSyncToken: string | undefined) =>

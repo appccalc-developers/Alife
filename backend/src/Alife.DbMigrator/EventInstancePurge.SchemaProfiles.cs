@@ -137,7 +137,10 @@ internal sealed partial class EventInstancePurge
             ["dbo.event_registration_applications"] = "3749532828b896253084311fa4c4206a6ebb32e2da036f2cfe9fc04c6f85a185",
             ["dbo.event_registration_participants"] = "79433a27803baa0baa1a4a9050f32cbae26f2c8796b7d327892639517dfd1f51",
             ["dbo.event_safeguarding_child_registrations"] = "d6ff9f780a6c87a207be4d55f88c267ec5cdbc0f3657e46445d6c89a3c8457d9",
-            ["dbo.group_events"] = "d6bd03cd45633a045f7d00d6f2e4210413814ae8935a01870783f4a4ff974ba3"
+            // The Event 2.0 migration removes only collaboration_version (ordinal 37)
+            // from this table. The resulting live shape was checked against the
+            // reviewed legacy-75 hash with that one column restored in memory.
+            ["dbo.group_events"] = "bde6c4d72e4be1f8e606e9a042ff3f96cf55222514213a7b759224254751a21b"
         });
 
     private static IReadOnlyDictionary<string, string> Overlay(

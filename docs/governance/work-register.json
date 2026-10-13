@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedOn": "2026-10-13",
+  "updatedOn": "2026-10-14",
   "baseline": {
     "sourceCommit": "4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31",
     "branch": "codex/826-public-3d-church-trial",
@@ -20,15 +20,15 @@
         "docs/events/event-contract.json"
       ],
       "status": "in_progress",
-      "implementation": "partial",
+      "implementation": "implemented",
       "verification": "partial",
       "acceptance": [
         "Composition 2.0.0 is the only accepted Event runtime contract; Event 1.x requests fail with event.schema.unsupported and retired routes return 404.",
-        "The dedicated preview/apply/verify reset preserves templates, policies, venue resources and non-Event data while deleting Event instances and exact Event-only files under fingerprinted recovery gates.",
-        "Local reset completes with a verified backup and repeat no-op; production uses the protected manual workflow, verified SQL/R2 recovery copies, one freeze epoch and 30-day separately finalised retention.",
-        "The frozen production reset validates the exact account, Worker and three Event-only Durable Object namespaces, then clears only the approved manifest with a dedicated token, raw-body HMAC and deployed approved fingerprint; receipt-bound retries resume that manifest, verify hasStoredData=false without logging object IDs, and ordinary Worker version uploads remain free of lifecycle migrations.",
-        "Before production, publish the protected preparation release and verify a separate non-public ccalc-event-reset-recovery bucket, four pairwise distinct file-reset secrets plus the dedicated EVENT_RESET_DO_TOKEN of at least 32 characters, and exact UTF-8/sidecar key limits.",
-        "Normal migration, seed, application startup and deployment cannot invoke the reset or recreate a demo Event."
+        "The explicit preview/apply/verify reset preserves templates, policies, venue resources and non-Event data while deleting only Event instances and scoped records under a target-bound fingerprint; production irreversible mode rejects exclusive remote-file candidates.",
+        "The local reset retains its verified-backup and repeat no-op evidence; the separately authorised production operation uses the exact --Events:NoRecovery=true argument without SQL/R2 recovery copies or rollback, and records irreversible mode in its fingerprint and receipt.",
+        "Production Event writes are frozen and drained for the exact target; the three Event-only Durable Object namespaces are inventoried, any stored data is cleared and verified empty, and stale clients are isolated by the new Event data epoch without logging object IDs. Ordinary Worker version uploads remain free of lifecycle migrations.",
+        "Production apply uses a reviewed live preview fingerprint, exact target/schema/code/freeze identity, serializable transaction and count checks; post-operation verification proves zero Event-scoped rows/references and unchanged templates, policies, venue resources and non-Event data.",
+        "Normal migration, seed, application startup and deployment cannot invoke the reset or recreate a demo Event; ordinary API deployment fails when the Event 2.0 storage migration is pending and requires an existing current Event data epoch and explicit write mode."
       ],
       "evidence": [
         {
@@ -37,7 +37,7 @@
           "environment": "Only localhost,14333 / alife_db; local Azure SQL-compatible development instance and DbMigrator; no production workflow or R2 objects",
           "check": "Restore from verified backup; preview with fingerprint ac495ebc7072cb8dbad00115f7a636073da7c92481b208cb1f4c313d3f991d26; apply and verify; remove apply.json to simulate process loss after SQL commit and rerun approved apply; run fresh empty preview/apply with fingerprint 5ecebbbd1e21eb22a55458e5900ad631f789d1883ae3ab991c50ed2193b867ca; apply forward migration and explicit questionnaire initialization; inspect preserved resources and retired tables",
           "outcome": "Preview identified 23 Event roots, 350 affected SQL rows and zero files; apply deleted 350. Verify found zero Event instance rows and unchanged counts/hashes for 50 preserved tables. The post-commit retry reconstructed apply evidence with recoveredAfterCommit=true only after proving the exact empty post-state. Fresh no-op changed zero rows/files. Local forward migration removed old enrollment/workflow instance tables; all 16 current templates are version 4 (composition 2.0/questionnaire 2), and seven venue resources and the RAM policy remain.",
-          "limitations": "Zero file candidates do not exercise nonempty R2 backup/restore. Local migration and SQL evidence do not certify production, deployed preparation/final runtimes, live provider behavior or the separately protected 30-day finalize."
+          "limitations": "Zero file candidates do not exercise nonempty R2 handling. Local migration and SQL evidence do not certify production or live provider behavior; the retired recovery/finalize workflow is no longer an acceptance condition."
         },
         {
           "date": "2026-10-13",
@@ -45,15 +45,53 @@
           "environment": "Local current-source Event reset verification; no production workflow or R2 objects",
           "check": "Run preview/apply/verify with schema profile event-2.0, schema hash 939cd7e358e2ab91e259e096aa9168efec4012a5d9510240b3fd8487c69102ad and fingerprint af7305eb12be50040ecc33e3a9f3354f192a37d5bfba0eb3db3669c1116ecee6",
           "outcome": "Preview found 0 Event roots, 0 SQL rows and 0 files; apply deleted 0 rows; verify found instanceRows=0, preservedTables=50 and fileFailures=0. The earlier nonempty rehearsal remains the deletion and recovery-path evidence.",
-          "limitations": "A no-op cannot exercise nonempty SQL deletion or R2 recovery. This local evidence does not certify production, deployed provider behavior or the separately protected 30-day finalize."
+          "limitations": "A no-op cannot exercise nonempty SQL deletion or R2 handling. This local evidence does not certify production or deployed provider behavior."
+        },
+        {
+          "date": "2026-10-14",
+          "source": "Current-source production read-only inspection and authenticated Event reset-status endpoint; private migration inspection at C:/Data/Alife/Temp/Event2ProdNoRecovery20261014/migration-inspect-production/event2-migration-gate.json",
+          "environment": "Production Azure SQL ccalc.database.windows.net / ccalc and current Azure Function App; no SQL purge or forward migration established by this evidence",
+          "check": "Verify exact Azure resource and live connection target; inspect Event2 migration state and Event-scoped row counts; authenticate reset-status after setting Event write freeze epoch event2-20261013T2243Z",
+          "outcome": "Three Event roots remain at preflight. Migration 20261012225333_Event2RemoveLegacyEventStorage is pending. Backend reports Event writes frozen, zero active mutations, valid configuration and matching schema/data/freeze epochs. This is preflight only.",
+          "limitations": "This is preflight evidence only; the separate production purge and provider results are recorded in the following entry."
+        },
+        {
+          "date": "2026-10-14",
+          "source": "Protected production purge evidence under C:/Data/Alife/Temp/Event2ProdNoRecovery20261014/evidence (preview.json, apply.json, verify.json); direct Durable Object evidence under C:/Data/Alife/Temp/Event2ProdNoRecovery20261014/do-evidence/durable-objects-direct-empty-verify.json",
+          "environment": "Production Azure SQL ccalc.database.windows.net / ccalc, Event-only Cloudflare Durable Objects and Event KV/cache; backend API remains frozen during the cutover",
+          "check": "Review no-recovery preview fingerprint 3d7fcd4aa7eeab378fddedc83f112718c8fdcb73c7ca57ad8e863cc63ff8af24; apply and verify SQL purge; directly probe exact-object Durable Object storage under approved fingerprint 42f8d9b784146287951d9d1165c8681477bb1f3815566413f301e6c168f25eef; verify Event KV/cache purge and migration-gate empty-state read",
+          "outcome": "Preview found three Event roots, 176 Event-scoped rows and zero Event-exclusive files. Apply deleted 176 rows; verify found instanceRows=0 and unchanged stable hashes for 45 preserved tables. Protected direct probe found 74/74 Durable Object storages empty, and Event KV/cache purge reported verified=true. Migration gate reports pending=true, instanceDataEmpty=true on legacy-67 schema.",
+          "limitations": "Cloudflare management inventory still reports hasStoredData=true for the 74 objects despite direct empty storage probes. This purge evidence alone does not establish schema or API deployment; production Event writes remain frozen."
+        },
+        {
+          "date": "2026-10-14",
+          "source": "Current working-tree backend/src/Alife.DbMigrator/Event2MigrationOnly.cs and targeted unit tests",
+          "environment": "Local Release build and focused tests; no production migration run",
+          "check": "Build the isolated Event 2.0 migration-only command in Release and run six focused argument, exact target, pending-order and schema-gate tests after adding apply-prerequisite",
+          "outcome": "Release build passed with zero warnings/errors and six targeted tests passed. The command now exposes apply-prerequisite, apply and verify, enforces the exact legacy-67→legacy-75→2.0 Event migration order, and exits before ordinary seed, sermon normalization and cache work. Read-only preflight remains Event2MigrationGate=inspect; the command has no preview mode.",
+          "limitations": "Local build and tests alone do not establish a production migration or API deployment; the production migration is recorded separately below."
+        },
+        {
+          "date": "2026-10-14",
+          "source": "Production isolated migration logs at C:/Data/Alife/Temp/Event2ProdNoRecovery20261014/event2-prerequisite-migration.log, event2-migration-only.log, event2-migration-verify.log and event2-migration-final-verify.log",
+          "environment": "Exact production Azure SQL ccalc.database.windows.net / ccalc, with Event API writes frozen",
+          "check": "Run apply-prerequisite against empty legacy-67 Event storage; verify the legacy-75 project-operations schema and sole pending Event 2.0 migration; run Event2 storage apply; run separate read-only verify of migration history and retired/preserved storage",
+          "outcome": "The project-operations prerequisite was applied and verified. The Event 2.0 storage migration was then applied and verified. A separate verify confirmed its retired storage is absent. A strengthened profile check initially flagged dbo.group_events because the verifier's expected digest was stale; correcting that digest without production-data mutation made the final read-only verification pass.",
+          "limitations": "API 2.0 runtime behavior and unfreeze were not established by these SQL migration logs."
+        },
+        {
+          "date": "2026-10-14",
+          "source": "Azure production API ZIP deployment output for artifact SHA-256 8dc12317a248fb2be2345710444991522709791bc454e1d63fbd555e9e0308fc; authenticated Event reset-status and public-upcoming reads",
+          "environment": "Production Azure Function App with Event writes frozen at event2-20261013T2243Z",
+          "check": "Deploy reviewed API 2.0 ZIP; deploy open-mode Speed and Images Workers; remove the API freeze epoch; read authenticated configuration/schema/data epoch status and public upcoming; remove temporary SQL firewall rule",
+          "outcome": "Azure reported deployment successful. After removing the freeze epoch, authenticated status returned ApiFrozen=false, configurationValid=true, schemaEpoch=2.0.0, dataEpoch=event2-20261013T2243Z, activeMutations=0 and publicUpcomingCount=0. Speed Worker f43a15ce-208e-4f2d-84f4-cad3afd237a8 and Images Worker cb78b3ae-c42e-4be7-9024-99ba7c56c369 were deployed open. The temporary SQL firewall rule codex-event2-20261014 was removed.",
+          "limitations": "An authenticated production compose dry-run and live Event 1.x rejection check remain unavailable pending an appropriate login. Source tests cover 1.x rejection; the live authenticated behavior is not claimed."
         }
       ],
       "blockers": [
-        "A protected preparation release must be published before the production reset can run; production target identity, protected-environment approval, recovery-copy references and live preview fingerprint are available only during that authorised run.",
-        "Verify the non-public R2 recovery bucket, four distinct long file-reset secrets, the separate EVENT_RESET_DO_TOKEN and UTF-8/sidecar manifest-key constraints in the production preparation environment.",
-        "Run the protected provider inventory and prove all three Event-only Durable Object namespaces report hasStoredData=false after apply; local SQL evidence cannot certify the Cloudflare clear."
+        "Run authenticated no-persistence production compose and Event 1.x rejection checks when an appropriate login is available; Cloudflare management hasStoredData remains inconsistent with direct empty probes."
       ],
-      "nextAction": "Complete current-source backend/frontend/Worker checks, publish the protected preparation release, provision and verify production R2/secrets and SQL recovery, then approve and run the separate production preview/reset/final 2.0 workflow including the per-instance Durable Object clear; retain recovery assets for 30 complete days before protected finalize."
+      "nextAction": "With an appropriately authorized login, run non-persisting 2.0 compose and Event 1.x rejection checks against the migrated production API; retain the direct-empty Durable Object evidence while investigating Cloudflare's stale management inventory."
     },
     {
       "id": "ALIFE-PAGE-CACHE-SAFETY",

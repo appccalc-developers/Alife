@@ -73,6 +73,8 @@ export type DurableObjectStateLike = {
     put<T>(key: string, value: T): Promise<void>
     delete?(key: string): Promise<boolean>
     deleteAll?(): Promise<void>
+    list?<T>(options?: { limit?: number }): Promise<Map<string, T>>
+    getAlarm?(): Promise<number | null>
     setAlarm?(scheduledTime: number): Promise<void>
     deleteAlarm?(): Promise<void>
   }
