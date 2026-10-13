@@ -27,6 +27,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       CACHE_SYNC_API_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
+      EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
       CLOUDFLARE_API_CACHE_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_API_CACHE_NAMESPACE_ID }}
       API_PROXY_TARGET: ${{ secrets.API_PROXY_TARGET }}
       VITE_YOUVERSION_APP_KEY: ${{ secrets.VITE_YOUVERSION_APP_KEY }}
@@ -150,6 +151,16 @@ jobs:
             exit 1
           fi
 
+          if [ "${#EVENT_RESET_DO_TOKEN}" -lt 32 ] || [ "${#EVENT_RESET_DO_TOKEN}" -gt 4096 ]; then
+            echo "Missing or invalid-length GitHub secret: EVENT_RESET_DO_TOKEN"
+            exit 1
+          fi
+
+          if [ "$EVENT_RESET_DO_TOKEN" = "$CACHE_SYNC_API_TOKEN" ]; then
+            echo "EVENT_RESET_DO_TOKEN must differ from CACHE_SYNC_API_TOKEN"
+            exit 1
+          fi
+
           if [ -z "${CLOUDFLARE_API_CACHE_NAMESPACE_ID:-}" ]; then
             echo "Missing GitHub secret: CLOUDFLARE_API_CACHE_NAMESPACE_ID"
             exit 1
@@ -158,6 +169,7 @@ jobs:
           {
             printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY"
             printf 'CACHE_SYNC_API_TOKEN=%s\n' "$CACHE_SYNC_API_TOKEN"
+            printf 'EVENT_RESET_DO_TOKEN=%s\n' "$EVENT_RESET_DO_TOKEN"
           } > .dev.vars
 
       - name: Test Worker speed layer
@@ -171,7 +183,7 @@ jobs:
           set -euo pipefail
           npm run prepare:deploy-config
           node --input-type=module -e \
-            'import fs from "node:fs"; const p=".wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.EVENT_DATA_EPOCH,EVENT_WRITE_MODE:"open"}; delete c.vars.EVENT_WRITE_FREEZE_EPOCH; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
+            'import fs from "node:fs"; const p=".wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.EVENT_DATA_EPOCH,EVENT_WRITE_MODE:"open"}; delete c.vars.EVENT_WRITE_FREEZE_EPOCH; delete c.vars.EVENT_RESET_DO_APPROVED_FINGERPRINT; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
 
       - name: Deploy Worker
         working-directory: ./cloudflare/speed-layer

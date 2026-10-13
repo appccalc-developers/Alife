@@ -30,7 +30,8 @@
 	"secrets": {
 		"required": [
 			"GEMINI_API_KEY",
-			"CACHE_SYNC_API_TOKEN"
+			"CACHE_SYNC_API_TOKEN",
+			"EVENT_RESET_DO_TOKEN"
 		]
 	},
 	"durable_objects": {
@@ -38,6 +39,10 @@
 			{
 				"name": "EVENT_SESSIONS",
 				"class_name": "EventPlanningSession"
+			},
+			{
+				"name": "ENROLLMENT_SESSIONS",
+				"class_name": "EnrollmentSession"
 			},
 			{
 				"name": "REVIEW_SESSIONS",
@@ -62,12 +67,6 @@
 			"tag": "v3_review_sessions",
 			"new_sqlite_classes": [
 				"ReviewSession"
-			]
-		},
-		{
-			"tag": "v4_event_2_reset",
-			"deleted_classes": [
-				"EnrollmentSession"
 			]
 		}
 	],

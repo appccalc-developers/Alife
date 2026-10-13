@@ -285,7 +285,7 @@ jobs:
           npm ci --prefix cloudflare/speed-layer
           npm run prepare:deploy-config --prefix cloudflare/speed-layer
           node --input-type=module -e \
-            'import fs from "node:fs"; const p="cloudflare/speed-layer/.wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.ROLLBACK_EPOCH,EVENT_WRITE_MODE:"frozen",EVENT_WRITE_FREEZE_EPOCH:process.env.ROLLBACK_EPOCH}; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
+            'import fs from "node:fs"; const p="cloudflare/speed-layer/.wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.ROLLBACK_EPOCH,EVENT_WRITE_MODE:"frozen",EVENT_WRITE_FREEZE_EPOCH:process.env.ROLLBACK_EPOCH}; delete c.vars.EVENT_RESET_DO_APPROVED_FINGERPRINT; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
 
       - name: Freeze the Speed Layer at the rollback epoch
         shell: bash

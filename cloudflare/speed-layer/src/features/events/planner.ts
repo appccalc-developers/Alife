@@ -8,7 +8,7 @@ import {
   type DurableObjectStateLike,
 } from '../ai/aiSession'
 import { EventDetailsSession } from './details'
-import { eventSessionObjectName } from './eventReset'
+import { EVENT_DURABLE_OBJECT_PURGE_PATH, eventSessionObjectName, handleEventDurableObjectPurgeRequest } from './eventReset'
 
 const DETAILS_ROUTE = '/api/events/details-session'
 // The Event 2.0 epoch must address a new Durable Object even when an old browser
@@ -61,6 +61,15 @@ export class EventPlanningSession {
   }
 
   async fetch(request: Request): Promise<Response> {
+    if (new URL(request.url).pathname === EVENT_DURABLE_OBJECT_PURGE_PATH) {
+      return handleEventDurableObjectPurgeRequest(
+        request,
+        this.env,
+        'EVENT_SESSIONS',
+        'EventPlanningSession',
+        () => this.getDetails().purgeForEventReset(),
+      )
+    }
     if (!new URL(request.url).pathname.startsWith('/details/')) {
       return Response.json(
         { message: 'Event details session route not found.' },

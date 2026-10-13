@@ -6,9 +6,10 @@ import aiRouter from './features/ai/aiRouter'
 import { handleInternalCacheInvalidate } from './features/cache/cacheInvalidation'
 import eventRouter from './features/events/eventRouter'
 import { handleRamSync } from './features/events/ramSync'
-import { eventWriteFreezeResponse, handleEventResetCache, handleEventResetStatus } from './features/events/eventReset'
+import { eventWriteFreezeResponse, handleEventResetCache, handleEventResetDurableObjects, handleEventResetStatus } from './features/events/eventReset'
 
 import { EventPlanningSession } from './features/events/planner'
+import { EnrollmentSession } from './features/events/enrolmentCleanup'
 import { ReviewSession } from './features/events/reviewer'
 
 export type Env = {
@@ -29,10 +30,16 @@ export type Env = {
   GEMINI_IMAGE_MODEL?: string
   /** Bearer token for backend-triggered speed-layer cache invalidation. */
   CACHE_SYNC_API_TOKEN?: string
+  /** Reset-only HMAC key for destructive Event Durable Object cleanup. */
+  EVENT_RESET_DO_TOKEN?: string
+  /** Fingerprint approved for the currently frozen Durable Object reset run. */
+  EVENT_RESET_DO_APPROVED_FINGERPRINT?: string
   /** Dedicated backend credential for bounded RAM synchronization requests. */
   RAM_SYNC_API_TOKEN?: string
   /** Durable Object namespace for live event-details assistant sessions. */
   EVENT_SESSIONS?: DurableObjectNamespace
+  /** Cleanup-only binding for retired Event enrollment assistant sessions. */
+  ENROLLMENT_SESSIONS?: DurableObjectNamespace
   /** Durable Object namespace for live event review sessions. */
   REVIEW_SESSIONS?: DurableObjectNamespace
   /** Namespace epoch for Event Durable Object identities. Defaults to Event 2.0. */
@@ -54,6 +61,7 @@ export type ExecutionContext = {
 
 export type DurableObjectNamespace = {
   idFromName(name: string): DurableObjectId
+  idFromString(id: string): DurableObjectId
   get(id: DurableObjectId): DurableObjectStub
 }
 
@@ -63,7 +71,7 @@ export type DurableObjectStub = {
   fetch(request: Request): Promise<Response>
 }
 
-export { EventPlanningSession, ReviewSession }
+export { EventPlanningSession, EnrollmentSession, ReviewSession }
 
 const app = new Router()
 
@@ -102,6 +110,7 @@ app.all('/images/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx)
 app.all('/proxy/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.post('/api/internal/cache/invalidate', async (req, env, ctx) => handleInternalCacheInvalidate(req, env, ctx))
 app.post('/api/internal/event-reset/cache', async (req, env) => handleEventResetCache(req, env))
+app.post('/api/internal/event-reset/durable-objects', async (req, env) => handleEventResetDurableObjects(req, env))
 app.get('/api/internal/event-reset/status', async (req, env) => handleEventResetStatus(req, env))
 app.post('/api/internal/ram/identify', async (req, env) => handleRamSync(req, env))
 

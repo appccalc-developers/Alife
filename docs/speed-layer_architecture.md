@@ -267,7 +267,6 @@ Routes:
 | `GET /api/ai/status` | AI feature status |
 | `POST /api/ai/translate-text-fields` | Bilingual text field translation helper |
 | `/api/events/details-session/*` | Event Details Assistant session |
-| `/api/enrollments/session/*` | Enrollment session |
 | `/api/reviews/session/*` | Review session |
 
 Durable Object classes:
@@ -276,7 +275,9 @@ Durable Object classes:
 - `EnrollmentSession`
 - `ReviewSession`
 
-Durable Objects store temporary conversation and draft state. The configured `EventPlanningSession` class name remains as a thin adapter for Details Assistant state; the retired Event planning/extraction routes are not mounted. Final event, enrollment, and review records are committed by the frontend to the backend API after human review.
+Durable Objects store temporary conversation and draft state. The configured `EventPlanningSession` class name remains as a thin adapter for Details Assistant state. `EnrollmentSession` is a cleanup-only retained Event namespace with no product session route; it cannot create new sessions. The retired Event planning/extraction and enrollment-session routes are not mounted. Final Event and review records are committed by the frontend to the backend API after human review.
+
+The Event 2.0 reset preserves all three class namespaces and clears their object storage in place. Worker version uploads cannot apply Durable Object lifecycle migrations, so no delete/recreate migration is part of an ordinary version upload. The protected reset inventories objects only after validating the exact Cloudflare account, `app-ccalc` Worker, three expected class-to-binding pairs and their SQLite namespace IDs. It invokes an internal maintenance route on the publicly reachable Worker only while the matching Event epochs are frozen and only when the dedicated reset token, raw-body HMAC, temporarily deployed approved fingerprint, namespace identity and manifest batch hash all match. Each approved object runs `deleteAlarm()` and `storage.deleteAll()`. Receipt-bound retries resume the same approved manifest, and verify re-lists the namespaces until every result reports `hasStoredData: false`. Logs contain only class-level counts and hashes; Durable Object IDs remain in encrypted evidence.
 
 ## Configuration
 
@@ -292,9 +293,11 @@ Durable Objects store temporary conversation and draft state. The configured `Ev
 | `IMAGES_API_PROXY_TARGET` | Optional image API origin override used by the standard local stack |
 | `GEMINI_MODEL` | Gemini model override |
 | `GEMINI_API_KEY` | Required Worker secret |
+| `EVENT_RESET_DO_TOKEN` | Protected Durable Object reset secret, at least 32 characters; authorizes reset requests and their HMAC-SHA256 signatures, and must not reuse `CACHE_SYNC_API_TOKEN` |
+| `EVENT_RESET_DO_APPROVED_FINGERPRINT` | Temporary non-secret variable deployed only to the frozen reset artifact; must equal the human-approved Durable Object manifest fingerprint |
 | `API_CACHE` | Workers KV binding used as the global public-page L2 cache |
 | `EVENT_SESSIONS` | Durable Object namespace |
-| `ENROLLMENT_SESSIONS` | Durable Object namespace |
+| `ENROLLMENT_SESSIONS` | Cleanup-only retained Event Durable Object namespace; no product session route |
 | `REVIEW_SESSIONS` | Durable Object namespace |
 | `routes` | Custom domain routing |
 

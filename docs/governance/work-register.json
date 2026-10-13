@@ -26,7 +26,8 @@
         "Composition 2.0.0 is the only accepted Event runtime contract; Event 1.x requests fail with event.schema.unsupported and retired routes return 404.",
         "The dedicated preview/apply/verify reset preserves templates, policies, venue resources and non-Event data while deleting Event instances and exact Event-only files under fingerprinted recovery gates.",
         "Local reset completes with a verified backup and repeat no-op; production uses the protected manual workflow, verified SQL/R2 recovery copies, one freeze epoch and 30-day separately finalised retention.",
-        "Before production, publish the protected preparation release and verify a separate non-public ccalc-event-reset-recovery bucket, four pairwise distinct reset secrets of at least 32 characters and exact UTF-8/sidecar key limits.",
+        "The frozen production reset validates the exact account, Worker and three Event-only Durable Object namespaces, then clears only the approved manifest with a dedicated token, raw-body HMAC and deployed approved fingerprint; receipt-bound retries resume that manifest, verify hasStoredData=false without logging object IDs, and ordinary Worker version uploads remain free of lifecycle migrations.",
+        "Before production, publish the protected preparation release and verify a separate non-public ccalc-event-reset-recovery bucket, four pairwise distinct file-reset secrets plus the dedicated EVENT_RESET_DO_TOKEN of at least 32 characters, and exact UTF-8/sidecar key limits.",
         "Normal migration, seed, application startup and deployment cannot invoke the reset or recreate a demo Event."
       ],
       "evidence": [
@@ -49,9 +50,10 @@
       ],
       "blockers": [
         "A protected preparation release must be published before the production reset can run; production target identity, protected-environment approval, recovery-copy references and live preview fingerprint are available only during that authorised run.",
-        "Verify the non-public R2 recovery bucket, four distinct long secrets and UTF-8/sidecar manifest-key constraints in the production preparation environment."
+        "Verify the non-public R2 recovery bucket, four distinct long file-reset secrets, the separate EVENT_RESET_DO_TOKEN and UTF-8/sidecar manifest-key constraints in the production preparation environment.",
+        "Run the protected provider inventory and prove all three Event-only Durable Object namespaces report hasStoredData=false after apply; local SQL evidence cannot certify the Cloudflare clear."
       ],
-      "nextAction": "Complete current-source backend/frontend/Worker checks, publish the protected preparation release, provision and verify production R2/secrets and SQL recovery, then approve and run the separate production preview/reset/final 2.0 workflow; retain recovery assets for 30 complete days before protected finalize."
+      "nextAction": "Complete current-source backend/frontend/Worker checks, publish the protected preparation release, provision and verify production R2/secrets and SQL recovery, then approve and run the separate production preview/reset/final 2.0 workflow including the per-instance Durable Object clear; retain recovery assets for 30 complete days before protected finalize."
     },
     {
       "id": "ALIFE-PAGE-CACHE-SAFETY",

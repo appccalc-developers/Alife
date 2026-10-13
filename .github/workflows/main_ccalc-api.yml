@@ -585,7 +585,7 @@ jobs:
           test "$(jq -r '.[] | select(.name == "EVENT_DATA_EPOCH") | .value' <<<"$settings" | tail -n1)" = "$data_epoch"
           [[ "$data_epoch" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
           EVENT_DATA_EPOCH="$data_epoch" node --input-type=module -e \
-            'import fs from "node:fs"; const p="cloudflare/speed-layer/.wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.EVENT_DATA_EPOCH,EVENT_WRITE_MODE:"open"}; delete c.vars.EVENT_WRITE_FREEZE_EPOCH; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
+            'import fs from "node:fs"; const p="cloudflare/speed-layer/.wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.EVENT_DATA_EPOCH,EVENT_WRITE_MODE:"open"}; delete c.vars.EVENT_WRITE_FREEZE_EPOCH; delete c.vars.EVENT_RESET_DO_APPROVED_FINGERPRINT; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
 
       - name: Open Images API and Speed Layer from the reviewed final code
         if: steps.event2-release.outputs.phase == 'final' || steps.event2-release.outputs.phase == 'resume-final'
@@ -595,14 +595,18 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CACHE_SYNC_API_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
+          EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
         run: |
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$GEMINI_API_KEY"
           test -n "$CACHE_SYNC_API_TOKEN"
+          test "${#EVENT_RESET_DO_TOKEN}" -ge 32
+          test "${#EVENT_RESET_DO_TOKEN}" -le 4096
+          test "$EVENT_RESET_DO_TOKEN" != "$CACHE_SYNC_API_TOKEN"
           npx wrangler@4.88.0 deploy --config cloudflare/images-api/wrangler.toml
-          node -e 'process.stdout.write(`GEMINI_API_KEY=${process.env.GEMINI_API_KEY}\nCACHE_SYNC_API_TOKEN=${process.env.CACHE_SYNC_API_TOKEN}\n`)' > cloudflare/speed-layer/.event2-final.vars
+          node -e 'process.stdout.write(`GEMINI_API_KEY=${process.env.GEMINI_API_KEY}\nCACHE_SYNC_API_TOKEN=${process.env.CACHE_SYNC_API_TOKEN}\nEVENT_RESET_DO_TOKEN=${process.env.EVENT_RESET_DO_TOKEN}\n`)' > cloudflare/speed-layer/.event2-final.vars
           npx wrangler@4.88.0 deploy --config cloudflare/speed-layer/.wrangler.deploy.jsonc \
             --secrets-file cloudflare/speed-layer/.event2-final.vars
           rm -f cloudflare/speed-layer/.event2-final.vars

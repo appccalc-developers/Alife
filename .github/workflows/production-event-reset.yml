@@ -31,8 +31,12 @@ on:
         description: Fingerprint printed by the approved preview (required for apply)
         type: string
         required: false
+      approved_do_fingerprint:
+        description: Separate Durable Object inventory fingerprint printed by the approved preview (required for apply and verify)
+        type: string
+        required: false
       evidence_run_id:
-        description: Earlier workflow run containing encrypted preview evidence (required for standalone verify)
+        description: Earlier workflow run containing encrypted preview/apply evidence (required for apply and verify)
         type: string
         required: false
       confirmation:
@@ -83,6 +87,7 @@ jobs:
           OPERATION: ${{ inputs.operation }}
           CONFIRMATION: ${{ inputs.confirmation }}
           FINGERPRINT: ${{ inputs.approved_fingerprint }}
+          DO_FINGERPRINT: ${{ inputs.approved_do_fingerprint }}
           EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
           RESET_RUN_ID: ${{ inputs.reset_run_id }}
           RESET_EPOCH: ${{ inputs.freeze_epoch }}
@@ -96,6 +101,7 @@ jobs:
           FREEZE_STATUS_TOKEN: ${{ secrets.EVENT_RESET_FREEZE_STATUS_TOKEN }}
           SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
           SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
         run: |
           set -euo pipefail
           case "$OPERATION" in
@@ -112,8 +118,12 @@ jobs:
             echo 'Apply requires a lowercase SHA-256 preview fingerprint.'
             exit 1
           fi
-          if [ "$OPERATION" = verify ] && ! [[ "$EVIDENCE_RUN_ID" =~ ^[0-9]+$ ]]; then
-            echo 'Standalone verify requires the prior evidence run id.'
+          if { [ "$OPERATION" = apply ] || [ "$OPERATION" = verify ]; } && ! [[ "$DO_FINGERPRINT" =~ ^[0-9a-f]{64}$ ]]; then
+            echo 'Apply and verify require the separate lowercase SHA-256 Durable Object preview fingerprint.'
+            exit 1
+          fi
+          if { [ "$OPERATION" = apply ] || [ "$OPERATION" = verify ]; } && ! [[ "$EVIDENCE_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo 'Apply and standalone verify require the prior evidence run id.'
             exit 1
           fi
           [[ "$RESET_RUN_ID" =~ ^[A-Za-z0-9._-]{1,128}$ ]]
@@ -121,7 +131,7 @@ jobs:
           if [ "${#EVIDENCE_KEY}" -lt 32 ] || [ "${#FILE_API_TOKEN}" -lt 32 ] || \
              [ "${#FILE_SIGNING_SECRET}" -lt 32 ] || [ "${#FILE_FINALIZE_TOKEN}" -lt 32 ] || \
              [ "${#FILE_FINALIZE_SIGNING_SECRET}" -lt 32 ] || [ "${#FREEZE_STATUS_TOKEN}" -lt 32 ] || \
-             [ "${#SPEED_TOKEN}" -lt 32 ]; then
+             [ "${#SPEED_TOKEN}" -lt 32 ] || [ "${#DO_TOKEN}" -lt 32 ] || [ "${#DO_TOKEN}" -gt 4096 ]; then
             echo 'Protected reset secrets are missing or too short.'
             exit 1
           fi
@@ -130,6 +140,9 @@ jobs:
             for ((right=left+1; right<${#reset_secrets[@]}; right++)); do
               test "${reset_secrets[$left]}" != "${reset_secrets[$right]}"
             done
+          done
+          for protected_secret in "${reset_secrets[@]}" "$SPEED_TOKEN"; do
+            test "$DO_TOKEN" != "$protected_secret"
           done
           test -n "$FILE_API_URL"
           test -n "$FREEZE_STATUS_URL"
@@ -143,6 +156,7 @@ jobs:
           test -n "${EVENT_RESET_FUNCTION_RESOURCE_GROUP:-}"
           test -n "${CLOUDFLARE_API_TOKEN:-}"
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test "$CLOUDFLARE_ACCOUNT_ID" = 'a76a4cf2fe42e20167837ba5fce117d0'
 
       - name: Checkout reviewed code
         uses: actions/checkout@v5
@@ -312,6 +326,8 @@ jobs:
         env:
           CLOUDFLARE_API_CACHE_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_API_CACHE_NAMESPACE_ID }}
           RESET_EPOCH: ${{ inputs.freeze_epoch }}
+          RESET_OPERATION: ${{ inputs.operation }}
+          APPROVED_DO_FINGERPRINT: ${{ inputs.approved_do_fingerprint }}
         run: |
           set -euo pipefail
           npm ci --prefix cloudflare/alife-app
@@ -320,7 +336,7 @@ jobs:
           npm ci --prefix cloudflare/speed-layer
           npm run prepare:deploy-config --prefix cloudflare/speed-layer
           node --input-type=module -e \
-            'import fs from "node:fs"; const p="cloudflare/speed-layer/.wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.RESET_EPOCH,EVENT_WRITE_MODE:"frozen",EVENT_WRITE_FREEZE_EPOCH:process.env.RESET_EPOCH}; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
+            'import fs from "node:fs"; const p="cloudflare/speed-layer/.wrangler.deploy.jsonc"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.vars={...c.vars,EVENT_DATA_EPOCH:process.env.RESET_EPOCH,EVENT_WRITE_MODE:"frozen",EVENT_WRITE_FREEZE_EPOCH:process.env.RESET_EPOCH}; if(process.env.RESET_OPERATION==="apply") c.vars.EVENT_RESET_DO_APPROVED_FINGERPRINT=process.env.APPROVED_DO_FINGERPRINT; else delete c.vars.EVENT_RESET_DO_APPROVED_FINGERPRINT; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n");'
 
       - name: Freeze the Speed Layer at the reviewed epoch
         shell: bash
@@ -474,8 +490,8 @@ jobs:
             --end-ip-address "${{ steps.sqlfw.outputs.runner_ip }}" \
             --only-show-errors --output none
 
-      - name: Restore approved evidence for standalone verify
-        if: inputs.operation == 'verify'
+      - name: Restore approved evidence for apply or standalone verify
+        if: inputs.operation == 'apply' || inputs.operation == 'verify'
         uses: actions/download-artifact@v5
         with:
           name: production-event-reset-evidence-${{ inputs.evidence_run_id }}
@@ -483,19 +499,58 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.evidence_run_id }}
 
-      - name: Decrypt approved evidence for standalone verify
-        if: inputs.operation == 'verify'
+      - name: Authenticate and decrypt approved evidence
+        if: inputs.operation == 'apply' || inputs.operation == 'verify'
         shell: bash
         env:
           EVIDENCE_KEY: ${{ secrets.EVENT_RESET_EVIDENCE_KEY }}
         run: |
           set -euo pipefail
           mkdir -p "$EVIDENCE_DIR"
+          EVIDENCE_FILE="${{ runner.temp }}/approved-evidence/evidence.tgz.enc" \
+          HMAC_FILE="${{ runner.temp }}/approved-evidence/evidence.tgz.enc.hmac" \
+          node --input-type=module -e \
+            'import {createHmac,timingSafeEqual} from "node:crypto"; import fs from "node:fs"; const expected=fs.readFileSync(process.env.HMAC_FILE,"utf8").trim(); if(!/^[0-9a-f]{64}$/.test(expected)) throw new Error("Invalid evidence HMAC."); const actual=createHmac("sha256",process.env.EVIDENCE_KEY).update(fs.readFileSync(process.env.EVIDENCE_FILE)).digest("hex"); if(!timingSafeEqual(Buffer.from(actual,"hex"),Buffer.from(expected,"hex"))) throw new Error("Evidence authentication failed.");'
           openssl enc -d -aes-256-cbc -pbkdf2 \
             -in "${{ runner.temp }}/approved-evidence/evidence.tgz.enc" \
             -out "${{ runner.temp }}/approved-evidence/evidence.tgz" \
             -pass env:EVIDENCE_KEY
           tar -xzf "${{ runner.temp }}/approved-evidence/evidence.tgz" -C "$EVIDENCE_DIR"
+
+      - name: Validate approved preview evidence for this reset run
+        if: inputs.operation == 'apply' || inputs.operation == 'verify'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          CODE_SHA: ${{ inputs.code_sha }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          RESET_EPOCH: ${{ inputs.freeze_epoch }}
+          APPROVED_FINGERPRINT: ${{ inputs.approved_fingerprint }}
+          APPROVED_DO_FINGERPRINT: ${{ inputs.approved_do_fingerprint }}
+        run: |
+          set -euo pipefail
+          prior_run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$EVIDENCE_RUN_ID")"
+          test "$(jq -r '.path' <<<"$prior_run")" = '.github/workflows/production-event-reset.yml'
+          test "$(jq -r '.event' <<<"$prior_run")" = workflow_dispatch
+          test "$(jq -r '.head_sha' <<<"$prior_run")" = "$CODE_SHA"
+          test -f "$EVIDENCE_DIR/preview.json"
+          test -f "$EVIDENCE_DIR/durable-objects-preview.json"
+          test "$(jq -r '.resetRunId' "$EVIDENCE_DIR/preview.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.codeSha' "$EVIDENCE_DIR/preview.json")" = "$CODE_SHA"
+          test "$(jq -r '.freezeEpoch' "$EVIDENCE_DIR/preview.json")" = "$RESET_EPOCH"
+          test "$(jq -r '.backupReference' "$EVIDENCE_DIR/preview.json")" = "$BACKUP_REFERENCE"
+          if [ "${{ inputs.operation }}" = apply ]; then
+            test "$(jq -r '.fingerprint' "$EVIDENCE_DIR/preview.json")" = "$APPROVED_FINGERPRINT"
+          fi
+          test "$(jq -r '.fingerprint' "$EVIDENCE_DIR/durable-objects-preview.json")" = "$APPROVED_DO_FINGERPRINT"
+          EVENT_RESET_EVIDENCE_DIR="$EVIDENCE_DIR" \
+          EVENT_RESET_RUN_ID="$RESET_RUN_ID" \
+          EVENT_RESET_FREEZE_EPOCH="$RESET_EPOCH" \
+          EVENT_RESET_CODE_SHA="$CODE_SHA" \
+          node --input-type=module -e \
+            'import fs from "node:fs"; import path from "node:path"; import {inventoryFingerprint,sha256} from "./cloudflare/speed-layer/scripts/reset-event-durable-objects.mjs"; const p=JSON.parse(fs.readFileSync(path.join(process.env.EVENT_RESET_EVIDENCE_DIR,"durable-objects-preview.json"),"utf8")); const inventory={...p.inventory}; const inventoryHash=inventory.inventoryHash; delete inventory.inventoryHash; const context={accountId:p.inventory.accountId,codeSha:process.env.EVENT_RESET_CODE_SHA,resetRunId:process.env.EVENT_RESET_RUN_ID,resetEpoch:process.env.EVENT_RESET_FREEZE_EPOCH}; if(p.codeSha!==context.codeSha||p.resetRunId!==context.resetRunId||p.resetEpoch!==context.resetEpoch||sha256(inventory)!==inventoryHash||inventoryFingerprint(context,inventory)!==p.fingerprint) throw new Error("Durable Object preview evidence failed integrity validation.");'
 
       - name: Validate exact committed evidence before standalone verify resumes side effects
         if: inputs.operation == 'verify'
@@ -517,6 +572,9 @@ jobs:
           test -f "$EVIDENCE_DIR/apply.json"
           test -f "$EVIDENCE_DIR/r2-delete-manifest.json"
           test -f "$EVIDENCE_DIR/file-backup-receipt.json"
+          test -f "$EVIDENCE_DIR/durable-objects-preview.json"
+          test -f "$EVIDENCE_DIR/durable-objects-apply.json"
+          test -f "$EVIDENCE_DIR/durable-objects-purge-receipts.json"
           test "$(jq -r '.resetRunId' "$EVIDENCE_DIR/apply.json")" = "$RESET_RUN_ID"
           test "$(jq -r '.codeSha' "$EVIDENCE_DIR/apply.json")" = "$CODE_SHA"
           test "$(jq -r '.backupReference' "$EVIDENCE_DIR/apply.json")" = "$BACKUP_REFERENCE"
@@ -534,6 +592,19 @@ jobs:
           test "$(jq -r '.schemaEpoch' "$EVIDENCE_DIR/file-backup-receipt.json")" = '2.0.0'
           test "$(jq -r '.verified' "$EVIDENCE_DIR/file-backup-receipt.json")" = true
           test "$(jq '.failures | length' "$EVIDENCE_DIR/file-backup-receipt.json")" = 0
+          do_fingerprint="$(jq -er '.fingerprint | strings | select(test("^[0-9a-f]{64}$"))' "$EVIDENCE_DIR/durable-objects-preview.json")"
+          test "$(jq -r '.approvedFingerprint' "$EVIDENCE_DIR/durable-objects-apply.json")" = "$do_fingerprint"
+          test "$(jq -r '.resetRunId' "$EVIDENCE_DIR/durable-objects-apply.json")" = "$RESET_RUN_ID"
+          test "$(jq -r '.resetEpoch' "$EVIDENCE_DIR/durable-objects-apply.json")" = "$RESET_EPOCH"
+          test "$(jq -r '.dataEpoch' "$EVIDENCE_DIR/durable-objects-apply.json")" = "$RESET_EPOCH"
+          test "$(jq -r '.schemaEpoch' "$EVIDENCE_DIR/durable-objects-apply.json")" = '2.0.0'
+          test "$(jq -r '.codeSha' "$EVIDENCE_DIR/durable-objects-apply.json")" = "$CODE_SHA"
+          test "$(jq -r '.verified' "$EVIDENCE_DIR/durable-objects-apply.json")" = true
+          test "$(jq -r '.approvedFingerprint' "$EVIDENCE_DIR/durable-objects-purge-receipts.json")" = "$do_fingerprint"
+          test "$(jq -r '.receiptHash' "$EVIDENCE_DIR/durable-objects-purge-receipts.json")" = "$(jq -r '.receiptHash' "$EVIDENCE_DIR/durable-objects-apply.json")"
+          test "$(jq -r '.receiptCount' "$EVIDENCE_DIR/durable-objects-purge-receipts.json")" = "$(jq -r '.batchCount' "$EVIDENCE_DIR/durable-objects-apply.json")"
+          node --input-type=module -e \
+            'import fs from "node:fs"; import path from "node:path"; import {sha256} from "./cloudflare/speed-layer/scripts/reset-event-durable-objects.mjs"; const root=process.env.EVIDENCE_DIR; const preview=JSON.parse(fs.readFileSync(path.join(root,"durable-objects-preview.json"),"utf8")); const apply=JSON.parse(fs.readFileSync(path.join(root,"durable-objects-apply.json"),"utf8")); const receiptEvidence=JSON.parse(fs.readFileSync(path.join(root,"durable-objects-purge-receipts.json"),"utf8")); const identity=preview.inventory.namespaces.map(({className,namespace,namespaceId,useSqlite})=>({className,namespace,namespaceId,useSqlite})); if(sha256(receiptEvidence.receipts)!==receiptEvidence.receiptHash||sha256(identity)!==apply.namespaceIdentityHash) throw new Error("Durable Object apply evidence failed integrity validation.");'
 
       - name: Create current protected preview
         if: inputs.operation != 'verify'
@@ -554,6 +625,31 @@ jobs:
           set -euo pipefail
           actual="$(jq -r '.fingerprint' "$EVIDENCE_DIR/preview.json")"
           test "$actual" = "$APPROVED_FINGERPRINT"
+
+      - name: Create current Event Durable Object preview
+        if: inputs.operation == 'preview'
+        shell: bash
+        env:
+          EVENT_RESET_SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
+          EVENT_RESET_SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
+          EVENT_RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          EVENT_RESET_FREEZE_EPOCH: ${{ inputs.freeze_epoch }}
+          EVENT_RESET_CODE_SHA: ${{ inputs.code_sha }}
+          EVENT_RESET_EVIDENCE_DIR: ${{ runner.temp }}/event-reset
+        run: |
+          set -euo pipefail
+          node cloudflare/speed-layer/scripts/reset-event-durable-objects.mjs preview
+
+      - name: Confirm approved Durable Object fingerprint
+        if: inputs.operation == 'apply'
+        shell: bash
+        env:
+          APPROVED_DO_FINGERPRINT: ${{ inputs.approved_do_fingerprint }}
+        run: |
+          set -euo pipefail
+          actual="$(jq -er '.fingerprint | strings | select(test("^[0-9a-f]{64}$"))' "$EVIDENCE_DIR/durable-objects-preview.json")"
+          test "$actual" = "$APPROVED_DO_FINGERPRINT"
 
       - name: Back up exact Event file manifest
         if: inputs.operation == 'preview' || inputs.operation == 'apply'
@@ -648,6 +744,22 @@ jobs:
             --resource-group "$EVENT_RESET_FUNCTION_RESOURCE_GROUP" \
             --query state --output tsv)" = Stopped
 
+      - name: Purge exact reviewed Event Durable Object storage
+        if: inputs.operation == 'apply'
+        shell: bash
+        env:
+          EVENT_RESET_SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
+          EVENT_RESET_SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
+          EVENT_RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          EVENT_RESET_FREEZE_EPOCH: ${{ inputs.freeze_epoch }}
+          EVENT_RESET_CODE_SHA: ${{ inputs.code_sha }}
+          EVENT_RESET_EVIDENCE_DIR: ${{ runner.temp }}/event-reset
+          EVENT_RESET_DO_APPROVED_FINGERPRINT: ${{ inputs.approved_do_fingerprint }}
+        run: |
+          set -euo pipefail
+          node cloudflare/speed-layer/scripts/reset-event-durable-objects.mjs apply
+
       - name: Apply exact reviewed SQL reset
         if: inputs.operation == 'apply'
         shell: bash
@@ -726,6 +838,22 @@ jobs:
           dotnet run --project backend/src/Alife.DbMigrator/Alife.DbMigrator.csproj \
             --configuration Release --no-build -- \
             --Events:PurgeInstances=verify
+
+      - name: Verify Event Durable Object storage is stably empty
+        if: inputs.operation == 'apply' || inputs.operation == 'verify'
+        shell: bash
+        env:
+          EVENT_RESET_SPEED_URL: ${{ vars.EVENT_RESET_SPEED_URL }}
+          EVENT_RESET_SPEED_TOKEN: ${{ secrets.EVENT_RESET_SPEED_TOKEN }}
+          EVENT_RESET_DO_TOKEN: ${{ secrets.EVENT_RESET_DO_TOKEN }}
+          EVENT_RESET_RUN_ID: ${{ inputs.reset_run_id }}
+          EVENT_RESET_FREEZE_EPOCH: ${{ inputs.freeze_epoch }}
+          EVENT_RESET_CODE_SHA: ${{ inputs.code_sha }}
+          EVENT_RESET_EVIDENCE_DIR: ${{ runner.temp }}/event-reset
+          EVENT_RESET_DO_APPROVED_FINGERPRINT: ${{ inputs.approved_do_fingerprint }}
+        run: |
+          set -euo pipefail
+          node cloudflare/speed-layer/scripts/reset-event-durable-objects.mjs verify
 
       - name: Restart backend in the frozen persistent data epoch
         if: always() && steps.stop_backend.outcome != 'skipped'
@@ -880,6 +1008,10 @@ jobs:
             -in "${{ runner.temp }}/evidence.tgz" \
             -out "${{ runner.temp }}/evidence.tgz.enc" \
             -pass env:EVIDENCE_KEY
+          EVIDENCE_FILE="${{ runner.temp }}/evidence.tgz.enc" \
+          HMAC_FILE="${{ runner.temp }}/evidence.tgz.enc.hmac" \
+          node --input-type=module -e \
+            'import {createHmac} from "node:crypto"; import fs from "node:fs"; const hmac=createHmac("sha256",process.env.EVIDENCE_KEY).update(fs.readFileSync(process.env.EVIDENCE_FILE)).digest("hex"); fs.writeFileSync(process.env.HMAC_FILE,hmac+"\n",{mode:0o600});'
           echo 'available=true' >> "$GITHUB_OUTPUT"
 
       - name: Upload encrypted evidence only
@@ -887,7 +1019,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: production-event-reset-evidence-${{ github.run_id }}
-          path: ${{ runner.temp }}/evidence.tgz.enc
+          path: |
+            ${{ runner.temp }}/evidence.tgz.enc
+            ${{ runner.temp }}/evidence.tgz.enc.hmac
           if-no-files-found: error
           retention-days: 35
 
