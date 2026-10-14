@@ -22,12 +22,14 @@ public partial class AlifeDbContext
             b.HasIndex(x => new { x.EventId, x.ActivityId, x.Version }).IsUnique();
             b.HasIndex(x => new { x.EventId, x.ActivityId, x.IsCurrent }).IsUnique().HasFilter("[is_current] = 1");
             b.HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict); b.HasQueryFilter(x => !x.Event.IsDeleted);
+            b.HasOne<EventActivityProject>().WithMany().HasForeignKey(x => new { x.EventId, x.ActivityId }).OnDelete(DeleteBehavior.Restrict);
         });
         model.Entity<EventActivityOffer>(b =>
         {
             b.HasKey(x => x.Id); b.Property(x => x.ActivityId).HasMaxLength(80); b.Property(x => x.Status).HasMaxLength(24); b.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
             b.HasIndex(x => new { x.EventId, x.ActivityId, x.OccurrenceId }).IsUnique();
             b.HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne<EventActivityProject>().WithMany().HasForeignKey(x => new { x.EventId, x.ActivityId }).OnDelete(DeleteBehavior.Restrict);
             b.HasOne(x => x.Occurrence).WithMany().HasForeignKey(x => x.OccurrenceId).OnDelete(DeleteBehavior.Restrict);
             b.HasOne(x => x.Policy).WithMany().HasForeignKey(x => x.PolicyVersionId).OnDelete(DeleteBehavior.Restrict); b.HasQueryFilter(x => !x.Event.IsDeleted);
         });

@@ -27,13 +27,12 @@ public sealed class EventActivityModuleConfigurationTests
         db.GroupEvents.Add(new GroupEvent { Id = eventId, GroupId = groupId, CreatedByMemberId = owner,
             AccountableOwnerMemberId = owner, StartDate = DateTime.UtcNow.AddDays(2),
             EndDate = DateTime.UtcNow.AddDays(3), EventDataJson = "{}" });
-        db.EventActivityPlans.Add(new EventActivityPlan { EventId = eventId,
-            DataJson = RamEvaluator.Serialize(new ActivityPlanData([
+        db.EventActivityPlans.Add(EventActivityPlanPersistence.New(eventId, new ActivityPlanData([
                 new("meal-one", ["meal"], new("Meal", "聚餐"), new("", ""), Answers:
                     new Dictionary<string, PlannedActivityAnswer> { ["foodService"] = new("yes", "human", true) }),
                 new("meal-two", ["meal"], new("Meal", "聚餐"), new("", ""), Answers:
                     new Dictionary<string, PlannedActivityAnswer> { ["foodService"] = new("no", "human", true) })
-            ], QuestionnaireVersion: 2)) });
+            ], QuestionnaireVersion: 2), DateTime.UtcNow));
         await db.SaveChangesAsync();
         var service = new EventActivityModuleConfigurationService(db,
             Substitute.For<IEventPackageInvalidationService>(), Substitute.For<IEventCacheInvalidationService>());

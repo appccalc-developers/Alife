@@ -440,12 +440,7 @@ public sealed class CreateGroupEventCommandHandler(
 
         if (activityPlan.Activities.Any(a => a.OccurrenceId.HasValue))
             return AppResult<GroupEventSummaryDto>.Validation("Select occurrence links after creating the Event.");
-        var activityRow = new EventActivityPlan
-        {
-            EventId = groupEvent.Id,
-            DataJson = RamEvaluator.Serialize(activityPlan),
-            UpdatedUtc = now
-        };
+        var activityRow = EventActivityPlanPersistence.New(groupEvent.Id, activityPlan, now);
         dbContext.EventActivityPlans.Add(activityRow);
         if (compositionRequest.RemovedPresetKeys is { Count: > 0 } removedPresetKeys)
             dbContext.AuditLogs.Add(new AuditLog
