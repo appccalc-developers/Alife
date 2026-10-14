@@ -76,8 +76,8 @@ public class EventProjectCreationTests
         };
         var created = await handler.Handle(Command(confirmed), CancellationToken.None);
         Assert.True(created.IsSuccess, created.Message);
-        var stored = await db.EventActivityPlans.SingleAsync();
-        var read = EventActivityPlanService.Parse(stored.DataJson);
+        var stored = await EventActivityPlanPersistence.LoadAsync(db, created.Value!.Id, false, default);
+        var read = EventActivityPlanPersistence.ToData(stored!);
         Assert.Single(read.Activities);
         Assert.Equal(confirmed.Id, read.Activities[0].Id);
         Assert.True(read.Activities[0].PresetConfirmed);

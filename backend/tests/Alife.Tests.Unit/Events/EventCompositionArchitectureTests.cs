@@ -449,11 +449,8 @@ public class EventCompositionArchitectureTests
         dbContext.GroupEvents.Add(groupEvent);
         dbContext.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = groupId, MemberId = ownerId, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
         var composition = EventPreparationPolicy.WithSavedDetails(groupEvent, Request(null));
-        dbContext.EventActivityPlans.Add(new EventActivityPlan
-        {
-            EventId = groupEvent.Id,
-            DataJson = RamEvaluator.Serialize(composition.ActivityPlan!)
-        });
+        dbContext.EventActivityPlans.Add(EventActivityPlanPersistence.New(
+            groupEvent.Id, composition.ActivityPlan!, DateTime.UtcNow));
         await dbContext.SaveChangesAsync();
         var authorization = Substitute.For<IGroupAuthorizationService>();
         authorization.IsLeaderOrCoLeaderAsync(groupId, ownerId, Arg.Any<CancellationToken>()).Returns(true);
