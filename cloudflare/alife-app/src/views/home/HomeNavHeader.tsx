@@ -49,8 +49,8 @@ const HomeNavHeader = ({ copy, language, navItems: providedNavItems }: Props) =>
             {item.label}
             <ChevronDown className="h-4 w-4 transition group-hover:rotate-180 group-focus-within:rotate-180" />
           </button>
-          <div className="invisible absolute left-1/2 top-full mt-2 min-w-60 -translate-x-1/2 rounded-2xl border border-[#c8b89d] bg-[#eee3d1]/[0.98] p-2 opacity-0 shadow-[0_20px_56px_rgba(66,48,30,0.18)] backdrop-blur-xl transition duration-300 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-            <div className="grid gap-1">
+          <div className="invisible absolute left-1/2 top-full mt-2 min-w-60 -translate-x-1/2 rounded-2xl border border-[#c8b89d] bg-[#eee3d1]/[0.98] p-2 opacity-0 shadow-[0_20px_56px_rgba(66,48,30,0.18)] backdrop-blur-xl transition duration-300 before:absolute before:inset-x-0 before:-top-2 before:h-2 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+            <div className="alife-scrollbar grid max-h-[min(26rem,calc(100dvh-7rem-env(safe-area-inset-top)))] gap-1 overflow-y-auto overscroll-contain pr-1">
               {item.items.map((child) => (
                 <Link
                   key={child.to}
@@ -147,7 +147,7 @@ const HomeNavHeader = ({ copy, language, navItems: providedNavItems }: Props) =>
       </div>
 
       {menuOpen ? (
-        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-[#c5b497] bg-[#e8dcc8]/[0.98] px-4 pb-5 pt-3 shadow-[0_20px_44px_rgba(66,48,30,0.16)] backdrop-blur-xl sm:px-6 lg:hidden">
+        <div className="alife-scrollbar max-h-[calc(100dvh-4rem-env(safe-area-inset-top))] overflow-y-auto overscroll-contain border-t border-[#c5b497] bg-[#e8dcc8]/[0.98] px-4 pb-5 pt-3 shadow-[0_20px_44px_rgba(66,48,30,0.16)] backdrop-blur-xl sm:px-6 lg:hidden">
           <nav aria-label="Primary" className="grid gap-1">
             {navItems.map((item) => isDropdownNavItem(item) ? renderMobileDropdown(item) : isRouteNavItem(item) ? (
               <Link
