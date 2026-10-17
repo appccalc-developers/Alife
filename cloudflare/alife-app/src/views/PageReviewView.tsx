@@ -887,7 +887,7 @@ const PageReviewView = () => {
         ) : null}
         {!loading && activeTab === 'approved' ? (
           <div className="mb-4">
-            <div className="flex gap-1 overflow-x-auto border-b border-slate-200 pb-px" role="tablist" aria-label={text(language, 'primaryMenu')}>
+            <div className="alife-scrollbar flex gap-1 overflow-x-auto overscroll-x-contain border-b border-slate-200 pb-2" role="tablist" aria-label={text(language, 'primaryMenu')}>
               {approvedMenuGroups.map((group) => {
                 const selected = selectedApprovedMenuKey === group.key
                 const menu = primaryMenus.find((candidate) => candidate.id === group.key)
