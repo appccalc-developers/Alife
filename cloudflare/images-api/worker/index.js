@@ -2,6 +2,7 @@ import { handleSundayBulletin, isBulletinPath } from './sunday-bulletins.js';
 import { handleRegistrationMaterial } from './event-registration.js';
 import { handleDeleteObject } from './delete-object.js';
 import { handleEventResetFiles } from './event-reset-files.js';
+import { handleAlbumPhoto, isAlbumObject, containsAlbumObjects } from './album-photos.js';
 
 const IMAGE_EXTENSIONS = new Set([
   "jpg",
@@ -152,7 +153,7 @@ function isPublicObjectPath(pathname) {
 
 function isProtectedObjectPath(path) {
   const normalized = path.replace(/^\/+|\/+$/g, "");
-  return normalized === "private" || normalized.startsWith("private/") ||
+  return isAlbumObject(normalized) || normalized === "private" || normalized.startsWith("private/") ||
     normalized === "quarantine" || normalized.startsWith("quarantine/");
 }
 
@@ -355,6 +356,7 @@ async function uploadToPath(request, env, folderPath) {
  * After deletion, empty parent folder markers are cleaned up.
  */
 async function deletePath(_request, env, targetPath) {
+  if (containsAlbumObjects(targetPath)) return new Response(null, { status: 403, headers: { 'cache-control': 'private, no-store' } });
   if (isBulletinPath(targetPath) || isProtectedObjectPath(targetPath)) return json({ error: "Not found." }, 404);
   if (!targetPath) {
     return json({ error: "Path is required." }, 400);
@@ -541,6 +543,8 @@ export default {
     const method = request.method;
 
     try {
+      const albumResponse = await handleAlbumPhoto(request, env);
+      if (albumResponse) return albumResponse;
       const resetFileResponse = await handleEventResetFiles(request, env);
       if (resetFileResponse) return resetFileResponse;
       const resetFreezeResponse = eventFileWriteFreezeResponse(request, env);

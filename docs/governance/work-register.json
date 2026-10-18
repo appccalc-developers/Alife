@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedOn": "2026-10-14",
+  "updatedOn": "2026-10-18",
   "baseline": {
     "sourceCommit": "4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31",
     "branch": "codex/826-public-3d-church-trial",
@@ -8,6 +8,79 @@
     "productCertification": "No fresh application, database, provider or deployment certification in this task."
   },
   "tasks": [
+    {
+      "id": "ALIFE-ALBUM-DRIVE",
+      "title": "Protect album originals and import selected Google Drive photos",
+      "issueUrl": "https://github.com/appccalc-developers/Alife/issues/844",
+      "priority": "P1",
+      "dependsOn": [],
+      "owners": [
+        "docs/file-asset-design.md#adopted-album-photo-contract--2026-10-18",
+        "docs/cache-coordination.md"
+      ],
+      "status": "in_progress",
+      "implementation": "implemented",
+      "verification": "partial",
+      "acceptance": [
+        "ALBUM-01 through ALBUM-10: server role/status/group isolation, live public/group visibility, controlled upload and original reads, explicit confirmation, per-item retry/cancel and bilingual/mobile interaction.",
+        "Historical standard album URLs cannot bypass backend authorization or be replayed from shared/PWA caches; unrelated public media retains offline caching.",
+        "Real Google accounts, relational persistence/concurrency and deployed Worker/R2 isolation require separate target-environment evidence before release."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-18",
+          "source": "Current main working tree; album/photo services/controllers, Images/Speed Worker guards, React importer and targeted tests only; pre-existing staged/unrelated changes preserved.",
+          "environment": "Windows; .NET 10 + EF InMemory; bundled Node 24.19; headless Microsoft Edge with Playwright; fictional Google SDK/Drive/API and R2 fixtures.",
+          "check": "42 Albums/FileAssets backend checks; 30 JS importer/edge/Worker/PWA checks; 6 browser flows (local, Drive, visibility/role conflict, cancellation, deduplication, malformed input); en/zh at 320px and 1280px; production Vite/PWA bundle and generated-SW offline/cache-migration test; frontend typecheck.",
+          "outcome": "Targeted checks pass. Backend enforces approved leader/co-leader or existing platform exception, rechecks scope after storage transfer, uses serializable finalization and streaming reads, and handles uncertain commit cleanup conservatively. New upload has no public object URL. Generated SW removes historical cached album originals, blocks private offline replay and preserves public image/video offline caching. Browser screenshots and JSON evidence are under C:/Data/Alife/Temp/album-drive-import.",
+          "limitations": "No real Google configuration/account, SQL/R2 provider integration, independent bucket endpoint inventory, deployment or real mobile-device verification at this evidence point. Vite QA build disabled publicDir copying to avoid copying unrelated large 3D assets, then copied the required SW scripts and test video. Existing global locale guard and Speed Layer full typecheck fail outside changed feature files; see locale.log and contract. No migration or publication."
+        },
+        {
+          "date": "2026-10-18",
+          "source": "Live signed-in Alife /api/me, GitHub viewerPermission, Google Cloud IAM and enabled-APIs UI; screenshots under C:/Data/Alife/Temp/album-drive-import.",
+          "environment": "Existing user accounts; personal Google project alife-drive-import; read-only Alife/GitHub permission inspection; no production application writes.",
+          "check": "Confirm current Alife platform admin/admin.access, repository WRITE, Google project Owner; accept Google Cloud/API terms following explicit user confirmation; create test project and verify Google Drive API and Google Picker API in enabled services; prepare External/Testing OAuth branding form.",
+          "outcome": "Current account has application management and Google project configuration authority without being Alife's original creator. Both Google APIs are enabled. OAuth app form is prepared as Alife Drive Import (Local Test), awaiting action-time consent before User Data Policy acceptance and credential creation.",
+          "limitations": "Alife domain/deployment/production-brand authority is not established by application admin or repository WRITE. At this evidence point there was no OAuth client/API key, real Drive grant or imported photo, free trial/billing, deployment or migration; subsequent configuration evidence follows."
+        },
+        {
+          "date": "2026-10-18",
+          "source": "Current local application and Images Worker; real Google Cloud configuration UI; api-storage-probe.json, role-storage-probe.json and real-sql-r2-album.png under C:/Data/Alife/Temp/album-drive-import.",
+          "environment": "User-designated Australia Azure SQL alifeaust/alife (DNS australiaeast); localhost API/React; isolated local R2 emulator on 8787 using the unchanged active local-dev provider; current test admin and unrelated non-admin alpha fixture; actual Chenghao Google account.",
+          "check": "After explicit user consent, accept Google User Data Policy and create External/Testing app, localhost:5173-only Web OAuth client and API key restricted to localhost/Google Picker iframe and Drive/Picker APIs. Add only current account as test user and only drive.file as scope; write three browser identifiers to ignored .env.local. Upload the approved 74-byte synthetic image to own Drive. Verify SQL target/tables/provider read-only. Through real application UI create one bilingual group-visible QA album; run 15 live API/storage assertions, cross-group non-admin upload/read denials, authenticated image rendering and English/Chinese switching.",
+          "outcome": "Google configuration is complete for local testing. SQL/R2 assertions pass: upload/read preserve SHA-256, retry creates one association, visibility conflict returns 409, anonymous and unrelated non-admin reads/uploads return 403 with no-store, and Worker direct/admin URLs cannot expose the image without authorization. Real UI renders the protected /api/album-photos original. Test album 60d4341c-df4c-462e-a0d0-a53087877506 contains only local-transport-probe.png. No Docker, migration, shared provider reconfiguration, billing or deployment. One actual Google OAuth consent reached the token callback/Picker opening, but Picker stayed blank; retry awaits manual account selection.",
+          "limitations": "No completed real Drive file selection/download/import yet; browser automation cannot advance the account popup reliably. Existing another-demo alpha configuration returns alpha_account_invalid; a different existing non-admin fixture confirmed cross-group denial without changing authentication. Local R2 simulation does not prove cloud bucket/domain isolation or deployed caches. Synthetic QA album/file are retained for review; their bytes live in the task-specific local emulator. Real-device/PWA and production authority/rollout remain unverified."
+        },
+        {
+          "date": "2026-10-18",
+          "source": "AlbumPhotoImport, googleDrivePhotoService, albumImport locale and tests; authorization-fix screenshots and locale-authorization.log under C:/Data/Alife/Temp/album-drive-import.",
+          "environment": "Current localhost React source; headless Edge with fictional delayed Google SDK; signed-in Edge for actual OAuth retry.",
+          "check": "Keep the import panel visible and cancellable during OAuth, hide it only after Picker opens, and ignore late token callbacks after closing. Run 5 service unit tests, all 7 browser scenarios including delayed OAuth/cancellation and English/Chinese at 320px, frontend typecheck and locale check. Retry actual account selection.",
+          "outcome": "Unit and browser scenarios and frontend typecheck pass. Both languages render the authorization instructions with an enabled Close button. Closing before a delayed token returns creates no Picker and no upload. Actual retry shows the same visible waiting panel; Google remains at Choose an account after the automated click times out. Popup retained for user continuation.",
+          "limitations": "Global locale check remains 6/7 due to 207 pre-existing violations in unrelated modules; no changed importer file is reported. This does not complete real Drive selection/download/import or deployed R2 verification."
+        },
+        {
+          "date": "2026-10-18",
+          "source": "Current localhost source and actual Google account; real-drive-preview.png, real-drive-import-success.png, real-drive-album-zh.png and real-drive-read-probe.ps1/json under C:/Data/Alife/Temp/album-drive-import.",
+          "environment": "Actual personal Chenghao Google account and Google Picker; user-assisted account/file selection; local React/API/Images Worker with Australia Azure SQL alifeaust/alife and isolated local R2 emulator.",
+          "check": "After user selected only the approved synthetic alife-drive-import-test.png, observe Ready preview and explicitly click Confirm import. Verify 1 of 1 imported, protected 2x2 image rendering, refresh persistence and English/Chinese display. Run 17 live API/storage assertions on the newly imported asset.",
+          "outcome": "Real Google Drive download, preview and confirmed Alife import pass. Imported asset 6b72ab9d-ab1d-467a-aa63-eca5c17fc81e is associated once with QA album 60d4341c-df4c-462e-a0d0-a53087877506. Its 74 bytes match the source SHA-256. Authorized reads return 200 with private/no-store; anonymous and unrelated non-admin reads, raw Worker object URL and unauthenticated admin URL return 403. An authorized read remains allowed after the denied viewers. The album now contains two synthetic test photos, including the earlier local transport probe.",
+          "limitations": "Real personal-account acceptance is complete for this selected synthetic image. User assistance was required to operate the Google popup/Picker. This does not certify Workspace policies, deployed R2 bucket/domain isolation, deployed caches or real mobile/PWA devices. QA records and local emulator objects are retained for review. No deployment, migration, billing or Git publication at this evidence point."
+        },
+        {
+          "date": "2026-10-18",
+          "source": "Isolated codex/844-album-drive-import worktree based on main 41409821; only the album/Drive changes extracted; Issue #844.",
+          "environment": "Clean main-based source; .NET 10 with local NuGet cache; bundled Node 24; headless Edge; fictional browser/provider fixtures. Original mixed working tree and index preserved.",
+          "check": "42 Albums/FileAssets tests; 30 importer/edge/Worker/PWA JS checks; all 7 importer browser scenarios; frontend typecheck and locale check; production Vite/PWA QA bundle and generated-service-worker offline/migration browser check.",
+          "outcome": "All isolated-branch checks pass, including locale 7/7. Earlier locale failures belonged to unrelated uncommitted modules and are absent from this branch. Generated service worker removes historical originals, refuses private offline replay and preserves public image/video caching. Real-account import evidence above was produced in the original source environment, not rerun against this isolated build. Review screenshot: docs/assets/album-drive-import/real-drive-import-success.png.",
+          "limitations": "The QA build disabled publicDir copying, then copied the cache migration script and public test video. No new credentials, .env.local, dependency changes, database migration or deployment are included. Workspace/device and deployed storage/cache acceptance remain pending."
+        }
+      ],
+      "blockers": [
+        "Australia test SQL and local Worker/R2 simulation are verified; deployed bucket/domain isolation, nonstandard historical album-key inventory and real-device/PWA evidence remain pending."
+      ],
+      "nextAction": "Review the successful real personal-account import evidence. Before release, complete Workspace/device/PWA and deployed bucket/cache acceptance, inventory nonstandard historical keys and coordinate release under explicit publication authorization."
+    },
     {
       "id": "ALIFE-EVENT-2-RESET",
       "title": "Cut over Event runtime to 2.0 and purge pre-launch Event instances",

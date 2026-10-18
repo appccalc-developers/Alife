@@ -2,13 +2,16 @@ using System.Text.Json;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Services;
+using Alife.Application.FileAssets.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Alife.Application.Albums;
 
-public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService authorization) : IAlbumService
+public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService authorization,
+    IAlbumPhotoStorage? storage = null, IFileStorageProviderResolver? providers = null, ILogger<AlbumService>? logger = null) : IAlbumService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -98,6 +101,7 @@ public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService 
 
     public async Task<AppResult<AlbumDetailDto>> UpdateAsync(Guid albumId, UpdateAlbumInput input, Guid currentMemberId, CancellationToken cancellationToken)
     {
+        await using var transaction = await db.BeginSerializableTransactionAsync(cancellationToken);
         var album = await db.Albums.FirstOrDefaultAsync(x => x.Id == albumId, cancellationToken);
         if (album is null) return AppResult<AlbumDetailDto>.NotFound("Album not found.");
         if (!await authorization.IsLeaderOrCoLeaderAsync(album.GroupId, currentMemberId, cancellationToken))
@@ -134,9 +138,20 @@ public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService 
 
         album.NameJson = Write(name);
         album.DescriptionJson = WriteOptional(input.Description);
+        if (album.Visibility == AlbumVisibility.Public && input.Visibility == AlbumVisibility.GroupVisible)
+        {
+            var assets = await db.AlbumPhotos.Where(x => x.AlbumId == albumId).Include(x => x.FileAsset).ToListAsync(cancellationToken);
+            foreach (var photo in assets)
+            {
+                photo.FileAsset.Visibility = FileAssetVisibility.GroupVisible;
+                photo.FileAsset.PublicUrl = null;
+                photo.FileAsset.UpdatedUtc = DateTime.UtcNow;
+            }
+        }
         album.Visibility = input.Visibility;
         album.UpdatedUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         return AppResult<AlbumDetailDto>.Success(await BuildDetailAsync(album, currentMemberId, cancellationToken));
     }
 
@@ -148,6 +163,9 @@ public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService 
             return AppResult<AlbumDetailDto>.Forbidden("Only group leaders and co-leaders can manage album photos.");
         var asset = await db.FileAssets.FirstOrDefaultAsync(x => x.Id == fileAssetId, cancellationToken);
         if (asset is null) return AppResult<AlbumDetailDto>.NotFound("File asset not found.");
+        if (asset.IsDeleted || asset.Purpose != FileAssetPurpose.AlbumPhoto || asset.RelatedEntityId != albumId ||
+            !AlbumPhotoService.IsAlbumKey(asset.ObjectKey, album.GroupId, album.Id))
+            return AppResult<AlbumDetailDto>.Validation("Use a photo uploaded for this album.");
         if (asset.GroupId != album.GroupId || !asset.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
             return AppResult<AlbumDetailDto>.Validation("The file must be an image owned by this group.");
         if (album.Visibility == AlbumVisibility.Public && asset.Visibility != FileAssetVisibility.Public)
@@ -180,6 +198,11 @@ public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService 
         photo.FileAsset.UpdatedUtc = DateTime.UtcNow;
         album.UpdatedUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
+        if (storage is not null && providers is not null && AlbumPhotoService.IsAlbumKey(photo.FileAsset.ObjectKey, album.GroupId, album.Id))
+        {
+            try { await storage.DeleteAsync(await providers.GetByCodeAsync(photo.FileAsset.StorageProvider, cancellationToken), photo.FileAsset.ObjectKey, cancellationToken); }
+            catch { logger?.LogError("Album photo storage deletion requires retry for asset {AssetId}", photo.FileAssetId); }
+        }
         return AppResult<AlbumDetailDto>.Success(await BuildDetailAsync(album, currentMemberId, cancellationToken));
     }
 
@@ -224,7 +247,7 @@ public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService 
             await MapSummariesAsync(breadcrumbs, cancellationToken, !canReadGroup),
             await MapSummariesAsync(children, cancellationToken, !canReadGroup),
             photos.Select(x => new AlbumPhotoDto(x.Id, x.FileAssetId, ReadOptional(x.CaptionJson), x.SortOrder,
-                album.Visibility == AlbumVisibility.Public ? x.FileAsset.PublicUrl ?? $"/api/file-assets/{x.FileAssetId}/open" : $"/api/file-assets/{x.FileAssetId}/open",
+                AlbumPhotoService.Url(x.FileAssetId),
                 x.FileAsset.ObjectKey, x.FileAsset.OriginalFileName, 0, 0)).ToList(),
             canManage);
     }
@@ -255,7 +278,7 @@ public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService 
         return albums.Select(x =>
         {
             var cover = covers.FirstOrDefault(p => p.AlbumId == x.Id)?.FileAsset;
-            var coverUrl = cover is null ? null : x.Visibility == AlbumVisibility.Public ? cover.PublicUrl : $"/api/file-assets/{cover.Id}/open";
+            var coverUrl = cover is null ? null : AlbumPhotoService.Url(cover.Id);
             return new AlbumSummaryDto(x.Id, x.GroupId, x.ParentAlbumId, Read(x.NameJson), ReadOptional(x.DescriptionJson), x.Visibility, x.SortOrder,
                 coverUrl, photoCounts.GetValueOrDefault(x.Id), childCounts.GetValueOrDefault(x.Id));
         }).ToList();

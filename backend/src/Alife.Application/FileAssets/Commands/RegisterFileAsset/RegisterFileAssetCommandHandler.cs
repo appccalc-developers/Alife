@@ -32,7 +32,10 @@ public sealed class RegisterFileAssetCommandHandler(
         RegisterFileAssetCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.Purpose == FileAssetPurpose.EventRegistrationMaterial || request.ObjectKey.Replace('\\', '/').TrimStart('/').StartsWith("private/event-registration/", StringComparison.OrdinalIgnoreCase))
+        if (request.Purpose == FileAssetPurpose.AlbumPhoto ||
+            System.Text.RegularExpressions.Regex.IsMatch((request.ObjectKey ?? "").Replace('\\', '/'), @"(?:^|/)groups/[^/]+/albums(?:/|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            return AppResult<FileAssetDto>.Forbidden("Use the authenticated album photo upload endpoint.");
+        if (request.Purpose == FileAssetPurpose.EventRegistrationMaterial || (request.ObjectKey ?? "").Replace('\\', '/').TrimStart('/').StartsWith("private/event-registration/", StringComparison.OrdinalIgnoreCase))
             return AppResult<FileAssetDto>.Forbidden("Use the participant material upload endpoint.");
         var validation = ValidateRequest(request);
         if (validation is not null)
@@ -48,7 +51,7 @@ public sealed class RegisterFileAssetCommandHandler(
         }
 
         var provider = await providerResolver.GetByCodeAsync(request.StorageProvider, cancellationToken);
-        var normalizedObjectKey = NormalizeObjectKey(request.ObjectKey);
+        var normalizedObjectKey = NormalizeObjectKey(request.ObjectKey!);
         var normalizedBucketName = NormalizeBucketName(request.BucketName, provider);
         var now = DateTime.UtcNow;
         var existing = await dbContext.FileAssets

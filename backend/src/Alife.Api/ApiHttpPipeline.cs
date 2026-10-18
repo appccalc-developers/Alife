@@ -22,7 +22,9 @@ internal sealed class ApiHttpPipeline
             var segments = context.Request.Path.Value?.Split('/', StringSplitOptions.RemoveEmptyEntries) ?? [];
             var isRam = segments.Length >= 4 && segments[0] == "api" && segments[1] == "events" && segments[3] == "ram";
             var isPolicy = segments.Length >= 5 && segments[0] == "api" && segments[1] == "admin" && segments[2] == "churches" && segments[4] == "ram-policies";
-            if (isRam || isPolicy)
+            var isAlbumPhoto = segments.Length >= 2 && segments[0] == "api" &&
+                (segments[1] is "album-photos" or "album-photo-objects" || segments.Length >= 4 && segments[1] == "albums" && segments[3] == "photo-upload");
+            if (isRam || isPolicy || isAlbumPhoto)
             {
                 context.Response.Headers.CacheControl = "private, no-store";
                 context.Response.Headers.Pragma = "no-cache";

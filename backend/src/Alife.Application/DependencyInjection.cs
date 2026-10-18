@@ -13,6 +13,7 @@ public static class DependencyInjection
     {
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
         services.AddScoped<IAlbumService, AlbumService>();
+        services.AddScoped<AlbumPhotoService>();
         services.AddScoped<IChurchLifeScopeService, ChurchLifeScopeService>();
         services.AddScoped<IChurchLifeService, ChurchLifeService>();
         services.AddScoped<SundayBulletinService>();

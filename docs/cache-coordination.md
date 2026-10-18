@@ -32,3 +32,16 @@ This is the architecture review matrix, not a claim that all invalidation paths 
 Record affected routes and viewer classes, key dimensions, TTL/header/validator behavior, fill trigger, invalidation trigger, scope across data centers, client handling and failure behavior. Verify an allowed viewer, denied viewer, viewer switch and mutation freshness where applicable. Distinguish local fixtures from live database, multi-account and deployed-edge results.
 
 This matrix was assembled from current architecture sources on 2026-10-01. It has not established end-to-end runtime coverage; future domain status entries must name the actual source and environment verified.
+
+# Album photo privacy (2026-10-18)
+
+The current album-specific contract is [ALBUM-02 through ALBUM-06](file-asset-design.md#adopted-album-photo-contract--2026-10-18).
+Album original bytes (including covers) use `/api/album-photos/{assetId}` with
+`private, no-store` and a fresh owning-album membership/visibility check. Historical
+standard storage paths delegate to `/api/album-photo-objects` and carry the same
+policy. This intentionally forgoes shared caching for mutable album visibility,
+including currently public album originals. Other public media caching is unchanged.
+Speed Layer bypasses existing cache entries and origin cache reads for album paths.
+PWA activation removes historical album originals from v2 runtime caches and uses
+NetworkOnly for future reads. Neither revokes already downloaded copies or existing
+browser HTTP cache entries. Validate independent R2 endpoints before deployment.

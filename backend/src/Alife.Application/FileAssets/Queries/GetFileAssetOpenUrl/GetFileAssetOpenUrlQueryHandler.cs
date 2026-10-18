@@ -26,6 +26,8 @@ public sealed class GetFileAssetOpenUrlQueryHandler(
         {
             return AppResult<string>.NotFound("File not found.");
         }
+        if (fileAsset.Purpose == FileAssetPurpose.AlbumPhoto)
+            return AppResult<string>.Success(Alife.Application.Albums.AlbumPhotoService.Url(fileAsset.Id));
         if (fileAsset.Purpose == FileAssetPurpose.EventRegistrationMaterial || fileAsset.ObjectKey.StartsWith("private/event-registration/", StringComparison.Ordinal))
         {
             if (fileAsset.RelatedEntityId is not { } person || !await Alife.Application.Events.Services.EventRegistrationMaterialService.CanAccessAsync(dbContext, person, request.CurrentMemberId, cancellationToken))
