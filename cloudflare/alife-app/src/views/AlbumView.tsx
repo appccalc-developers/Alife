@@ -12,8 +12,9 @@ import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import AiLanguageAutofill from '../components/ai/AiLanguageAutofill'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { albumService, type AlbumDetail, type AlbumSummary, type AlbumVisibility } from '../services/albumService'
-import { fileAssetService, resolveFileAssetAccessUrl } from '../services/fileAssetService'
-import { deleteImageObject, isImageFile, uploadImage } from '../services/imageWorkerApi'
+import { resolveFileAssetAccessUrl } from '../services/fileAssetService'
+import AlbumPhotoImport from '../components/media/AlbumPhotoImport'
+import { albumImportText } from '../i18n/albumImport'
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
 import { compactBilingualText, validateRequiredBilingualFields } from '../utils/bilingualValidation'
@@ -61,6 +62,7 @@ const AlbumView = () => {
   const [detail, setDetail] = useState<AlbumDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [photoImport, setPhotoImport] = useState<{ album: AlbumSummary; files?: File[]; actor: string } | null>(null)
   const [error, setError] = useState('')
   const [editorMode, setEditorMode] = useState<AlbumEditorMode | null>(null)
   const [albumForm, setAlbumForm] = useState<AlbumFormDraft>(() => emptyAlbumForm())
@@ -90,6 +92,7 @@ const AlbumView = () => {
   }
 
   useEffect(() => { load().catch(() => undefined) }, [groupId, albumId])
+  useEffect(() => { setPhotoImport(null) }, [albumId, auth.me?.id])
 
   const openCreate = () => {
     setAlbumForm(emptyAlbumForm(detail?.album.visibility ?? 'groupVisible'))
@@ -130,24 +133,10 @@ const AlbumView = () => {
     finally { setBusy(false) }
   }
 
-  const uploadFiles = async (files: FileList | null) => {
-    if (!detail || !files?.length) return
-    const images = Array.from(files).filter(isImageFile)
-    if (!images.length) { setError(isZh ? albumViewText.chooseSupportedImageFiles.zh : albumViewText.chooseSupportedImageFiles.en); return }
-    setBusy(true); setError('')
-    try {
-      let next = detail
-      for (const file of images) {
-        const uploaded = await uploadImage(file, `groups/${groupId}/albums/${detail.album.id}`)
-        const asset = await fileAssetService.registerUploadedImage(file, uploaded, {
-          visibility: detail.album.visibility === 'public' ? 'public' : 'groupVisible',
-          purpose: 'albumPhoto', groupId, relatedEntityType: 'album', relatedEntityId: detail.album.id,
-        })
-        next = await albumService.addPhoto(detail.album.id, asset.id)
-      }
-      setDetail(next)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to upload images.') }
-    finally { setBusy(false); if (fileInputRef.current) fileInputRef.current.value = '' }
+  const uploadFiles = (files: FileList | null) => {
+    if (!detail || !files?.length || !auth.me?.id) return
+    setPhotoImport({ album: detail.album, files: Array.from(files), actor: auth.me.id })
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const movePhoto = async (index: number, direction: -1 | 1) => {
@@ -161,7 +150,7 @@ const AlbumView = () => {
     finally { setBusy(false) }
   }
 
-  const removePhoto = async (photoId: string, objectKey: string) => {
+  const removePhoto = async (photoId: string) => {
     if (!detail || !await requestConfirmation({
       title: isZh ? albumViewText.deletePhoto.zh : albumViewText.deletePhoto.en,
       description: isZh ? albumViewText.thisPhotoWillBeDeletedPermanentlyThisCannotBe.zh : albumViewText.thisPhotoWillBeDeletedPermanentlyThisCannotBe.en,
@@ -171,7 +160,7 @@ const AlbumView = () => {
     setBusy(true)
     try {
       setDetail(await albumService.removePhoto(detail.album.id, photoId))
-      deleteImageObject(objectKey).catch(() => undefined)
+
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to delete image.') }
     finally { setBusy(false) }
   }
@@ -205,6 +194,7 @@ const AlbumView = () => {
         : albumId ? { to: albumBasePath, label: isZh ? albumViewText.backToAlbums.zh : albumViewText.backToAlbums.en } : undefined}
       subtitle={detail ? localizeText(detail.album.description, auth.language) : (isZh ? albumViewText.organizeGroupImagesWithAlbumsAndSubalbums.zh : albumViewText.organizeGroupImagesWithAlbumsAndSubalbums.en)}
       status={detail ? <AppBadge variant={detail.album.visibility === 'public' ? 'info' : 'neutral'}>{detail.album.visibility === 'public' ? (isZh ? albumViewText.public.zh : albumViewText.public.en) : (isZh ? albumViewText.groupVisible.zh : albumViewText.groupVisible.en)}</AppBadge> : undefined}
+      controls={detail?.canManage && !editorMode ? <AppActionButton disabled={busy || Boolean(photoImport)} onClick={() => { if (auth.me?.id) setPhotoImport({ album: detail.album, actor: auth.me.id }) }}>{isZh ? albumImportText.drive.zh : albumImportText.drive.en}</AppActionButton> : undefined}
       primaryAction={canManage && !editorMode ? (
         detail ? (
           <AppTitleBarAction
@@ -228,7 +218,7 @@ const AlbumView = () => {
         onSelect: openCreate,
       }] : []}
     >
-      <input ref={fileInputRef} className="hidden" type="file" accept="image/*" multiple onChange={event => uploadFiles(event.target.files)} />
+      <input ref={fileInputRef} className="hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={event => uploadFiles(event.target.files)} />
       {detail ? (
         <nav className="flex flex-wrap items-center gap-1 text-sm text-[#66766f]" aria-label={isZh ? albumViewText.albumBreadcrumbs.zh : albumViewText.albumBreadcrumbs.en}>
           <Link className="rounded-lg px-2 py-1 hover:bg-[#e3f0eb]" to={albumBasePath}>{isZh ? albumViewText.albums.zh : albumViewText.albums.en}</Link>
@@ -301,7 +291,7 @@ const AlbumView = () => {
                       icon: <Trash2 className="h-4 w-4" />,
                       tone: 'danger',
                       disabled: busy,
-                      onSelect: () => { void removePhoto(photo.id, photo.objectKey) },
+                      onSelect: () => { void removePhoto(photo.id) },
                     }]}
                   />
                 </figcaption>
@@ -310,6 +300,10 @@ const AlbumView = () => {
           ))}</div> : null}
         </section>
       ) : null}
+      {photoImport && photoImport.actor === auth.me?.id && photoImport.album.id === albumId ? <AlbumPhotoImport
+        key={`${photoImport.album.id}:${photoImport.actor}`}
+        album={photoImport.album} files={photoImport.files} language={auth.language}
+        onClose={() => setPhotoImport(null)} onComplete={load} /> : null}
       {confirmationModal}
     </AppPageShell>
   )

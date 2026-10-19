@@ -34,6 +34,15 @@ export type AlbumDetail = {
 }
 
 export const albumService = {
+  async uploadPhoto(albumId: string, file: File, uploadId: string, expectedVisibility: AlbumVisibility, signal?: AbortSignal) {
+    const body = new FormData()
+    body.append('file', file)
+    body.append('uploadId', uploadId)
+    body.append('expectedVisibility', expectedVisibility)
+    const { data } = await http.post<{ fileAssetId: string }>(`/api/albums/${albumId}/photo-upload`, body, { signal })
+    await invalidateChurchLifeQueries()
+    return data
+  },
   async list(groupId: string, includeAll = false) {
     const { data } = await http.get<AlbumSummary[]>(`/api/groups/${groupId}/albums${includeAll ? '?includeAll=true' : ''}`)
     return data

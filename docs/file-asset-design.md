@@ -2,7 +2,89 @@
 
 > Retained design reference, pending reconciliation with current implementation. The “Current State” section below is an early snapshot: `FileAsset`, `FileAssetsController`, private signed access and backfill now have source implementations. Use current handlers/DTOs and [private-file backfill](member-private-file-backfill.md) for actual behavior; this proposal must not reintroduce its old public-only assumptions. See DOCS-RECONCILE in the [work register](governance/work-register.json) before treating unverified target sections as implementation requirements.
 
-## Purpose
+## Adopted album photo contract — 2026-10-18
+
+This section is the current owning contract for the user-approved Google Drive
+photo import and album original access work. It supersedes the public-only upload
+assumptions below **for album photos only**. Other file purposes retain their
+existing contracts. Local implementation is not provider/deployment certification.
+
+| ID | Requirement and acceptance |
+| --- | --- |
+| ALBUM-01 | Only approved leaders/co-leaders of the owning group, or the existing platform-management exception in `GroupAuthorizationService`, can import. Ordinary, unrelated, pending and removed members are denied by the server. A dissolved group grants no management access. |
+| ALBUM-02 | `public` permits anonymous viewing; `groupVisible` requires current approved group membership or the existing platform exception. The owning album is authoritative on every original read, including covers and historical standard URLs. Drive source sharing does not determine Alife visibility. |
+| ALBUM-03 | Import requires an explicit confirmation displaying the target album and visibility. A public album has an explicit anyone-can-view notice. `expectedVisibility` is required on each upload and checked before and after storage transfer. Scope/permission conflicts stop the batch and require reloading/reconfirmation. Existing parent/child and public-photo visibility constraints remain. |
+| ALBUM-04 | Store new album originals under `private/groups/{groupId}/albums/{albumId}/{attemptId}.{extension}` with no persisted public URL. `GET /api/album-photos/{fileAssetId}` returns bytes after checking the current album and member. Do not issue transferable signed URLs for album originals. Responses and denials are `private, no-store`, varying by Cookie/Authorization. |
+| ALBUM-05 | Historical `groups/{groupId}/albums/{albumId}/{filename}` originals are streamed without the new-upload size restriction and remain viewable through the Worker only after a live backend check (`GET /api/album-photo-objects?key=...`). Anonymous storage listing, generic writes, ancestor-folder deletion and generic file registration cannot bypass this control. Nonstandard historical attachments must be inventoried/reconciled before rollout; they are not automatically moved or made public. |
+| ALBUM-06 | Album originals bypass Speed Layer shared caches and origin subrequest caches. PWA routes use NetworkOnly for canonical APIs and historical album paths; activation removes historical album entries from v2 runtime caches while preserving unrelated public assets. Previously downloaded copies and browser HTTP caches cannot be remotely recalled. |
+| ALBUM-07 | `POST /api/albums/{albumId}/photo-upload` accepts multipart `file`, UUID `uploadId` and enum `expectedVisibility`. The server derives group, owner, purpose and storage key. Finalization rechecks scope inside the existing serializable transaction facility; one EF SaveChanges registers the asset and album association. Visibility updates use the same transaction boundary. A retry with the same actor/album/content/upload ID returns the existing asset; reuse for another payload or context is rejected. Each storage attempt has its own key. Failed attempts are cleaned up; ambiguous database commits retain objects and log reconciliation needs rather than deleting potentially committed data. |
+| ALBUM-08 | Google Picker uses GIS token authorization with `drive.file`, on an explicit user click. While authorization is pending, the import panel remains visible with instructions and an enabled Close action; closing aborts the browser operation and suppresses a late token callback. The panel hides only when Picker opens. This Google scope includes write capability; Alife only issues read requests. Tokens remain in page memory and are cleared after preparation. No refresh tokens, backend Google tokens or persistent Drive account link. Resolve bytes from Drive file IDs; never fetch arbitrary picker URLs. Source originals are unchanged. |
+| ALBUM-09 | First release: static JPEG/PNG/WebP, up to 50 photos, 20 MiB per file, 100 MiB per batch, 40 million pixels per decoded image. Browser decoding plus server structural validation reject unsupported/disguised/truncated images. PNG also validates CRCs and bounded zlib output. JPEG/WebP server checks are structural, not a full codec decode. Local selection and Drive selection use the same controlled upload. No folder recursion, Google Photos integration, synchronization, or closed-page background execution. |
+| ALBUM-10 | Preview thumbnails and filenames before upload; stable per-item states; content deduplication within the open batch; successful items retained on failures; explicit retries preserve upload IDs. Preparation failures are reported per file, and users can reselect failed files without discarding ready items. Cancel stops subsequent uploads; a current request can finish. Unmount/logout/actor changes abort outstanding browser work and revoke preview URLs. Bilingual switching preserves work. |
+
+### Configuration and release prerequisites
+
+- Verify authority separately: Alife album management follows current approved
+  group roles or the existing platform-management exception; being the original
+  Alife creator is not required. Google project configuration requires the
+  corresponding IAM permissions. Repository write access alone does not establish
+  Google, domain, deployment, or production-brand authority. Use a personal project
+  only for local testing until the production project owner and deployment scope
+  are established.
+- Use one Google Cloud project with Drive API and Picker API enabled, OAuth web
+  client, consent-screen configuration/test users as applicable, authorized JS
+  origins, API key restricted to Picker/Drive and approved referrers (including
+  `docs.google.com` per Google's Picker guidance), and the numeric project ID.
+  Set `VITE_GOOGLE_DRIVE_CLIENT_ID`, `VITE_GOOGLE_DRIVE_API_KEY`, and
+  `VITE_GOOGLE_DRIVE_APP_ID`. These browser identifiers are not client secrets.
+  For personal-account local acceptance, keep the consent app External/Testing,
+  allow only the current test account, use `http://localhost:5173` as the OAuth
+  JavaScript origin, and restrict the key to `http://localhost:5173/*` plus
+  `https://docs.google.com/*`. Keep identifiers in ignored `.env.local`; no OAuth
+  client secret is used by this browser token flow.
+- The existing `FileAssets:ImageApiAdminSecret` must match the Images Worker's
+  `FILE_ADMIN_BACKFILL_SECRET`. Provider `UploadApiBaseUrl` must target that Worker.
+  The Worker delegates legacy reads to `ALBUM_API_BASE_URL`, defaulting to
+  `https://api.ccalc.live`; local integration must override this to the local API.
+  A database-selected provider's saved upload URL takes precedence over the
+  configuration fallback. Inspect the active/default provider before starting
+  tests; do not change a shared provider just to redirect a local test. Reuse the
+  verified Azure test SQL target when configured; Docker is not required. Do not
+  apply shared migrations without separate approval. Disable all non-HTTP
+  Functions triggers during this local acceptance run. An isolated local R2
+  binding exercises Worker persistence but does not certify deployed R2 access.
+- Verify R2 has **no separately public bucket endpoint/domain** bypassing the
+  Worker. Inventory nonstandard album keys before rollout. No database migration,
+  production data rewrite, bucket movement, or deployment is performed by local
+  implementation. Coordinate API, Images Worker, Speed Worker and PWA updates;
+  the protected upload must not be enabled against an older Images Worker.
+- A real personal Google account completed selected-file download, preview and
+  confirmed import on 2026-10-18 against the Australia test SQL database and an
+  isolated local R2 emulator. SHA-256 and protected reads were verified; see
+  `ALIFE-ALBUM-DRIVE` in the work register. Workspace account policy, popup denial,
+  iOS Safari/installed PWA, Android and deployed cache/R2 isolation remain
+  target-environment acceptance.
+  The production origin must permit GIS/Picker script/frame/connect requirements.
+
+### Reproducible local verification
+
+Use Node 24+ (the desktop bundled runtime is available if the shell selects an old Node).
+
+```powershell
+dotnet test backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj --filter 'FullyQualifiedName~Albums|FullyQualifiedName~FileAssets' --no-restore
+node --test cloudflare/alife-app/tests/albumImport.test.cjs cloudflare/alife-app/tests/albumEdgeCache.test.cjs cloudflare/alife-app/tests/pwaCache.test.cjs cloudflare/images-api/worker/album-photos.test.mjs cloudflare/images-api/worker/index.test.mjs
+npm --prefix cloudflare/alife-app run typecheck
+npm --prefix cloudflare/alife-app run test:locale
+```
+
+`tests/albumImport.browser.cjs` runs against Vite with fictional Google identifiers
+in its environment and intercepted Google SDK/Drive/backend requests. It checks
+local/Drive confirmation, failed upload retry, cancellation, permission conflict,
+keyboard focus, 320px/1280px layouts and language switching. It does not prove real
+Google OAuth or production storage. `ALIFE_QA_OUTPUT` points below
+`C:/Data/Alife/Temp`; optional Playwright/browser paths follow existing browser tests.
+
+## Earlier general-file design reference
 
 Alife currently uploads images directly from the React app to the Cloudflare R2-backed image Worker. The Worker stores objects and returns object metadata, while business records store returned URLs inside page, event, enrollment, or review JSON.
 

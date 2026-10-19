@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddHttpClient<IRamSyncAi, CloudflareRamSyncAi>(client => client.Timeout = TimeSpan.FromSeconds(45))
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false }).RemoveAllLoggers();
 		services.AddHttpClient<ISundayBulletinStorage, SundayBulletinStorage>(client => client.Timeout = TimeSpan.FromSeconds(60));
+		services.AddHttpClient<Alife.Application.Albums.IAlbumPhotoStorage, AlbumPhotoStorage>(client => client.Timeout = TimeSpan.FromSeconds(60));
         services.AddHttpClient<Alife.Application.Events.Services.IEventRegistrationStorage, EventRegistrationStorage>(client => client.Timeout = TimeSpan.FromSeconds(60));
 		services.AddDbContext<AlifeDbContext>(options =>
 			options

@@ -57,6 +57,9 @@ export const authMiddleware = async (
 }
 
 export function shouldBypassEdgeCache(pathname: string, sharedContext?: SharedCacheContext | null) {
+  // Album visibility is mutable. Never serve an old anonymous original from a cache.
+  try { if (/(?:^|\/)(?:private\/)?groups\/[^/]+\/albums(?:\/|$)/i.test(decodeURIComponent(pathname))) return true } catch { return true }
+  if (pathname.startsWith('/api/album-photos/')) return true
   if (pathname === '/api/groups/visible') return true
 
   if (pathname === '/images' || pathname.startsWith('/images/')) {

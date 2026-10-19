@@ -86,7 +86,12 @@ export default defineConfig(({ command, mode }) => {
           {
             // API requests must win before resource/document rules, including
             // private files reached through the image proxy or another origin.
-            urlPattern: ({ url }) => /^\/(?:images\/)?api(?:\/|$)/i.test(url.pathname),
+            urlPattern: ({ url }) => {
+              try {
+                const path = decodeURIComponent(url.pathname)
+                return /^\/(?:images\/)?api(?:\/|$)/i.test(path) || /(?:^|\/)groups\/[^/]+\/albums(?:\/|$)/i.test(path)
+              } catch { return true }
+            },
             handler: 'NetworkOnly',
           },
           {

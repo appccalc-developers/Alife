@@ -7,18 +7,18 @@ const { chromium } = require(process.env.ALIFE_PLAYWRIGHT_MODULE || 'playwright'
 const dist = process.env.ALIFE_PWA_DIST;
 if (!dist) throw new Error('ALIFE_PWA_DIST must point to the current production build');
 const root = path.resolve(dist);
-const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aV8sAAAAASUVORK5CYII=', 'base64');
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEUlEQVR4nGMQz44Sz45igFAAFxIDcXHULXQAAAAASUVORK5CYII=', 'base64');
 const types = { '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.html': 'text/html', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.mp4': 'video/mp4', '.woff2': 'font/woff2' };
 const server = http.createServer((req, res) => {
   const pathname = new URL(req.url, 'http://localhost').pathname;
   if (pathname === '/cache-test') { res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' }); return res.end('<!doctype html><title>PWA synthetic cache regression</title>'); }
-  const api = /^\/(?:images\/)?api\//.test(pathname);
+  const api = /^\/(?:images\/)?api\//.test(pathname) || /(?:^|\/)groups\/[^/]+\/albums\//.test(pathname);
   if (api) {
     res.setHeader('Cache-Control', 'private, no-store');
     if (pathname.endsWith('.png')) { res.setHeader('Content-Type', 'image/png'); return res.end(png); }
     if (!pathname.endsWith('.mp4')) { res.setHeader('Content-Type', 'text/html'); return res.end('<!doctype html><p>Private document fixture</p>'); }
   }
-  if (pathname === '/public-cache-fixture.png') { res.setHeader('Content-Type', 'image/png'); return res.end(png); }
+  if (pathname === '/media/public-cache-fixture.png') { res.setHeader('Content-Type', 'image/png'); return res.end(png); }
   const file = api ? path.join(root, 'media/homepage-hero.mp4') : path.resolve(root, '.' + decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
   if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404, { 'Cache-Control': 'no-store' }); return res.end('Missing fixture asset'); }
   res.setHeader('Content-Type', types[path.extname(file)] || 'application/octet-stream');
@@ -39,15 +39,27 @@ const server = http.createServer((req, res) => {
       for (const name of ['alife-video-cache', 'alife-app-cache', 'alife-image-cache', 'alife-external-image-cache', 'alife-runtime-cache', 'another-app-fixture']) {
         await (await caches.open(name)).put('/api/private-old-fixture', new Response('synthetic old private response'));
       }
+      await (await caches.open('alife-image-cache-v2')).put('/images/groups/g/albums/a/old.png', new Response('old private album fixture'));
       await navigator.serviceWorker.register('/sw.js');
       await navigator.serviceWorker.ready;
     });
     await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+    await page.waitForFunction(async () => {
+      const names = await caches.keys();
+      for (const name of ['alife-video-cache', 'alife-app-cache', 'alife-image-cache', 'alife-external-image-cache', 'alife-runtime-cache']) {
+        if (names.includes(name) && await (await caches.open(name)).match('/api/private-old-fixture')) return false;
+      }
+      return true;
+    });
     const activated = await page.evaluate(() => caches.keys());
     assert.ok(activated.includes('another-app-fixture'));
     assert.ok(activated.some(name => name.includes('precache')));
-    for (const name of ['alife-video-cache', 'alife-app-cache', 'alife-image-cache', 'alife-external-image-cache', 'alife-runtime-cache']) assert.ok(!activated.includes(name), `${name} must be migrated`);
-    const imagePaths = ['/api/private-image-fixture.png', '/images/api/private-image-fixture.png', '/public-cache-fixture.png'];
+    // Assert migrated contents so empty cache containers do not affect privacy.
+    for (const name of ['alife-video-cache', 'alife-app-cache', 'alife-image-cache', 'alife-external-image-cache', 'alife-runtime-cache']) {
+      if (activated.includes(name)) assert.equal(await page.evaluate(async name => (await (await caches.open(name)).keys()).length, name), 0, `${name} must contain no legacy entries`);
+    }
+    assert.equal(await page.evaluate(async () => Boolean(await (await caches.open('alife-image-cache-v2')).match('/images/groups/g/albums/a/old.png'))), false);
+    const imagePaths = ['/api/private-image-fixture.png', '/images/api/private-image-fixture.png', '/api/album-photos/fixture.png', '/images/groups/g/albums/a/photo.png', '/media/public-cache-fixture.png'];
     for (const src of imagePaths) await page.evaluate(src => new Promise((resolve, reject) => {
       const image = new Image(); image.onload = () => resolve(image.naturalWidth); image.onerror = reject; image.src = src; document.body.append(image);
     }), src);
@@ -62,19 +74,19 @@ const server = http.createServer((req, res) => {
       const urls = [];
       for (const name of await caches.keys()) {
         if (!name.startsWith('alife-') && !name.includes('precache')) continue;
-        for (const request of await (await caches.open(name)).keys()) if (/^\/(?:images\/)?api(?:\/|$)/.test(new URL(request.url).pathname)) urls.push(request.url);
+        for (const request of await (await caches.open(name)).keys()) if (/^\/(?:images\/)?api(?:\/|$)/.test(new URL(request.url).pathname) || /(?:^|\/)groups\/[^/]+\/albums\//.test(new URL(request.url).pathname)) urls.push(request.url);
       }
       return urls;
     });
     assert.deepEqual(apiEntries, []);
     await context.setOffline(true);
-    const privatePaths = ['/api/private-image-fixture.png', '/images/api/private-image-fixture.png', '/api/private-video-fixture.mp4', '/images/api/private-video-fixture.mp4', '/api/private-document-fixture', '/images/api/private-document-fixture'];
+    const privatePaths = ['/api/album-photos/fixture.png', '/images/groups/g/albums/a/photo.png', '/api/private-image-fixture.png', '/images/api/private-image-fixture.png', '/api/private-video-fixture.mp4', '/images/api/private-video-fixture.mp4', '/api/private-document-fixture', '/images/api/private-document-fixture'];
     const offline = await page.evaluate(async paths => Promise.all(paths.map(async url => {
       try { await fetch(url); return { url, replayed: true }; } catch { return { url, replayed: false }; }
     })), privatePaths);
     assert.ok(offline.every(result => !result.replayed));
     await page.evaluate(() => new Promise((resolve, reject) => {
-      const image = new Image(); image.onload = resolve; image.onerror = reject; image.src = '/public-cache-fixture.png'; document.body.append(image);
+      const image = new Image(); image.onload = resolve; image.onerror = reject; image.src = '/media/public-cache-fixture.png'; document.body.append(image);
     }));
     await page.evaluate(() => new Promise((resolve, reject) => {
       const video = document.createElement('video'); video.preload = 'auto'; video.onloadeddata = resolve; video.onerror = () => reject(new Error('Offline public video unavailable')); video.src = '/media/homepage-hero.mp4'; document.body.append(video);
