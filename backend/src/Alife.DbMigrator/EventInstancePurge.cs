@@ -500,7 +500,11 @@ internal sealed partial class EventInstancePurge
     {
         var target = await ReadTargetAsync(connection, transaction, cancellationToken);
         var metadata = await ReadMetadataAsync(connection, transaction, cancellationToken);
-        var schemaProfile = ValidateKnownSchema(metadata);
+        if (metadata.TryGetTable("event_activity_plans", out var activityPlanTable) &&
+            !activityPlanTable.Columns.ContainsKey("data_json"))
+            throw new InvalidOperationException(
+                "The retired Event instance purge does not support relational Event activity plans.");
+        var schemaProfile = ValidateKnownSchema(metadata, allowLocalSparseColumns: !_options.IsProduction);
 
         var migrations = await ReadMigrationsAsync(connection, transaction, metadata, cancellationToken);
         var schemaHash = Sha256(JsonSerializer.Serialize(metadata.SchemaFingerprintInput, _json));
@@ -854,7 +858,7 @@ internal sealed partial class EventInstancePurge
         return new DatabaseMetadata(tables, foreignKeys);
     }
 
-    private static string ValidateKnownSchema(DatabaseMetadata metadata)
+    private static string ValidateKnownSchema(DatabaseMetadata metadata, bool allowLocalSparseColumns = false)
     {
         if (!metadata.TryGetTable("group_events", out _))
             throw new InvalidOperationException("The target does not contain dbo.group_events.");
@@ -880,7 +884,7 @@ internal sealed partial class EventInstancePurge
         if (nonDbo.Length != 0)
             throw new InvalidOperationException("Event tables outside dbo are not supported: " + string.Join(", ", nonDbo));
 
-        return MatchReviewedSchemaProfile(metadata);
+        return MatchReviewedSchemaProfile(metadata, allowLocalSparseColumns);
     }
 
     private static void ValidateSoftReferenceColumns(DatabaseMetadata metadata, IReadOnlyCollection<TableInfo> instanceTables)
@@ -1166,8 +1170,11 @@ internal sealed partial class EventInstancePurge
         DatabaseMetadata metadata,
         CancellationToken cancellationToken)
     {
-        if (!metadata.TryGetTable("event_activity_plans", out _))
+        if (!metadata.TryGetTable("event_activity_plans", out var planTable))
             return Array.Empty<ProjectIdEvidence>();
+        if (!planTable.Columns.ContainsKey("data_json"))
+            throw new InvalidOperationException(
+                "The retired Event instance purge does not support relational Event activity plans.");
         var result = new List<ProjectIdEvidence>();
         await using var command = Command(connection, transaction,
             "SELECT [event_id], [data_json] FROM [dbo].[event_activity_plans] ORDER BY [event_id]");
