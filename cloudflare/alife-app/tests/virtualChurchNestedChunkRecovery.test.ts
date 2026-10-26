@@ -53,7 +53,8 @@ test('scene errors use the same cache recovery as route errors, without clearing
 
   assert.match(view, /if \(virtualChurchChunkLoadFailed\(error\)\) void recoverVirtualChurchChunkOnce\(\)/)
   assert.match(view, /sceneRuntimeError && virtualChurchChunkLoadFailed\(sceneRuntimeError\)[\s\S]*?recoverVirtualChurchChunkOnce\(true\)/)
-  assert.match(routes, /if \(cleanUrl !== null\) \{[\s\S]*?\} else \{[\s\S]*?removeItem\(VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY\)/)
+  assert.match(boundary, /if \(cleanUrl !== null\) \{[\s\S]*?\} else \{[\s\S]*?removeItem\(VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY\)/)
+  assert.doesNotMatch(routes, /virtualChurchUrlWithoutRecoveryMarker|VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY/)
   assert.match(boundary, /export const recoverVirtualChurchChunkOnce = \(force = false\)/)
   assert.match(boundary, /online: navigator\.onLine !== false/)
   assert.match(boundary, /现有缓存已保留/)

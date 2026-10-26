@@ -20,12 +20,7 @@ import {
 import { buildOnboardingLocation, normalizeIdentityReturnPath } from '../../services/identityPathPolicy'
 import { PERSONAL_CENTER_PATH, PROFILE_SETTINGS_PATH } from './personalCenterRoutes'
 import { getLegacyGroupEntryPath } from '../navigation/groupSiteNavigation'
-import VirtualChurchRouteBoundary, {
-  VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY,
-} from './VirtualChurchRouteBoundary'
-import {
-  virtualChurchUrlWithoutRecoveryMarker,
-} from './virtualChurchRouteRecoveryContract'
+import VirtualChurchRouteBoundary from './VirtualChurchRouteBoundary'
 import { isVirtualChurchStudyRoomReading, resolveVirtualChurchGuestReturn, virtualChurchGuestVisitEnabled } from './virtualChurchPublicAccess'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
@@ -86,29 +81,6 @@ const VirtualChurchMainHallView = lazy(() => import('../../views/VirtualChurchMa
 
 const VirtualChurchRouteEntry = () => {
   const [routeStartedAt] = useState(() => window.performance.now())
-
-  useEffect(() => {
-    const cleanUrl = virtualChurchUrlWithoutRecoveryMarker(window.location.href)
-    if (cleanUrl !== null) {
-      // Keep the one-shot guard through this visit: scene-owned lazy modules
-      // may still load after the route component has mounted. If storage is
-      // unavailable, retain the URL marker itself as the one-shot guard.
-      try {
-        if (window.sessionStorage.getItem(VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY) === 'true') {
-          window.history.replaceState(window.history.state, '', cleanUrl)
-        }
-      } catch {
-        // The URL marker prevents an automatic reload loop without storage.
-      }
-    } else {
-      try {
-        window.sessionStorage.removeItem(VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY)
-      } catch {
-        // Recovery still works for this visit when session storage is unavailable.
-      }
-    }
-  }, [])
-
   return <VirtualChurchView routeStartedAt={routeStartedAt} />
 }
 

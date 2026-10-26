@@ -9,6 +9,7 @@ import {
   virtualChurchRecoveryNavigationUrl,
   virtualChurchRecoveryServiceWorkerIsAffected,
   virtualChurchRecoveryShouldStart,
+  virtualChurchUrlWithoutRecoveryMarker,
 } from './virtualChurchRouteRecoveryContract'
 
 export const VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY =
@@ -142,6 +143,7 @@ class VirtualChurchRouteBoundary extends Component<
   VirtualChurchRouteBoundaryState
 > {
   private routeMounted = false
+  private recoveryEntryInitialized = false
 
   state: VirtualChurchRouteBoundaryState = {
     error: null,
@@ -151,6 +153,30 @@ class VirtualChurchRouteBoundary extends Component<
 
   componentDidMount() {
     this.routeMounted = true
+    // Every scene route owns a fresh visit, including direct hall/study links.
+    // StrictMode rehearses this lifecycle on the same instance; it must not
+    // clear the retry guard after the first mount removes the URL marker.
+    if (!this.recoveryEntryInitialized) {
+      this.recoveryEntryInitialized = true
+      const cleanUrl = virtualChurchUrlWithoutRecoveryMarker(window.location.href)
+      if (cleanUrl !== null) {
+        // Keep the session guard for late scene-owned imports. Without working
+        // storage, leave the URL marker in place to prevent a reload loop.
+        try {
+          if (window.sessionStorage.getItem(VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY) === 'true') {
+            window.history.replaceState(window.history.state, '', cleanUrl)
+          }
+        } catch {
+          // The URL marker remains the recovery guard.
+        }
+      } else {
+        try {
+          window.sessionStorage.removeItem(VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY)
+        } catch {
+          // A recovery navigation will still carry its own URL guard.
+        }
+      }
+    }
     window.addEventListener('online', this.updateConnectionState)
     window.addEventListener('offline', this.updateConnectionState)
   }

@@ -28,6 +28,98 @@ const deferred = <T>() => {
 const settle = async () => { for (let i = 0; i < 8; i++) await Promise.resolve() }
 const position = { book: 'JHN', chapter: 3, language: 'zh', zhVersion: '123', enVersion: '206', updatedUtc: '2026-10-07T01:00:00Z' }
 
+const restoreFixture = (local: typeof position, initialSearch = '') => {
+  const pending = deferred<typeof position | null>()
+  const location = { search: initialSearch }
+  const applied: URLSearchParams[] = []
+  const writes: unknown[][] = []
+  const uploads: unknown[] = []
+  const ready: unknown[] = []
+  const cleanup = runEffect(0, {
+    auth: { me: { id: 'fictional-member-a' }, isGuest: false },
+    searchParams: new URLSearchParams(initialSearch),
+    setSearchParams: (value: URLSearchParams) => {
+      applied.push(new URLSearchParams(value))
+      // BrowserRouter replaces history before the pending HTTP response settles.
+      location.search = `?${value}`
+    },
+    setRestoredReadingMemberId: (value: unknown) => { ready.push(value) },
+    readSavedReadingPosition: () => local,
+    normalizeReadingPosition: (value: unknown) => value,
+    saveReadingPosition: (...values: unknown[]) => { writes.push(values) },
+    bibleReadingProgressService: {
+      get: () => pending.promise,
+      save: (value: unknown) => { uploads.push(value); return Promise.resolve(value) },
+    },
+    window: { location },
+  })
+  return { pending, location, applied, writes, uploads, ready, cleanup }
+}
+
+test('a newer server position replaces the optimistic local restore after its URL change', async () => {
+  const fixture = restoreFixture(position)
+  assert.equal(new URLSearchParams(fixture.location.search).get('chapter'), '3')
+  const remote = { ...position, book: 'ACT', chapter: 9, language: 'en', updatedUtc: '2026-10-08T01:00:00Z' }
+  fixture.pending.resolve(remote)
+  await settle()
+
+  const current = new URLSearchParams(fixture.location.search)
+  assert.equal(current.get('book'), 'ACT')
+  assert.equal(current.get('chapter'), '9')
+  assert.equal(current.get('lang'), 'en')
+  assert.deepEqual(fixture.writes, [['fictional-member-a', remote]])
+  assert.deepEqual(fixture.uploads, [], 'stale local progress must not be uploaded')
+  assert.deepEqual(fixture.ready, ['fictional-member-a'])
+  fixture.cleanup()
+})
+
+test('the optimistic local URL change still permits uploading newer local progress', async () => {
+  for (const remote of [null, { ...position, updatedUtc: '2026-10-06T01:00:00Z' }]) {
+    const fixture = restoreFixture(position)
+    fixture.pending.resolve(remote)
+    await settle()
+
+    assert.equal(new URLSearchParams(fixture.location.search).get('chapter'), '3')
+    assert.deepEqual(fixture.uploads, [position])
+    assert.deepEqual(fixture.writes, [['fictional-member-a', position]])
+    assert.deepEqual(fixture.ready, ['fictional-member-a'])
+    fixture.cleanup()
+  }
+})
+
+test('real navigation during restore wins over either an older or newer server position', async () => {
+  for (const updatedUtc of ['2026-10-06T01:00:00Z', '2026-10-08T01:00:00Z']) {
+    const fixture = restoreFixture(position)
+    fixture.location.search = '?book=ROM&chapter=8&lang=en'
+    fixture.pending.resolve({ ...position, book: 'ACT', chapter: 9, updatedUtc })
+    await settle()
+
+    assert.equal(fixture.location.search, '?book=ROM&chapter=8&lang=en')
+    assert.equal(fixture.applied.length, 1, 'only the initial local restoration may navigate')
+    assert.deepEqual(fixture.writes, [], 'restore must not overwrite the new reading choice')
+    assert.deepEqual(fixture.uploads, [], 'restore must not upload the prior local choice')
+    assert.deepEqual(fixture.ready, ['fictional-member-a'], 'normal saving resumes for the current URL')
+    fixture.cleanup()
+  }
+})
+
+test('a newer server restore preserves an explicit chapter and language from the entry URL', async () => {
+  const fixture = restoreFixture(position, '?book=PSA&chapter=5&lang=en&enVersion=100&from=virtual-church-study-room')
+  const remote = { ...position, book: 'ACT', chapter: 9, zhVersion: '456', updatedUtc: '2026-10-08T01:00:00Z' }
+  fixture.pending.resolve(remote)
+  await settle()
+
+  const current = new URLSearchParams(fixture.location.search)
+  assert.equal(current.get('book'), 'PSA')
+  assert.equal(current.get('chapter'), '5')
+  assert.equal(current.get('lang'), 'en')
+  assert.equal(current.get('enVersion'), '100')
+  assert.equal(current.get('from'), 'virtual-church-study-room')
+  assert.equal(current.get('zhVersion'), '456', 'only absent preferences use the newer saved position')
+  assert.deepEqual(fixture.uploads, [])
+  fixture.cleanup()
+})
+
 test('late save completion cannot overwrite newer local progress after effect cleanup', async () => {
   const pending = deferred<typeof position>()
   const writes: unknown[][] = []

@@ -89,6 +89,7 @@ const BibleStudyView = () => {
     const local = readSavedReadingPosition(memberId)
     const initialParams = new URLSearchParams(searchParams)
     const hasExplicitReference = initialParams.has('book') || initialParams.has('chapter')
+    let restoreSearch = initialParams.toString()
 
     const applyPosition = (position: SavedReadingPosition) => {
       const params = new URLSearchParams(initialParams)
@@ -99,7 +100,12 @@ const BibleStudyView = () => {
       if (!params.has('lang')) params.set('lang', position.language)
       if (!params.has('zhVersion') && position.zhVersion) params.set('zhVersion', position.zhVersion)
       if (!params.has('enVersion') && position.enVersion) params.set('enVersion', position.enVersion)
-      if (params.toString() !== searchParams.toString()) setSearchParams(params, { replace: true })
+      const nextSearch = params.toString()
+      if (nextSearch !== restoreSearch) {
+        // Our optimistic restore is not a new reading choice made by the user.
+        restoreSearch = nextSearch
+        setSearchParams(params, { replace: true })
+      }
     }
 
     if (local) applyPosition(local)
@@ -109,12 +115,13 @@ const BibleStudyView = () => {
         if (!active) return
         const remote = remoteValue ? normalizeReadingPosition(remoteValue) : null
         const localIsNewer = local && (!remote || Date.parse(local.updatedUtc) > Date.parse(remote.updatedUtc))
-        const userChangedPosition = new URLSearchParams(window.location.search).toString() !== searchParams.toString()
+        const userChangedPosition = new URLSearchParams(window.location.search).toString() !== restoreSearch
+        if (userChangedPosition) return
 
         if (localIsNewer) {
           const savedRemote = await bibleReadingProgressService.save(local, request.signal)
           if (active) saveReadingPosition(memberId, normalizeReadingPosition(savedRemote) || local)
-        } else if (remote && !userChangedPosition) {
+        } else if (remote) {
           saveReadingPosition(memberId, remote)
           applyPosition(remote)
         }

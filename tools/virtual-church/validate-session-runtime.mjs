@@ -477,13 +477,15 @@ for (const fragment of [
   '<VirtualChurchView routeStartedAt={routeStartedAt} />',
   '<VirtualChurchRouteBoundary>',
   '<VirtualChurchRouteEntry />',
-  'window.sessionStorage.removeItem(VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY)',
-  'virtualChurchUrlWithoutRecoveryMarker(window.location.href)',
-  "window.history.replaceState(window.history.state, '', cleanUrl)",
 ]) {
   requireSource(routesSource, fragment, 'Route session start')
 }
 for (const fragment of [
+  'private recoveryEntryInitialized = false',
+  'if (!this.recoveryEntryInitialized)',
+  'window.sessionStorage.removeItem(VIRTUAL_CHURCH_CHUNK_RECOVERY_KEY)',
+  'virtualChurchUrlWithoutRecoveryMarker(window.location.href)',
+  "window.history.replaceState(window.history.state, '', cleanUrl)",
   'virtualChurchChunkLoadFailed(error)',
   'storageAttempted: boolean | null = null',
   'virtualChurchRecoveryMarkerIsPresent(window.location.href)',

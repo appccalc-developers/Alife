@@ -2,7 +2,7 @@
 
 ## 当前范围与 PR 收尾（2026-10-26）
 
-本轮沿用 [Issue #826](https://github.com/appccalc-developers/Alife/issues/826) 和 [Draft PR #827](https://github.com/appccalc-developers/Alife/pull/827)，交付现有 3D 教堂、低调的公共首页入口及相应 CI/CD 检查。用户已撤回此前首页／CMS 重设计；本轮不恢复该方案。PR 在独立工作副本中合入当前 `main`，保留现行权限、缓存、双语及 Event 约束；原工作副本和无关暂存内容保持不变。
+本轮沿用 [Issue #826](https://github.com/appccalc-developers/Alife/issues/826) 和 [PR #827](https://github.com/appccalc-developers/Alife/pull/827)，交付现有 3D 教堂、低调的公共首页入口及相应 CI/CD 检查。用户已撤回此前首页／CMS 重设计；本轮不恢复该方案。PR 在独立工作副本中合入当前 `main`，保留现行权限、缓存、双语及 Event 约束；原工作副本和无关暂存内容保持不变。
 
 - **入口**：首页页脚只放一个「参观 3D 教堂」／「Explore the 3D church」链接，进入 `/virtual-church?vcVisual=v3`。Hero 和主导航不添加 3D 按钮；保持键盘焦点反馈、至少 44px 点击高度及手机排版。入口与场景路由使用同一公众访问开关，不为显示链接预载 3D 场景。生产未显式设置 `enabled`／`v3` 时仍关闭公众入口。
 - **现有体验与范围**：保留已实现外景、门厅、主堂、角色、移动和查经流程，以及必要的加载／失败恢复、资源释放、访客阅读和个人进度隐私边界。2026-10-08 经用户确认的六项裁剪继续有效；后文完整 V3 路线和历史缺口不能重新扩大本轮制作范围。
@@ -10,8 +10,9 @@
 - **PR 检查与部署前门禁**：`Virtual Church Quality` 可复用工作流在 PR 检查锁定依赖安装、双语资源、导航／PWA、3D／访客阅读／路由恢复测试、前端类型与构建、生产载荷／分块闭包／版本化资产，以及 Worker 静态资源／缓存边界。`Bible Reading Privacy` 检查合成凭据与独立 InMemory 数据库中的鉴权、成员隔离及 no-store 行为。Cloudflare 部署和 Azure 登录／迁移前分别依赖同一组可复用检查；PR 不读取生产密钥，也不触发部署。
 - **当前本地验证**：合入 `main` 后的 PR 更新工作副本，在 Windows／Node 22.23 x64 上通过 3D 及相关前端回归 **549/549**、`test:locale` **7/7**、`test:navigation-policy` **18/18**、`test:page-cache` **12/12**、Worker `test:built` **146/146**、后端 `dotnet test --filter FullyQualifiedName~BibleReadingProgress` **42/42**。`enabled`／`v3` 下的 `npm run build`、`validate:3d:static-payload`、`validate:3d:chunk-closure` 通过；`validate:3d:asset-release:dist` 在同一构建产物上使用 Node 24 通过，并通过五项内存变异拒绝检查。更新后的资产验证器实际执行构建 SW 的缓存回调，兼容多脚本导入及现行 app-cache-v2，继续检查 MIME、成功状态和私有路径 NetworkOnly 门禁；未为修复旧字符串断言改动应用或重建。
 - **本地界面证据**：中英桌面与 390px 手机视口、中文 320px 入口无横向溢出，点击高度 44px；实际中文场景就绪，切换英文时 Canvas 保持 1，返回首页后 Canvas 为 0。见[中文桌面页脚](assets/virtual-church/footer-zh-desktop.png)、[英文手机页脚](assets/virtual-church/footer-en-mobile.png)、[中文场景](assets/virtual-church/scene-zh.png)。这些是本地浏览器证据，不是真机、真实 provider／鉴权后端或生产验收。
-- **尚未确认**：GitHub Actions 仍待本次推送后验证；CI 中 `enabled`／`v3` 构建不修改远程开放变量。完整文档清单检查仍因既有未登记的相册截图失败，本轮只修正 3D 文档及三张验证截图的登记，不宣称全清单通过。真实设备连续操作和线上检查没有新增证据，不宣称完整跨平台认证。
-- **授权边界**：本轮授权 Issue／PR 的提交、推送及 CI 收尾；未授权合并、生产部署、共享数据库迁移或设置生产开放变量。发布开关是构建时配置，后续经授权开放或撤回均需重新构建部署。
+- **合并前审查修复**：修复阅读进度恢复把自身 URL 更新误认为用户跳转、从而忽略较新服务端进度的问题；真实用户跳转仍优先。把分块恢复标记初始化移到三个 3D 路由共用的边界，修复直达查经房／主堂后残留会话标记阻止新一轮恢复的问题，并保留 StrictMode、迟到导入和不可用存储下的单次重试保护。新增 9 个行为回归后完整前端专项 **558/558** 通过；会话验证器通过；按生产默认 `disabled`／`v2` 的类型检查、构建及三个产物验证器通过。未改变权限、发布开关、DTO 或文案。
+- **远程与尚未确认**：修复前 `6309c0fd` 的 `Virtual Church Quality`、`Bible Reading Privacy` 和 Workers Builds 均通过；修复后的提交与合并提交仍须各自核验，不能沿用旧 SHA 的绿灯。CI 中 `enabled`／`v3` 构建不修改远程开放变量。完整文档清单检查仍因既有未登记的相册截图失败，本轮只修正 3D 文档及三张验证截图的登记，不宣称全清单通过。真实设备连续操作和线上检查没有新增证据，不宣称完整跨平台认证。
+- **授权边界**：用户现已授权检查通过后合并 PR，并确认其触发的正常 CI/CD；仍须遵守仓库代码所有者审批规则，不绕过保护。此授权不包含修改生产开放变量或额外执行共享数据库迁移。发布开关是构建时配置，后续经授权开放或撤回均需重新构建部署。
 
 本节为当前收尾状态；下节保留用户裁剪决定与 2026-10-08 的历史证据。历史命令结果、计数和授权表述按当时环境解释，不代表 2026-10-26 候选已经通过。
 
