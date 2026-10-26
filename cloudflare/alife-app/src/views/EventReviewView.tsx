@@ -1,3 +1,4 @@
+import { eventReviewViewText } from '../i18n/eventReviewView.ts'
 import { useEffect, useState } from 'react'
 import { Navigate, useParams, useSearchParams } from 'react-router-dom'
 import AppBadge from '../components/layout/AppBadge'
@@ -7,12 +8,10 @@ import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useUiText } from '../i18n/uiText'
-import { enrollmentSessionService } from '../services/enrollmentSessionService'
 import { eventService } from '../services/eventService'
 import { normalizeApiError } from '../services/http'
 import { createReviewId, reviewSessionService } from '../services/reviewSessionService'
 import { useAuthStore } from '../stores/auth'
-import type { EventEnrollmentRecord } from '../types/enrollment'
 import type { GroupEventRecord } from '../types/event'
 import type { EventReviewRecord } from '../types/review'
 import { loadAiContentContext, type AiContentContext } from '../utils/aiContentContext'
@@ -29,7 +28,6 @@ const EventReviewView = () => {
   const [newReviewId, setNewReviewId] = useState(() => createReviewId())
   const [event, setEvent] = useState<GroupEventRecord | null>(null)
   const [existingReview, setExistingReview] = useState<EventReviewRecord | null>(null)
-  const [enrollments, setEnrollments] = useState<EventEnrollmentRecord[]>([])
   const [aiContentContext, setAiContentContext] = useState<AiContentContext>({ missionStatements: [], eventContext: null })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -52,13 +50,11 @@ const EventReviewView = () => {
       reviewId
         ? reviewSessionService.listEventReviews(eventId)
         : Promise.resolve([] as EventReviewRecord[]),
-      enrollmentSessionService.listEventEnrollments(eventId).catch(() => [] as EventEnrollmentRecord[]),
     ])
-      .then(([events, reviews, enrollmentRecords]) => {
+      .then(([events, reviews]) => {
         if (cancelled) return
         setEvent(events.find((item) => item.id === eventId) ?? null)
         setExistingReview(reviewId ? reviews.find((item) => item.id === reviewId) ?? null : null)
-        setEnrollments(enrollmentRecords)
       })
       .catch((reason) => {
         if (!cancelled) {
@@ -116,10 +112,10 @@ const EventReviewView = () => {
 
   return (
     <AppPageShell
-      title={eventTitle || (language === 'zh' ? '活动回顾' : 'Event review')}
-      context={language === 'zh' ? '小组生活 / 活动 / 回顾' : 'Group Life / Event / Review'}
-      status={event ? <AppBadge variant="neutral">{language === 'zh' ? '已结束' : 'Past event'}</AppBadge> : undefined}
-      backLink={{ label: language === 'zh' ? '返回活动回顾' : 'Back to event memories', to: `${eventBasePath}?section=memories` }}
+      title={eventTitle || (language === 'zh' ? eventReviewViewText.eventReview.zh : eventReviewViewText.eventReview.en)}
+      context={language === 'zh' ? eventReviewViewText.groupLifeEventReview.zh : eventReviewViewText.groupLifeEventReview.en}
+      status={event ? <AppBadge variant="neutral">{language === 'zh' ? eventReviewViewText.pastEvent.zh : eventReviewViewText.pastEvent.en}</AppBadge> : undefined}
+      backLink={{ label: language === 'zh' ? eventReviewViewText.backToEventMemories.zh : eventReviewViewText.backToEventMemories.en, to: `${eventBasePath}?section=memories` }}
     >
 
       {loading ? (
@@ -155,7 +151,6 @@ const EventReviewView = () => {
               language={language}
               reviewId={reviewId || newReviewId}
               existingReview={existingReview}
-              enrollments={enrollments}
               aiContentContext={aiContentContext}
               onSuccess={setSuccessMessage}
             />

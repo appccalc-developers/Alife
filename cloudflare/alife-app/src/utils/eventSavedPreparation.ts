@@ -1,3 +1,4 @@
+import { eventSavedPreparationText } from '../i18n/eventSavedPreparation.ts'
 import { initialCreationDraft, creationFacts, type CreationDraft } from './eventCreationDraft.ts'
 import { parseUtcInstant } from './eventOperationsState.ts'
 import type { EventDto, GroupEventRecord } from '../types/event'
@@ -24,10 +25,10 @@ export const localPreparationDate = (date: string, timeZone: string) => {
 export function savedCreationDraft(record: GroupEventRecord, plan: EventPlanSnapshot | null): CreationDraft {
   const data = JSON.parse(record.eventDataJson) as EventDto, draft = initialCreationDraft()
   const timeZone = data.timeZone || draft.timeZone
-  return { ...draft, arrangementConfirmations: plan?.plan.arrangementConfirmations ?? {}, moduleConfirmations: plan?.plan.moduleConfirmations ?? {}, timeZone, archetypeCode: plan?.plan.archetypeCode || '', activityTypeCode: plan?.plan.activityTypeCode || '',
+  return { ...draft, moduleConfirmations: plan?.plan.moduleConfirmations ?? {}, timeZone, archetypeCode: plan?.plan.archetypeCode || '', activityTypeCode: plan?.plan.activityTypeCode || '',
     title: { en: record.titleEn, zh: record.titleZh }, description: data.description ?? { en: '', zh: '' }, locationName: data.locationName ?? { en: '', zh: '' },
     startLocal: localPreparationDate(record.startDate, timeZone), endLocal: localPreparationDate(record.endDate, timeZone), maxCapacity: String(data.maxCapacity || ''),
-    overrides: { visibility: record.visibility || data.visibility || 'groupVisible', registrationMode: data.maxCapacity > 0 ? 'required' : 'none', useRecommendedWorkflow: false },
+    overrides: { visibility: record.visibility || data.visibility || 'groupVisible', registrationMode: data.registrationMode ?? (data.maxCapacity > 0 ? 'required' : 'none'), useRecommendedWorkflow: false },
     moduleOverrides: Object.fromEntries((plan?.plan.moduleDecisions ?? []).map(x => [x.moduleCode, ['required', 'selected', 'recommended'].includes(x.status)])),
     factValues: Object.fromEntries(creationFacts.map(([code]) => { const fact = plan?.plan.facts.items.find(x => x.code === code); return [code, fact?.certainty === 'confirmed' && typeof fact.value === 'boolean' ? (fact.value ? 'yes' : 'no') : 'unknown'] })),
     aiCandidateFacts: Object.fromEntries((plan?.plan.facts.items ?? []).filter(x => x.certainty === 'candidate' && typeof x.value === 'boolean').map(x => [x.code, x.value as boolean])),
@@ -36,8 +37,8 @@ export function savedCreationDraft(record: GroupEventRecord, plan: EventPlanSnap
 }
 export function savedTemplate(draft: CreationDraft, template?: EventActivityType): EventActivityType {
   return template ?? { code: draft.activityTypeCode, archetypeCode: draft.archetypeCode, version: 1,
-    name: { en: draft.activityTypeCode || 'Existing event', zh: draft.activityTypeCode || '已有活动' }, description: { en: '', zh: '' }, iconKey: 'event',
-    defaults: { visibility: draft.overrides.visibility || 'groupVisible', registrationMode: draft.overrides.registrationMode || 'none', capacityUnit: 'People' }, preselectedModules: [], presetServiceSlots: [] }
+    name: { en: draft.activityTypeCode || 'Existing event', zh: draft.activityTypeCode || eventSavedPreparationText.savedTemplateNameZh }, description: { en: '', zh: '' }, iconKey: 'event',
+    defaults: { visibility: draft.overrides.visibility || 'groupVisible', registrationMode: draft.overrides.registrationMode || 'none', capacityUnit: 'People' }, preselectedModules: [], presetServiceSlots: [], presetProjects: [] }
 }
 export function savedArrangementDraft(data: SavedArrangements, timeZone: string): CreationArrangements {
   const time = (offset: number) => localPreparationDate(new Date(parseUtcInstant(data.startUtc).getTime() + offset * 60000).toISOString(), timeZone)
@@ -49,4 +50,4 @@ export function savedArrangementDraft(data: SavedArrangements, timeZone: string)
   }
 }
 export const detailSignature = (draft: CreationDraft) => JSON.stringify([draft.title, draft.description, draft.locationName, draft.startLocal, draft.endLocal, draft.timeZone, draft.intervalWeeks, draft.maxCapacity, draft.overrides.visibility, draft.overrides.registrationMode])
-export const arrangementSignature = (draft: CreationDraft) => JSON.stringify([draft.moduleConfirmations, draft.arrangementConfirmations, draft.factValues, draft.moduleOverrides, draft.aiCandidateFacts, draft.overrides.useRecommendedWorkflow, draft.arrangements && { ...draft.arrangements, venues: draft.arrangements.venues?.map(({ venueETag: _tag, capacity: _capacity, name: _name, address: _address, ...row }) => ({ ...row, ...(row.venueId ? {} : { capacity: _capacity, name: _name, address: _address }) })) }])
+export const arrangementSignature = (draft: CreationDraft) => JSON.stringify([draft.activityPlan, draft.moduleConfirmations, draft.factValues, draft.moduleOverrides, draft.aiCandidateFacts, draft.overrides.useRecommendedWorkflow, draft.arrangements && { ...draft.arrangements, venues: draft.arrangements.venues?.map(({ venueETag: _tag, capacity: _capacity, name: _name, address: _address, ...row }) => ({ ...row, ...(row.venueId ? {} : { capacity: _capacity, name: _name, address: _address }) })) }])

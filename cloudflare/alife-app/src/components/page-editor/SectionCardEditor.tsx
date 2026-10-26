@@ -1,3 +1,4 @@
+import { sectionCardEditorText } from '../../i18n/sectionCardEditor.ts'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   CheckCircle2,
@@ -47,14 +48,14 @@ type Props = {
 }
 
 const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
-  if (type === 'LandingHero') return isZh ? '首页视频主视觉' : 'Landing Hero'
-  if (type === 'Countdown') return isZh ? '倒数计时' : 'Countdown'
-  if (type === 'ContactLocation') return isZh ? '联系地点' : 'Contact Location'
-  if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
-  if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
-  if (type === 'CollectionShowcase') return isZh ? '列表视图' : 'List View'
-  if (type === 'ReviewedPageCarousel') return isZh ? '审核页面展示' : 'Reviewed Page Showcase'
-  if (type === 'Album') return isZh ? '相册' : 'Album'
+  if (type === 'LandingHero') return isZh ? sectionCardEditorText.landingHero.zh : sectionCardEditorText.landingHero.en
+  if (type === 'Countdown') return isZh ? sectionCardEditorText.countdown.zh : sectionCardEditorText.countdown.en
+  if (type === 'ContactLocation') return isZh ? sectionCardEditorText.contactLocation.zh : sectionCardEditorText.contactLocation.en
+  if (type === 'RichText') return isZh ? sectionCardEditorText.richText.zh : sectionCardEditorText.richText.en
+  if (type === 'Spotlight') return isZh ? sectionCardEditorText.spotlight.zh : sectionCardEditorText.spotlight.en
+  if (type === 'CollectionShowcase') return isZh ? sectionCardEditorText.listView.zh : sectionCardEditorText.listView.en
+  if (type === 'ReviewedPageCarousel') return isZh ? sectionCardEditorText.reviewedPageShowcase.zh : sectionCardEditorText.reviewedPageShowcase.en
+  if (type === 'Album') return isZh ? sectionCardEditorText.album.zh : sectionCardEditorText.album.en
   return type
 }
 
@@ -146,7 +147,7 @@ const readHeaderText = (section: SectionEditModel, language: string, key: 'title
 
 const isMediaValue = (value: string) => Boolean(value && /^(https?:\/\/|\/|data:(image|video)|blob:)/i.test(value))
 
-const fallbackText = (isZh: boolean) => isZh ? '未设置' : 'Not set'
+const fallbackText = (isZh: boolean) => isZh ? sectionCardEditorText.notSet.zh : sectionCardEditorText.notSet.en
 
 const summarizeValue = (value: string, isZh: boolean, maxLength = 34) => {
   const trimmed = value.trim()
@@ -158,38 +159,22 @@ const summarizeValue = (value: string, isZh: boolean, maxLength = 34) => {
 }
 
 const formatSource = (value: string, isZh: boolean) => {
-  const labels: Record<string, { en: string; zh: string }> = {
-    events: { en: 'Events', zh: '活动' },
-    sermons: { en: 'Sermons', zh: '讲道' },
-    groups: { en: 'Groups', zh: '小组' },
-    media: { en: 'Media', zh: '媒体' },
-    pages: { en: 'Pages', zh: '页面' },
-    posts: { en: 'Posts', zh: '帖子' },
-    members: { en: 'Members', zh: '成员' },
-    contacts: { en: 'Contacts', zh: '联系人' },
-    contactUs: { en: 'Contact Us', zh: '联系我们' },
-  }
+  const labels: Record<string, { en: string; zh: string }> = sectionCardEditorText.labels
   const key = value.trim()
   const label = labels[key]
   return label ? (isZh ? label.zh : label.en) : summarizeValue(key, isZh)
 }
 
 const formatPreset = (value: string, isZh: boolean) => {
-  const labels: Record<string, { en: string; zh: string }> = {
-    latest: { en: 'Latest', zh: '最新' },
-    upcoming: { en: 'Upcoming', zh: '即将开始' },
-    featured: { en: 'Featured', zh: '精选' },
-    recent: { en: 'Recent', zh: '最近' },
-    all: { en: 'All', zh: '全部' },
-  }
+  const labels: Record<string, { en: string; zh: string }> = sectionCardEditorText.labelsAlternative
   const key = value.trim()
   const label = labels[key]
   return label ? (isZh ? label.zh : label.en) : summarizeValue(key, isZh)
 }
 
 const formatMode = (value: string, isZh: boolean) => value === 'data'
-  ? (isZh ? '从已有内容带入' : 'Filled from existing content')
-  : (isZh ? '手动内容' : 'Manual')
+  ? (isZh ? sectionCardEditorText.filledFromExistingContent.zh : sectionCardEditorText.filledFromExistingContent.en)
+  : (isZh ? sectionCardEditorText.manual.zh : sectionCardEditorText.manual.en)
 
 const getSectionGuide = (section: SectionEditModel, language: string): SectionGuide => {
   const isZh = language === 'zh'
@@ -233,128 +218,128 @@ const getSectionGuide = (section: SectionEditModel, language: string): SectionGu
 
   if (section.type === 'LandingHero') {
     return {
-      title: isZh ? '首页式视频主视觉引导' : 'Landing hero guidance',
-      description: isZh ? '适合页面第一屏，用视频、短文案和两个行动入口承载最重要邀请。' : 'Use this as a first-screen video invitation with concise copy and two clear actions.',
+      title: isZh ? sectionCardEditorText.landingHeroGuidance.zh : sectionCardEditorText.landingHeroGuidance.en,
+      description: isZh ? sectionCardEditorText.useThisAsAFirstScreenVideoInvitationWith.zh : sectionCardEditorText.useThisAsAFirstScreenVideoInvitationWith.en,
       items: [
-        { label: isZh ? '主标题' : 'Main headline', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
-        { label: isZh ? '说明文案' : 'Supporting copy', ready: Boolean(subtitle), detail: summarizeValue(subtitle, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
-        { label: isZh ? '背景视频/图片' : 'Background video/image', ready: isMediaValue(media), detail: summarizeValue(media, isZh), icon: <ImageUp className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-media' } },
-        { label: isZh ? '主要行动' : 'Primary action', ready: Boolean(linkLabel && linkUrl), detail: linkUrl ? summarizeValue(linkUrl, isZh) : summarizeValue(linkLabel, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-primary-url' } },
-        { label: isZh ? '次要行动' : 'Secondary action', ready: Boolean(secondaryLinkLabel && secondaryLinkUrl), detail: secondaryLinkUrl ? summarizeValue(secondaryLinkUrl, isZh) : summarizeValue(secondaryLinkLabel, isZh), icon: <Clapperboard className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-secondary-url' } },
+        { label: isZh ? sectionCardEditorText.mainHeadline.zh : sectionCardEditorText.mainHeadline.en, ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
+        { label: isZh ? sectionCardEditorText.supportingCopy.zh : sectionCardEditorText.supportingCopy.en, ready: Boolean(subtitle), detail: summarizeValue(subtitle, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
+        { label: isZh ? sectionCardEditorText.backgroundVideoImage.zh : sectionCardEditorText.backgroundVideoImage.en, ready: isMediaValue(media), detail: summarizeValue(media, isZh), icon: <ImageUp className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-media' } },
+        { label: isZh ? sectionCardEditorText.primaryAction.zh : sectionCardEditorText.primaryAction.en, ready: Boolean(linkLabel && linkUrl), detail: linkUrl ? summarizeValue(linkUrl, isZh) : summarizeValue(linkLabel, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-primary-url' } },
+        { label: isZh ? sectionCardEditorText.secondaryAction.zh : sectionCardEditorText.secondaryAction.en, ready: Boolean(secondaryLinkLabel && secondaryLinkUrl), detail: secondaryLinkUrl ? summarizeValue(secondaryLinkUrl, isZh) : summarizeValue(secondaryLinkLabel, isZh), icon: <Clapperboard className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-secondary-url' } },
       ] satisfies GuideItem[],
-      advice: isZh ? '建议只用于页面顶部；视频要有海报图，避免慢网络下出现空白。' : 'Use near the top of the page and keep a poster image set so slow networks do not show a blank hero.',
+      advice: isZh ? sectionCardEditorText.useNearTheTopOfThePageAndKeep.zh : sectionCardEditorText.useNearTheTopOfThePageAndKeep.en,
     }
   }
 
   if (section.type === 'Countdown') {
     return {
-      title: isZh ? '倒数区块引导' : 'Countdown guidance',
-      description: isZh ? '适合活动报名、聚会开始、截止日期或其他需要提醒回应的时间点。' : 'Use this for event registration, gathering starts, deadlines, or any time-sensitive invitation.',
+      title: isZh ? sectionCardEditorText.countdownGuidance.zh : sectionCardEditorText.countdownGuidance.en,
+      description: isZh ? sectionCardEditorText.useThisForEventRegistrationGatheringStartsDeadlinesOr.zh : sectionCardEditorText.useThisForEventRegistrationGatheringStartsDeadlinesOr.en,
       items: [
         {
-          label: isZh ? '数据来源' : 'Datasource',
+          label: isZh ? sectionCardEditorText.datasource.zh : sectionCardEditorText.datasource.en,
           ready: countdownMode === 'custom' || countdownMode === 'event',
-          detail: countdownMode === 'event' ? (isZh ? '绑定活动' : 'Event-bound') : (isZh ? '自定义' : 'Customized'),
+          detail: countdownMode === 'event' ? (isZh ? sectionCardEditorText.eventBound.zh : sectionCardEditorText.eventBound.en) : (isZh ? sectionCardEditorText.customized.zh : sectionCardEditorText.customized.en),
           icon: <LayoutList className="h-4 w-4" />,
           target: { type: 'properties', tab: 'section', focusKey: 'countdown-source-mode' },
         },
         {
-          label: isZh ? '目标时间' : 'Target time',
+          label: isZh ? sectionCardEditorText.targetTime.zh : sectionCardEditorText.targetTime.en,
           ready: countdownMode === 'event' || Boolean(countdownTarget),
           detail: countdownMode === 'event'
-            ? (countdownEventId ? (isZh ? `活动 ID: ${summarizeValue(countdownEventId, true)}` : `Event ID: ${summarizeValue(countdownEventId, false)}`) : (isZh ? `下一个活动 · ${formatPreset(countdownPreset, true)}` : `Next event · ${formatPreset(countdownPreset, false)}`))
+            ? (countdownEventId ? (isZh ? sectionCardEditorText.eventId.zh(summarizeValue(countdownEventId, true)) : sectionCardEditorText.eventId.en(summarizeValue(countdownEventId, false))) : (isZh ? sectionCardEditorText.nextEvent.zh(formatPreset(countdownPreset, true)) : sectionCardEditorText.nextEvent.en(formatPreset(countdownPreset, false))))
             : summarizeValue(countdownTarget, isZh),
           icon: <Settings2 className="h-4 w-4" />,
           target: { type: 'properties', tab: 'section', focusKey: countdownMode === 'event' ? 'countdown-event-id' : 'countdown-target-date' },
         },
-        { label: isZh ? '说明文案' : 'Intro copy', ready: Boolean(title || subtitle || richText), detail: summarizeValue(title || subtitle || richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
+        { label: isZh ? sectionCardEditorText.introCopy.zh : sectionCardEditorText.introCopy.en, ready: Boolean(title || subtitle || richText), detail: summarizeValue(title || subtitle || richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
         {
-          label: isZh ? '图片/媒体' : 'Media',
+          label: isZh ? sectionCardEditorText.media.zh : sectionCardEditorText.media.en,
           ready: countdownMode === 'event' || isMediaValue(media),
-          detail: countdownMode === 'event' ? (isZh ? '来自活动海报或覆盖链接' : 'From event poster or override') : summarizeValue(media, isZh),
+          detail: countdownMode === 'event' ? (isZh ? sectionCardEditorText.fromEventPosterOrOverride.zh : sectionCardEditorText.fromEventPosterOrOverride.en) : summarizeValue(media, isZh),
           icon: <ImageUp className="h-4 w-4" />,
           target: { type: 'properties', tab: 'section', focusKey: countdownMode === 'event' ? 'countdown-image-override' : 'countdown-image' },
         },
         {
-          label: isZh ? '行动链接' : 'Action link',
+          label: isZh ? sectionCardEditorText.actionLink.zh : sectionCardEditorText.actionLink.en,
           ready: countdownMode === 'event' || Boolean(linkLabel || linkUrl),
-          detail: countdownMode === 'event' ? (isZh ? '默认打开活动详情' : 'Defaults to event details') : summarizeValue(linkUrl || linkLabel, isZh),
+          detail: countdownMode === 'event' ? (isZh ? sectionCardEditorText.defaultsToEventDetails.zh : sectionCardEditorText.defaultsToEventDetails.en) : summarizeValue(linkUrl || linkLabel, isZh),
           icon: <Link2 className="h-4 w-4" />,
           target: { type: 'properties', tab: 'section', focusKey: 'countdown-action-url' },
         },
       ] satisfies GuideItem[],
-      advice: isZh ? '绑定活动时会自动带入标题、说明、地点、海报与倒数目标；发布前请确认活动时间正确。' : 'When event-bound, title, copy, location, poster, and target time are auto-filled; confirm the event time before publishing.',
+      advice: isZh ? sectionCardEditorText.whenEventBoundTitleCopyLocationPosterAndTarget.zh : sectionCardEditorText.whenEventBoundTitleCopyLocationPosterAndTarget.en,
     }
   }
 
   if (section.type === 'ContactLocation') {
     return {
-      title: isZh ? '联系地点引导' : 'Contact location guidance',
-      description: isZh ? '适合在自定义页面展示首页风格的地点、地图和打开地图入口。' : 'Use this to show a homepage-style location, map, and map-opening action on custom pages.',
+      title: isZh ? sectionCardEditorText.contactLocationGuidance.zh : sectionCardEditorText.contactLocationGuidance.en,
+      description: isZh ? sectionCardEditorText.useThisToShowAHomepageStyleLocationMap.zh : sectionCardEditorText.useThisToShowAHomepageStyleLocationMap.en,
       items: [
         {
-          label: isZh ? '数据来源' : 'Datasource',
+          label: isZh ? sectionCardEditorText.datasource.zh : sectionCardEditorText.datasource.en,
           ready: true,
-          detail: isZh ? '自定义' : 'Customized',
+          detail: isZh ? sectionCardEditorText.customized.zh : sectionCardEditorText.customized.en,
           icon: <LayoutList className="h-4 w-4" />,
           target: { type: 'properties', tab: 'section', focusKey: 'contact-location-source-mode' },
         },
-        { label: isZh ? '地点名称' : 'Location name', ready: Boolean(locationName), detail: summarizeValue(locationName, isZh), icon: <MapPin className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-name' } },
-        { label: isZh ? '街道地址' : 'Street address', ready: Boolean(streetAddress), detail: summarizeValue(streetAddress, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-street-address' } },
-        { label: isZh ? '地址补充' : 'Address note', ready: Boolean(locationAddress), detail: summarizeValue(locationAddress, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-address-note' } },
-        { label: isZh ? '地图链接' : 'Map link', ready: Boolean(mapUrl), detail: summarizeValue(mapUrl, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-map-url' } },
-        { label: isZh ? '嵌入地图' : 'Embedded map', ready: Boolean(mapEmbedUrl), detail: summarizeValue(mapEmbedUrl, isZh), icon: <ImageUp className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-map-embed-url' } },
+        { label: isZh ? sectionCardEditorText.locationName.zh : sectionCardEditorText.locationName.en, ready: Boolean(locationName), detail: summarizeValue(locationName, isZh), icon: <MapPin className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-name' } },
+        { label: isZh ? sectionCardEditorText.streetAddress.zh : sectionCardEditorText.streetAddress.en, ready: Boolean(streetAddress), detail: summarizeValue(streetAddress, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-street-address' } },
+        { label: isZh ? sectionCardEditorText.addressNote.zh : sectionCardEditorText.addressNote.en, ready: Boolean(locationAddress), detail: summarizeValue(locationAddress, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-address-note' } },
+        { label: isZh ? sectionCardEditorText.mapLink.zh : sectionCardEditorText.mapLink.en, ready: Boolean(mapUrl), detail: summarizeValue(mapUrl, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-map-url' } },
+        { label: isZh ? sectionCardEditorText.embeddedMap.zh : sectionCardEditorText.embeddedMap.en, ready: Boolean(mapEmbedUrl), detail: summarizeValue(mapEmbedUrl, isZh), icon: <ImageUp className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-map-embed-url' } },
       ] satisfies GuideItem[],
-      advice: isZh ? '目前只支持自定义地点；发布前请确认嵌入地图可正常显示。' : 'This section currently supports customized location content only; confirm the embedded map renders before publishing.',
+      advice: isZh ? sectionCardEditorText.thisSectionCurrentlySupportsCustomizedLocationContentOnlyConfirm.zh : sectionCardEditorText.thisSectionCurrentlySupportsCustomizedLocationContentOnlyConfirm.en,
     }
   }
 
   if (section.type === 'RichText') {
     return {
-      title: isZh ? '文字内容引导' : 'Rich text guidance',
-      description: isZh ? '适合欢迎词、说明、FAQ 或流程介绍。每段只讲一个重点。' : 'Best for welcome copy, explanations, FAQ, or steps. Keep each paragraph focused.',
+      title: isZh ? sectionCardEditorText.richTextGuidance.zh : sectionCardEditorText.richTextGuidance.en,
+      description: isZh ? sectionCardEditorText.bestForWelcomeCopyExplanationsFaqOrStepsKeep.zh : sectionCardEditorText.bestForWelcomeCopyExplanationsFaqOrStepsKeep.en,
       items: [
-        { label: isZh ? '区块标题' : 'Section title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 }, requiresSectionHeader: true },
-        { label: isZh ? '正文内容' : 'Body content', ready: Boolean(richText), detail: summarizeValue(richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'editor', focusKey: 'rich-text-body' } },
-        { label: isZh ? '阅读长度' : 'Readable length', ready: !richText || richText.length <= 900, detail: isZh ? `${richText.length} 字符` : `${richText.length} chars`, icon: <Sparkles className="h-4 w-4" />, target: { type: 'editor', focusKey: 'rich-text-body' } },
+        { label: isZh ? sectionCardEditorText.sectionTitle.zh : sectionCardEditorText.sectionTitle.en, ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 }, requiresSectionHeader: true },
+        { label: isZh ? sectionCardEditorText.bodyContent.zh : sectionCardEditorText.bodyContent.en, ready: Boolean(richText), detail: summarizeValue(richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'editor', focusKey: 'rich-text-body' } },
+        { label: isZh ? sectionCardEditorText.readableLength.zh : sectionCardEditorText.readableLength.en, ready: !richText || richText.length <= 900, detail: isZh ? sectionCardEditorText.chars.zh(richText.length) : sectionCardEditorText.chars.en(richText.length), icon: <Sparkles className="h-4 w-4" />, target: { type: 'editor', focusKey: 'rich-text-body' } },
       ] satisfies GuideItem[],
-      advice: isZh ? '如果内容超过三四段，可以考虑拆成两个区块或 FAQ。' : 'If this grows past a few paragraphs, consider splitting it into another section or FAQ.',
+      advice: isZh ? sectionCardEditorText.ifThisGrowsPastAFewParagraphsConsiderSplitting.zh : sectionCardEditorText.ifThisGrowsPastAFewParagraphsConsiderSplitting.en,
     }
   }
 
   if (section.type === 'CollectionShowcase') {
     return {
-      title: isZh ? '自动列表引导' : 'Auto list guidance',
-      description: isZh ? '适合展示最新讲道、活动或小组，让内容自动保持新鲜。' : 'Use this for latest sermons, events, or groups so the page stays fresh.',
+      title: isZh ? sectionCardEditorText.autoListGuidance.zh : sectionCardEditorText.autoListGuidance.en,
+      description: isZh ? sectionCardEditorText.useThisForLatestSermonsEventsOrGroupsSo.zh : sectionCardEditorText.useThisForLatestSermonsEventsOrGroupsSo.en,
       items: [
-        { label: isZh ? '内容来源' : 'Content source', ready: Boolean(source), detail: formatSource(source, isZh), icon: <LayoutList className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'list-source' } },
-        { label: isZh ? '展示方式' : 'Display layout', ready: Boolean(layout), detail: summarizeValue(layout, isZh), icon: <MoveVertical className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'list-layout' } },
-        { label: isZh ? '数量限制' : 'Item limit', ready: limit > 0 && limit <= 50, detail: limit ? (isZh ? `${limit} 项` : `${limit} items`) : fallbackText(isZh), icon: <Settings2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'list-limit' } },
+        { label: isZh ? sectionCardEditorText.contentSource.zh : sectionCardEditorText.contentSource.en, ready: Boolean(source), detail: formatSource(source, isZh), icon: <LayoutList className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'list-source' } },
+        { label: isZh ? sectionCardEditorText.displayLayout.zh : sectionCardEditorText.displayLayout.en, ready: Boolean(layout), detail: summarizeValue(layout, isZh), icon: <MoveVertical className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'list-layout' } },
+        { label: isZh ? sectionCardEditorText.itemLimit.zh : sectionCardEditorText.itemLimit.en, ready: limit > 0 && limit <= 50, detail: limit ? (isZh ? sectionCardEditorText.items.zh(limit) : sectionCardEditorText.items.en(limit)) : fallbackText(isZh), icon: <Settings2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'list-limit' } },
       ] satisfies GuideItem[],
-      advice: isZh ? '首页建议显示 3 到 6 项，管理页或列表页可以更多。' : 'For home pages, 3 to 6 items usually scans best; directory pages can show more.',
+      advice: isZh ? sectionCardEditorText.forHomePages3To6ItemsUsuallyScans.zh : sectionCardEditorText.forHomePages3To6ItemsUsuallyScans.en,
     }
   }
 
   if (section.type === 'ReviewedPageCarousel') {
     return {
-      title: isZh ? '审核页面轮播引导' : 'Reviewed page carousel guidance',
-      description: isZh ? '选择一个一级主菜单，自动轮播其已审核的公开二级页面。' : 'Choose one primary menu to carousel its reviewed public child pages.',
+      title: isZh ? sectionCardEditorText.reviewedPageCarouselGuidance.zh : sectionCardEditorText.reviewedPageCarouselGuidance.en,
+      description: isZh ? sectionCardEditorText.chooseOnePrimaryMenuToCarouselItsReviewedPublic.zh : sectionCardEditorText.chooseOnePrimaryMenuToCarouselItsReviewedPublic.en,
       items: [
-        { label: isZh ? '一级主菜单' : 'Primary menu', ready: Boolean(primaryMenuId), detail: primaryMenuId ? (isZh ? '已选择' : 'Selected') : fallbackText(isZh), icon: <LayoutList className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'reviewed-carousel-primary-menu' } },
-        { label: isZh ? '区块标题' : 'Section title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
-        { label: isZh ? '说明文案' : 'Supporting copy', ready: Boolean(subtitle), detail: summarizeValue(subtitle, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
+        { label: isZh ? sectionCardEditorText.primaryMenu.zh : sectionCardEditorText.primaryMenu.en, ready: Boolean(primaryMenuId), detail: primaryMenuId ? (isZh ? sectionCardEditorText.selected.zh : sectionCardEditorText.selected.en) : fallbackText(isZh), icon: <LayoutList className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'reviewed-carousel-primary-menu' } },
+        { label: isZh ? sectionCardEditorText.sectionTitle.zh : sectionCardEditorText.sectionTitle.en, ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
+        { label: isZh ? sectionCardEditorText.supportingCopy.zh : sectionCardEditorText.supportingCopy.en, ready: Boolean(subtitle), detail: summarizeValue(subtitle, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
       ] satisfies GuideItem[],
-      advice: isZh ? '轮播内容只来自已审核的公开页面；菜单调整后会自动反映最新顺序。' : 'Carousel items come only from reviewed public pages and follow the latest reviewer-defined order.',
+      advice: isZh ? sectionCardEditorText.carouselItemsComeOnlyFromReviewedPublicPagesAnd.zh : sectionCardEditorText.carouselItemsComeOnlyFromReviewedPublicPagesAnd.en,
     }
   }
 
   return {
-    title: isZh ? '重点内容引导' : 'Spotlight guidance',
-    description: isZh ? '适合用首页风格的图片、短文和按钮讲一个服事重点。' : 'Use a homepage-style image, concise copy, and one action to tell a focused ministry story.',
+    title: isZh ? sectionCardEditorText.spotlightGuidance.zh : sectionCardEditorText.spotlightGuidance.en,
+    description: isZh ? sectionCardEditorText.useAHomepageStyleImageConciseCopyAndOne.zh : sectionCardEditorText.useAHomepageStyleImageConciseCopyAndOne.en,
     items: [
-      { label: isZh ? '标题' : 'Title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 }, requiresSectionHeader: true },
+      { label: isZh ? sectionCardEditorText.title.zh : sectionCardEditorText.title.en, ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 }, requiresSectionHeader: true },
       {
-        label: isContactUsSpotlight ? (isZh ? '表单引导' : 'Form guidance') : (isZh ? '说明文案' : 'Supporting copy'),
+        label: isContactUsSpotlight ? (isZh ? sectionCardEditorText.formGuidance.zh : sectionCardEditorText.formGuidance.en) : (isZh ? sectionCardEditorText.supportingCopy.zh : sectionCardEditorText.supportingCopy.en),
         ready: isContactUsSpotlight ? Boolean(contactUsGuidance) : Boolean(richText),
         detail: summarizeValue(isContactUsSpotlight ? contactUsGuidance : richText, isZh),
         icon: <FileText className="h-4 w-4" />,
@@ -365,7 +350,7 @@ const getSectionGuide = (section: SectionEditModel, language: string): SectionGu
           : { type: 'properties', tab: 'section', focusKey: 'spotlight-source' },
       },
       {
-        label: isZh ? '自动带入' : 'Auto-filled content',
+        label: isZh ? sectionCardEditorText.autoFilledContent.zh : sectionCardEditorText.autoFilledContent.en,
         ready: spotlightMode === 'manual' || Boolean(spotlightSource),
         detail: spotlightMode === 'data'
           ? isContactUsSpotlight ? formatSource(spotlightSource, isZh) : `${formatSource(spotlightSource, isZh)} · ${formatPreset(spotlightPreset, isZh)}`
@@ -374,29 +359,29 @@ const getSectionGuide = (section: SectionEditModel, language: string): SectionGu
         target: { type: 'properties', tab: 'section', focusKey: spotlightMode === 'data' ? 'spotlight-source' : 'spotlight-mode' },
       },
       {
-        label: isZh ? '图片/媒体' : 'Media',
+        label: isZh ? sectionCardEditorText.media.zh : sectionCardEditorText.media.en,
         ready: isContactUsSpotlight ? isMediaValue(media) : spotlightMode === 'data' || isMediaValue(media),
         detail: spotlightMode === 'data'
           ? isContactUsSpotlight
             ? summarizeValue(media, isZh)
-            : (isZh ? `来自 ${formatSource(spotlightSource, true)} / ${formatPreset(spotlightPreset, true)}` : `From ${formatSource(spotlightSource, false)} / ${formatPreset(spotlightPreset, false)}`)
+            : (isZh ? sectionCardEditorText.from.zh(formatSource(spotlightSource, true), formatPreset(spotlightPreset, true)) : sectionCardEditorText.from.en(formatSource(spotlightSource, false), formatPreset(spotlightPreset, false)))
           : summarizeValue(media, isZh),
         icon: <ImageUp className="h-4 w-4" />,
         target: { type: 'properties', tab: 'section', focusKey: isContactUsSpotlight || spotlightMode === 'manual' ? 'spotlight-media-url' : 'spotlight-preset' },
       },
       {
-        label: isContactUsSpotlight ? (isZh ? '成功回应' : 'Success response') : (isZh ? '行动链接' : 'Action link'),
+        label: isContactUsSpotlight ? (isZh ? sectionCardEditorText.successResponse.zh : sectionCardEditorText.successResponse.en) : (isZh ? sectionCardEditorText.actionLink.zh : sectionCardEditorText.actionLink.en),
         ready: isContactUsSpotlight ? Boolean(contactUsSuccessMessage) : spotlightMode === 'data' || Boolean(linkLabel || linkUrl),
         detail: isContactUsSpotlight
           ? summarizeValue(contactUsSuccessMessage, isZh)
           : spotlightMode === 'data'
-            ? (spotlightItemId ? (isZh ? `指定 ID: ${summarizeValue(spotlightItemId, true)}` : `Pinned ID: ${summarizeValue(spotlightItemId, false)}`) : (isZh ? '使用来源默认行动' : 'Uses source default action'))
+            ? (spotlightItemId ? (isZh ? sectionCardEditorText.pinnedId.zh(summarizeValue(spotlightItemId, true)) : sectionCardEditorText.pinnedId.en(summarizeValue(spotlightItemId, false))) : (isZh ? sectionCardEditorText.usesSourceDefaultAction.zh : sectionCardEditorText.usesSourceDefaultAction.en))
           : summarizeValue(linkUrl || linkLabel, isZh),
         icon: <Link2 className="h-4 w-4" />,
         target: { type: 'properties', tab: 'section', focusKey: isContactUsSpotlight ? 'spotlight-contact-us-success' : spotlightMode === 'data' ? 'spotlight-reference-id' : 'spotlight-action-url' },
       },
     ] satisfies GuideItem[],
-    advice: isZh ? '用一个清楚行动收尾，比如了解更多、报名、联系同工。' : 'End with one clear action, such as learn more, register, or contact a leader.',
+    advice: isZh ? sectionCardEditorText.endWithOneClearActionSuchAsLearnMore.zh : sectionCardEditorText.endWithOneClearActionSuchAsLearnMore.en,
   }
 }
 
@@ -519,7 +504,7 @@ const SectionCardEditor = ({
         ))}
       </div>
       <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs leading-5 text-slate-500">
-        <span className="font-black text-slate-700">{isZh ? '发布建议' : 'Publishing tip'}: </span>
+        <span className="font-black text-slate-700">{isZh ? sectionCardEditorText.publishingTip.zh : sectionCardEditorText.publishingTip.en}: </span>
         {guide.advice}
       </p>
     </div>
@@ -777,7 +762,7 @@ const SectionCardEditor = ({
               <div className="space-y-4">
                 {activeGuideLabel && propertyTab !== 'guidance' ? (
                   <div className="rounded-xl border border-[#176b5a]/20 bg-[#e3f0eb] px-3 py-2 text-xs font-bold text-[#176b5a]">
-                    {isZh ? '正在配置：' : 'Configuring: '}{activeGuideLabel}
+                    {isZh ? sectionCardEditorText.configuring.zh : sectionCardEditorText.configuring.en}{activeGuideLabel}
                   </div>
                 ) : null}
                 {propertyTab === 'guidance' ? renderGuide(true) : null}

@@ -29,7 +29,6 @@ export type SectionComponentProps = {
   headingLevel?: 'h1' | 'h2'
   propertiesOnly?: boolean
   showProperties?: boolean
-  virtualChurchEntryVisible?: boolean
   onUpdate?: (section: SectionEditModel) => void
 }
 

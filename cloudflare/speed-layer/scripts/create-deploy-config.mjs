@@ -1,8 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createDeployConfig } from './deploy-config.mjs'
 
-export const createDeploymentConfig = (source, cacheNamespaceId) => {
+export const createDeploymentConfig = (source, cacheNamespaceId, options) => {
   const namespaceId = typeof cacheNamespaceId === 'string' ? cacheNamespaceId.trim() : ''
   if (!/^[0-9a-f]{32}$/i.test(namespaceId)) {
     throw new Error('CLOUDFLARE_API_CACHE_NAMESPACE_ID must be a 32-character Cloudflare KV namespace id.')
@@ -23,9 +24,7 @@ export const createDeploymentConfig = (source, cacheNamespaceId) => {
     }
   }
 
-  const config = structuredClone(source)
-  config.kv_namespaces = [{ binding: 'API_CACHE', id: namespaceId }]
-  return config
+  return createDeployConfig(source, namespaceId, options)
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -41,6 +40,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     ? resolve(args[0].slice('--output='.length))
     : new URL('../.wrangler.deploy.jsonc', import.meta.url)
   const source = JSON.parse(await readFile(sourcePath, 'utf8'))
-  const config = createDeploymentConfig(source, process.env.CLOUDFLARE_API_CACHE_NAMESPACE_ID)
+  const config = createDeploymentConfig(source, process.env.CLOUDFLARE_API_CACHE_NAMESPACE_ID, {
+    requireEventResetSecret: process.env.EVENT_RESET_DO_SECRET_REQUIRED !== 'false',
+  })
   await writeFile(outputPath, `${JSON.stringify(config, null, 2)}\n`)
 }

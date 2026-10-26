@@ -1,3 +1,4 @@
+import { sermonVideoViewText } from '../i18n/sermonVideoView.ts'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
@@ -31,28 +32,8 @@ const avatarLetter = (value?: string | null) => (value || 'A').slice(0, 1).toUpp
 const displayName = (comment: ForumCommentDto) => comment.author.displayName || comment.author.id.slice(0, 8)
 
 const sermonDiscussionCopy = (language: string) => language === 'zh'
-  ? {
-      title: '讲道讨论',
-      openForum: '到论坛继续讨论',
-      synced: '这里的评论会同步到论坛里的讲道帖。',
-      firstResponse: '成为第一个回应这篇讲道的人。',
-      join: '参与讨论',
-      replyComposer: '回复评论',
-      responses: '条回应',
-      comments: '条讨论',
-      commentRule: '可以只发文字，也可以只发一张图片或视频。',
-    }
-  : {
-      title: 'Sermon discussion',
-      openForum: 'Continue in forum',
-      synced: 'Comments here stay synced with the sermon post in the forum.',
-      firstResponse: 'Be the first to respond to this sermon.',
-      join: 'Join the discussion',
-      replyComposer: 'Reply to comment',
-      responses: 'responses',
-      comments: 'comments',
-      commentRule: 'You can post text, or just one image or video.',
-    }
+  ? { ...sermonVideoViewText.localizedCopy.zh }
+  : { ...sermonVideoViewText.localizedCopy.en }
 
 const buildCommentThreads = (comments: ForumCommentDto[]) => {
   const byId = new Map(comments.map((comment) => [comment.id, comment]))
@@ -158,8 +139,8 @@ const SermonVideoView = () => {
   const forumViewerId = me?.id || 'guest'
   const sermonContext = (
     <>
-      <span className="desktop:hidden">{language === 'zh' ? '教会生活 / 证道' : 'Church Life / Sermons'}</span>
-      <span className="hidden desktop:inline">{language === 'zh' ? '教会生活 / 主日证道' : 'Church Life / Sunday Sermons'}</span>
+      <span className="desktop:hidden">{language === 'zh' ? sermonVideoViewText.churchLifeSermons.zh : sermonVideoViewText.churchLifeSermons.en}</span>
+      <span className="hidden desktop:inline">{language === 'zh' ? sermonVideoViewText.churchLifeSundaySermons.zh : sermonVideoViewText.churchLifeSundaySermons.en}</span>
     </>
   )
 
@@ -249,9 +230,9 @@ const SermonVideoView = () => {
     <AppPageShell
       title={pageTitle}
       context={sermonContext}
-      subtitle={presentation ? `${presentation.speakerName || (language === 'zh' ? '讲员未注明' : 'Speaker not specified')} · ${formatSermonDate(presentation.preachedAt, language, t('noDate'))}` : undefined}
+      subtitle={presentation ? `${presentation.speakerName || (language === 'zh' ? sermonVideoViewText.speakerNotSpecified.zh : sermonVideoViewText.speakerNotSpecified.en)} · ${formatSermonDate(presentation.preachedAt, language, t('noDate'))}` : undefined}
       backLink={{ to: '/sermons', label: `${t('back')} ${t('sermons')}` }}
-      status={<AppBadge variant={embedUrl ? 'success' : 'warning'}>{embedUrl ? (language === 'zh' ? '可观看' : 'Available') : (language === 'zh' ? '视频未连接' : 'Video unavailable')}</AppBadge>}
+      status={<AppBadge variant={embedUrl ? 'success' : 'warning'}>{embedUrl ? (language === 'zh' ? sermonVideoViewText.available.zh : sermonVideoViewText.available.en) : (language === 'zh' ? sermonVideoViewText.videoUnavailable.zh : sermonVideoViewText.videoUnavailable.en)}</AppBadge>}
     >
       <section className="mx-auto max-w-5xl space-y-6">
         <article className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
@@ -339,11 +320,11 @@ const SermonVideoView = () => {
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
                         {editorLanguages.map((editorLanguage) => (
                           <label key={editorLanguage} className="text-xs font-black text-slate-500">
-                            {editorLanguage === 'zh' ? '中文' : 'English'}
+                            {editorLanguage === 'zh' ? sermonVideoViewText.english.zh : sermonVideoViewText.english.en}
                             <textarea
                               className="mt-1 min-h-24 w-full resize-y rounded-2xl border border-[#176b5a]/15 bg-white px-4 py-3 text-sm font-normal leading-7 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:ring-4 focus:ring-[#176b5a]/10"
                               value={commentBody[editorLanguage]}
-                              placeholder={editorLanguage === 'zh' ? '写下你的回应…' : 'Write a thoughtful response…'}
+                              placeholder={editorLanguage === 'zh' ? sermonVideoViewText.writeAThoughtfulResponse.zh : sermonVideoViewText.writeAThoughtfulResponse.en}
                               disabled={createCommentMutation.isPending}
                               onChange={(event) => setCommentBody((current) => ({ ...current, [editorLanguage]: event.target.value }))}
                             />
@@ -507,7 +488,7 @@ const SermonVideoView = () => {
                         className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 transition hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
                       >
                         <ChevronLeft className="h-4 w-4" />
-                        {language === 'zh' ? '上一页' : 'Previous'}
+                        {language === 'zh' ? sermonVideoViewText.previous.zh : sermonVideoViewText.previous.en}
                       </button>
 
                       <div className="flex items-center gap-1.5">
@@ -533,7 +514,7 @@ const SermonVideoView = () => {
                         onClick={() => setCommentPage((p) => Math.min(totalCommentPages, p + 1))}
                         className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 transition hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
                       >
-                        {language === 'zh' ? '下一页' : 'Next'}
+                        {language === 'zh' ? sermonVideoViewText.next.zh : sermonVideoViewText.next.en}
                         <ChevronRight className="h-4 w-4" />
                       </button>
                     </div>

@@ -1,3 +1,4 @@
+import { eventSavedPreparationStepsText } from '../../i18n/eventSavedPreparationSteps.ts'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AppActionButton from '../layout/AppActionButton'
 import EventPreparationLoading from './EventPreparationLoading'
@@ -14,6 +15,8 @@ import { Link } from 'react-router-dom'
 import { resolveEventSurface } from './eventSurfaceRegistry'
 import EventDetailsAssistant from './creation/EventDetailsAssistant'
 import { eventService, invalidateGroupEventsCache } from '../../services/eventService'
+import { eventActivityPlanService } from '../../services/eventActivityPlanService'
+import { EventProjectFactContext } from './EventActivityPlanPanel'
 import { eventCompositionService } from '../../services/eventCompositionService'
 import { eventPreparationService } from '../../services/eventPreparationService'
 import { eventOperationsService } from '../../services/eventOperationsService'
@@ -62,7 +65,7 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
   const [reloadRequired, setReloadRequired] = useState(false)
   const live = useRef(true), lock = useRef(false), sequence = useRef(0), form = useRef<HTMLFieldSetElement>(null)
   const type = savedTemplate(draft, archetypes.flatMap(x => x.activityTypes).find(x => x.code === draft.activityTypeCode))
-  const archetype = archetypes.find(x => x.code === draft.archetypeCode) ?? { code: '', version: 1, name: { en: 'Event', zh: '活动' }, isSeries: false, occurrenceCount: 1, hasSessions: false, hasZones: false, requiredModules: [], recommendedModules: [], conditionalModules: [], workflowTemplateRecommendations: [], activityTypes: [] }
+  const archetype = archetypes.find(x => x.code === draft.archetypeCode) ?? { code: '', version: 1, name: { ...eventSavedPreparationStepsText.name }, isSeries: false, occurrenceCount: 1, hasSessions: false, hasZones: false, requiredModules: [], recommendedModules: [], conditionalModules: [], workflowTemplateRecommendations: [], activityTypes: [] }
   const detailsSignature = useMemo(() => detailSignature(draft), [draft])
   const arrangementsSignature = useMemo(() => savedSelectionSignature(draft), [draft])
   const detailsDirty = Boolean(detailsBase && detailsBase !== detailsSignature), arrangementsDirty = Boolean(arrangementsBase && arrangementsBase !== arrangementsSignature)
@@ -70,14 +73,21 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
     const composed = composeCreationDraft(draft, type)
     return ({ ...composed, facts: { ...composed.facts, items: omitServerControlledEventFacts([
       ...(plan?.plan.facts.items ?? []).filter(x => !composed.facts.items.some(fact => fact.code === x.code)), ...composed.facts.items]) },
-    schemaVersion: plan?.plan.schemaVersion === '1.0.0' ? '1.0.0' : '1.1.0', archetypeCode: plan?.plan.archetypeCode, activityTypeCode: plan?.plan.activityTypeCode,
+    schemaVersion: '2.0.0', archetypeCode: plan?.plan.archetypeCode, activityTypeCode: plan?.plan.activityTypeCode,
+    activityTypeVersion: plan?.plan.activityTypeVersion ?? type.version, removedPresetKeys: undefined,
     basePlanVersion: plan?.planVersion, humanSelections: Object.entries(draft.moduleOverrides).map(([moduleCode, selected]) => ({ moduleCode, selected })) }) }, [draft, type, plan])
   const signature = JSON.stringify(input), current = review?.signature === signature
   const planChanged = Boolean(basePlanTag && plan?.eTag && basePlanTag !== plan.eTag)
-  const canSaveDetails = Boolean(record) && !readOnly && !ramDirty && !ramBusy && !anyToolBusy && !busy && !loading && !aiBusy && !planChanged && !previewing && !reloadRequired
-  const canSaveArrangements = stage === 'arrangements' && Boolean(record) && !readOnly && !unsavedTools && !Object.values(moduleDirty).some(Boolean) && !ramDirty && !ramBusy && !anyToolBusy && !busy && !loading && !aiBusy && !previewing && !reloadRequired && !planChanged && review !== null && Boolean(current) && !detailsDirty
+  const canSaveDetails = Boolean(record?.updatedUtc && plan && review && current) && !readOnly && !ramDirty && !ramBusy && !anyToolBusy && !busy && !loading && !aiBusy && !planChanged && !previewing && !reloadRequired
+  const canSaveArrangements = ['details', 'arrangements'].includes(stage) && Boolean(record) && !readOnly && !unsavedTools && !Object.values(moduleDirty).some(Boolean) && !ramDirty && !ramBusy && !anyToolBusy && !busy && !loading && !aiBusy && !previewing && !reloadRequired && !planChanged && review !== null && Boolean(current) && !detailsDirty
   const dirty = unsavedTools || Object.values(moduleDirty).some(Boolean) || detailsDirty || arrangementsDirty || reloadRequired || ramDirty
   const seriesSignature = (value: typeof draft) => JSON.stringify([value.intervalWeeks, value.timeZone, value.startLocal, value.endLocal])
+  useEffect(() => {
+    // A successful detail PUT atomically accepts a new plan. Adopt only the plan
+    // version echoed by that PUT; a different server version remains a true stale edit.
+    if (record?.activePlanVersion != null && plan?.planVersion === record.activePlanVersion && plan.eTag !== basePlanTag)
+      setBasePlanTag(plan.eTag)
+  }, [record?.activePlanVersion, plan?.planVersion, plan?.eTag, basePlanTag])
   useEffect(() => { onDirty(dirty); return () => onDirty(false) }, [dirty, onDirty])
   useEffect(() => { onBusy(busy || aiBusy || ramBusy || ramDirty || anyToolBusy); return () => onBusy(false) }, [busy, aiBusy, ramBusy, ramDirty, anyToolBusy, onBusy])
   useEffect(() => { live.current = true; return () => { live.current = false; sequence.current++ } }, [])
@@ -85,10 +95,10 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [records, list] = await Promise.all([eventService.getGroupEvents(groupId, viewer), eventOperationsService.listOccurrences(eventId)])
+      const [records, list, activityPlan] = await Promise.all([eventService.getGroupEvents(groupId, viewer), eventOperationsService.listOccurrences(eventId), eventActivityPlanService.get(eventId)])
       const item = records.find(x => x.id === eventId)
-      if (!item) throw new Error('Event details unavailable. / 活动资料不可用。')
-      const next = savedCreationDraft(item, planRef.current)
+      if (!item) throw new Error(eventSavedPreparationStepsText.load)
+      const next = {...savedCreationDraft(item, planRef.current), activityPlan:activityPlan.data}
       const available = list.filter(x => x.status !== 'cancelled')
       const arrangements = available.length ? await eventPreparationService.getArrangements(eventId, available[0].id) : null
       if (!live.current) return
@@ -129,7 +139,7 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
 
   const [detailsFocusRequest, setDetailsFocusRequest] = useState<DetailsFocusRequest>()
   const saveDetails = async () => {
-    if (!record || anyToolBusy || ramDirty || ramBusy || lock.current || readOnly || planChanged || reloadRequired) return false
+    if (!record?.updatedUtc || !plan || !review || !current || previewing || anyToolBusy || ramDirty || ramBusy || lock.current || readOnly || planChanged || reloadRequired) return false
     const issue = creationDraftIssue(draft, type, archetype, zh)
     if (issue) { setError(issue.message); setDetailsFocusRequest(previous => ({ field: issue.field, version: (previous?.version ?? 0) + 1 })); return false }
     lock.current = true; setBusy(true); setError(''); setNotice('')
@@ -138,17 +148,18 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
       const startDate = localTimeToUtc(draft.startLocal, draft.timeZone), endDate = localTimeToUtc(draft.endLocal, draft.timeZone)
       const required = draft.overrides.registrationMode === 'required'
       const next: EventDto = { ...original, title: draft.title, description: draft.description, locationName: draft.locationName, startDate, endDate, timeZone: draft.timeZone,
-        visibility: draft.overrides.visibility, maxCapacity: required ? Number(draft.maxCapacity) : 0, contactProfileIds: record.contactProfileIds ?? original.contactProfileIds ?? [] }
+        visibility: draft.overrides.visibility, registrationMode:required?'required':'none', maxCapacity: required ? Number(draft.maxCapacity) : 0, contactProfileIds: record.contactProfileIds ?? original.contactProfileIds ?? [] }
       delete next.ram
       if ('registrationRulesVersion' in original) { next.maxCapacity = original.maxCapacity; next.registrationDeadline = original.registrationDeadline }
       else if (!required) next.registrationDeadline = startDate
       else if (!original.maxCapacity) next.registrationDeadline = new Date(Date.parse(startDate) - 86400000).toISOString()
       const seriesDetails = data?.series && seriesBase !== seriesSignature(draft) ? creationSeries(draft, { ...archetype, isSeries: true }) : null
       const result = await eventService.updateGroupEvent(eventId, next, record.updatedUtc,
+        { composition: review.input, proposalHash: review.proposal.proposalHash, planETag: plan.eTag },
         seriesDetails && data?.series ? { eTag: data.series.eTag, details: { ...seriesDetails, exceptionDates: data.series.exceptionDates, rollingOccurrenceWeeks: data.series.rollingOccurrenceWeeks } } : undefined)
       if (live.current) {
         setRecord(result); setDetailsBase(detailSignature(draft)); setSeriesBase(seriesSignature(draft))
-        setNotice(zh ? '活动资料已保存。' : 'Event details saved.'); setReview(null); setCompositionRevision(value => value + 1)
+        setNotice(zh ? eventSavedPreparationStepsText.eventDetailsSaved.zh : eventSavedPreparationStepsText.eventDetailsSaved.en); setReview(null); setCompositionRevision(value => value + 1)
         if (seriesDetails && data) { setData(await eventPreparationService.getArrangements(eventId, data.occurrenceId)); setOccurrences((await eventOperationsService.listOccurrences(eventId)).filter(x => x.status !== 'cancelled')) }
         await onSaved()
       }
@@ -159,7 +170,7 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
 
   const saveArrangements = async () => {
     if (unsavedTools || anyToolBusy || ramDirty || ramBusy || lock.current || readOnly || planChanged || reloadRequired || !plan || !review || !current || previewing) return false
-    if (detailsDirty) { setError(zh ? '请先保存活动资料，再确认安排。' : 'Save event details before confirming arrangements.'); return false }
+    if (detailsDirty) { setError(zh ? eventSavedPreparationStepsText.saveEventDetailsBeforeConfirmingArrangements.zh : eventSavedPreparationStepsText.saveEventDetailsBeforeConfirmingArrangements.en); return false }
     lock.current = true; setBusy(true); setError(''); setNotice('')
     try {
       const accepted = await eventCompositionService.accept(eventId, review.proposal, review.input, plan.eTag, review.key)
@@ -171,17 +182,17 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
         eventService.getGroupEvents(groupId, viewer),
       ])
       const freshRecord = records.find(x => x.id === eventId)
-      if (!freshRecord) throw new Error('Reload event details before editing. / 请重新读取活动资料后再修改。')
+      if (!freshRecord) throw new Error(eventSavedPreparationStepsText.saveArrangements2)
       if (live.current) {
         const fresh = savedCreationDraft(freshRecord, accepted)
         fresh.timeZone = JSON.parse(freshRecord.eventDataJson).timeZone || next?.series?.timeZone || draft.timeZone
         fresh.startLocal = localPreparationDate(freshRecord.startDate, fresh.timeZone); fresh.endLocal = localPreparationDate(freshRecord.endDate, fresh.timeZone)
-        const nextDraft = { ...fresh, intervalWeeks: draft.intervalWeeks,
+        const nextDraft = { ...fresh, activityPlan:draft.activityPlan, intervalWeeks: draft.intervalWeeks,
           arrangements: next ? savedArrangementDraft(next, fresh.timeZone) : draft.arrangements }
         setRecord(freshRecord); setDraft(nextDraft); setData(next); setDetailsBase(detailSignature(nextDraft)); setSeriesBase(seriesSignature(nextDraft))
         setArrangementsBase(savedSelectionSignature(nextDraft)); setReloadRequired(false)
         setSavedModules(previous => Object.fromEntries((accepted.plan.moduleDecisions || []).map(module => [module.moduleCode, (previous[module.moduleCode] || 0) + 1])))
-        setNotice(zh ? '活动安排已保存。' : 'Event arrangements saved.')
+        setNotice(zh ? eventSavedPreparationStepsText.eventArrangementsSaved.zh : eventSavedPreparationStepsText.eventArrangementsSaved.en)
       }
       return true
     } catch (reason) { if (live.current) setError(normalizeApiError(reason).message); return false }
@@ -190,13 +201,18 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
   const toolSaved = async (moduleCode: string) => {
     setSavedModules(previous => ({ ...previous, [moduleCode]: (previous[moduleCode] || 0) + 1 }))
     setDraft(previous => invalidateArrangementConfirmation(previous, moduleCode))
-    if (moduleCode === 'TEAM.WORK') await roleState.reload()
+    if (moduleCode === 'TEAM.WORK') {
+      const activityPlan=await eventActivityPlanService.get(eventId)
+      setDraft(previous=>({...invalidateArrangementConfirmation(previous,moduleCode),activityPlan:activityPlan.data}))
+      setReview(null);setCompositionRevision(value=>value+1)
+      await roleState.reload()
+    }
     // Operational editors own their rows. Refresh concurrency without replacing pending brief/fact edits.
     try {
       await invalidateGroupEventsCache(groupId)
       const [records, next] = await Promise.all([eventService.getGroupEvents(groupId, viewer), data ? eventPreparationService.getArrangements(eventId, data.occurrenceId) : Promise.resolve(null)])
       const fresh = records.find(item => item.id === eventId)
-      if (!fresh) throw new Error('Reload event details before editing. / 请重新读取活动资料后再修改。')
+      if (!fresh) throw new Error(eventSavedPreparationStepsText.toolSaved)
       if (live.current) setRecord(fresh)
       if (next && live.current) {
         setData(next)
@@ -224,32 +240,32 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
   const proposal = review?.proposal ?? plan?.plan
   const rolePanel = (moduleCode?: string, summary = false) => <ArrangementRoles roles={(proposal?.roleRequirements ?? []).filter(role => moduleCode ? (role.moduleCode === moduleCode || moduleCode === 'SAFETY.RAM' && role.roleCode === 'event.lead') && role.roleCode !== 'event.accountableOwner' : summary || role.roleCode === 'event.accountableOwner')} zh={zh} compact moduleLabels={Object.fromEntries((proposal?.moduleDecisions ?? []).map(item => [item.moduleCode, zh ? item.label.zh : item.label.en]))} state={roleState} eventId={eventId} readOnly={readOnly} summary={summary} onSaved={toolSaved} onBusy={value => setToolBusy(previous => ({ ...previous, roles: value }))} ownerName={record?.accountableOwnerMemberId || undefined} />
   const content = <div hidden={!['details', 'arrangements', 'review'].includes(stage)} className="space-y-4">
-    {record && !readOnly && ['details', 'arrangements'].includes(stage) ? <div className="event-editorial-savebar" role="group" aria-label={zh ? '保存筹备草稿' : 'Save preparation draft'}>
-      <AppActionButton variant="primary" disabled={!detailsDirty || !canSaveDetails} onClick={() => void saveDetails()}>{busy ? (zh ? '保存中……' : 'Saving…') : (zh ? '保存活动资料' : 'Save event details')}</AppActionButton>
-      <AppActionButton disabled={!arrangementsDirty || !canSaveArrangements} onClick={() => void saveArrangements()}>{zh ? '保存活动安排' : 'Save arrangements'}</AppActionButton>
-      {detailsDirty || arrangementsDirty ? <span role="status" className="text-sm text-amber-900">{zh ? '有未保存的修改，请核对后保存。' : 'Unsaved changes. Review before saving.'}</span> : null}
+    {record && !readOnly && ['details', 'arrangements'].includes(stage) ? <div className="event-editorial-savebar" role="group" aria-label={zh ? eventSavedPreparationStepsText.savePreparationDraft.zh : eventSavedPreparationStepsText.savePreparationDraft.en}>
+      <AppActionButton variant="primary" disabled={!detailsDirty || !canSaveDetails} onClick={() => void saveDetails()}>{busy ? (zh ? eventSavedPreparationStepsText.saving.zh : eventSavedPreparationStepsText.saving.en) : (zh ? eventSavedPreparationStepsText.saveEventDetails.zh : eventSavedPreparationStepsText.saveEventDetails.en)}</AppActionButton>
+      <AppActionButton disabled={!arrangementsDirty || !canSaveArrangements} onClick={() => void saveArrangements()}>{zh ? eventSavedPreparationStepsText.saveArrangements.zh : eventSavedPreparationStepsText.saveArrangements.en}</AppActionButton>
+      {detailsDirty || arrangementsDirty ? <span role="status" className="text-sm text-amber-900">{zh ? eventSavedPreparationStepsText.unsavedChangesReviewBeforeSaving.zh : eventSavedPreparationStepsText.unsavedChangesReviewBeforeSaving.en}</span> : null}
     </div> : null}
-    {loading ? !record ? <EventPreparationLoading zh={zh} /> : <p role="status" className="event-editorial-refresh-status">{zh ? '正在更新筹备资料…' : 'Updating preparation…'}</p> : null}
+    {loading ? !record ? <EventPreparationLoading zh={zh} /> : <p role="status" className="event-editorial-refresh-status">{zh ? eventSavedPreparationStepsText.updatingPreparation.zh : eventSavedPreparationStepsText.updatingPreparation.en}</p> : null}
     {error ? <div role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{error}</div> : null}
-    {error && !record ? <AppActionButton disabled={loading} onClick={() => void load()}>{zh ? '重新读取活动资料' : 'Reload event details'}</AppActionButton> : null}
-    {planChanged ? <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{zh ? '活动方案已更新。未保存内容仍在此处，请重新读取并核对后再保存。' : 'The saved plan changed. Your unsaved draft is retained; reload and review before saving.'}</p> : null}
-    {reloadRequired && !busy ? <p role="alert" className="text-sm text-amber-900">{zh ? '保存已成功，但最新资料未完整读取。请重新读取筹备资料后继续。' : 'Saving succeeded, but the updated data could not be fully loaded. Reload preparation to continue.'}</p> : null}
+    {error && !record ? <AppActionButton disabled={loading} onClick={() => void load()}>{zh ? eventSavedPreparationStepsText.reloadEventDetails.zh : eventSavedPreparationStepsText.reloadEventDetails.en}</AppActionButton> : null}
+    {planChanged ? <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{zh ? eventSavedPreparationStepsText.theSavedPlanChangedYourUnsavedDraftIsRetained.zh : eventSavedPreparationStepsText.theSavedPlanChangedYourUnsavedDraftIsRetained.en}</p> : null}
+    {reloadRequired && !busy ? <p role="alert" className="text-sm text-amber-900">{zh ? eventSavedPreparationStepsText.savingSucceededButTheUpdatedDataCouldNotBe.zh : eventSavedPreparationStepsText.savingSucceededButTheUpdatedDataCouldNotBe.en}</p> : null}
     {record ? <fieldset ref={form} disabled={busy || ramBusy || anyToolBusy || loading || aiBusy || planChanged || reloadRequired} tabIndex={-1} className="min-w-0 scroll-mt-24 space-y-4 outline-none">
       {arrangementsVisited ? <div hidden={!['details', 'arrangements'].includes(stage)}>
-        {occurrences.length > 1 ? <label className="block text-sm font-semibold">{zh ? '安排场次' : 'Occurrence to arrange'}<select disabled={readOnly || arrangementsDirty || unsavedTools || ramDirty} className="mt-2 min-h-11 w-full rounded-xl border px-3" value={data?.occurrenceId || ''} onChange={e => void changeOccurrence(e.target.value)}>{occurrences.map(x => <option key={x.id} value={x.id}>{localPreparationDate(x.startUtc, draft.timeZone).replace('T', ' ')}</option>)}</select></label> : null}
-        <ArrangementsStep editorial={{ onSelectModule, readiness, workspaceItems, onReview: () => go('approval'), reviewDisabled: dirty || busy || aiBusy || ramBusy || anyToolBusy || loading || previewing || planChanged }} detailsFocusRequest={detailsFocusRequest} detailsDraft={draft} detailsDirty={detailsDirty} detailsPanel={active => <DetailsWorkspace readOnly={readOnly} focusRequest={detailsFocusRequest} zh={zh} active={active && ['details', 'arrangements'].includes(stage)} form={<><DetailsStep {...{ draft, setDraft, zh, type, groupId }} archetype={{ ...archetype, isSeries: Boolean(data?.series) }} ai={null} saved registrationRulesManaged={hasRegistrationRules(record.eventDataJson)} /></>} assistant={visible => <EventDetailsAssistant {...{ draft, setDraft, type, zh }} isSeries={Boolean(data?.series)} active={visible} onBusy={setAiBusy} />} />} {...{ setDraft, zh, type, groupId, readOnly }} draft={data ? { ...draft, startLocal: localPreparationDate(data.startUtc, draft.timeZone), endLocal: localPreparationDate(data.endUtc, draft.timeZone) } : draft} saved savedModules={savedModules} onUnsavedTools={setUnsavedTools} ownerPanel={<p>{roleState.candidates.find(member => member.id === record.accountableOwnerMemberId)?.displayName || (record.accountableOwnerMemberId === me?.id ? me?.displayName : record.accountableOwnerMemberId) || (zh ? '创建者' : 'Creator')}</p>} rolePanels={Object.fromEntries((proposal?.moduleDecisions ?? []).map(item => [item.moduleCode, item.moduleCode === 'TEAM.WORK' ? null : rolePanel(item.moduleCode)]))} focusModule={focusModule || (stage === 'details' ? 'EVENT.DETAILS' : null)} modulePanels={Object.fromEntries(workspaceItems.filter(item => !item.surfaceKey.startsWith('workspace.') && item.surfaceKey !== 'safety.ram' && resolveEventSurface(item.surfaceKey)).map(item => [item.surfaceKey.toUpperCase(), reportModules.includes(item.surfaceKey.toUpperCase()) ? <EventReportPanel key={item.surfaceKey} eventId={eventId} moduleCode={item.surfaceKey.toUpperCase()} onDirty={value => markModuleDirty(item.surfaceKey, value)} onBusy={value => setToolBusy(previous => previous[item.surfaceKey] === value ? previous : { ...previous, [item.surfaceKey]: value })} onSaved={() => toolSaved(item.surfaceKey.toUpperCase())} /> : item.surfaceKey === 'people.registration' ? <EventRegistrationRulesEditor eventId={eventId} onBusy={value => setToolBusy(previous => previous['registration-rules'] === value ? previous : { ...previous, 'registration-rules': value })} onDirty={value => markModuleDirty('registration-rules', value)} onSaved={() => toolSaved('PEOPLE.REGISTRATION')} /> : item.surfaceKey === 'money.finance' ? <Link className="inline-flex min-h-11 items-center font-semibold text-[#176b5a]" to={`/events/${eventId}/registration-work`}>{zh ? '报名费审批与人工收退款' : 'Fee approval and manual receipts/refunds'}</Link> : <div key={item.surfaceKey}>{item.surfaceKey === 'place.resource' ? <Link className="inline-flex min-h-11 items-center font-semibold text-[#176b5a]" to={`/groups/${groupId}/venues?event=${eventId}`}>{zh ? '场地目录与长期占用日历' : 'Venue directory and standing reservation calendar'}</Link> : null}{item.surfaceKey !== 'service.roster' ? <EventSurfaceRenderer item={item} moduleSelections={draft.moduleOverrides} planRevision={plan?.eTag} eventId={eventId} groupId={groupId} eventBasePath={eventBasePath} canManage={!readOnly} language={zh ? 'zh' : 'en'} setupFlow onBusyChange={value => setToolBusy(previous => previous[item.surfaceKey] === value ? previous : { ...previous, [item.surfaceKey]: value })} onSaved={() => toolSaved(item.surfaceKey.toUpperCase())} /> : null}{item.surfaceKey !== 'team.work' && workspaceItems.some(x => x.surfaceKey === 'service.roster') ? <EventRosterWorkspace item={{ ...item, label: { en: 'Role shifts', zh: '岗位轮班' } }} rosterModule={item.surfaceKey === 'service.roster' ? undefined : item.surfaceKey.toUpperCase()} eventId={eventId} groupId={groupId} eventBasePath={eventBasePath} canManage={!readOnly} language={zh ? 'zh' : 'en'} onSaved={() => toolSaved(item.surfaceKey.toUpperCase())} onBusyChange={value => setToolBusy(previous => previous.roster === value ? previous : ({ ...previous, roster: value }))} /> : null}</div>]))} ramDirty={ramDirty} ramPanel={<><EventRamWorkspace eventId={eventId} language={zh ? 'zh' : 'en'} onDirtyChange={value => { setRamDirty(value); if (value) setDraft(previous => previous.moduleConfirmations?.['SAFETY.RAM'] ? invalidateArrangementConfirmation(previous, 'SAFETY.RAM') : previous) }} onBusyChange={setRamBusy} onSaved={ramSaved} pendingEventChanges={detailsDirty || arrangementsDirty || reloadRequired} /></>} proposal={review?.proposal ?? plan?.plan ?? null} current={Boolean(current && !previewing && !readOnly)} status={<p role="status" className="text-sm text-[#66766f]">{previewing ? (zh ? '正在更新活动方案……' : 'Updating the event plan…') : null}</p>} />
+        {occurrences.length > 1 ? <label className="block text-sm font-semibold">{zh ? eventSavedPreparationStepsText.occurrenceToArrange.zh : eventSavedPreparationStepsText.occurrenceToArrange.en}<select disabled={readOnly || arrangementsDirty || unsavedTools || ramDirty} className="mt-2 min-h-11 w-full rounded-xl border px-3" value={data?.occurrenceId || ''} onChange={e => void changeOccurrence(e.target.value)}>{occurrences.map(x => <option key={x.id} value={x.id}>{localPreparationDate(x.startUtc, draft.timeZone).replace('T', ' ')}</option>)}</select></label> : null}
+        <ArrangementsStep editorial={{ onSelectModule, readiness, workspaceItems, onReview: () => go('approval'), reviewDisabled: dirty || busy || aiBusy || ramBusy || anyToolBusy || loading || previewing || planChanged }} detailsFocusRequest={detailsFocusRequest} detailsDraft={draft} detailsDirty={detailsDirty} detailsPanel={active => <DetailsWorkspace readOnly={readOnly} focusRequest={detailsFocusRequest} zh={zh} active={active && ['details', 'arrangements'].includes(stage)} form={<><DetailsStep {...{ draft, setDraft, zh, type, groupId }} archetype={{ ...archetype, isSeries: Boolean(data?.series) }} ai={null} saved registrationRulesManaged={hasRegistrationRules(record.eventDataJson)} /></>} assistant={visible => <EventDetailsAssistant {...{ draft, setDraft, type, zh }} isSeries={Boolean(data?.series)} active={visible} onBusy={setAiBusy} />} />} {...{ setDraft, zh, type, groupId, readOnly }} draft={data ? { ...draft, startLocal: localPreparationDate(data.startUtc, draft.timeZone), endLocal: localPreparationDate(data.endUtc, draft.timeZone) } : draft} saved savedModules={savedModules} onUnsavedTools={setUnsavedTools} ownerPanel={<p>{roleState.candidates.find(member => member.id === record.accountableOwnerMemberId)?.displayName || (record.accountableOwnerMemberId === me?.id ? me?.displayName : record.accountableOwnerMemberId) || (zh ? eventSavedPreparationStepsText.creator.zh : eventSavedPreparationStepsText.creator.en)}</p>} rolePanels={Object.fromEntries((proposal?.moduleDecisions ?? []).map(item => [item.moduleCode, item.moduleCode === 'TEAM.WORK' ? null : rolePanel(item.moduleCode)]))} focusModule={focusModule || (stage === 'details' ? 'EVENT.DETAILS' : null)} modulePanels={Object.fromEntries(workspaceItems.filter(item => !item.surfaceKey.startsWith('workspace.') && item.surfaceKey !== 'safety.ram' && resolveEventSurface(item.surfaceKey)).map(item => [item.surfaceKey.toUpperCase(), reportModules.includes(item.surfaceKey.toUpperCase()) ? <EventReportPanel key={item.surfaceKey} eventId={eventId} moduleCode={item.surfaceKey.toUpperCase()} onDirty={value => markModuleDirty(item.surfaceKey, value)} onBusy={value => setToolBusy(previous => previous[item.surfaceKey] === value ? previous : { ...previous, [item.surfaceKey]: value })} onSaved={() => toolSaved(item.surfaceKey.toUpperCase())} /> : item.surfaceKey === 'people.registration' ? <EventRegistrationRulesEditor eventId={eventId} onBusy={value => setToolBusy(previous => previous['registration-rules'] === value ? previous : { ...previous, 'registration-rules': value })} onDirty={value => markModuleDirty('registration-rules', value)} onSaved={() => toolSaved('PEOPLE.REGISTRATION')} /> : item.surfaceKey === 'money.finance' ? <Link className="inline-flex min-h-11 items-center font-semibold text-[#176b5a]" to={`/events/${eventId}/registration-work`}>{zh ? eventSavedPreparationStepsText.feeApprovalAndManualReceiptsRefunds.zh : eventSavedPreparationStepsText.feeApprovalAndManualReceiptsRefunds.en}</Link> : <div key={item.surfaceKey}>{item.surfaceKey === 'place.resource' ? <Link className="inline-flex min-h-11 items-center font-semibold text-[#176b5a]" to={`/groups/${groupId}/venues?event=${eventId}`}>{zh ? eventSavedPreparationStepsText.venueDirectoryAndStandingReservationCalendar.zh : eventSavedPreparationStepsText.venueDirectoryAndStandingReservationCalendar.en}</Link> : null}{item.surfaceKey !== 'service.roster' ? <EventSurfaceRenderer item={item} moduleSelections={draft.moduleOverrides} planRevision={plan?.eTag} eventId={eventId} groupId={groupId} eventBasePath={eventBasePath} canManage={!readOnly} language={zh ? 'zh' : 'en'} setupFlow onBusyChange={value => setToolBusy(previous => previous[item.surfaceKey] === value ? previous : { ...previous, [item.surfaceKey]: value })} onSaved={() => toolSaved(item.surfaceKey.toUpperCase())} /> : null}{item.surfaceKey !== 'team.work' && workspaceItems.some(x => x.surfaceKey === 'service.roster') ? <EventRosterWorkspace item={{ ...item, label: { ...eventSavedPreparationStepsText.label } }} rosterModule={item.surfaceKey === 'service.roster' ? undefined : item.surfaceKey.toUpperCase()} eventId={eventId} groupId={groupId} eventBasePath={eventBasePath} canManage={!readOnly} language={zh ? 'zh' : 'en'} onSaved={() => toolSaved(item.surfaceKey.toUpperCase())} onBusyChange={value => setToolBusy(previous => previous.roster === value ? previous : ({ ...previous, roster: value }))} /> : null}</div>]))} ramDirty={ramDirty} ramPanel={<><EventRamWorkspace eventId={eventId} language={zh ? 'zh' : 'en'} onDirtyChange={value => { setRamDirty(value); if (value) setDraft(previous => previous.moduleConfirmations?.['SAFETY.RAM'] ? invalidateArrangementConfirmation(previous, 'SAFETY.RAM') : previous) }} onBusyChange={setRamBusy} onSaved={ramSaved} pendingEventChanges={detailsDirty || arrangementsDirty || reloadRequired} /></>} proposal={review?.proposal ?? plan?.plan ?? null} current={Boolean(current && !previewing && !readOnly)} status={<p role="status" className="text-sm text-[#66766f]">{previewing ? (zh ? eventSavedPreparationStepsText.updatingTheEventPlan.zh : eventSavedPreparationStepsText.updatingTheEventPlan.en) : null}</p>} />
       </div> : null}
       {stage === 'review' && (review?.proposal || plan?.plan) ? <ReviewStep {...{ draft, zh, type, archetype }} saved roleSummary={rolePanel(undefined, true)} proposal={review?.proposal ?? plan!.plan} /> : null}
-      {stage === 'review' ? <fieldset disabled={readOnly || unsavedTools || ramDirty || ramBusy || anyToolBusy} className="min-w-0"><div role="group" aria-label={zh ? '筹备操作' : 'Preparation actions'} className="flex flex-wrap items-center justify-between gap-3">
-        <AppActionButton variant="primary" disabled={dirty} onClick={() => go('approval')}>{zh ? '准备正式审批' : 'Prepare formal approval'}</AppActionButton>
+      {stage === 'review' ? <fieldset disabled={readOnly || unsavedTools || ramDirty || ramBusy || anyToolBusy} className="min-w-0"><div role="group" aria-label={zh ? eventSavedPreparationStepsText.preparationActions.zh : eventSavedPreparationStepsText.preparationActions.en} className="flex flex-wrap items-center justify-between gap-3">
+        <AppActionButton variant="primary" disabled={dirty} onClick={() => go('approval')}>{zh ? eventSavedPreparationStepsText.prepareFormalApproval.zh : eventSavedPreparationStepsText.prepareFormalApproval.en}</AppActionButton>
       </div></fieldset> : null}
       {notice ? <p role="status" className="text-sm text-[#176b5a]">{notice}</p> : null}
     </fieldset> : null}
-    {unsavedTools ? <p role="status" className="text-sm text-amber-800">{zh ? '请先保存模块内未保存的表单，再保存整体安排或离开筹备。切换方块会保留内容。' : 'Save unfinished module forms before saving all arrangements or leaving preparation. Switching tiles keeps edits.'}</p> : null}
-    {ramDirty ? <p role="status" className="text-sm text-amber-800">{zh ? 'RAM 有未保存修改，请先在内嵌评估表中保存，再切换步骤或保存活动安排。收起不会丢失内容。' : 'Save the embedded RAM draft before changing steps or saving arrangements. Collapsing keeps your changes.'}</p> : null}
+    {unsavedTools ? <p role="status" className="text-sm text-amber-800">{zh ? eventSavedPreparationStepsText.saveUnfinishedModuleFormsBeforeSavingAllArrangementsOr.zh : eventSavedPreparationStepsText.saveUnfinishedModuleFormsBeforeSavingAllArrangementsOr.en}</p> : null}
+    {ramDirty ? <p role="status" className="text-sm text-amber-800">{zh ? eventSavedPreparationStepsText.saveTheEmbeddedRamDraftBeforeChangingStepsOr.zh : eventSavedPreparationStepsText.saveTheEmbeddedRamDraftBeforeChangingStepsOr.en}</p> : null}
     {record && !loading ? <footer className="event-editorial-footer">
-      <AppActionButton variant="ghost" onClick={() => { document.querySelector<HTMLElement>('nav[tabindex="-1"]')?.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }) }}>{zh ? '回到开头' : 'Back to top'}</AppActionButton>
+      <AppActionButton variant="ghost" onClick={() => { document.querySelector<HTMLElement>('nav[tabindex="-1"]')?.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }) }}>{zh ? eventSavedPreparationStepsText.backToTop.zh : eventSavedPreparationStepsText.backToTop.en}</AppActionButton>
     </footer> : null}
   </div>
-  return workspaceItems.some(x => x.surfaceKey === 'service.roster') ? <EventRosterProvider eventId={eventId} groupId={groupId}>{content}</EventRosterProvider> : content
+  return <EventProjectFactContext.Provider value={draft.factValues}>{workspaceItems.some(x => x.surfaceKey === 'service.roster') ? <EventRosterProvider eventId={eventId} groupId={groupId}>{content}</EventRosterProvider> : content}</EventProjectFactContext.Provider>
 }

@@ -1,3 +1,4 @@
+import { reviewedPageCarouselText } from '../i18n/reviewedPageCarousel.ts'
 import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Sparkles } from 'lucide-react'
@@ -170,8 +171,8 @@ const ReviewedPageCarousel = ({
             <FeaturedCarousel
               items={carouselItems}
               ariaLabel={eyebrow}
-              previousLabel={language === 'zh' ? `上一项${badge}` : `Previous ${badge}`}
-              nextLabel={language === 'zh' ? `下一项${badge}` : `Next ${badge}`}
+              previousLabel={language === 'zh' ? reviewedPageCarouselText.previous.zh(badge) : reviewedPageCarouselText.previous.en(badge)}
+              nextLabel={language === 'zh' ? reviewedPageCarouselText.next.zh(badge) : reviewedPageCarouselText.next.en(badge)}
               compact={compact}
               linksDisabled={interactionDisabled}
               onActiveItemChange={updateActiveItem}

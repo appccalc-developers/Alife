@@ -1,7 +1,9 @@
+import type { ActivityPlanData } from './eventActivityPlan'
+
 export type LocalizedText = { en: string; zh: string }
 
 export type EventFactCertainty = 'unknown' | 'candidate' | 'confirmed'
-export type EventFactSource = 'human' | 'aiCandidate' | 'trustedContext' | 'legacyBackfill'
+export type EventFactSource = 'human' | 'aiCandidate' | 'trustedContext'
 export type EventModuleDecisionStatus = 'inactive' | 'recommended' | 'selected' | 'required' | 'exceptionRequested' | 'exceptionApproved'
 export type EventReadinessStatus = 'notReady' | 'blocked' | 'ready' | 'complete'
 export type EventSponsorshipStatus = 'notRequested' | 'pending' | 'approved' | 'rejected' | 'revoked'
@@ -22,11 +24,13 @@ export type ModuleSelectionInput = {
 }
 
 export type EventPlanComposeRequest = {
-  arrangementConfirmations?: Record<string, boolean> | null
-  moduleConfirmations?: Record<string, boolean> | null
-  schemaVersion: '1.0.0' | '1.1.0'
+  moduleConfirmations: Record<string, boolean>
+  schemaVersion: '2.0.0'
+  activityPlan: ActivityPlanData
   archetypeCode?: string | null
   activityTypeCode?: string | null
+  activityTypeVersion?: number | null
+  removedPresetKeys?: string[]
   useRecommendedWorkflow?: boolean
   facts: { items: EventFactInput[] }
   humanSelections: ModuleSelectionInput[]
@@ -74,9 +78,8 @@ export type EventPlanDiff = {
 }
 
 export type EventPlanProposal = {
-  arrangementConfirmations?: Record<string, boolean> | null
   moduleConfirmations?: Record<string, boolean> | null
-  schemaVersion: string
+  schemaVersion: '2.0.0'
   proposalHash: string
   baselineETag: string
   basePlanVersion?: number | null
@@ -115,7 +118,6 @@ export type EventPlanSnapshot = {
   acceptedByMemberId?: string | null
   acceptedUtc?: string | null
   eTag: string
-  isLegacyBackfill: boolean
   plan: EventPlanProposal
   humanDecisions: Array<{ code: string; decision: string; reason?: string | null }>
 }
@@ -149,6 +151,7 @@ export type EventActivityType = {
     capacityUnit: 'People'
   }
   preselectedModules: string[]
+  presetProjects: import('./eventProjectQuestionnaire').EventTemplatePresetProject[]
   recommendedWorkflowTemplateCode?: string | null
   presetServiceSlots: Array<{
     roleCode: string

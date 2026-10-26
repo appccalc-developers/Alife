@@ -1,3 +1,4 @@
+import { logsSectionText } from '../../i18n/logsSection.ts'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AuditLogDto, AdminPagedResultDto } from '../../services/groupService'
 import { DataTable, Empty, FilterActions, FilterBar, JsonBlock, Loading, Panel, Pager, SearchInput, TextInput } from './AdminUi'
@@ -31,8 +32,8 @@ const readNestedLocalized = (record: JsonRecord | null, key: string, language: s
 const formatRole = (role: string) => role === 'superadmin' ? 'System Admin' : role === 'admin' ? 'Admin' : role === 'user' ? 'User' : role
 
 const logActionLabel = (action: string, language: string) => {
-  if (action === 'member.platform-role.set') return language === 'zh' ? '平台角色变更' : 'Platform role changed'
-  if (action === 'notification.admin.send') return language === 'zh' ? '管理员发送通知' : 'Admin notification sent'
+  if (action === 'member.platform-role.set') return language === 'zh' ? logsSectionText.platformRoleChanged.zh : logsSectionText.platformRoleChanged.en
+  if (action === 'notification.admin.send') return language === 'zh' ? logsSectionText.adminNotificationSent.zh : logsSectionText.adminNotificationSent.en
   return action
 }
 
@@ -51,8 +52,8 @@ const describeAuditLog = (log: AuditLogDto, language: string) => {
     const afterRole = afterRoles.length ? afterRoles.map(formatRole).join(', ') : readJsonString(after, 'role') || 'user'
     const afterRoleLabel = formatRole(afterRole)
     return language === 'zh'
-      ? `将 ${target} 的平台角色从 ${beforeRoles.map(formatRole).join(', ') || 'User'} 改为 ${formatRole(afterRole)}`
-      : `Changed ${target}'s platform role from ${beforeRoles.map(formatRole).join(', ') || 'User'} to ${afterRoleLabel}`
+      ? logsSectionText.changedSPlatformRoleFromTo.zh(target, beforeRoles.map(formatRole).join(', ') || 'User', formatRole(afterRole))
+      : logsSectionText.changedSPlatformRoleFromTo.en(target, beforeRoles.map(formatRole).join(', ') || 'User', afterRoleLabel)
   }
 
   if (log.action === 'notification.admin.send') {
@@ -60,11 +61,11 @@ const describeAuditLog = (log: AuditLogDto, language: string) => {
     const count = readJsonNumber(after, 'recipientCount')
     const title = readNestedLocalized(after, 'title', language)
     const scopeLabel = language === 'zh'
-      ? scope === 'group' ? '小组' : scope === 'member' ? '单个成员' : scope === 'role' ? '指定角色' : '全平台'
+      ? scope === 'group' ? logsSectionText.scopeLabel : scope === 'member' ? logsSectionText.scopeLabel2 : scope === 'role' ? logsSectionText.scopeLabel3 : logsSectionText.scopeLabel4
       : scope === 'group' ? 'a group' : scope === 'member' ? 'one member' : scope === 'role' ? 'selected roles' : 'the whole platform'
     return language === 'zh'
-      ? `向${scopeLabel}发送通知${count === null ? '' : `，共 ${count} 位收件人`}${title ? `：「${title}」` : ''}`
-      : `Sent a notification to ${scopeLabel}${count === null ? '' : ` (${count} recipient${count === 1 ? '' : 's'})`}${title ? `: "${title}"` : ''}`
+      ? logsSectionText.sentANotificationTo.zh(scopeLabel, count === null ? logsSectionText.label.en() : logsSectionText.label.zh(count), title ? `：「${title}」` : '')
+      : logsSectionText.sentANotificationTo.en(scopeLabel, count === null ? '' : ` (${count} recipient${count === 1 ? '' : 's'})`, title ? `: "${title}"` : '')
   }
 
   return logActionLabel(log.action, language)

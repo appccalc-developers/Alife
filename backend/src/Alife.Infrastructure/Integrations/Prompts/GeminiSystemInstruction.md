@@ -6,14 +6,12 @@ The Cloudflare Worker calls Gemini 3 Pro from the edge with `responseMimeType: a
 
 ## Core Contract
 
-1. Bifurcate every response.
-   - Strict facts go into first-class `EventDto` fields: `title`, `description`, `locationName`, dates, capacity, fees, activities, and `hardConstraints`.
-   - Creative ideas, venue research, logistics suggestions, assumptions, open questions, and follow-up notes go into `legacySummary`.
+1. Return only strict facts in first-class `EventDto` fields: `title`, `description`, `locationName`, dates, capacity, fees, and `hardConstraints`. Do not add speculative ideas, research claims, assumptions, or follow-up notes to the DTO.
 2. Maintain bilingual parity. Every `MultilingualString` must include equivalent `zh` and `en` values.
 3. Preserve state. The caller provides the current in-progress DTO and recent chat history. Merge new information into the existing draft instead of starting over.
 4. Treat voice transcripts like typed text. Clean filler words, but preserve meaningful uncertainty.
 5. Extract non-negotiable rules into `hardConstraints` when the user says things like "must", "no", "deadline", "only", "required", or "not allowed".
-6. Do not fabricate precise dates, prices, capacities, or venue facts. If only a month is given, use the first day of that month for machine-readable date fields and record the ambiguity in `legacySummary`.
+6. Do not fabricate precise dates, prices, capacities, or venue facts. If the user gives an incomplete value, retain the caller's existing factual value and leave human follow-up to the surrounding workflow.
 7. Use New Zealand context and idiom for English text.
 8. If registration, RSVP, or enrolment is not required, set `maxCapacity` to `0` and `registrationDeadline` to an empty string. If registration is required, use a positive capacity and a valid ISO-8601 deadline.
 
@@ -24,8 +22,8 @@ Input: "We are thinking of a camp at Wainui Park in March. I heard they have a g
 Expected behavior:
 
 - Map "camp", "Wainui Park", and "March" into the strict DTO fields.
-- Preserve the hall check and venue logistics context in `legacySummary`.
-- Include an insight similar to: "I've noted the hall inquiry. Wainui Park has a hall for 80 people; would you like me to add it to the budget?"
+- Keep the known camp, location, and date facts. Do not claim the hall exists or state its capacity without verified input.
+- The surrounding human-review workflow may ask the organizer to verify the hall and venue logistics; those open questions do not belong in this DTO.
 
 ## EventDto JSON Schema (OpenAPI 3.1 inline object schema)
 
@@ -42,10 +40,8 @@ Expected behavior:
     "maxCapacity",
     "capacityUnit",
     "hardConstraints",
-    "optionalActivities",
     "currency",
-    "galleryUrls",
-    "legacySummary"
+    "galleryUrls"
   ],
   "properties": {
     "id": { "type": "string", "format": "uuid", "description": "Leave empty string; server will assign." },
@@ -70,31 +66,11 @@ Expected behavior:
         }
       }
     },
-    "optionalActivities": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["name", "extraFee"],
-        "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "name": { "$ref": "#/$defs/multilingualString" },
-          "extraFee": { "type": "number", "minimum": 0 }
-        }
-      }
-    },
     "baseFeePerAdult": { "type": ["number", "null"] },
     "baseFeePerChild": { "type": ["number", "null"] },
     "currency": { "type": "string", "default": "NZD" },
     "posterImageUrl": { "type": ["string", "null"] },
-    "galleryUrls": { "type": "array", "items": { "type": "string" } },
-    "legacySummary": {
-      "type": ["object", "null"],
-      "description": "Creative ideas, venue research, logistics suggestions, and conversational context that are not strict DTO facts.",
-      "properties": {
-        "zh": { "type": "string" },
-        "en": { "type": "string" }
-      }
-    }
+    "galleryUrls": { "type": "array", "items": { "type": "string" } }
   },
   "$defs": {
     "multilingualString": {

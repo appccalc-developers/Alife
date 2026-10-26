@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -62,7 +63,7 @@ test('tabletop and legs use local wood axes with derivative fade, no new scene g
     assert.match(shader.fragmentShader, /fwidth\(broadPhase\)/)
     assert.match(shader.fragmentShader, /fwidth\(finePhase\)/)
   }
-  const view = readFileSync(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url))
   assert.equal((view.match(/\.\.\.studyWallMaterialProps/g) ?? []).length, 2)
   assert.equal((view.match(/\.\.\.studyFloorMaterialProps/g) ?? []).length, 1)
   assert.match(view, /batch.id === 'chair-legs' \? studyVerticalTimberMaterialProps : batch.id === 'chair-upholstery' \? studyCushionMaterialProps : \{\}/)
@@ -85,7 +86,7 @@ test('fabric weave fades below pixel size and cannot displace furniture or add t
     assert.deepEqual(shader.fragmentShader.match(/uniform [^;]+;/g), ShaderLib.standard.fragmentShader.match(/uniform [^;]+;/g))
     assert.equal((shader.fragmentShader.match(/texture2D\(/g) ?? []).length, (ShaderLib.standard.fragmentShader.match(/texture2D\(/g) ?? []).length)
   }
-  const view = readFileSync(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url))
   assert.equal((view.match(/\.\.\.studyRugMaterialProps/g) ?? []).length, 2)
 })
 
@@ -93,7 +94,7 @@ test('calm daylight retains one cached device-sized shadow and concept-room scop
   assert.ok(Object.isFrozen(STUDY_DAYLIGHT))
   assert.ok(STUDY_DAYLIGHT.shadowIntensity > .5 && STUDY_DAYLIGHT.shadowIntensity < 1)
   assert.ok(STUDY_DAYLIGHT.shadowRadius > 1 && STUDY_DAYLIGHT.shadowRadius < 3)
-  const view = readFileSync(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url))
   assert.equal((view.match(/<directionalLight /g) ?? []).length, 1)
   assert.match(view, /shadow-intensity=\{STUDY_DAYLIGHT.shadowIntensity\}/)
   assert.match(view, /shadow-radius=\{STUDY_DAYLIGHT.shadowRadius\}/)

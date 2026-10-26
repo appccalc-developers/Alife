@@ -1,3 +1,4 @@
+import { sermonTranscriptPanelText } from '../../i18n/sermonTranscriptPanel.ts'
 import React, { useEffect, useRef, useState } from 'react'
 import { Check, Copy, Play, Search, Sparkles } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
@@ -116,10 +117,10 @@ export const SermonTranscriptPanel: React.FC<SermonTranscriptPanelProps> = ({
           </div>
           <div>
             <h3 className="text-base font-black text-slate-900">
-              {isZh ? '双语交互式讲道逐字稿' : 'Interactive Bilingual Transcript'}
+              {isZh ? sermonTranscriptPanelText.interactiveBilingualTranscript.zh : sermonTranscriptPanelText.interactiveBilingualTranscript.en}
             </h3>
             <p className="text-xs font-semibold text-slate-500">
-              {isZh ? '点击句子跳转播放 · 实时时间轴高亮' : 'Click sentence to jump · Time-synchronized transcript'}
+              {isZh ? sermonTranscriptPanelText.clickSentenceToJumpTimeSynchronizedTranscript.zh : sermonTranscriptPanelText.clickSentenceToJumpTimeSynchronizedTranscript.en}
             </p>
           </div>
         </div>
@@ -132,16 +133,14 @@ export const SermonTranscriptPanel: React.FC<SermonTranscriptPanelProps> = ({
               viewMode === 'bilingual' ? 'bg-white text-emerald-900 shadow-sm font-extrabold' : 'hover:text-slate-900'
             }`}
           >
-            {isZh ? '双语对照' : 'Bilingual'}
+            {isZh ? sermonTranscriptPanelText.bilingual.zh : sermonTranscriptPanelText.bilingual.en}
           </button>
           <button
             onClick={() => setViewMode('zh')}
             className={`rounded-full px-3 py-1 transition cursor-pointer ${
               viewMode === 'zh' ? 'bg-white text-emerald-900 shadow-sm font-extrabold' : 'hover:text-slate-900'
             }`}
-          >
-            中文
-          </button>
+          >{sermonTranscriptPanelText.label}</button>
           <button
             onClick={() => setViewMode('en')}
             className={`rounded-full px-3 py-1 transition cursor-pointer ${
@@ -161,7 +160,7 @@ export const SermonTranscriptPanel: React.FC<SermonTranscriptPanelProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={isZh ? '搜索讲道金句、经文或关键词...' : 'Search sermon quotes or keywords...'}
+            placeholder={isZh ? sermonTranscriptPanelText.searchSermonQuotesOrKeywords.zh : sermonTranscriptPanelText.searchSermonQuotesOrKeywords.en}
             className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2 text-xs font-semibold text-slate-800 placeholder-slate-400 transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           />
         </div>
@@ -173,11 +172,11 @@ export const SermonTranscriptPanel: React.FC<SermonTranscriptPanelProps> = ({
           <div className="py-10 text-center text-xs font-semibold text-slate-400">
             {segments.length === 0
               ? isZh
-                ? '这篇讲道暂未提供字幕。'
-                : 'A transcript is not available for this sermon yet.'
+                ? sermonTranscriptPanelText.aTranscriptIsNotAvailableForThisSermonYet.zh
+                : sermonTranscriptPanelText.aTranscriptIsNotAvailableForThisSermonYet.en
               : isZh
-                ? '未匹配到相关字幕内容。'
-                : 'No matching transcript segments found.'}
+                ? sermonTranscriptPanelText.noMatchingTranscriptSegmentsFound.zh
+                : sermonTranscriptPanelText.noMatchingTranscriptSegmentsFound.en}
           </div>
         ) : (
           filteredSegments.map((seg) => {
@@ -206,7 +205,7 @@ export const SermonTranscriptPanel: React.FC<SermonTranscriptPanelProps> = ({
                         ? 'bg-emerald-600 text-white shadow-sm animate-pulse'
                         : 'bg-slate-200/80 text-slate-700 group-hover:bg-emerald-600 group-hover:text-white'
                     }`}
-                    title={isZh ? '点击跳转视频到此秒数' : 'Click to jump video to this timestamp'}
+                    title={isZh ? sermonTranscriptPanelText.clickToJumpVideoToThisTimestamp.zh : sermonTranscriptPanelText.clickToJumpVideoToThisTimestamp.en}
                   >
                     <Play className="h-3 w-3 fill-current" />
                     {formatTime(seg.start)}
@@ -217,7 +216,7 @@ export const SermonTranscriptPanel: React.FC<SermonTranscriptPanelProps> = ({
                     type="button"
                     onClick={(e) => handleCopyQuote(seg, e)}
                     className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-emerald-700 hover:border-emerald-200 shadow-sm"
-                    title={isZh ? '复制讲道金句' : 'Copy quote'}
+                    title={isZh ? sermonTranscriptPanelText.copyQuote.zh : sermonTranscriptPanelText.copyQuote.en}
                   >
                     {copiedId === seg.id ? (
                       <Check className="h-3.5 w-3.5 text-emerald-600" />

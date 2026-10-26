@@ -1,0 +1,23 @@
+// Fixed bilingual copy for components/events/EventPreparationReopenPanel.tsx.
+export const eventPreparationReopenPanelText = {
+    reopeningRequestedPreparationRemainsFrozen: { en: 'Reopening requested; preparation remains frozen', zh: '撤销申请待处理，方案仍冻结' } as const,
+    previousReopeningCompletedTheCurrentPlanIsApprovedAnd: { en: 'Previous reopening completed; the current plan is approved and frozen', zh: '上次撤销已处理，当前方案已重新批准并冻结' } as const,
+    reopeningApprovedPreparationIsEditable: { en: 'Reopening approved; preparation is editable', zh: '已同意撤销，活动可重新筹备' } as const,
+    reopeningRejectedPreparationRemainsFrozen: { en: 'Reopening rejected; preparation remains frozen', zh: '撤销申请被拒绝，方案仍冻结' } as const,
+    thePreviousRequestWasRejectedPreparationIsNowEditable: { en: 'The previous request was rejected; preparation is now editable', zh: '上次撤销申请被拒绝；当前活动已恢复编辑' } as const,
+    requestReopeningForChanges: { en: 'Request reopening for changes', zh: '申请撤销审批以修改活动' } as const,
+    approveReopening: { en: 'Approve reopening', zh: '同意撤销审批并解冻' } as const,
+    rejectReopening: { en: 'Reject reopening', zh: '拒绝撤销申请' } as const,
+    preparationStaysFrozenWhileTheRequestIsReviewed: { en: 'Preparation stays frozen while the request is reviewed.', zh: '申请待处理期间，活动资料与安排仍然冻结。' } as const,
+    revokeTheApprovedPlanReopenEditingWithdrawPublicationAnd: { en: 'Revoke the approved plan, reopen editing, withdraw publication and close new registration. Existing registrations and approval history remain. Changes require fresh approval.', zh: '撤销现有方案审批，恢复编辑，撤下已发布活动并关闭新报名。现有报名与审批历史会保留；修改后须重新审批。' } as const,
+    preparationRemainsFrozenAndTheRequesterCanSeeYour: { en: 'Preparation remains frozen and the requester can see your reason.', zh: '活动方案保持冻结，申请人会看到处理理由。' } as const,
+    confirm: { en: 'Confirm', zh: '确认' } as const,
+    approvalAndChanges: { en: 'Approval and changes', zh: '审批与修改' } as const,
+    preparationIsFrozenPosterProductionFollowsApprovalReopeningIs: { en: 'Preparation is frozen. Poster production follows approval. Reopening is required to change details, arrangements or team configuration.', zh: '方案已经冻结。海报可在审批之后制作；修改活动资料、安排或团队功能须先撤销审批。' } as const,
+    editingIsOpenSubmitANewFormalApprovalAfter: { en: 'Editing is open. Submit a new formal approval after your changes.', zh: '活动已恢复编辑，修改完成后请重新提交正式审批。' } as const,
+    changesNeededAndReason: { en: 'Changes needed and reason', zh: '需要修改的内容及原因' } as const,
+    requestReopeningForChangesLabel: { en: 'Request reopening for changes', zh: '申请撤销审批并修改' } as const,
+    reviewReason: { en: 'Review reason', zh: '处理理由' } as const,
+    approveReopeningLabel: { en: 'Approve reopening', zh: '同意撤销并解冻' } as const,
+    rejectRequest: { en: 'Reject request', zh: '拒绝申请' } as const,
+};

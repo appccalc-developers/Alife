@@ -56,7 +56,6 @@ export type EventVenueWorkspace = {
   }
   canManage: boolean
   canManageCatalogue: boolean
-  legacySessionPlacePreserved: boolean
 }
 
 export type SaveEventVenueRequest = {

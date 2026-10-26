@@ -8,6 +8,7 @@ const readSource = (relativePath: string) =>
 
 test('Package workspace exposes the seven-section review, scoped history and lifecycle gates', async () => {
   const panel = await readSource('../src/components/events/EventPackageFoundationPanel.tsx')
+  const gates = await readSource('../src/components/events/EventGateChecklist.tsx')
 
   for (const section of [
     'overview',
@@ -27,7 +28,8 @@ test('Package workspace exposes the seven-section review, scoped history and lif
   assert.match(panel, /historyStatus/)
   assert.match(panel, /historySort/)
   assert.match(panel, /scopeType === 'occurrence'/)
-  assert.match(panel, /lifecycle\.gates\.map/)
+  assert.match(panel, /<EventGateChecklist lifecycle=\{lifecycle\}/)
+  assert.match(gates, /lifecycle\.gates\.map/)
 })
 
 test('formal submission and decision use the accessible application confirmation flow', async () => {

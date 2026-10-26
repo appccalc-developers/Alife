@@ -1,3 +1,4 @@
+import { virtualChurchStudyRoomText } from '../i18n/virtualChurchStudyRoom'
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
@@ -303,13 +304,13 @@ export default function VirtualChurchStudyRoomView() {
     return attempt.cancel
   }, [revision, maleReviewPath, failed])
   const action = 'vc-interior-button min-h-11'
-  return createPortal(<main ref={pageRef} tabIndex={-1} data-vc-interior="study-room" className="virtual-church-ui fixed inset-0 z-[9999] flex flex-col" aria-label={zh ? '虚拟查经房' : 'Virtual Bible study room'}>
+  return createPortal(<main ref={pageRef} tabIndex={-1} data-vc-interior="study-room" className="virtual-church-ui fixed inset-0 z-[9999] flex flex-col" aria-label={zh ? virtualChurchStudyRoomText.virtualBibleStudyRoom.zh : virtualChurchStudyRoomText.virtualBibleStudyRoom.en}>
     <header className="vc-interior-header">
-      <button type="button" onClick={() => navigate('/virtual-church?vcArrival=study-room')} className={action}><ArrowLeft size={17} />{zh ? '返回门厅' : 'Back to foyer'}</button>
-      <div className="vc-interior-caption"><h1>{zh ? '围坐查经' : 'Scripture around the table'}</h1><p>{zh ? '虚拟同伴 · 非实时成员 · 场景为概念设计' : 'Virtual companions · Not live members · Concept room'}{maleReviewPath ? zh ? ' · 男女混合本地评审' : ' · Local mixed-character review' : null}</p></div>
-      <button type="button" onClick={() => void updateLanguage(zh ? 'en' : 'zh')} className={action}>{zh ? 'English' : '中文'}</button>
+      <button type="button" onClick={() => navigate('/virtual-church?vcArrival=study-room')} className={action}><ArrowLeft size={17} />{zh ? virtualChurchStudyRoomText.backToFoyer.zh : virtualChurchStudyRoomText.backToFoyer.en}</button>
+      <div className="vc-interior-caption"><h1>{zh ? virtualChurchStudyRoomText.scriptureAroundTheTable.zh : virtualChurchStudyRoomText.scriptureAroundTheTable.en}</h1><p>{zh ? virtualChurchStudyRoomText.virtualCompanionsNotLiveMembersConceptRoom.zh : virtualChurchStudyRoomText.virtualCompanionsNotLiveMembersConceptRoom.en}{maleReviewPath ? zh ? virtualChurchStudyRoomText.localMixedCharacterReview.zh : virtualChurchStudyRoomText.localMixedCharacterReview.en : null}</p></div>
+      <button type="button" onClick={() => void updateLanguage(zh ? 'en' : 'zh')} className={action}>{zh ? virtualChurchStudyRoomText.switchLanguage.zh : virtualChurchStudyRoomText.switchLanguage.en}</button>
     </header>
-    <div className="relative min-h-0 flex-1" aria-label={zh ? '五位虚拟同伴围坐，手持打开的圣经' : 'Five virtual companions seated in a circle holding open Bibles'}>
+    <div className="relative min-h-0 flex-1" aria-label={zh ? virtualChurchStudyRoomText.fiveVirtualCompanionsSeatedInACircleHolding.zh : virtualChurchStudyRoomText.fiveVirtualCompanionsSeatedInACircleHolding.en}>
       {!failed ? <RoomCanvasBoundary key={revision} onFailure={() => setFailed(true)}>
         <Canvas frameloop="demand" shadows="percentage" dpr={[1, performancePreset.maxDevicePixelRatio]} camera={{ position: [0, 1.55, 3.65], fov: STUDY_CAMERA_FOV, near: .1, far: 40 }} gl={{ antialias: true }} onCreated={({ gl }) => {
           gl.toneMapping = ACESFilmicToneMapping
@@ -341,12 +342,12 @@ export default function VirtualChurchStudyRoomView() {
           {timingDiagnostic ? <VirtualChurchInteriorTimingProbe pageRef={pageRef} active={companions.length === 5 && motion && !reducedMotion} room="study-room" mode={overview ? 'overview' : 'seated'} preset={performancePreset.isMobile ? 'mobile' : 'desktop'} motionUpdateLimitHz={STUDY_MOTION_HZ} /> : null}
         </Canvas>
       </RoomCanvasBoundary> : null}
-      {failed || !companions.length ? <div role={failed ? 'alert' : 'status'} className="vc-interior-panel absolute left-1/2 top-4 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 p-4 text-center"><p>{failed ? zh ? '房间暂时无法完整显示，你仍可打开经文阅读。' : 'The room could not be fully displayed. You can still open Scripture.' : zh ? '正在准备围坐查经的同伴…' : 'Preparing your study companions…'}</p>{failed ? <button type="button" className={`${action} mt-3`} onClick={() => { setFailed(false); setRevision(value => value + 1) }}>{zh ? '重试房间' : 'Retry room'}</button> : null}</div> : null}
+      {failed || !companions.length ? <div role={failed ? 'alert' : 'status'} className="vc-interior-panel absolute left-1/2 top-4 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 p-4 text-center"><p>{failed ? zh ? virtualChurchStudyRoomText.theRoomCouldNotBeFullyDisplayedYou.zh : virtualChurchStudyRoomText.theRoomCouldNotBeFullyDisplayedYou.en : zh ? virtualChurchStudyRoomText.preparingYourStudyCompanions.zh : virtualChurchStudyRoomText.preparingYourStudyCompanions.en}</p>{failed ? <button type="button" className={`${action} mt-3`} onClick={() => { setFailed(false); setRevision(value => value + 1) }}>{zh ? virtualChurchStudyRoomText.retryRoom.zh : virtualChurchStudyRoomText.retryRoom.en}</button> : null}</div> : null}
     </div>
     <footer className="vc-interior-footer">
-      <button type="button" aria-pressed={motion && !reducedMotion} disabled={reducedMotion || failed || !companions.length} className={action} onClick={() => setMotion(value => !value)}>{motion && !reducedMotion ? <Pause size={18} /> : <Play size={18} />}{reducedMotion ? zh ? '已减少动态效果' : 'Reduced motion' : motion ? zh ? '暂停同伴动作' : 'Pause companions' : zh ? '播放同伴动作' : 'Animate companions'}</button>
-      <button type="button" aria-pressed={overview} className={action} onClick={() => setOverview(value => !value)}><Eye size={18} />{overview ? zh ? '回到围坐视角' : 'Seated view' : zh ? '看看房间全景' : 'Room overview'}</button>
-      <button type="button" className={`${action} vc-interior-primary`} onClick={() => navigate('/study?from=virtual-church-study-room')}><BookOpen size={18} />{zh ? '打开经文阅读' : 'Read Scripture'}</button>
+      <button type="button" aria-pressed={motion && !reducedMotion} disabled={reducedMotion || failed || !companions.length} className={action} onClick={() => setMotion(value => !value)}>{motion && !reducedMotion ? <Pause size={18} /> : <Play size={18} />}{reducedMotion ? zh ? virtualChurchStudyRoomText.reducedMotion.zh : virtualChurchStudyRoomText.reducedMotion.en : motion ? zh ? virtualChurchStudyRoomText.pauseCompanions.zh : virtualChurchStudyRoomText.pauseCompanions.en : zh ? virtualChurchStudyRoomText.animateCompanions.zh : virtualChurchStudyRoomText.animateCompanions.en}</button>
+      <button type="button" aria-pressed={overview} className={action} onClick={() => setOverview(value => !value)}><Eye size={18} />{overview ? zh ? virtualChurchStudyRoomText.seatedView.zh : virtualChurchStudyRoomText.seatedView.en : zh ? virtualChurchStudyRoomText.roomOverview.zh : virtualChurchStudyRoomText.roomOverview.en}</button>
+      <button type="button" className={`${action} vc-interior-primary`} onClick={() => navigate('/study?from=virtual-church-study-room')}><BookOpen size={18} />{zh ? virtualChurchStudyRoomText.readScripture.zh : virtualChurchStudyRoomText.readScripture.en}</button>
     </footer>
   </main>, document.body)
 }

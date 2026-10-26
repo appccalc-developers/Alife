@@ -1,3 +1,4 @@
+import { groupDrawerText } from '../../i18n/groupDrawer.ts'
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import type { MouseEvent } from 'react'
@@ -73,7 +74,7 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
               }
             }}
           >
-            <span>{auth.language === 'zh' ? '选择或切换小组' : 'Select or switch group'}</span>
+            <span>{auth.language === 'zh' ? groupDrawerText.selectOrSwitchGroup.zh : groupDrawerText.selectOrSwitchGroup.en}</span>
             <span aria-hidden="true">→</span>
           </Link>
 

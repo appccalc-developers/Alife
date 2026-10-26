@@ -58,7 +58,6 @@ public sealed record EventPackageManifestDto(
     int EventPlanVersion,
     string GovernancePolicyVersion,
     EventGovernanceTier GovernanceTier,
-    LegacyEventPackageTransition LegacyTransition,
     LocalizedTextDto EventTitle,
     DateTime StartUtc,
     DateTime EndUtc,

@@ -1,6 +1,21 @@
 # Alife Virtual Church 首版公开试用发布计划
 
-## 当前范围与发布收尾（2026-10-08 用户确认裁剪）
+## 当前范围与 PR 收尾（2026-10-26）
+
+本轮沿用 [Issue #826](https://github.com/appccalc-developers/Alife/issues/826) 和 [Draft PR #827](https://github.com/appccalc-developers/Alife/pull/827)，交付现有 3D 教堂、低调的公共首页入口及相应 CI/CD 检查。用户已撤回此前首页／CMS 重设计；本轮不恢复该方案。PR 在独立工作副本中合入当前 `main`，保留现行权限、缓存、双语及 Event 约束；原工作副本和无关暂存内容保持不变。
+
+- **入口**：首页页脚只放一个「参观 3D 教堂」／「Explore the 3D church」链接，进入 `/virtual-church?vcVisual=v3`。Hero 和主导航不添加 3D 按钮；保持键盘焦点反馈、至少 44px 点击高度及手机排版。入口与场景路由使用同一公众访问开关，不为显示链接预载 3D 场景。生产未显式设置 `enabled`／`v3` 时仍关闭公众入口。
+- **现有体验与范围**：保留已实现外景、门厅、主堂、角色、移动和查经流程，以及必要的加载／失败恢复、资源释放、访客阅读和个人进度隐私边界。2026-10-08 经用户确认的六项裁剪继续有效；后文完整 V3 路线和历史缺口不能重新扩大本轮制作范围。
+- **双语交付要求**：3D 固定显示文案归入功能级 `src/i18n/` 资源，保留现有翻译选择与 fallback，不更改用户内容和 API 的 `{ en, zh }` 数据形状。中文／英文、手机／桌面入口和返回路径均需按当前候选验证；旧截图或旧测试数量不能替代本次证据。
+- **PR 检查与部署前门禁**：`Virtual Church Quality` 可复用工作流在 PR 检查锁定依赖安装、双语资源、导航／PWA、3D／访客阅读／路由恢复测试、前端类型与构建、生产载荷／分块闭包／版本化资产，以及 Worker 静态资源／缓存边界。`Bible Reading Privacy` 检查合成凭据与独立 InMemory 数据库中的鉴权、成员隔离及 no-store 行为。Cloudflare 部署和 Azure 登录／迁移前分别依赖同一组可复用检查；PR 不读取生产密钥，也不触发部署。
+- **当前本地验证**：合入 `main` 后的 PR 更新工作副本，在 Windows／Node 22.23 x64 上通过 3D 及相关前端回归 **549/549**、`test:locale` **7/7**、`test:navigation-policy` **18/18**、`test:page-cache` **12/12**、Worker `test:built` **146/146**、后端 `dotnet test --filter FullyQualifiedName~BibleReadingProgress` **42/42**。`enabled`／`v3` 下的 `npm run build`、`validate:3d:static-payload`、`validate:3d:chunk-closure` 通过；`validate:3d:asset-release:dist` 在同一构建产物上使用 Node 24 通过，并通过五项内存变异拒绝检查。更新后的资产验证器实际执行构建 SW 的缓存回调，兼容多脚本导入及现行 app-cache-v2，继续检查 MIME、成功状态和私有路径 NetworkOnly 门禁；未为修复旧字符串断言改动应用或重建。
+- **本地界面证据**：中英桌面与 390px 手机视口、中文 320px 入口无横向溢出，点击高度 44px；实际中文场景就绪，切换英文时 Canvas 保持 1，返回首页后 Canvas 为 0。见[中文桌面页脚](assets/virtual-church/footer-zh-desktop.png)、[英文手机页脚](assets/virtual-church/footer-en-mobile.png)、[中文场景](assets/virtual-church/scene-zh.png)。这些是本地浏览器证据，不是真机、真实 provider／鉴权后端或生产验收。
+- **尚未确认**：GitHub Actions 仍待本次推送后验证；CI 中 `enabled`／`v3` 构建不修改远程开放变量。完整文档清单检查仍因既有未登记的相册截图失败，本轮只修正 3D 文档及三张验证截图的登记，不宣称全清单通过。真实设备连续操作和线上检查没有新增证据，不宣称完整跨平台认证。
+- **授权边界**：本轮授权 Issue／PR 的提交、推送及 CI 收尾；未授权合并、生产部署、共享数据库迁移或设置生产开放变量。发布开关是构建时配置，后续经授权开放或撤回均需重新构建部署。
+
+本节为当前收尾状态；下节保留用户裁剪决定与 2026-10-08 的历史证据。历史命令结果、计数和授权表述按当时环境解释，不代表 2026-10-26 候选已经通过。
+
+## 首版裁剪决定与历史收尾记录（2026-10-08）
 
 用户于 2026-10-08 授权创建 Issue 和 PR，未授权合并或部署。追踪 Issue 为 [#826](https://github.com/appccalc-developers/Alife/issues/826)，PR 分支为 `codex/826-public-3d-church-trial`，使用独立工作副本隔离，原工作副本的 main／暂存区保持不变。当前独立源码的前端类型检查、生产构建、565 项前端回归、121 项 Worker 回归、7 项部署配置检查、41 项后端进度隐私检查及三项生产载荷／依赖闭包／资产缓存验证通过。首次前端集中回归的四项失败为过时组件边界／材质 JSX 断言、原点已变为门厅地面及夹具缺少 Color；已修正检查方式，未改变运行画面。完整 Worker tsc 仍报告未在此 PR 修改的 Event／共享模块错误，不宣称全仓库类型检查通过。验证复用了已安装依赖，尚非干净 npm ci 或远程 CI 证据。原始 Blend／atlas 输入与原始动画包不随此 PR 分发，保留本地；Android 最新过门／提示修复仍待用户确认，iOS 未验证，线上尚未开放本次入口。
 

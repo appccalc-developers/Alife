@@ -29,7 +29,7 @@ public static class EventPackageCanonicalizer
         {
             var cosmeticFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "title", "description", "posterImageUrl", "galleryUrls", "legacySummary"
+                "title", "description", "posterImageUrl", "galleryUrls"
             };
             foreach (var propertyName in root.Select(x => x.Key).Where(cosmeticFields.Contains).ToArray())
                 root.Remove(propertyName);

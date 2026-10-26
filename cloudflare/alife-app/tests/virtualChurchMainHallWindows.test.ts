@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -82,7 +83,7 @@ test('committed window buffers survive effect replay, retire on exit, and cannot
   assert.equal(disposed, 0)
   guard.release(release); await Promise.resolve()
   assert.equal(disposed, 3)
-  const view = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(view, /useMemo\(\(\) => createMainHallWindowGeometry\(\), \[\]\)/)
   assert.match(view, /cleanup.release\(\(\) => Object.values\(windows\).forEach\(part => part.dispose\(\)\)\)/)
   for (const part of ['wall','glazing','vista']) assert.match(view, new RegExp(`windows\\.${part}\\} attach="geometry" dispose=\\{null\\}`))

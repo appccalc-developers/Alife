@@ -1,3 +1,4 @@
+import { cacheInspectorHudText } from '../../i18n/cacheInspectorHud.ts'
 import React, { useEffect, useState } from 'react'
 import { cacheDiagnosticStore, type CacheDiagnosticEntry, type InvalidationLogEntry } from '../../stores/cacheDiagnosticStore'
 import { useAuthStore } from '../../stores/auth'
@@ -46,7 +47,7 @@ export const CacheInspectorToggleButton: React.FC<{ className?: string }> = ({ c
         }`
       }
       aria-label="Toggle Cache Inspector"
-      title={isEnabled ? (isZh ? '关闭缓存诊断面板' : 'Close Cache Inspector') : (isZh ? '开启缓存诊断面板' : 'Open Cache Inspector')}
+      title={isEnabled ? (isZh ? cacheInspectorHudText.closeCacheInspector.zh : cacheInspectorHudText.closeCacheInspector.en) : (isZh ? cacheInspectorHudText.openCacheInspector.zh : cacheInspectorHudText.openCacheInspector.en)}
     >
       <Activity className={`h-4 w-4 ${isEnabled ? 'text-emerald-600 animate-pulse' : 'text-zinc-500'}`} />
     </button>
@@ -60,70 +61,7 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 
-const copyDict = {
-  zh: {
-    panelTitle: 'Alife 三层缓存全链路诊断面板',
-    toggleTitle: '展开三层缓存诊断面板 (Ctrl+Shift+C)',
-    inspectorTitle: '⚡ 缓存诊断面板',
-    offlineBanner: '📶 模拟断网模式中',
-    offlineBtnOn: '模拟断网 (已开启)',
-    offlineBtnOff: '模拟断网体验',
-    purgeTestBtn: '模拟缓存失效',
-    clearL1Btn: '清空本地缓存',
-    clearLogsBtn: '清空日志',
-    cardHitRate: '🎯 缓存总命中率',
-    cardSaved: '📦 累计节省网络流量',
-    cardHitTime: '⚡ 缓存响应速度',
-    cardSpeedup: '🚀 相比数据库加速',
-    tabRequests: '实时 API 请求流水',
-    tabInvalidations: '缓存失效与变更日志',
-    emptyRequests: '尚无 API 请求记录，请在页面上进行操作...',
-    emptyInvalidations: '尚无缓存失效记录。当发布活动、修改小组或触发数据更新时会在此处实时播报。',
-    savedText: '省',
-    fastText: '速捷',
-    ultimateText: '极致',
-    fasterText: '快',
-    pills: {
-      l1Hit: '🟢 L1 本地免网缓存 (304)',
-      l2Hit: '🔵 L2 Cloudflare 边缘缓存',
-      l3Hit: '🟣 L3 .NET 内存缓存',
-      offlineSim: '📶 离线模拟数据',
-      dbQuery: '⚙️ 直连数据库 (MISS)',
-      serverError: '🔴 服务器异常',
-    },
-  },
-  en: {
-    panelTitle: 'Alife 3-Tier Cache Diagnostics',
-    toggleTitle: 'Toggle 3-Tier Cache Inspector (Ctrl+Shift+C)',
-    inspectorTitle: '⚡ Cache Inspector',
-    offlineBanner: '📶 Simulated Offline Mode',
-    offlineBtnOn: 'Offline (ON)',
-    offlineBtnOff: 'Simulate Offline',
-    purgeTestBtn: 'Purge Test',
-    clearL1Btn: 'Clear L1 Cache',
-    clearLogsBtn: 'Clear Logs',
-    cardHitRate: '🎯 Cache Hit Rate',
-    cardSaved: '📦 Bandwidth Saved',
-    cardHitTime: '⚡ Hit Latency',
-    cardSpeedup: '🚀 DB Speedup',
-    tabRequests: 'API Request Stream',
-    tabInvalidations: 'Cache Invalidation Stream',
-    emptyRequests: 'No API requests recorded yet. Perform actions on the app...',
-    emptyInvalidations: 'No cache invalidation events recorded yet. Invalidation triggers will stream here.',
-    savedText: 'Saved',
-    fastText: 'Fast',
-    ultimateText: 'Optimal',
-    fasterText: 'faster',
-    pills: {
-      l1Hit: '🟢 L1 Local ETag Cache (304)',
-      l2Hit: '🔵 L2 Edge Cache (Cloudflare)',
-      l3Hit: '🟣 L3 .NET Memory (HybridCache)',
-      offlineSim: '📶 Simulated Offline',
-      dbQuery: '⚙️ Direct DB Query (MISS)',
-      serverError: '🔴 Server Error',
-    },
-  },
-}
+const copyDict = cacheInspectorHudText.copyDict
 
 const ETagWaterfallPipeline: React.FC<{ d: CacheDiagnosticEntry; lang: 'zh' | 'en' }> = ({ d, lang }) => {
   const isZh = lang === 'zh'
@@ -135,7 +73,7 @@ const ETagWaterfallPipeline: React.FC<{ d: CacheDiagnosticEntry; lang: 'zh' | 'e
     <div className="mt-2 p-2.5 bg-zinc-950/90 border border-zinc-800 rounded-xl space-y-2 font-sans select-none animate-in fade-in duration-200">
       <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-300 border-b border-zinc-800/80 pb-1.5">
         <span className="flex items-center gap-1 text-emerald-400 font-mono">
-          ⚡ {isZh ? 'ETag 缓存全路径耗时拆解 (Waterfall Breakdown)' : 'Visual ETag Waterfall Breakdown'}
+          ⚡ {isZh ? cacheInspectorHudText.visualEtagWaterfallBreakdown.zh : cacheInspectorHudText.visualEtagWaterfallBreakdown.en}
         </span>
         <span className="font-mono text-[10px] text-zinc-400">Total: {d.rttMs} ms</span>
       </div>
@@ -145,7 +83,7 @@ const ETagWaterfallPipeline: React.FC<{ d: CacheDiagnosticEntry; lang: 'zh' | 'e
         {/* Step 1: IndexedDB Lookup */}
         <div className="flex items-center gap-2">
           <span className="w-36 shrink-0 text-zinc-400 font-sans truncate">
-            1. {isZh ? 'IndexedDB 校验' : 'IndexedDB Lookup'}
+            1. {isZh ? cacheInspectorHudText.indexedDbLookup.zh : cacheInspectorHudText.indexedDbLookup.en}
           </span>
           <div className="flex-1 bg-zinc-900 h-3 rounded-full overflow-hidden flex items-center px-1 border border-zinc-800">
             <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${Math.min(100, Math.max(8, (idbMs / d.rttMs) * 100))}%` }} />
@@ -156,7 +94,7 @@ const ETagWaterfallPipeline: React.FC<{ d: CacheDiagnosticEntry; lang: 'zh' | 'e
         {/* Step 2: Edge Network RTT */}
         <div className="flex items-center gap-2">
           <span className="w-36 shrink-0 text-zinc-400 font-sans truncate">
-            2. {isZh ? 'Cloudflare 304 校验' : 'Cloudflare 304 RTT'}
+            2. {isZh ? cacheInspectorHudText.cloudflare304Rtt.zh : cacheInspectorHudText.cloudflare304Rtt.en}
           </span>
           <div className="flex-1 bg-zinc-900 h-3 rounded-full overflow-hidden flex items-center px-1 border border-zinc-800">
             <div className="bg-cyan-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${Math.min(100, Math.max(8, (networkMs / d.rttMs) * 100))}%` }} />
@@ -180,13 +118,13 @@ const ETagWaterfallPipeline: React.FC<{ d: CacheDiagnosticEntry; lang: 'zh' | 'e
         {/* Step 4: EF Core SQL Database Query */}
         <div className="flex items-center gap-2">
           <span className="w-36 shrink-0 text-zinc-400 font-sans truncate">
-            4. {isZh ? 'SQL 数据库查询' : 'SQL Database Query'}
+            4. {isZh ? cacheInspectorHudText.sqlDatabaseQuery.zh : cacheInspectorHudText.sqlDatabaseQuery.en}
           </span>
           <div className="flex-1 bg-zinc-900 h-3 rounded-full overflow-hidden flex items-center px-1 border border-zinc-800">
             <div className={`h-1.5 rounded-full transition-all duration-300 ${isSqlSkipped ? 'bg-zinc-800 w-0' : 'bg-rose-500 w-full'}`} />
           </div>
           <span className={`w-12 text-right font-bold ${isSqlSkipped ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isSqlSkipped ? (isZh ? '0ms 跳过' : '0ms Skip') : 'SQL Exec'}
+            {isSqlSkipped ? (isZh ? cacheInspectorHudText.label0msSkip.zh : cacheInspectorHudText.label0msSkip.en) : 'SQL Exec'}
           </span>
         </div>
       </div>
@@ -196,12 +134,12 @@ const ETagWaterfallPipeline: React.FC<{ d: CacheDiagnosticEntry; lang: 'zh' | 'e
         <span className="flex items-center gap-1.5 font-medium">
           {isSqlSkipped ? '⚡' : '⚙️'}
           {isSqlSkipped
-            ? (isZh ? '缓存成功全路径拦截！SQL 数据库查询 0 次，零负载。' : 'Cache fully intercepted! 0 SQL queries executed.')
-            : (isZh ? '缓存未命中，穿透直连 EF Core 与 SQL Server 数据库。' : 'Cache miss, executed EF Core SQL query.')}
+            ? (isZh ? cacheInspectorHudText.cacheFullyIntercepted0SqlQueriesExecuted.zh : cacheInspectorHudText.cacheFullyIntercepted0SqlQueriesExecuted.en)
+            : (isZh ? cacheInspectorHudText.cacheMissExecutedEfCoreSqlQuery.zh : cacheInspectorHudText.cacheMissExecutedEfCoreSqlQuery.en)}
         </span>
         {d.bytesSaved ? (
           <span className="font-bold text-amber-400 font-mono">
-            {isZh ? `省流量 ${formatBytes(d.bytesSaved)}` : `Saved ${formatBytes(d.bytesSaved)}`}
+            {isZh ? cacheInspectorHudText.saved.zh(formatBytes(d.bytesSaved)) : cacheInspectorHudText.saved.en(formatBytes(d.bytesSaved))}
           </span>
         ) : null}
       </div>

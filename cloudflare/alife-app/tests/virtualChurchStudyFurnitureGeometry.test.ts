@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
@@ -75,7 +76,7 @@ test('returned buffers are separately owned, disposable, and never alias another
 })
 
 test('room geometry is visit-stable, shared, explicitly retired, and adds no continuous rendering or media', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url))
   assert.match(source, /useMemo\(\(\) => createStudyFurnitureGeometry\(lowDetail\), \[lowDetail\]\)/)
   assert.match(source, /Object.values\(geometry\).forEach\(part => part.dispose\(\)\)/)
   assert.match(source, /\[performancePreset\] = useState\(\(\) => getPerformanceConfig\(\)\)/)

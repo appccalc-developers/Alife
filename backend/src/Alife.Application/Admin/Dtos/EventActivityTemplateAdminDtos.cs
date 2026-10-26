@@ -28,7 +28,8 @@ public sealed record AdminEventActivityTemplateCatalogDto(
     IReadOnlyList<AdminEventTemplateModuleOptionDto> ModuleOptions,
     IReadOnlyList<string> IconKeys,
     IReadOnlyList<string> WorkflowTemplateCodes,
-    bool CanManage);
+    bool CanManage,
+    IReadOnlyList<EventProjectQuestionDefinitionDto> QuestionDefinitions);
 
 public sealed record CreateAdminEventActivityTemplateRequest(
     string Code,
@@ -40,6 +41,7 @@ public sealed record CreateAdminEventActivityTemplateRequest(
     IReadOnlyList<string> PreselectedModules,
     string? RecommendedWorkflowTemplateCode,
     IReadOnlyList<EventActivityTypeServiceSlotPresetDto> PresetServiceSlots,
+    IReadOnlyList<EventTemplatePresetProjectDto> PresetProjects,
     bool IsActive = true);
 
 public sealed record UpdateAdminEventActivityTemplateRequest(
@@ -50,4 +52,5 @@ public sealed record UpdateAdminEventActivityTemplateRequest(
     IReadOnlyList<string> PreselectedModules,
     string? RecommendedWorkflowTemplateCode,
     IReadOnlyList<EventActivityTypeServiceSlotPresetDto> PresetServiceSlots,
+    IReadOnlyList<EventTemplatePresetProjectDto> PresetProjects,
     bool IsActive);

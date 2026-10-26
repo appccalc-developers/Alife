@@ -6,9 +6,9 @@ import { createDeploymentConfig } from './create-deploy-config.mjs'
 const source = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'))
 const namespaceId = '0123456789abcdef0123456789abcdef'
 
-test('deployment preserves canonical settings and adds only the API cache binding', () => {
+test('ordinary deployment preserves canonical settings and adds only the API cache binding', () => {
   const original = structuredClone(source)
-  const generated = createDeploymentConfig(source, ` ${namespaceId} `)
+  const generated = createDeploymentConfig(source, ` ${namespaceId} `, { requireEventResetSecret: false })
   assert.deepEqual(generated, {
     ...original,
     kv_namespaces: [{ binding: 'API_CACHE', id: namespaceId }],
@@ -16,6 +16,16 @@ test('deployment preserves canonical settings and adds only the API cache bindin
   assert.deepEqual(source, original, 'generation must not mutate its input')
   assert.equal(generated.assets.binding, 'ASSETS')
   assert.deepEqual(generated.assets.run_worker_first, source.assets.run_worker_first)
+})
+
+test('deployment retains the shared reset-secret policy while enforcing static asset boundaries', () => {
+  const protectedConfig = createDeploymentConfig(source, namespaceId)
+  assert.ok(protectedConfig.secrets.required.includes('EVENT_RESET_DO_TOKEN'))
+  const ordinaryConfig = createDeploymentConfig(protectedConfig, namespaceId, { requireEventResetSecret: false })
+  assert.ok(!ordinaryConfig.secrets.required.includes('EVENT_RESET_DO_TOKEN'))
+  assert.ok(ordinaryConfig.secrets.required.includes('GEMINI_API_KEY'))
+  assert.ok(ordinaryConfig.secrets.required.includes('CACHE_SYNC_API_TOKEN'))
+  assert.deepEqual(ordinaryConfig.assets, source.assets)
 })
 
 test('deployment rejects missing or misnamed static asset bindings', () => {

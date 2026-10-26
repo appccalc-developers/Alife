@@ -207,8 +207,7 @@ public sealed class EventPackagePolicyAdminTests
         "\"tierRules\":[" + Tier("light") + "," + Tier("standard") + "," + Tier("enhanced") + "]," +
         "\"authorityByTier\":{\"light\":{\"minimumApproverCount\":1},\"standard\":{\"minimumApproverCount\":1},\"enhanced\":{\"minimumApproverCount\":1}}," +
         "\"approvalValidityByTier\":{\"light\":\"P30D\",\"standard\":\"P14D\",\"enhanced\":\"P7D\"}," +
-        "\"materialChangeRules\":[],\"conditionWaiverAllowed\":false,\"delegationRules\":{\"enabled\":false}," +
-        "\"legacyRollout\":{\"effectiveFromUtc\":\"2026-09-01T00:00:00Z\",\"transitionDeadlineUtc\":\"2026-12-01T00:00:00Z\",\"cohortRule\":\"new-events-first\",\"safetyCriticalModuleCodes\":[],\"transitionByMode\":{}}}";
+        "\"materialChangeRules\":[],\"conditionWaiverAllowed\":false,\"delegationRules\":{\"enabled\":false}}";
 
     private static string Tier(string tier)
         => $"{{\"tier\":\"{tier}\",\"whenAnyConfirmedFactCodes\":[],\"whenAnyActivityTypeCodes\":[],\"whenAnyModuleCodes\":[]}}";

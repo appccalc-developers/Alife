@@ -333,7 +333,7 @@ public sealed class RespondToEventRoleAssignmentCommandHandler(
         }
 
         if (assignment.RoleRequirementKey.EndsWith(":event.accountableOwner", StringComparison.Ordinal))
-            return AppResult<EventRoleAssignmentDto>.Conflict("The accountable owner is fixed; legacy transfer invitations cannot be accepted.");
+            return AppResult<EventRoleAssignmentDto>.Conflict("The accountable owner is fixed; owner-transfer invitations cannot be accepted.");
 
         var now = DateTime.UtcNow;
         assignment.Status = request.Accept

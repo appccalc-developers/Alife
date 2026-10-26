@@ -1,6 +1,6 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
 import { createVirtualChurchTeleport, virtualChurchCameraLerpFactor } from '../src/views/virtualChurchTeleport.ts'
 import { VIRTUAL_CHURCH_BUILDING_FOOTPRINT } from '../src/views/virtualChurchInteractionContract.ts'
 import { SCENE_SHOWCASE_CAMERA, SCENE_V3_SHOWCASE_CAMERA } from '../src/views/virtualChurchScene.ts'
@@ -59,7 +59,7 @@ test('guide choice waits for the player group instead of disappearing during a c
 })
 
 test('all nine guide destinations use the view-owned queue and controller detaches on unmount', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /const teleportRef = useMemo\(createVirtualChurchTeleport, \[\]\)/)
   const guideHandlers = source.slice(source.indexOf('const returnToEntrance ='), source.indexOf('const changeCameraMode ='))
   assert.equal((guideHandlers.match(/teleportRef.request\(/g) ?? []).length, 9)
@@ -76,7 +76,7 @@ test('guide jumps snap the camera once without changing normal follow smoothing'
   assert.equal(virtualChurchCameraLerpFactor(false, true, 11, 1 / 60), 1)
   closeTo(virtualChurchCameraLerpFactor(false, false, 11, 1 / 60), 1 - Math.exp(-11 / 60))
   closeTo(virtualChurchCameraLerpFactor(false, false, 5.5, 1 / 60), 1 - Math.exp(-5.5 / 60))
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /teleportCameraPendingRef\.current = true/)
   assert.equal((source.match(/virtualChurchCameraLerpFactor\(snapTeleportedCamera, reducedMotion,/g) ?? []).length, 3)
   assert.match(source, /camera\.lookAt\(lookAt\)\s*teleportCameraPendingRef\.current = false/)
@@ -128,12 +128,12 @@ test('V3 hero view moves toward the bilingual sign without changing the released
   assert.ok(setback >= 12.8 && setback <= 13.2, 'sign should be readable from the shorter setback')
   assert.ok(Math.abs(cameraAlongFacade) < .02, 'camera should remain perpendicular to the signed facade')
   assert.ok(cameraY > lookY, 'cross and bilingual name should fit a gently downward view')
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /config3D\.visualVersion === 'v3' \? SCENE_V3_SHOWCASE_CAMERA : SCENE_SHOWCASE_CAMERA/)
 })
 
 test('V3 facade wordmark uses dark lettering on the pale sign wall while V2 keeps its release colors', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /const ChurchFacadeSign = \(\{ position, rotation, visualVersion \}/)
   assert.match(source, /visualVersion === 'v3' \? '#292d2d' : '#f1f0ea'[\s\S]*?fillText\('基督城华人丰盛生命教会'/)
   assert.match(source, /visualVersion === 'v3' \? '#755226' : '#d5a94d'[\s\S]*?fillText\('182 THE RUNWAY · WIGRAM'/)

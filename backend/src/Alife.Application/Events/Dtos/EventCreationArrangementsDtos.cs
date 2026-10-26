@@ -1,12 +1,12 @@
 namespace Alife.Application.Events.Dtos;
 
 // Optional creation-only input; operational details remain in protected module tables.
+[System.Text.Json.Serialization.JsonUnmappedMemberHandling(
+    System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
 public sealed record EventCreationArrangementsRequest(
     IReadOnlyList<EventCreationSlotRequest>? ServiceSlots = null,
     IReadOnlyList<EventCreationSessionRequest>? Sessions = null,
-    IReadOnlyList<EventCreationVenueRequest>? VenueBookings = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    Alife.Application.Events.Services.ActivityPlanData? ActivityPlan = null);
+    IReadOnlyList<EventCreationVenueRequest>? VenueBookings = null);
 public sealed record EventCreationSlotRequest(string RoleCode, int RequiredCount, string EligibilityCode,
     int StartOffsetMinutes, int EndOffsetMinutes);
 public sealed record EventCreationSessionRequest(LocalizedTextDto Title, int StartOffsetMinutes,

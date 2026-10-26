@@ -1,9 +1,12 @@
+using System.Text.Json;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Composition;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
+using Alife.Domain.Entities;
+using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,11 +16,29 @@ public sealed class UpdateGroupEventCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
     IEventCacheInvalidationService eventCacheInvalidationService,
-    IEventPackageInvalidationService packageInvalidationService)
+    IEventPackageInvalidationService packageInvalidationService,
+    IEventCompositionEngine? compositionEngine = null,
+    IEventActivityTemplateCatalog? activityTemplateCatalog = null)
     : IRequestHandler<UpdateGroupEventCommand, AppResult<GroupEventSummaryDto>>
 {
     public async Task<AppResult<GroupEventSummaryDto>> Handle(UpdateGroupEventCommand request, CancellationToken cancellationToken)
     {
+        if (EventCompositionRequestContract.HasUnsupportedSchema(request.Composition))
+            return AppResult<GroupEventSummaryDto>.Validation(
+                $"schemaVersion must be {EventCompositionDefinitions.SchemaVersion}.",
+                EventCompositionDefinitions.UnsupportedSchemaErrorCode);
+        if (EventCompositionRequestContract.ValidateComplete(request.Composition!) is { } compositionError)
+            return AppResult<GroupEventSummaryDto>.Validation(
+                compositionError,
+                EventCompositionRequestContract.InvalidCompositionErrorCode);
+        if (string.IsNullOrWhiteSpace(request.CompositionProposalHash) ||
+            string.IsNullOrWhiteSpace(request.PlanETag) ||
+            !request.Composition!.BasePlanVersion.HasValue)
+            return AppResult<GroupEventSummaryDto>.Validation(
+                "compositionProposalHash, planETag and composition.basePlanVersion are required for an Event detail update.",
+                EventCompositionRequestContract.InvalidCompositionErrorCode);
+        var compositionRequest = request.Composition!;
+
         await using var transaction = await dbContext.BeginSerializableTransactionAsync(cancellationToken);
         await dbContext.LockEventRegistrationAsync(request.EventId, cancellationToken);
         var groupEvent = await dbContext.GroupEvents
@@ -37,30 +58,18 @@ public sealed class UpdateGroupEventCommandHandler(
             return AppResult<GroupEventSummaryDto>.Forbidden("Only the accountable owner can update events.");
         }
 
-        if (request.RamDataJson is not null && groupEvent.RamAssessment?.SchemaVersion >= 2)
-            return AppResult<GroupEventSummaryDto>.Conflict(EventRamGovernanceService.UpgradeMessage);
-
-        if (request.IfMatch is not null && (!DateTime.TryParse(request.IfMatch.Trim('"'), null,
-            System.Globalization.DateTimeStyles.RoundtripKind, out var expectedUpdate) || expectedUpdate != groupEvent.UpdatedUtc))
+        if (string.IsNullOrWhiteSpace(request.IfMatch) ||
+            !DateTime.TryParse(request.IfMatch.Trim('"'), null,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var expectedUpdate) ||
+            expectedUpdate != groupEvent.UpdatedUtc)
             return AppResult<GroupEventSummaryDto>.PreconditionFailed("Event details changed. Refresh and review before saving. / 活动资料已更新，请刷新核对后再保存。");
 
         if (await EventPreparationPolicy.IsFrozenAsync(dbContext, groupEvent.Id, cancellationToken))
             return AppResult<GroupEventSummaryDto>.Conflict(EventPreparationPolicy.FrozenMessage);
-        if (request.SeriesUpdate is { } seriesUpdate)
-        {
-            if (groupEvent.EventSeriesId is not { } seriesId || seriesUpdate.Details is null)
-                return AppResult<GroupEventSummaryDto>.Validation("This event has no editable recurring schedule. / 此活动没有可编辑的重复安排。");
-            var updated = await new UpdateEventSeriesCommandHandler(dbContext, groupAuthorizationService).Handle(
-                new(seriesId, request.CurrentMemberId, seriesUpdate.Details, seriesUpdate.ETag,
-                    TransactionAlreadyStarted: true, PreparationEventId: groupEvent.Id), cancellationToken);
-            if (!updated.IsSuccess) return updated.Status switch {
-                AppResultStatus.PreconditionFailed => AppResult<GroupEventSummaryDto>.PreconditionFailed(updated.Message!),
-                AppResultStatus.Forbidden => AppResult<GroupEventSummaryDto>.Forbidden(updated.Message!),
-                AppResultStatus.Conflict => AppResult<GroupEventSummaryDto>.Conflict(updated.Message!),
-                _ => AppResult<GroupEventSummaryDto>.Validation(updated.Message!)
-            };
-        }
 
+        if (EventDataContract.Validate(request.EventDataJson, request.TitleEn, request.TitleZh,
+                request.StartDate, request.EndDate) is { } eventDataError)
+            return AppResult<GroupEventSummaryDto>.Validation(eventDataError);
         if (!EventVisibilityPolicy.TryReadVisibility(request.EventDataJson, out var visibility))
         {
             return AppResult<GroupEventSummaryDto>.Validation("Event data must be a JSON object with a supported visibility.");
@@ -79,15 +88,105 @@ public sealed class UpdateGroupEventCommandHandler(
         }
 
         var contactProfileIds = (request.ContactProfileIds ?? []).Distinct().ToArray();
-        var previousCapacity = EventEnrollmentCapacityService.Capacity(groupEvent.EventDataJson);
-        var nextCapacity = EventEnrollmentCapacityService.Capacity(request.EventDataJson);
-        if (nextCapacity < previousCapacity && nextCapacity < await dbContext.EventEnrollments.CountAsync(x => x.EventId == groupEvent.Id && x.Status == "confirmed", cancellationToken))
-            return AppResult<GroupEventSummaryDto>.Conflict("Capacity cannot be reduced below confirmed registrations. / 容量不得降至现有正式报名人数以下。");
         var validContactCount = await dbContext.ContactProfiles.AsNoTracking().CountAsync(
             x => x.OwnerGroupId == groupEvent.GroupId && contactProfileIds.Contains(x.Id), cancellationToken);
         if (validContactCount != contactProfileIds.Length)
         {
             return AppResult<GroupEventSummaryDto>.Validation("Every event contact must belong to the event group.");
+        }
+
+        var activeSnapshot = await dbContext.EventPlanSnapshots
+            .Where(x => x.EventId == groupEvent.Id && x.IsActive)
+            .OrderByDescending(x => x.Version)
+            .FirstOrDefaultAsync(cancellationToken);
+        var currentPlanETag = activeSnapshot?.ETag ?? EventCompositionPersistence.CreateEmptyPlanETag(groupEvent);
+        if (string.IsNullOrWhiteSpace(request.PlanETag) ||
+            !string.Equals(request.PlanETag.Trim(), currentPlanETag, StringComparison.Ordinal) ||
+            compositionRequest.BasePlanVersion != groupEvent.ActivePlanVersion)
+            return AppResult<GroupEventSummaryDto>.PreconditionFailed(
+                "The event plan changed. Refresh and review before saving Event details.");
+
+        EventPlanSnapshotDto? basePlan = null;
+        if (activeSnapshot is not null)
+        {
+            try { basePlan = EventCompositionPersistence.ToSnapshotDto(activeSnapshot); }
+            catch (JsonException) { return AppResult<GroupEventSummaryDto>.Conflict("The active event plan snapshot is invalid."); }
+        }
+        if (EventPreparationPolicy.ChangesTemplate(basePlan, compositionRequest))
+            return AppResult<GroupEventSummaryDto>.Conflict(EventPreparationPolicy.TemplateLockedMessage);
+
+        var activityPlan = compositionRequest.ActivityPlan;
+        if (activityPlan is null)
+            return AppResult<GroupEventSummaryDto>.Validation(
+                "activityPlan is required in schemaVersion 2.0.0.",
+                EventCompositionRequestContract.InvalidCompositionErrorCode);
+        if (EventActivityPlanService.Validate(activityPlan) is { } activityError)
+            return AppResult<GroupEventSummaryDto>.Validation(
+                activityError,
+                EventCompositionRequestContract.InvalidCompositionErrorCode);
+        var occurrenceIds = activityPlan.Activities.Where(x => x.OccurrenceId.HasValue)
+            .Select(x => x.OccurrenceId!.Value).Distinct().ToArray();
+        if (await dbContext.EventOccurrences.CountAsync(x => x.EventId == groupEvent.Id && occurrenceIds.Contains(x.Id), cancellationToken) != occurrenceIds.Length)
+            return AppResult<GroupEventSummaryDto>.Validation("The occurrence must belong to this Event.");
+
+        var activityRow = await dbContext.EventActivityPlans.FirstOrDefaultAsync(x => x.EventId == groupEvent.Id, cancellationToken);
+        ActivityPlanData? previousActivityPlan = null;
+        if (activityRow is not null)
+        {
+            try { previousActivityPlan = EventActivityPlanService.Parse(activityRow.DataJson); }
+            catch (JsonException) { return AppResult<GroupEventSummaryDto>.Conflict("The saved activity plan is invalid."); }
+        }
+        var changedProjectIds = (previousActivityPlan?.Activities ?? []).Where(old =>
+            !activityPlan.Activities.Any(current => current.Id == old.Id &&
+                current.OccurrenceId == old.OccurrenceId &&
+                current.RepeatForEachOccurrence == old.RepeatForEachOccurrence)).Select(x => x.Id).ToArray();
+        if (changedProjectIds.Length > 0 && await dbContext.EventActivityParticipations.AsNoTracking().AnyAsync(x =>
+                x.Offer.EventId == groupEvent.Id && changedProjectIds.Contains(x.Offer.ActivityId), cancellationToken))
+            return AppResult<GroupEventSummaryDto>.Conflict(
+                "A project with participation history must remain for audit. Cancel and settle its registrations before replacing it.");
+        if (await EventActivityPlanConsistency.ConflictAsync(dbContext, groupEvent.Id, activityPlan, cancellationToken) is { } activityConflict)
+            return AppResult<GroupEventSummaryDto>.Conflict(activityConflict);
+
+        var protectedModules = await EventCompositionPersistence.GetProtectedModuleCodesAsync(
+            dbContext, groupEvent, cancellationToken);
+        var candidateEvent = new GroupEvent { EventDataJson = request.EventDataJson };
+        var composition = EventPreparationPolicy.WithSavedDetails(candidateEvent, compositionRequest with
+        {
+            BasePlanVersion = groupEvent.ActivePlanVersion,
+            ActivityPlan = activityPlan
+        });
+        var activityTypesByCode = activityTemplateCatalog is null
+            ? EventCompositionDefinitions.ActivityTypesByCode
+            : await activityTemplateCatalog.ActiveDefinitionsByCodeAsync(cancellationToken);
+        var proposalResult = (compositionEngine ?? new EventCompositionEngine()).Compose(composition,
+            new EventCompositionContext(
+                currentPlanETag,
+                basePlan?.Plan.ModuleDecisions,
+                protectedModules,
+                EventCompositionPersistence.GetSatisfiedReadinessRules(groupEvent),
+                groupEvent.AccountableOwnerMemberId != Guid.Empty,
+                groupEvent.GovernanceMode,
+                groupEvent.SponsorshipStatus,
+                ActivityTypesByCode: activityTypesByCode,
+                IsPreparationDraft: groupEvent.PublicationStatus == EventPublicationStatus.Draft));
+        if (!proposalResult.IsSuccess) return CopyFailure<EventPlanProposalDto, GroupEventSummaryDto>(proposalResult);
+        var proposal = proposalResult.Value!;
+        if (string.IsNullOrWhiteSpace(request.CompositionProposalHash) ||
+            !string.Equals(proposal.ProposalHash, request.CompositionProposalHash.Trim(), StringComparison.Ordinal))
+            return AppResult<GroupEventSummaryDto>.PreconditionFailed(
+                "The Event details proposal is stale or changed after review.");
+        if (proposal.Diff.BlockingRetirements.Count > 0)
+            return AppResult<GroupEventSummaryDto>.Conflict(
+                $"Modules with operational data require explicit retirement: {string.Join(", ", proposal.Diff.BlockingRetirements)}.");
+
+        if (request.SeriesUpdate is { } seriesUpdate)
+        {
+            if (groupEvent.EventSeriesId is not { } seriesId || seriesUpdate.Details is null)
+                return AppResult<GroupEventSummaryDto>.Validation("This event has no editable recurring schedule. / 此活动没有可编辑的重复安排。");
+            var updated = await new UpdateEventSeriesCommandHandler(dbContext, groupAuthorizationService).Handle(
+                new(seriesId, request.CurrentMemberId, seriesUpdate.Details, seriesUpdate.ETag,
+                    TransactionAlreadyStarted: true, PreparationEventId: groupEvent.Id), cancellationToken);
+            if (!updated.IsSuccess) return CopyFailure<EventSeriesDto, GroupEventSummaryDto>(updated);
         }
 
         var existingContacts = await dbContext.EventContactProfiles
@@ -96,9 +195,7 @@ public sealed class UpdateGroupEventCommandHandler(
         var materialChange = groupEvent.StartDate != request.StartDate ||
             groupEvent.EndDate != request.EndDate ||
             !GovernanceEventDataEquivalent(groupEvent.EventDataJson, request.EventDataJson) ||
-            !existingContacts.Select(x => x.ContactProfileId).Order().SequenceEqual(contactProfileIds.Order()) ||
-            (request.RamDataJson is not null &&
-                !JsonEquivalent(groupEvent.RamAssessment?.RamDataJson ?? "{}", request.RamDataJson));
+            !existingContacts.Select(x => x.ContactProfileId).Order().SequenceEqual(contactProfileIds.Order());
         dbContext.EventContactProfiles.RemoveRange(existingContacts);
         dbContext.EventContactProfiles.AddRange(contactProfileIds.Select(contactProfileId => new Alife.Domain.Entities.EventContactProfile
         {
@@ -113,63 +210,87 @@ public sealed class UpdateGroupEventCommandHandler(
         groupEvent.EventDataJson = request.EventDataJson;
         var now = DateTime.UtcNow;
         groupEvent.UpdatedUtc = now;
-        // A submitted snapshot must be regenerated after any preparation edit,
-        // including copy changes. The separate post-approval poster operation
-        // deliberately preserves this source-evidence token.
+        var activityJson = RamEvaluator.Serialize(activityPlan);
+        var activityChanged = activityRow is null || !string.Equals(activityRow.DataJson, activityJson, StringComparison.Ordinal);
+        if (activityRow is null)
+        {
+            activityRow = new EventActivityPlan { EventId = groupEvent.Id };
+            dbContext.EventActivityPlans.Add(activityRow);
+        }
+        if (activityChanged)
+        {
+            var beforeJson = activityRow.DataJson;
+            activityRow.DataJson = activityJson;
+            activityRow.ConcurrencyToken = Guid.NewGuid();
+            activityRow.UpdatedUtc = now;
+            dbContext.AuditLogs.Add(new AuditLog
+            {
+                Id = Guid.NewGuid(), ActorMemberId = request.CurrentMemberId,
+                Action = "event.activityPlan.saveWithDetails", EntityType = "group_event", EntityId = groupEvent.Id,
+                BeforeJson = string.IsNullOrWhiteSpace(beforeJson) ? "{}" : beforeJson, AfterJson = activityJson,
+                MetadataJson = JsonSerializer.Serialize(new { activityCount = activityPlan.Activities.Length }),
+                OccurredUtc = now
+            });
+        }
+
+        var factVersion = (await dbContext.EventFactSets.Where(x => x.EventId == groupEvent.Id)
+            .MaxAsync(x => (int?)x.Version, cancellationToken) ?? 0) + 1;
+        var planVersion = (await dbContext.EventPlanSnapshots.Where(x => x.EventId == groupEvent.Id)
+            .MaxAsync(x => (int?)x.Version, cancellationToken) ?? 0) + 1;
+        var factSet = new EventFactSet
+        {
+            Id = Guid.NewGuid(), EventId = groupEvent.Id, Version = factVersion,
+            SchemaVersion = proposal.SchemaVersion,
+            FactsJson = JsonSerializer.Serialize(proposal.Facts.Items, EventCompositionEngine.CreateJsonOptions()),
+            SourceHash = proposal.Facts.SourceHash, CreatedByMemberId = request.CurrentMemberId, CreatedUtc = now
+        };
+        var acceptedProposal = proposal with { Facts = proposal.Facts with { Version = factVersion } };
+        var planETag = EventCompositionPersistence.CreatePlanETag(planVersion, proposal.ProposalHash);
+        var snapshot = new EventPlanSnapshot
+        {
+            Id = Guid.NewGuid(), EventId = groupEvent.Id, SourceFactSetId = factSet.Id,
+            Version = planVersion, SchemaVersion = proposal.SchemaVersion, ProposalHash = proposal.ProposalHash,
+            ETag = planETag, ArchetypeCode = proposal.ArchetypeCode, ArchetypeVersion = proposal.ArchetypeVersion,
+            ActivityTypeCode = proposal.ActivityTypeCode, ActivityTypeVersion = proposal.ActivityTypeVersion,
+            SnapshotJson = EventCompositionPersistence.SerializePlan(acceptedProposal, []),
+            AcceptedByMemberId = request.CurrentMemberId, AcceptedUtc = now, IsActive = true, CreatedUtc = now
+        };
+        if (activeSnapshot is not null) activeSnapshot.IsActive = false;
+        dbContext.EventFactSets.Add(factSet);
+        dbContext.EventPlanSnapshots.Add(snapshot);
+        groupEvent.ActivePlanVersion = planVersion;
         groupEvent.PlanConcurrencyToken = Guid.NewGuid();
 
-        if (request.RamDataJson is not null)
+        if (groupEvent.RamAssessment is not null && (materialChange || activityChanged))
         {
-            if (groupEvent.RamAssessment is not null)
-                await EventRamGovernanceService.ArchiveLegacyAsync(dbContext, groupEvent.RamAssessment, request.CurrentMemberId, cancellationToken);
-            if (!EventRamPolicy.IsValidJson(request.RamDataJson))
+            if (activityChanged)
             {
-                return AppResult<GroupEventSummaryDto>.Validation("RAM data must be a JSON object.");
+                var context = await EventPlanContextCapture.CaptureAsync(dbContext, groupEvent, cancellationToken);
+                context = context with { ActivityPlan = new(activityPlan, activityRow.ConcurrencyToken.ToString()) };
+                groupEvent.RamAssessment.RamDataJson = RamEvaluator.Serialize(
+                    EventActivityPlanService.Mirror(RamEvaluator.Parse(groupEvent.RamAssessment.RamDataJson), context));
             }
-
-            if (groupEvent.RamAssessment is null)
-            {
-                groupEvent.RamAssessment = new Alife.Domain.Entities.EventRamAssessment
-                {
-                    EventId = groupEvent.Id,
-                    CreatedUtc = now
-                };
-                dbContext.EventRamAssessments.Add(groupEvent.RamAssessment);
-            }
-
-            groupEvent.RamAssessment.RamDataJson = request.RamDataJson;
-        }
-
-        if (groupEvent.RamAssessment is not null && materialChange)
-        {
-            await EventRamGovernanceService.ArchiveLegacyAsync(dbContext, groupEvent.RamAssessment, request.CurrentMemberId, cancellationToken);
             EventRamGovernanceService.Invalidate(groupEvent.RamAssessment);
-            groupEvent.RamAssessment.Status = Alife.Domain.Enums.EventRamStatus.Draft;
-            groupEvent.RamAssessment.SubmittedByMemberId = null;
-            groupEvent.RamAssessment.SubmittedUtc = null;
-            groupEvent.RamAssessment.ApprovedByMemberId = null;
-            groupEvent.RamAssessment.ApprovedUtc = null;
             groupEvent.RamAssessment.UpdatedUtc = now;
         }
-        if (materialChange)
+        await packageInvalidationService.InvalidateForMaterialChangeAsync(
+            groupEvent,
+            request.CurrentMemberId,
+            materialChange || activityChanged ? "event.details.planAccepted" : "event.plan.accepted",
+            materialChange || activityChanged ? "governanceCritical" : "operational",
+            cancellationToken);
+        try
         {
-            await packageInvalidationService.InvalidateForMaterialChangeAsync(
-                groupEvent,
-                request.CurrentMemberId,
-                "event.core.materialChange",
-                "governanceCritical",
-                cancellationToken);
+            if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, request.EventId, cancellationToken, transactionAlreadyStarted: true))
+                return AppResult<GroupEventSummaryDto>.Conflict(EventPreparationPolicy.FrozenMessage);
+            if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         }
-        if (nextCapacity > previousCapacity)
+        catch (DbUpdateConcurrencyException)
         {
-            if (groupEvent.RegistrationPackageId.HasValue)
-                groupEvent.RegistrationPackage = await dbContext.EventPackages.Include(x => x.Conditions).Include(x => x.Decisions).FirstOrDefaultAsync(x => x.Id == groupEvent.RegistrationPackageId, cancellationToken);
-            await new EventEnrollmentCapacityService(dbContext, groupAuthorizationService).ReconcileAsync(groupEvent, request.CurrentMemberId, cancellationToken);
+            return AppResult<GroupEventSummaryDto>.PreconditionFailed(
+                "The Event details or plan changed while they were being saved.");
         }
-        if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, request.EventId, cancellationToken, transactionAlreadyStarted: true)) return AppResult<GroupEventSummaryDto>.Conflict(EventPreparationPolicy.FrozenMessage);
-        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
-        await eventCacheInvalidationService.RemoveEventEnrollmentsAsync(groupEvent.Id, cancellationToken);
         await eventCacheInvalidationService.RemoveEventReviewsAsync(groupEvent.Id, cancellationToken);
 
         return AppResult<GroupEventSummaryDto>.Success(new GroupEventSummaryDto(
@@ -191,6 +312,16 @@ public sealed class UpdateGroupEventCommandHandler(
             groupEvent.SponsorshipStatus,
             groupEvent.ActivePlanVersion));
     }
+
+    private static AppResult<TTarget> CopyFailure<TSource, TTarget>(AppResult<TSource> source)
+        => source.Status switch
+        {
+            AppResultStatus.NotFound => AppResult<TTarget>.NotFound(source.Message ?? "Not found."),
+            AppResultStatus.Forbidden => AppResult<TTarget>.Forbidden(source.Message ?? "Forbidden."),
+            AppResultStatus.Conflict => AppResult<TTarget>.Conflict(source.Message ?? "Conflict."),
+            AppResultStatus.PreconditionFailed => AppResult<TTarget>.PreconditionFailed(source.Message ?? "Precondition failed."),
+            _ => AppResult<TTarget>.Validation(source.Message ?? "Validation failed.", source.Code)
+        };
 
     private static bool JsonEquivalent(string left, string right)
     {

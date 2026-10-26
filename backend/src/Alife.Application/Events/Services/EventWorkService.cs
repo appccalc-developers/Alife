@@ -39,7 +39,7 @@ public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionServ
         => !published ? "preparation" : start <= DateTime.UtcNow && end > DateTime.UtcNow ? "execution" : end <= DateTime.UtcNow && !recurring ? "followup" : "registration";
     private async Task<string> StageAsync(Alife.Domain.Entities.GroupEvent e, CancellationToken ct)
     {
-        var published = e.PublicationStatus is EventPublicationStatus.Published or EventPublicationStatus.LegacyImplicit;
+        var published = e.PublicationStatus == EventPublicationStatus.Published;
         if (published && e.EventSeriesId.HasValue && await db.EventOccurrences.AnyAsync(x => x.EventId == e.Id && x.StartUtc <= DateTime.UtcNow && x.EndUtc > DateTime.UtcNow && x.Status != EventOccurrenceStatus.Cancelled,ct)) return "execution";
         return Stage(e.StartDate,e.EndDate,published,e.EventSeriesId.HasValue);
     }
@@ -52,13 +52,13 @@ public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionServ
         var reader = await EventWorkAccess.PlanReaderAsync(db, e, actor, ct);
         var myDuties = await duties.ListAsync(actor, ct, id);
         var roster = await EventWorkAccess.MemberAsync(db, e.GroupId, actor, ct) && await db.EventRosterAssignments.AsNoTracking().AnyAsync(x => x.ServiceSlot.Occurrence.EventId == id && x.MemberId == actor && x.EndedUtc == null, ct);
-        var enrollment = await db.EventEnrollments.AsNoTracking().AnyAsync(x => x.EventId == id && x.MemberId == actor, ct);
-        enrollment = enrollment || await db.EventRegistrationApplications.AnyAsync(x => x.EventId == id && (!x.IsInvitation || x.InvitedUtc != null) &&
-            (x.OrganiserMemberId == actor || x.Participants.Any(p => p.MemberId == actor || p.IsChild && p.GuardianMemberId == actor)), ct);
+        var enrollment = await db.EventRegistrationApplications.AnyAsync(x => x.EventId == id && (!x.IsInvitation || x.InvitedUtc != null) &&
+            (x.OrganiserMemberId == actor || x.Participants.Any(p => p.SeatStatus != "cancelled" && p.SeatStatus != "expired" &&
+                (p.MemberId == actor || p.IsChild && p.GuardianMemberId == actor))), ct);
         if (!reader && !roster && !enrollment && myDuties.Count == 0) return AppResult<EventWorkPage>.Forbidden("No current Event responsibility. / 当前没有此活动的工作权限。");
         var summary = new EventWorkSummary(id, e.GroupId, new(e.TitleEn, e.TitleZh), e.StartDate, e.EndDate,
             PosterImageUrl(e), await StageAsync(e,ct), owner, roles);
-        var published = e.PublicationStatus is EventPublicationStatus.Published or EventPublicationStatus.LegacyImplicit;
+        var published = e.PublicationStatus == EventPublicationStatus.Published;
         var links = new List<EventWorkLink>();
         void Add(string key, string stage, string en, string zh, string url, bool edit) => links.Add(new(key, stage, new(en, zh), url, edit));
         var root = $"/events/{id}";
@@ -74,7 +74,7 @@ public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionServ
                 var module = EventCompositionDefinitions.ModulesByCode[pair.Key];
                 Add("report:" + pair.Key, "preparation", module.Name.En + " report", module.Name.Zh + "报告", root + "/reports/" + pair.Key, EventWorkAccess.HasRole(roles, pair.Key, pair.Value));
             }
-        if (owner || roles.Any(EventDutyAccess.IsRamAuthorRole) || await EventWorkAccess.ReviewContextAsync(db, e, actor, ct)) Add("ram", "preparation", "RAM workspace", "RAM 工作空间", root + "/workspace/ram", e.CollaborationVersion == 0 && owner || roles.Any(EventDutyAccess.IsRamAuthorRole));
+        if (owner || roles.Any(EventDutyAccess.IsRamAuthorRole) || await EventWorkAccess.ReviewContextAsync(db, e, actor, ct)) Add("ram", "preparation", "RAM workspace", "RAM 工作空间", root + "/workspace/ram", roles.Any(EventDutyAccess.IsRamAuthorRole));
         if (owner || EventWorkAccess.HasRole(roles, "PEOPLE.REGISTRATION", "registration.manager")) {
             Add("registration:prepare", "preparation", "Prepare registration and invitations", "筹办报名与邀请", root + "/registration-work", true);
             Add("registration", "registration", "Manage registration", "报名办理", root + "/registration-work", true);
@@ -86,7 +86,7 @@ public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionServ
             Add("fees:followup","followup","Registration refunds and reconciliation","报名退款与核对",root+"/registration-work",true);
         }
         if (owner) Add("venues","preparation","Venue and room calendar","场地与房间日历",$"/groups/{e.GroupId}/venues?event={id}",true);
-        var coordinatesRoster = EventWorkAccess.HasRole(roles, "SERVICE.ROSTER", "roster.coordinator") || e.CollaborationVersion == 0 && owner;
+        var coordinatesRoster = EventWorkAccess.HasRole(roles, "SERVICE.ROSTER", "roster.coordinator");
         if (published && await EventWorkAccess.EnabledAsync(db,id,"SERVICE.ROSTER",ct) && coordinatesRoster) {
             Add("roster:published", "registration", "Schedule volunteers across dates", "多场次手工排班", root + "/workspace/roster", true);
             Add("roster", "execution", "Schedule volunteers across dates", "多场次手工排班", root + "/workspace/roster", true);
@@ -105,7 +105,7 @@ public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionServ
         var adopted = reader ? await db.EventModuleReportRevisions.AsNoTracking().Where(x => x.Report.EventId == id && x.Report.AdoptedRevisionId == x.Id)
             .Select(x => new EventReportRevisionDto(x.Id, x.Version, new(x.TextEn, x.TextZh), x.AuthorMemberId, x.EventPlanVersion, x.SubmittedUtc)).ToArrayAsync(ct) : [];
         var progress = owner && plan is not null ? (await EventCompositionPersistence.ApplyOperationalReadinessAsync(db,
-            EventCompositionPersistence.RefreshReadiness(plan.Plan,e,DateTime.UtcNow),e,DateTime.UtcNow,ct,rosterRulesVersion:2)).Readiness : null;
+            EventCompositionPersistence.RefreshReadiness(plan.Plan,e,DateTime.UtcNow),e,DateTime.UtcNow,ct)).Readiness : null;
         return AppResult<EventWorkPage>.Success(new(summary, links, occurrences, page, occurrenceRows.Length > 12, myDuties, plan, adopted,
             reader ? await EventPlanContextCapture.CaptureAsync(db,e,ct) : null, progress));
     }
@@ -119,13 +119,13 @@ public sealed class EventWorkService(IAlifeDbContext db, EventDutyProjectionServ
         foreach (var e in reviewed) if (await EventWorkAccess.ReviewContextAsync(db,e,actor,ct)) dutyEvents.Add(e.Id);
         var query = db.GroupEvents.AsNoTracking().Where(e =>
             dutyEvents.Contains(e.Id) ||
-            groups.Contains(e.GroupId) && (e.AccountableOwnerMemberId == actor || e.AccountableOwnerMemberId == Guid.Empty && e.CreatedByMemberId == actor ||
+            groups.Contains(e.GroupId) && (e.AccountableOwnerMemberId == actor ||
                 db.EventRoleAssignments.Any(x => x.EventId == e.Id && x.MemberId == actor && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null) ||
                 db.EventTeamMembers.Any(x => x.EventId == e.Id && x.MemberId == actor && x.Status == EventTeamMemberStatus.Accepted && x.EndedUtc == null) ||
                 db.EventRosterAssignments.Any(x => x.ServiceSlot.Occurrence.EventId == e.Id && x.MemberId == actor && x.EndedUtc == null)) ||
-            db.EventEnrollments.Any(x => x.EventId == e.Id && x.MemberId == actor) ||
             db.EventRegistrationApplications.Any(x => x.EventId == e.Id && (!x.IsInvitation || x.InvitedUtc != null) &&
-                (x.OrganiserMemberId == actor || x.Participants.Any(p => p.MemberId == actor || p.IsChild && p.GuardianMemberId == actor))));
+                (x.OrganiserMemberId == actor || x.Participants.Any(p => p.SeatStatus != "cancelled" && p.SeatStatus != "expired" &&
+                    (p.MemberId == actor || p.IsChild && p.GuardianMemberId == actor)))));
         if (!string.IsNullOrWhiteSpace(search)) query = query.Where(x => x.TitleEn.Contains(search) || x.TitleZh.Contains(search));
         var rows = await query.OrderByDescending(x => x.UpdatedUtc).ThenBy(x => x.Id).Skip((page - 1) * 20).Take(21).ToArrayAsync(ct);
         var items = new List<EventWorkSummary>();

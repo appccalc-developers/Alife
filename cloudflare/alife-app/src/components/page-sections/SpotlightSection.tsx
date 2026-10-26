@@ -1,3 +1,4 @@
+import { spotlightSectionText } from '../../i18n/spotlightSection.ts'
 import { Suspense, lazy, useMemo } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
@@ -272,7 +273,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
               )}
               <TextAreaInput
                 focusKey="spotlight-contact-us-guidance"
-                label={auth.language === 'zh' ? '发送前引导' : 'Pre-send guidance'}
+                label={auth.language === 'zh' ? spotlightSectionText.preSendGuidance.zh : spotlightSectionText.preSendGuidance.en}
                 value={contactUsGuidance}
                 disabled={disabled}
                 rows={3}
@@ -280,7 +281,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
               />
               <TextAreaInput
                 focusKey="spotlight-contact-us-success"
-                label={auth.language === 'zh' ? '发送成功回应' : 'Success response'}
+                label={auth.language === 'zh' ? spotlightSectionText.successResponse.zh : spotlightSectionText.successResponse.en}
                 value={contactUsSuccessMessage}
                 disabled={disabled}
                 rows={3}

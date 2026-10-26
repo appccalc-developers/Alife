@@ -18,7 +18,7 @@ test('missing ratings and policy cannot imply green, including obsolete saved sc
  assert.equal(worstRamLevel([]),'Incomplete')
 })
 test('creation activity drafts retain bilingual fields and stable associations; reject malformed recovery',()=>{
- const plan={...emptyActivityPlan(),activities:[{id:'stable',type:'water',name:text,conditions:{en:'',zh:'救生衣'},occurrenceId:null}]}
+ const plan={...emptyActivityPlan(),activities:[{id:'stable',attributes:['water'],name:text,conditions:{en:'',zh:'救生衣'},occurrenceId:null,answers:{}}]}
  assert.ok(validStoredActivityPlan(JSON.parse(JSON.stringify(plan))))
  assert.equal(validStoredActivityPlan({...plan,activities:[...plan.activities,...plan.activities]}),false)
  assert.equal(validStoredActivityPlan({...plan,activities:[{...plan.activities[0],conditions:'lost bilingual shape'}]}),false)

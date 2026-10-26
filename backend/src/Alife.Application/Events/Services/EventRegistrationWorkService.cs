@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Events.Services;
 
-public sealed partial class EventRegistrationWorkService(IAlifeDbContext db, IEventPackageInvalidationService invalidation, IEventPackageService? packages = null)
+public sealed partial class EventRegistrationWorkService(IAlifeDbContext db, IEventPackageInvalidationService invalidation, IEventPackageService? packages = null, EventActivityOperationsService? activityOperations = null)
 {
     internal static readonly JsonSerializerOptions Json = EventCompositionEngine.CreateJsonOptions();
     public static string PolicyETag(EventRegistrationPolicy? p) => p is null ? "\"registration-new\"" : $"\"registration-{p.ConcurrencyToken:N}\"";
@@ -29,7 +29,7 @@ public sealed partial class EventRegistrationWorkService(IAlifeDbContext db, IEv
     }
     private async Task<bool> VisibleAsync(GroupEvent e, Guid actor, CancellationToken ct)
     {
-        if (e.PublicationStatus is not (EventPublicationStatus.Published or EventPublicationStatus.LegacyImplicit)) return false;
+        if (e.PublicationStatus != EventPublicationStatus.Published) return false;
         var visibility = EventVisibilityPolicy.ReadVisibility(e.EventDataJson);
         if (visibility == "public") return true;
         if (await EventWorkAccess.MemberAsync(db, e.GroupId, actor, ct)) return true;
@@ -73,7 +73,7 @@ public sealed partial class EventRegistrationWorkService(IAlifeDbContext db, IEv
     private static RegistrationApplicationDto ToDto(EventRegistrationApplication a, Guid actor, bool manager, bool financeOnly = false)
         => new(a.Id, a.OrganiserMemberId, a.AllowSplit, a.IsInvitation, a.InvitationMode, a.InvitedUtc, a.ReservationExpiresUtc, ApplicationETag(a), a.Channel, a.PolicyVersion,
             a.Participants.Where(p => manager || a.OrganiserMemberId == actor && !p.ProxyAccessRevoked || p.MemberId == actor || p.IsChild && p.GuardianMemberId == actor).Select(p => new RegistrationParticipantDto(p.Id, p.MemberId, p.DisplayName, p.IsChild, financeOnly ? "" : p.GuardianName,
-                p.SeatStatus, p.ProcedureStatus, financeOnly ? "" : p.ConsentMethod, financeOnly ? null : p.ConsentedUtc, !financeOnly && p.EligibilityVerified, !financeOnly && p.MaterialsVerified, financeOnly ? "{}" : p.AnswersJson, p.PaidMinor, p.RefundedMinor, p.IsLegacy, financeOnly ? null : p.GuardianMemberId, p.ProxyAccessRevoked)).ToArray(), a.CreatedByMemberId, a.ManualOrganiserName);
+                p.SeatStatus, p.ProcedureStatus, financeOnly ? "" : p.ConsentMethod, financeOnly ? null : p.ConsentedUtc, !financeOnly && p.EligibilityVerified, !financeOnly && p.MaterialsVerified, financeOnly ? "{}" : p.AnswersJson, p.PaidMinor, p.RefundedMinor, financeOnly ? null : p.GuardianMemberId, p.ProxyAccessRevoked)).ToArray(), a.CreatedByMemberId, a.ManualOrganiserName);
 
     public async Task<AppResult<RegistrationPolicyDto>> SaveRulesAsync(Guid eventId, Guid actor, RegistrationRules rules, string? expected, CancellationToken ct)
     {
@@ -91,41 +91,37 @@ public sealed partial class EventRegistrationWorkService(IAlifeDbContext db, IEv
         }
         var policy = await db.EventRegistrationPolicies.FirstOrDefaultAsync(x => x.EventId == eventId, ct);
         if (expected != PolicyETag(policy)) return AppResult<RegistrationPolicyDto>.PreconditionFailed("Registration rules changed.");
+        var activitySource = await EventActivityPlanService.ReadAsync(db, eventId, ct);
+        var activityIds = activitySource?.Data.Activities.Select(a => a.Id).ToArray() ?? [];
+        var projectPolicies = await db.EventActivityPolicyVersions.AsNoTracking().Where(p => p.EventId == eventId && p.IsCurrent && activityIds.Contains(p.ActivityId)).ToArrayAsync(ct);
+        if (projectPolicies.Any(p => EventActivityOperationsService.Rules(p).Currency != rules.Currency) ||
+            await db.EventActivityParticipations.AnyAsync(p => p.Offer.EventId == eventId && activityIds.Contains(p.Offer.ActivityId) && p.SeatStatus != "cancelled" && p.SeatStatus != "expired" && p.Currency != rules.Currency, ct))
+            return AppResult<RegistrationPolicyDto>.Validation("Event and project fees must use the same currency; resolve existing project quotations before changing it.");
         var applications = await db.EventRegistrationApplications.Include(x => x.Participants).Where(x => x.EventId == eventId).ToListAsync(ct);
         var occupied = applications.SelectMany(x => x.Participants).Count(x => x.SeatStatus == "confirmed" || x.SeatStatus == "reserved" && x.Application.ReservationExpiresUtc > DateTime.UtcNow);
-        if (policy is null) occupied += await db.EventEnrollments.CountAsync(x => x.EventId == eventId && x.Status == "confirmed", ct);
-        if (rules.Capacity < occupied) return AppResult<RegistrationPolicyDto>.Conflict("Capacity cannot be below confirmed and reserved participants.");
+        if (EffectiveCapacity(rules) < occupied) return AppResult<RegistrationPolicyDto>.Conflict("Capacity cannot be below confirmed and reserved participants.");
         if (policy is null)
         {
             policy = new() { EventId = eventId }; db.EventRegistrationPolicies.Add(policy);
-            // Only the existing account/seat is proven. Never infer family members or consent from legacy JSON.
-            var legacy = await db.EventEnrollments.Where(x => x.EventId == eventId).ToArrayAsync(ct);
-            foreach (var row in legacy)
-            {
-                var name = await db.Members.Where(x => x.Id == row.MemberId).Select(x => x.DisplayName).FirstOrDefaultAsync(ct) ?? "Member";
-                var application = new EventRegistrationApplication { Id = Guid.NewGuid(), EventId = eventId, OrganiserMemberId = row.MemberId, CreatedByMemberId = row.MemberId, LegacyEnrollmentId = row.Id, QueuedUtc = row.QueuedUtc ?? row.CreatedUtc, PolicyVersion = 0, Channel = "legacy" };
-                application.Participants.Add(new() { Id = Guid.NewGuid(), MemberId = row.MemberId, DisplayName = name, SeatStatus = row.Status, ProcedureStatus = "legacy", IsLegacy = true, AnswersJson = row.EnrollmentJson });
-                db.EventRegistrationApplications.Add(application);
-            }
         }
         if (!await EventWorkAccess.EnabledAsync(db, eventId, "PEOPLE.REGISTRATION", ct) || rules.FeeMinor > 0 && !await EventWorkAccess.EnabledAsync(db, eventId, "MONEY.FINANCE", ct))
             return AppResult<RegistrationPolicyDto>.Conflict("Enable registration and, for fees, finance in the accepted plan first.");
-        e.CollaborationVersion = 1;
         policy.Version++; policy.RulesJson = JsonSerializer.Serialize(rules, Json); policy.UpdatedUtc = DateTime.UtcNow; policy.ConcurrencyToken = Guid.NewGuid();
         policy.FeeApprovalStatus = rules.FeeMinor > 0 ? "notSubmitted" : "notRequired"; policy.FeeApprovedByMemberId = null; policy.FeeSubmittedByMemberId = null;
         var data = JsonNode.Parse(e.EventDataJson)?.AsObject() ?? new JsonObject();
-        data["maxCapacity"] = rules.Capacity; data["registrationDeadline"] = rules.DeadlineUtc.ToString("O"); data["registrationRulesVersion"] = policy.Version; e.EventDataJson = data.ToJsonString();
+        data["registrationMode"] = "required"; data["maxCapacity"] = rules.Capacity; data["registrationDeadline"] = rules.DeadlineUtc.ToString("O"); data["registrationRulesVersion"] = policy.Version; e.EventDataJson = data.ToJsonString();
         Audit(e.Id, actor, "rules.saved", policy.RulesJson);
         await invalidation.InvalidateForModuleChangeAsync(e, actor, "PEOPLE.REGISTRATION", "event.registration.rulesChanged", "operational", ct);
         await db.SaveChangesAsync(ct); if (tx is not null) await tx.CommitAsync(ct);
         return AppResult<RegistrationPolicyDto>.Success(new(policy.Version, rules, PolicyETag(policy), policy.FeeApprovalStatus));
     }
+    private static int EffectiveCapacity(RegistrationRules rules) => rules.Capacity == 0 ? int.MaxValue : rules.Capacity;
     private static string? ValidateRules(RegistrationRules r)
     {
         static bool Text(LocalizedTextDto? t) => t is not null && (!string.IsNullOrWhiteSpace(t.En) || !string.IsNullOrWhiteSpace(t.Zh)) && (t.En?.Length ?? 0) <= 10000 && (t.Zh?.Length ?? 0) <= 10000;
         if (!Text(r.Purpose) || !Text(r.Terms) || !Text(r.PrivacyNotice) || !Text(r.CancellationTerms)) return "Purpose, participation rules, privacy and cancellation terms are required. / 请填写报名目的、参加规则、隐私与取消说明。";
         if (r.Audience is not ("invited" or "group" or "church" or "public") || r.Channel is not ("app" or "manual" or "both")) return "Choose valid eligibility and channels.";
-        if (r.Capacity is < 1 or > 1000000 || r.OpensUtc.Kind != DateTimeKind.Utc || r.DeadlineUtc.Kind != DateTimeKind.Utc || r.OpensUtc >= r.DeadlineUtc) return "Valid capacity and UTC opening/deadline are required.";
+        if (r.Capacity is < 0 or > 1000000 || r.OpensUtc.Kind != DateTimeKind.Utc || r.DeadlineUtc.Kind != DateTimeKind.Utc || r.OpensUtc >= r.DeadlineUtc) return "Valid capacity and UTC opening/deadline are required.";
         if (r.FeeMinor < 0 || r.FeeMinor > 100000000 || r.Currency is null || r.Currency.Length != 3 || !r.Currency.All(char.IsAsciiLetterUpper) || r.MoneyFlowScope is not ("unspecified" or "registrationFeesOnly" or "otherMoney")) return "Use non-negative minor-unit fees, a three-letter currency and an explicit money-flow scope.";
         if (r.FeeMinor > 0 && (!Text(r.PaymentInstructions) || !Text(r.RefundTerms))) return "Payment instructions and refund terms are required.";
         if (r.Materials is null || r.Materials.Count > 20 || r.Materials.Select(x => x.Id).Distinct().Count() != r.Materials.Count || r.Materials.Any(x => string.IsNullOrWhiteSpace(x.Id) || x.Id.Length > 80 || !Text(x.Label) || x.Kind is not ("text" or "image" or "file") || x.MaxCount is < 1 or > 10 || x.MaxBytes is < 1 or > 20971520)) return "Check material labels, types, counts and file limits (maximum 20 MB).";

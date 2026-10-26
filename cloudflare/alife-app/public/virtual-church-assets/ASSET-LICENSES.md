@@ -80,9 +80,11 @@ Generation prompt: “Create one square, seamless, tileable BASE-COLOR texture f
 - Assets: `draco/draco_decoder.js`, `draco/draco_decoder.wasm`, `draco/draco_wasm_wrapper.js`
 - Creator: Google
 - Source: Three.js distribution of Google Draco (`three/examples/jsm/libs/draco/gltf`)
+- Version: Draco 1.5.6 glTF decoder, introduced by Three.js commit [`a79f0788dced39e925d001a9566931f03d984951`](https://github.com/mrdoob/three.js/commit/a79f0788dced39e925d001a9566931f03d984951). The distributed WASM matches Three.js r185 byte-for-byte; both JavaScript files match after normalizing checkout line endings.
 - Upstream: https://github.com/google/draco
 - License: Apache License 2.0
-- License URL: https://github.com/google/draco/blob/master/LICENSE
+- License URL: https://github.com/google/draco/blob/9f856abaafb4b39f1f013763ff061522e0261c6f/LICENSE
+- Distributed license copy: [`draco/LICENSE`](draco/LICENSE), copied unchanged from Draco 1.5.6, including its upstream third-party license appendix. SHA-256: `d3709b0fb4b8a94bbb1d02b8a2e484f258b0d9c5c5a01f940391f3fe662cd1a4`. This upstream version has no separate `NOTICE` file.
 - Project use: Browser-side decoding of the VC-04 Draco-compressed church GLBs.
 
 ## RPG Character Pack — Cleric, Ranger, and Wizard

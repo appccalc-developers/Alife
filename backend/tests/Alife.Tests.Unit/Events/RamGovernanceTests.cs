@@ -1,6 +1,5 @@
 using Alife.Application.Admin;
 using Alife.Application.Common.Models;
-using Alife.Application.Events.Commands.SaveEventRam;
 using Alife.Application.Events.Composition;
 using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
@@ -23,7 +22,7 @@ public sealed partial class RamGovernanceTests
     private static RamPolicyData Policy() => RamPolicyDefaults.Create() with { Matrix=Enumerable.Range(1,5).SelectMany(l=>Enumerable.Range(1,5).Select(i=>new RamCell(l,i,((l+i)%3) switch{0=>"Red",1=>"Green",_=>"Yellow"}))).ToArray() };
     private static RamV2Draft Draft(RamPolicyData policy) => new()
     {
-        Activities=[new(){Id="walk",Type="generic",Name=Text("Walk")}],ParticipantCount=12,AuthorAttendsAndLeads=true,
+        Activities=[new(){Id="walk",Attributes=[],Name=Text("Walk")}],ParticipantCount=12,AuthorAttendsAndLeads=true,
         Hazards=[new(){Id="slip",ActivityId="walk",CategoryCode="environment",Hazard=Text("Slipping"),Consequence=Text("Injury"),Likelihood=2,Impact=2,ControlMeasures=Text("Check route"),PersonResponsible="Leader",ResidualLikelihood=1,ResidualImpact=3,AdditionalAction=Text("Check again") }],
         Answers=policy.Questions.Where(q=>q.ActivityType=="generic").Select(q=>new RamAnswer("walk",RamEvaluator.QuestionKey(q),Text())).ToArray()
     };
@@ -52,7 +51,7 @@ public sealed partial class RamGovernanceTests
     public void SameQuestionForTwoActivitiesRequiresTwoAnswersAndHighestResidualWins()
     {
         var p=Policy();var d=Draft(p);
-        d.Activities=[..d.Activities,new(){Id="second",Type="generic",Name=Text("Other")}];
+        d.Activities=[..d.Activities,new(){Id="second",Attributes=[],Name=Text("Other")}];
         d.Hazards=[..d.Hazards,new(){Id="two",ActivityId="second",CategoryCode="activity",Hazard=Text(),Consequence=Text(),ControlMeasures=Text(),PersonResponsible="Person",Likelihood=1,Impact=3,ResidualLikelihood=1,ResidualImpact=2}];
         Assert.DoesNotContain(RamEvaluator.Evaluate(d,p).Errors,e=>e.StartsWith("ram.answer."));
         d.Answers=[..d.Answers,..p.Questions.Where(q=>q.ActivityType=="generic").Select(q=>new RamAnswer("second",RamEvaluator.QuestionKey(q),new(),true,Text("Not relevant because...")))];
@@ -79,15 +78,12 @@ public sealed partial class RamGovernanceTests
         Assert.Equal(AppResultStatus.Forbidden,(await f.Service.PoliciesAsync(f.Church,f.Other,default)).Status);
     }
     [Fact]
-    public async Task UnpublishedPolicyAllowsDraftButPreventsConfirmationAndOldClientCannotOverwrite()
+    public async Task UnpublishedPolicyAllowsDraftButPreventsConfirmation()
     {
         using var f=await Fixture.Create();var saved=await f.Save(null);
         Assert.True(saved.IsSuccess,saved.Message); Assert.Equal("Incomplete",saved.Value!.ResidualLevel);
         var confirm=await f.Act("request-confirmation",f.Author);
         Assert.Equal(AppResultStatus.ValidationError,confirm.Status);
-        var old=new SaveEventRamCommandHandler(f.Db,f.Auth,f.Cache,new EventPackageInvalidationService(f.Db));
-        Assert.Equal(AppResultStatus.Conflict,(await old.Handle(new(f.Event,f.Author,"{}"),default)).Status);
-        Assert.NotEqual("{}",f.Ram.RamDataJson);
     }
     [Fact]
     public async Task PersonMustHaveAcceptedDutyAndConfirmOwnVersion_NoProxyOrSelfReview()
@@ -106,12 +102,16 @@ public sealed partial class RamGovernanceTests
         Assert.Equal(AppResultStatus.Forbidden,(await f.Act("approve",f.Author)).Status);
         Assert.Equal(AppResultStatus.Forbidden,(await f.Act("approve",f.Onsite)).Status);
         Assert.True((await f.Act("approve",f.Auditor)).IsSuccess);
-        Assert.Equal("Valid",f.Ram.Validity);Assert.Equal(EventPublicationStatus.Unpublished,f.Db.GroupEvents.Single().PublicationStatus);
+        Assert.Equal("Valid",f.Ram.Validity);Assert.Equal(EventPublicationStatus.Draft,f.Db.GroupEvents.Single().PublicationStatus);
     }
     [Fact]
     public async Task IndependentReviewerWorkspaceIncludesTheCompleteAcceptedEventPlanAsReadOnlyContext()
     {
-        using var f=await Fixture.Create();await f.AddAcceptedPlan();
+        using var f=await Fixture.Create();await f.Publish();await f.AddAcceptedPlan();
+        Assert.True((await f.Save(f.PolicyId)).IsSuccess);
+        Assert.True((await f.Act("request-confirmation",f.Author)).IsSuccess);
+        Assert.True((await f.Act("confirm",f.Author)).IsSuccess);
+        Assert.True((await f.Act("submit",f.Author)).IsSuccess);
 
         var workspace=await f.Service.GetAsync(f.Event,f.Auditor,default);
 
@@ -177,11 +177,12 @@ public sealed partial class RamGovernanceTests
         Assert.True((await f.Act("request-review",f.Auditor,"Conditions changed")).IsSuccess);Assert.True(f.Ram.ReviewRequested);Assert.Equal("ReviewRequired",f.Ram.Validity);
     }
     [Fact]
-    public async Task LegacyApprovalAndInitialScoresAreArchivedWithoutInventedResiduals()
+    public async Task UnsupportedPayloadDoesNotCreateHistoryOrApproval()
     {
-        using var f=await Fixture.Create();var old=new EventRamAssessment{EventId=f.Event,Status=EventRamStatus.Approved,ApprovedByMemberId=f.Auditor,ApprovedUtc=DateTime.UtcNow,RamDataJson="{\"hazards\":[{\"likelihood\":2,\"impact\":3,\"riskScore\":6}]}"};f.Db.EventRamAssessments.Add(old);f.Db.GroupEvents.Single().RamAssessment=old;await f.Db.SaveChangesAsync();
-        await f.Publish();await f.Save(f.PolicyId);
-        var legacy=await f.Db.EventRamRevisions.SingleAsync(x=>x.SchemaVersion==1);Assert.Equal(old.EventId,legacy.EventId);Assert.DoesNotContain("residual",legacy.RamDataJson);Assert.Contains(f.Db.EventRamActions,a=>a.Action=="legacy-approved" && a.ActorMemberId==f.Auditor);
+        using var f=await Fixture.Create();
+        var result=await f.Service.CheckDraftAsync(new(f.Event,null,"{\"schemaVersion\":1,\"activities\":[],\"hazards\":[],\"answers\":[]}"),f.Author,default);
+        Assert.Equal(AppResultStatus.ValidationError,result.Status);
+        Assert.Empty(f.Db.EventRamRevisions); Assert.Empty(f.Db.EventRamActions);
     }
 
     [Fact]
@@ -217,7 +218,7 @@ public sealed partial class RamGovernanceTests
         Assert.True((await f.Save(f.PolicyId,draft)).IsSuccess);
         Assert.True((await f.Act("request-confirmation",f.Author)).IsSuccess);
         Assert.True((await f.Act("confirm",f.Onsite)).IsSuccess);
-        f.Db.EventRoleAssignments.Single().EndedUtc=DateTime.UtcNow;await f.Db.SaveChangesAsync();
+        f.Db.EventRoleAssignments.Single(x=>x.MemberId==f.Onsite).EndedUtc=DateTime.UtcNow;await f.Db.SaveChangesAsync();
         Assert.Equal(AppResultStatus.Conflict,(await f.Act("submit",f.Author)).Status);
     }
 
@@ -225,9 +226,7 @@ public sealed partial class RamGovernanceTests
     public async Task CollaborationReview_BindsWholePlan_HidesUnsubmittedDrafts_RejectsRevokedAuthor()
     {
         using var f = await Fixture.Create(); await f.Publish(); await f.AddAcceptedPlan();
-        f.Db.GroupEvents.Single().CollaborationVersion = 1;
-        var authorRole = new EventRoleAssignment { Id = Guid.NewGuid(), EventId = f.Event, MemberId = f.Author, RoleRequirementKey = "SAFETY.RAM:ram.author", Status = EventRoleAssignmentStatus.Accepted };
-        f.Db.EventRoleAssignments.Add(authorRole); await f.Db.SaveChangesAsync();
+        var authorRole = f.Db.EventRoleAssignments.Single(x=>x.MemberId==f.Author && x.RoleRequirementKey=="SAFETY.RAM:ram.author");
         Assert.Equal(AppResultStatus.Forbidden,(await f.Service.GetAsync(f.Event,f.Auditor,default)).Status);
         Assert.True((await f.Save(f.PolicyId)).IsSuccess);
         Assert.True((await f.Act("request-confirmation",f.Author)).IsSuccess);
@@ -274,10 +273,18 @@ public sealed partial class RamGovernanceTests
                 f.Db.GroupMemberships.Add(new(){Id=Guid.NewGuid(),GroupId=actor==f.Other?f.OtherChurch:f.Church,MemberId=actor,Status=MembershipStatus.Approved,Role=MembershipRole.Member});
             }
             f.Db.GroupEvents.Add(new(){Id=f.Event,GroupId=f.Group,CreatedByMemberId=f.Author,AccountableOwnerMemberId=f.Author,EventDataJson="{}",TitleEn="Activity",TitleZh="活动",StartDate=DateTime.UtcNow,EndDate=DateTime.UtcNow.AddHours(2)});
+            f.Db.EventRoleAssignments.Add(new(){Id=Guid.NewGuid(),EventId=f.Event,MemberId=f.Author,
+                RoleRequirementKey="SAFETY.RAM:ram.author",Status=EventRoleAssignmentStatus.Accepted,
+                AcceptedUtc=DateTime.UtcNow});
             f.Auth.IsApprovedMemberAsync(f.Group,Arg.Any<Guid>(),Arg.Any<CancellationToken>()).Returns(call => f.Db.GroupMemberships.Any(x => x.GroupId == f.Group && x.MemberId == call.ArgAt<Guid>(1) && x.Status == MembershipStatus.Approved));
             f.Auth.IsLeaderOrCoLeaderAsync(f.Group,f.Author,Arg.Any<CancellationToken>()).Returns(true);
             var seedDraft=Draft(Policy());
-            f.Db.EventActivityPlans.Add(new(){EventId=f.Event,DataJson=RamEvaluator.Serialize(new ActivityPlanData(seedDraft.Activities.Select(a=>new PlannedActivity(a.Id,a.Type,a.Name,new())).ToArray(),seedDraft.ParticipantCount,seedDraft.IsOuting,seedDraft.IsOvernight,seedDraft.IsHighRisk,seedDraft.WeatherConfirmation)),UpdatedUtc=DateTime.UtcNow});
+            var answers=EventProjectQuestionCatalog.GeneralSwitchCodes.ToDictionary(code=>code,
+                _=>new PlannedActivityAnswer("no","human",true),StringComparer.Ordinal);
+            f.Db.EventActivityPlans.Add(new(){EventId=f.Event,DataJson=RamEvaluator.Serialize(new ActivityPlanData(
+                seedDraft.Activities.Select(a=>new PlannedActivity(a.Id,a.Attributes,a.Name,new(),Answers:answers)).ToArray(),
+                seedDraft.ParticipantCount,seedDraft.IsOuting,seedDraft.IsOvernight,seedDraft.IsHighRisk,
+                seedDraft.WeatherConfirmation,QuestionnaireVersion:2)),UpdatedUtc=DateTime.UtcNow});
             await f.Db.SaveChangesAsync();return f;
         }
         public async Task Publish()
@@ -291,14 +298,14 @@ public sealed partial class RamGovernanceTests
         public async Task AddAcceptedPlan()
         {
             var now=DateTime.UtcNow;
-            var proposal=new EventCompositionEngine().Compose(new(EventCompositionDefinitions.SchemaVersion,
-                "simple-social",new([]),[new("SAFETY.RAM",true)],null,"shared-meal"),new("\"ram-review-plan\"",CheckedUtc:now)).Value!;
+            var proposal=new EventCompositionEngine().Compose(EventCompositionTestData.CurrentRequest(
+                selections:[new("SAFETY.RAM",true)]),new("\"ram-review-plan\"",CheckedUtc:now)).Value!;
             var factSet=new EventFactSet{Id=Guid.NewGuid(),EventId=Event,Version=1,SchemaVersion=EventCompositionDefinitions.SchemaVersion,
                 FactsJson="[]",SourceHash=new string('a',64),CreatedByMemberId=Author,CreatedUtc=now};
             Db.EventFactSets.Add(factSet);
             Db.EventPlanSnapshots.Add(new(){Id=Guid.NewGuid(),EventId=Event,SourceFactSetId=factSet.Id,Version=1,
                 SchemaVersion=EventCompositionDefinitions.SchemaVersion,ProposalHash=proposal.ProposalHash,ETag="\"ram-plan-1\"",
-                ArchetypeCode="simple-social",ArchetypeVersion=1,ActivityTypeCode="shared-meal",ActivityTypeVersion=2,
+                ArchetypeCode="simple-social",ArchetypeVersion=1,ActivityTypeCode="shared-meal",ActivityTypeVersion=5,
                 SnapshotJson=EventCompositionPersistence.SerializePlan(proposal,[]),AcceptedByMemberId=Author,AcceptedUtc=now,
                 IsActive=true,CreatedUtc=now});
             Db.GroupEvents.Single().ActivePlanVersion=1;

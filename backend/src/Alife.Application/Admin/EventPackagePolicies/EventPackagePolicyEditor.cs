@@ -35,7 +35,7 @@ public static class EventPackagePolicyEditor
         new("event.exists", new("Every event", "所有活动"))
     ];
 
-    public static JsonElement DefaultRules(DateTime now) => JsonSerializer.SerializeToElement(new
+    public static JsonElement DefaultRules() => JsonSerializer.SerializeToElement(new
     {
         schemaVersion = "1", preEventConfirmationWindowHours = 72,
         tierRules = new[] {
@@ -46,10 +46,7 @@ public static class EventPackagePolicyEditor
         authorityByTier = new { light = new { minimumApproverCount = 1 }, standard = new { minimumApproverCount = 1 }, enhanced = new { minimumApproverCount = 1 } },
         approvalValidityByTier = new { light = "P30D", standard = "P14D", enhanced = "P7D" },
         materialChangeRules = Array.Empty<string>(), conditionWaiverAllowed = false,
-        delegationRules = new { enabled = false, allowedTiers = Array.Empty<string>() },
-        legacyRollout = new { effectiveFromUtc = now, transitionDeadlineUtc = now.AddDays(90),
-            cohortRule = "new-events-first", safetyCriticalModuleCodes = new[] { "SAFETY.RAM", "SAFEGUARDING.CHILD" },
-            transitionByMode = new { off = "legacyReadOnlyPackage", dryRun = "timeLimitedCompatibility", enforced = "formalPackageRequired" } }
+        delegationRules = new { enabled = false, allowedTiers = Array.Empty<string>() }
     });
 
     private static object Tier(string tier, string[] facts, string[] types, string[] modules) => new
@@ -81,7 +78,7 @@ public sealed class GetPolicyEditorDefaultsHandler(IAlifeDbContext db, IEventAct
         if (!await ListEventPackagePoliciesQueryHandler.CanManage(db, request.MemberId, ct))
             return AppResult<PolicyEditorDefaults>.Forbidden("Event Package policy administration permission is required.");
         var types = (await templates.ListAsync(true, ct)).ToDictionary(x => x.Definition.Code, x => x.Definition);
-        return AppResult<PolicyEditorDefaults>.Success(new(EventPackagePolicyEditor.DefaultRules(DateTime.UtcNow),
+        return AppResult<PolicyEditorDefaults>.Success(new(EventPackagePolicyEditor.DefaultRules(),
             EventPackagePolicyEditor.Facts, types.Values.Select(x => new PolicyOption(x.Code, x.Name)).ToArray(),
             EventCompositionDefinitions.Modules.Select(x => new PolicyOption(x.Code, x.Name)).ToArray()));
     }

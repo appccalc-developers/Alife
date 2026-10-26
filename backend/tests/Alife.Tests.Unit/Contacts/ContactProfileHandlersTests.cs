@@ -4,12 +4,14 @@ using Alife.Application.Contacts.Commands.CreateContactProfile;
 using Alife.Application.Contacts.Queries.GetGroupContactProfiles;
 using Alife.Application.Groups.Services;
 using Alife.Application.Events.Commands.CreateGroupEvent;
+using Alife.Application.Events.Composition;
 using Alife.Application.Events.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using Alife.Tests.Unit.Events;
 
 namespace Alife.Tests.Unit.Contacts;
 
@@ -128,11 +130,25 @@ public class ContactProfileHandlersTests
         var authorization = Substitute.For<IGroupAuthorizationService>();
         authorization.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
         var cache = Substitute.For<IEventCacheInvalidationService>();
-        var handler = new CreateGroupEventCommandHandler(db, authorization, cache);
+        var engine = new EventCompositionEngine();
+        var handler = new CreateGroupEventCommandHandler(db, authorization, cache, engine);
+        var definition = EventCompositionDefinitions.ActivityTypesByCode["shared-meal"];
+        var composition = EventCompositionTestData.CurrentRequest(
+            activityPlan: EventCompositionTestData.ConfirmedPresetPlan(definition),
+            activityTypeVersion: definition.Version,
+            removedPresetKeys: []);
+        var proposal = engine.Compose(composition,
+            new EventCompositionContext("\"plan-new\"", HasAccountableOwner: true));
+        Assert.True(proposal.IsSuccess, proposal.Message);
+        var start = DateTime.UtcNow;
+        var end = start.AddHours(2);
 
         var result = await handler.Handle(new CreateGroupEventCommand(
-            groupId, leaderId, "Event", "活动", DateTime.UtcNow, DateTime.UtcNow.AddHours(2), "{}",
-            [first.Id, second.Id]), CancellationToken.None);
+            groupId, leaderId, "Event", "活动", start, end,
+            EventCompositionTestData.CurrentEventData("Event", "活动", start, end),
+            [first.Id, second.Id], Composition: composition,
+            CompositionProposalHash: proposal.Value!.ProposalHash,
+            IdempotencyKey: "contact-event-create"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value!.ContactProfileIds!.Count);

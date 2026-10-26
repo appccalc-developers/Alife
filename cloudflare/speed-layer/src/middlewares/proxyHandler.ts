@@ -49,7 +49,7 @@ export const proxyHandler = {
     })
     console.log('Proxying request to origin:', originRequest.url)
 
-    const originResponse = await fetch(originRequest)
+    const originResponse = await fetch(originRequest, bypassEdgeCache ? { cf: { cacheTtl: 0, cacheEverything: false } } : undefined)
     return originResponse
   }
 }

@@ -219,7 +219,8 @@ const deferredPostProcessingVendorChunk = findSingleChunk('vendor-postprocessing
 
 const decoderRoot = resolve(distRoot, 'virtual-church-assets', 'draco')
 const decoderEntries = (await readdir(decoderRoot, { withFileTypes: true }))
-  .filter((entry) => entry.isFile())
+  // Redistribution notices ship with the decoder but are not requested by it.
+  .filter((entry) => entry.isFile() && !['LICENSE', 'NOTICE'].includes(entry.name))
   .map((entry) => resolve(decoderRoot, entry.name))
   .sort()
 if (decoderEntries.length !== 3) {

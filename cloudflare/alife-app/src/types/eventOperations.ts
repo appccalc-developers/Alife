@@ -1,6 +1,6 @@
 import type { LocalizedText } from './eventComposition'
 
-export type EventOccurrence = { id: string; eventId: string; startUtc: string; endUtc: string; localDate: string; status: string; isLegacyBackfill: boolean }
+export type EventOccurrence = { id: string; eventId: string; startUtc: string; endUtc: string; localDate: string; status: string }
 export type EventTeamMemberStatus = 'invited' | 'accepted' | 'declined' | 'ended'
 export type EventTaskStatus = 'todo' | 'inProgress' | 'blocked' | 'done' | 'cancelled'
 export type EventTeamMember = { id: string; eventId: string; memberId: string; displayName: string; status: EventTeamMemberStatus; joinedUtc?: string | null; declinedUtc?: string | null; endedUtc?: string | null }

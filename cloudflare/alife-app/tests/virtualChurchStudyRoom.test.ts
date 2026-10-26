@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
@@ -12,7 +13,7 @@ import { gatheringTableColumnHeaders, readHomeGatheringSectionHtml } from '../sr
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { decompressCharacterDraco } from '../../../tools/virtual-church/gate-a-character-geometry.mjs'
 
-const viewSource = () => readFile(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url), 'utf8')
+const viewSource = () => readLocalizedSource(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url))
 
 test('study rendering respects the frozen device preset without adding a continuous render loop', async () => {
   const source = await viewSource()
@@ -658,7 +659,7 @@ test('furniture batches have independent matrix ownership across reload and over
 
 test('guest room enters the guarded Scripture reader and keeps protected fallback exits', async () => {
   const routes = await readFile(new URL('../src/app/routing/AppRoutes.tsx', import.meta.url), 'utf8')
-  const view = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const view = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(routes, /path="\/virtual-church\/study-room" element=\{<VirtualChurchPreviewRoute><VirtualChurchRouteBoundary><VirtualChurchStudyRoomView/)
   assert.match(view, /navigate\(path === '\/study' \? '\/virtual-church\/study-room' : path\)/)
   assert.match(view, /if \(path === '\/events'\).*setShowGatherings\(true\)/)
@@ -667,7 +668,7 @@ test('guest room enters the guarded Scripture reader and keeps protected fallbac
 })
 
 test('gathering modal reads public homepage data and renders text with accessible focus management', async () => {
-  const source = await readFile(new URL('../src/views/VirtualChurchGatheringsDialog.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchGatheringsDialog.tsx', import.meta.url))
   assert.match(source, /getFirstPageMenuPage\(pages.data/)
   assert.match(source, /detail.data\?\.id === home\?\.id && detail.data\?\.visibility === 'public'/)
   assert.match(source, /cell.textContent/)

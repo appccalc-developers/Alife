@@ -17,7 +17,7 @@ public sealed class EventRamAuthoringController(EventRamGovernanceService ram, I
         var actor = members.GetCurrentMemberId();
         if (!actor.HasValue) return Unauthorized();
         var result = await ram.AuthoringContextAsync(eventId, groupId, actor.Value, ct);
-        return result.IsSuccess ? Ok(new { result.Value!.SourceVersion }) : this.ToActionResult(result);
+        return result.IsSuccess ? Ok(new { result.Value!.SourceVersion, result.Value.ActivityTypes }) : this.ToActionResult(result);
     }
     [HttpGet("context")]
     public async Task<IActionResult> Context(Guid? eventId, Guid? groupId, CancellationToken ct)

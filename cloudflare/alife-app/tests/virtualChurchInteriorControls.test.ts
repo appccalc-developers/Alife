@@ -1,11 +1,12 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { virtualChurchAppShellRequestMatches } from '../src/views/virtualChurchPwaContract.ts'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
-const hall = read('../src/views/VirtualChurchMainHallView.tsx')
-const study = read('../src/views/VirtualChurchStudyRoomView.tsx')
+const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
+const study = readLocalizedSource(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url))
 const css = read('../src/views/virtualChurchInteriorControls.css')
 
 test('interior styles are lazy, bounded to interiors, and need no additional media or fonts', () => {

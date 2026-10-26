@@ -35,13 +35,22 @@ public partial class EventCreationArrangementsTests
     }
     private CreateGroupEventCommand Command(EventCreationArrangementsRequest? details, bool enabled = true, bool series = false)
     {
-        var composition = new EventPlanComposeRequest(EventCompositionDefinitions.SchemaVersion,
-            series ? "recurring-gathering" : "simple-social", new EventFactSetInput([]),
-            new[] { "SERVICE.ROSTER", "PROGRAM.PRODUCTION", "PLACE.RESOURCE" }.Select(code => new ModuleSelectionInput(code, enabled)).ToArray(),
-            null, series ? "small-group-fellowship" : "shared-meal", false);
+        var activityTypeCode = series ? "small-group-fellowship" : "shared-meal";
+        var definition = EventCompositionDefinitions.ActivityTypesByCode[activityTypeCode];
+        var activityPlan = EventCompositionTestData.ConfirmedPresetPlan(definition);
+        details ??= new();
+        var composition = EventCompositionTestData.CurrentRequest(
+            selections: new[] { "SERVICE.ROSTER", "PROGRAM.PRODUCTION", "PLACE.RESOURCE" }
+                .Select(code => new ModuleSelectionInput(code, enabled)).ToArray(),
+            activityPlan: activityPlan,
+            archetypeCode: series ? "recurring-gathering" : "simple-social",
+            activityTypeCode: activityTypeCode,
+            activityTypeVersion: definition.Version,
+            removedPresetKeys: []);
         var plan = new EventCompositionEngine().Compose(composition, new EventCompositionContext("\"plan-new\"", HasAccountableOwner: true));
         Assert.True(plan.IsSuccess);
-        return new(groupId, actorId, "Meal", "聚餐", Start, Start.AddHours(2), "{\"visibility\":\"groupVisible\"}",
+        return new(groupId, actorId, "Meal", "聚餐", Start, Start.AddHours(2),
+            EventCompositionTestData.CurrentEventData("Meal", "聚餐", Start, Start.AddHours(2)),
             Composition: composition, CompositionProposalHash: plan.Value!.ProposalHash, IdempotencyKey: "arrange-once", Arrangements: details);
     }
 
@@ -50,7 +59,7 @@ public partial class EventCreationArrangementsTests
     {
         await using var db = Database(); var handler = Handler(db);
         var command = Command(Details()) with { RamDataJson = """
-            {"schemaVersion":2,"activities":[{"id":"walk","type":"hiking","name":{"en":"Walk","zh":"步行"}}],
+            {"schemaVersion":2,"activities":[{"id":"walk","attributes":["hiking"],"name":{"en":"Walk","zh":"步行"}}],
              "hazards":[{"id":"slip","activityId":"walk","categoryCode":"environment","hazard":{"en":"Private hazard","zh":"私人风险"},
              "likelihood":2,"impact":3,"riskScore":1,"initialLevel":"Green","residualLikelihood":1,"residualImpact":2,"residualScore":1,"residualLevel":"Green"}],"answers":[]}
             """ };
@@ -73,19 +82,20 @@ public partial class EventCreationArrangementsTests
     }
 
     [Fact]
-    public async Task VersionedRamWithoutComposition_DoesNotUseImplicitPublication()
+    public async Task VersionedRamWithoutComposition_IsRejected()
     {
         await using var db = Database();
         var command = Command(null) with { Composition = null, CompositionProposalHash = null, IdempotencyKey = null, RamDataJson = "{\"schemaVersion\":2}" };
-        Assert.True((await Handler(db).Handle(command, default)).IsSuccess);
-        var item = await db.GroupEvents.SingleAsync();
-        Assert.Equal(EventPublicationStatus.Draft, item.PublicationStatus);
-        Assert.Equal(EventRegistrationStatus.Closed, item.RegistrationStatus);
+        var created = await Handler(db).Handle(command, default);
+        Assert.Equal(AppResultStatus.ValidationError, created.Status);
+        Assert.Empty(await db.GroupEvents.ToListAsync());
     }
 
     [Theory]
     [InlineData("{\"schemaVersion\":2,\"activities\":null}")]
     [InlineData("{\"schemaVersion\":3}")]
+    [InlineData("{\"schemaVersion\":1}")]
+    [InlineData("{\"schemaVersion\":2,\"activities\":[{\"id\":\"old\",\"type\":\"meal\"}]}")]
     public async Task InvalidInlineRam_LeavesNoPartialEvent(string json)
     {
         await using var db = Database();
@@ -137,13 +147,12 @@ public partial class EventCreationArrangementsTests
     }
 
     [Fact]
-    public async Task LegacyCreationWithoutComposition_RetainsImplicitLifecycleCompatibility()
+    public async Task CreationWithoutComposition_IsRejectedWithoutPersistingAnEvent()
     {
         await using var db = Database(); var command = Command(null) with { Composition = null, CompositionProposalHash = null, IdempotencyKey = null };
         var result = await Handler(db).Handle(command, default);
-        Assert.True(result.IsSuccess);
-        Assert.Equal(EventPublicationStatus.LegacyImplicit, result.Value!.PublicationStatus);
-        Assert.Equal(EventRegistrationStatus.LegacyImplicit, (await db.GroupEvents.SingleAsync()).RegistrationStatus);
+        Assert.Equal(AppResultStatus.ValidationError, result.Status);
+        Assert.Empty(await db.GroupEvents.ToListAsync());
     }
 
     [Theory]
@@ -222,7 +231,8 @@ public partial class EventCreationArrangementsTests
         await using var db = Database(); var firstLocal = DateTime.SpecifyKind(DateTime.Today.AddDays(1).AddHours(19), DateTimeKind.Unspecified);
         var weekday = new[] { "SU", "MO", "TU", "WE", "TH", "FR", "SA" }[(int)firstLocal.DayOfWeek];
         var command = Command(Details(), series: true) with { SeriesSetup = new(Text(), $"FREQ=WEEKLY;INTERVAL=1;BYDAY={weekday}", "Pacific/Auckland", firstLocal, 120, [], 12) };
-        Assert.True((await Handler(db).Handle(command, default)).IsSuccess);
+        var created = await Handler(db).Handle(command, default);
+        Assert.True(created.IsSuccess, created.Message);
         var occurrences = await db.EventOccurrences.ToListAsync(); Assert.True(occurrences.Count > 1);
         Assert.Equal(occurrences.Count, await db.EventVenueReservations.CountAsync());
         Assert.Equal(occurrences.Count, await db.EventProgramItems.CountAsync());

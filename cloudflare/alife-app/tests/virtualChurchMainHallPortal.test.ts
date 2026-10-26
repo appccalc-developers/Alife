@@ -1,6 +1,6 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
 import { VIRTUAL_CHURCH_FOYER_CIRCULATION, VIRTUAL_CHURCH_FOYER_VIEW, virtualChurchPositionToEntranceLocal } from '../src/views/virtualChurchInteractionContract.ts'
 import {
   virtualChurchMainHallArrivalDoor,
@@ -109,8 +109,8 @@ test('foyer return does not immediately offer re-entry but re-arms after leaving
 })
 
 test('door prompt and return are bilingual, actionable and reuse the teleport mailbox', () => {
-  const church = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const church = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(church, /onNearMainHallDoor=\{updateNearMainHallDoor\}/)
   assert.match(church, /onEnterMainHallDoor=\{enterMainHallDoor\}/)
   assert.match(church, /const crossedMainHallDoor = virtualChurchCrossedMainHallThreshold\(/)

@@ -1,3 +1,4 @@
+import { announcementManagementPanelText } from '../../i18n/announcementManagementPanel.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { Bell, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { announcementService } from '../../services/announcementService'
@@ -48,18 +49,10 @@ const AnnouncementManagementPanel = ({ group, onMessage }: { group: GroupDto; on
       { field: 'content', textType: 'announcementContent' },
     ],
   ).missingTranslatableFields, [form.content, form.summary, form.title])
-  const copy = useMemo(() => language === 'zh' ? {
-    title: '公告', hint: '发布有对象、时间和期限的短期信息。', add: '新建公告', empty: '还没有公告。', edit: '编辑公告',
-    titleEn: '英文标题', titleZh: '中文标题', summaryEn: '英文摘要', summaryZh: '中文摘要', contentEn: '英文内容（可选）', contentZh: '中文内容（可选）',
-    audience: '对象', priority: '优先级', status: '状态', publish: '发布时间', expire: '到期时间（可选）', pinned: '置顶', notify: '发布时发送应用内通知', save: '保存', cancel: '取消', delete: '删除', deleteTitle: '要删除公告吗？', deleteConfirm: '这条公告会被永久删除，此操作无法撤销。', deleteFailed: '无法删除公告。',
-  } : {
-    title: 'Announcements', hint: 'Publish short-lived information with a clear audience and schedule.', add: 'New announcement', empty: 'No announcements yet.', edit: 'Edit announcement',
-    titleEn: 'English title', titleZh: 'Chinese title', summaryEn: 'English summary', summaryZh: 'Chinese summary', contentEn: 'English content (optional)', contentZh: 'Chinese content (optional)',
-    audience: 'Audience', priority: 'Priority', status: 'Status', publish: 'Publish time', expire: 'Expiry (optional)', pinned: 'Pinned', notify: 'Send in-app notifications on publication', save: 'Save', cancel: 'Cancel', delete: 'Delete', deleteTitle: 'Delete announcement?', deleteConfirm: 'This announcement will be deleted permanently. This cannot be undone.', deleteFailed: 'Unable to delete announcement.',
-  }, [language])
+  const copy = useMemo(() => language === 'zh' ? { ...announcementManagementPanelText.localizedCopy.zh } : { ...announcementManagementPanelText.localizedCopy.en }, [language])
 
   const load = async () => setItems(await announcementService.listManaged(group.id))
-  useEffect(() => { load().catch(() => onMessage(language === 'zh' ? '无法加载公告。' : 'Unable to load announcements.')) }, [group.id, language])
+  useEffect(() => { load().catch(() => onMessage(language === 'zh' ? announcementManagementPanelText.unableToLoadAnnouncements.zh : announcementManagementPanelText.unableToLoadAnnouncements.en)) }, [group.id, language])
 
   const beginCreate = () => {
     setEditingId(null)
@@ -89,9 +82,9 @@ const AnnouncementManagementPanel = ({ group, onMessage }: { group: GroupDto; on
       else await announcementService.create(payload)
       await load()
       setOpen(false)
-      onMessage(language === 'zh' ? '公告已保存。' : 'Announcement saved.')
+      onMessage(language === 'zh' ? announcementManagementPanelText.announcementSaved.zh : announcementManagementPanelText.announcementSaved.en)
     } catch (error) {
-      onMessage(error instanceof Error ? error.message : language === 'zh' ? '保存公告失败。' : 'Unable to save announcement.')
+      onMessage(error instanceof Error ? error.message : language === 'zh' ? announcementManagementPanelText.unableToSaveAnnouncement.zh : announcementManagementPanelText.unableToSaveAnnouncement.en)
     } finally {
       setSaving(false)
     }
@@ -147,9 +140,9 @@ const AnnouncementManagementPanel = ({ group, onMessage }: { group: GroupDto; on
             {([['title', 'en', copy.titleEn], ['title', 'zh', copy.titleZh], ['summary', 'en', copy.summaryEn], ['summary', 'zh', copy.summaryZh]] as const).map(([field, locale, label]) => <label key={`${field}-${locale}`} className="text-xs font-bold text-slate-700">{label}<input className={inputClass} value={form[field]?.[locale] ?? ''} onChange={(event) => localized(field, locale, event.target.value)} /></label>)}
             <label className="text-xs font-bold text-slate-700">{copy.contentEn}<textarea rows={3} className={inputClass} value={form.content?.en ?? ''} onChange={(event) => localized('content', 'en', event.target.value)} /></label>
             <label className="text-xs font-bold text-slate-700">{copy.contentZh}<textarea rows={3} className={inputClass} value={form.content?.zh ?? ''} onChange={(event) => localized('content', 'zh', event.target.value)} /></label>
-            <label className="text-xs font-bold text-slate-700">{copy.audience}<select className={inputClass} value={form.audience} onChange={(event) => setForm({ ...form, audience: event.target.value as AnnouncementAudience })}>{group.isChurch ? <><option value="public">Public / 公开</option><option value="churchMembers">Church members / 教会成员</option></> : null}<option value="specificGroup">Specific group / 指定小组</option></select></label>
-            <label className="text-xs font-bold text-slate-700">{copy.priority}<select className={inputClass} value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value as AnnouncementPriority })}><option value="normal">Normal / 普通</option><option value="important">Important / 重要</option><option value="urgent">Urgent / 紧急</option></select></label>
-            <label className="text-xs font-bold text-slate-700">{copy.status}<select className={inputClass} value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as AnnouncementStatus })}><option value="draft">Draft / 草稿</option><option value="published">Published / 已发布</option><option value="archived">Archived / 已归档</option></select></label>
+            <label className="text-xs font-bold text-slate-700">{copy.audience}<select className={inputClass} value={form.audience} onChange={(event) => setForm({ ...form, audience: event.target.value as AnnouncementAudience })}>{group.isChurch ? <><option value="public">{announcementManagementPanelText.label}</option><option value="churchMembers">{announcementManagementPanelText.label2}</option></> : null}<option value="specificGroup">{announcementManagementPanelText.label3}</option></select></label>
+            <label className="text-xs font-bold text-slate-700">{copy.priority}<select className={inputClass} value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value as AnnouncementPriority })}><option value="normal">{announcementManagementPanelText.label4}</option><option value="important">{announcementManagementPanelText.label5}</option><option value="urgent">{announcementManagementPanelText.label6}</option></select></label>
+            <label className="text-xs font-bold text-slate-700">{copy.status}<select className={inputClass} value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as AnnouncementStatus })}><option value="draft">{announcementManagementPanelText.label7}</option><option value="published">{announcementManagementPanelText.label8}</option><option value="archived">{announcementManagementPanelText.label9}</option></select></label>
             <label className="text-xs font-bold text-slate-700">{copy.publish}<input type="datetime-local" className={inputClass} value={form.publishUtc} onChange={(event) => setForm({ ...form, publishUtc: event.target.value })} /></label>
             <label className="text-xs font-bold text-slate-700">{copy.expire}<input type="datetime-local" className={inputClass} value={form.expireUtc ?? ''} onChange={(event) => setForm({ ...form, expireUtc: event.target.value || null })} /></label>
           </div>

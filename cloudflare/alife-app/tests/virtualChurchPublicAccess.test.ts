@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -93,7 +94,7 @@ test('only the study-room return path can use guest Scripture reading', () => {
 })
 
 test('public Scripture does not restore or save guest progress, even for an assigned guest ID', () => {
-  const study = readFileSync(new URL('../src/views/BibleStudyView.tsx', import.meta.url), 'utf8')
+  const study = readLocalizedSource(new URL('../src/views/BibleStudyView.tsx', import.meta.url))
   const restore = study.slice(study.indexOf('const memberId = auth.me?.id'), study.indexOf('const memberId = auth.me?.id', study.indexOf('const memberId = auth.me?.id') + 1))
   assert.match(restore, /if \(!memberId \|\| auth.isGuest\) \{\s*setRestoredReadingMemberId\(null\)\s*return\s*\}/)
   assert.ok(restore.indexOf('if (!memberId || auth.isGuest)') < restore.indexOf('readSavedReadingPosition(memberId)'))
@@ -110,7 +111,7 @@ test('public Scripture exemption is route-scoped and leaves ordinary member Bibl
   assert.match(reading, /virtualChurchGuestVisitEnabled\(\) && isVirtualChurchStudyRoomReading\(location.search\)/)
   assert.match(reading, /: <MemberRoute>\{children\}<\/MemberRoute>/)
   assert.ok(/path="\/study"\s+element=\{\s*<VirtualChurchReadingRoute>\s*<BibleStudyView \/>\s*<\/VirtualChurchReadingRoute>\s*\}/.test(routes), 'only the /study route uses the narrow guest reading guard')
-  const study = readFileSync(new URL('../src/views/BibleStudyView.tsx', import.meta.url), 'utf8')
+  const study = readLocalizedSource(new URL('../src/views/BibleStudyView.tsx', import.meta.url))
   assert.match(study, /guestFromVirtualChurch = auth.isGuest && fromVirtualChurchStudyRoom/)
   assert.match(study, /访客阅读不会保存到会员进度/)
   assert.match(study, /Guest reading is not saved to member progress/)

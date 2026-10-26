@@ -45,7 +45,7 @@ async function setup(browser, language, width, speech = 'standard') {
     let data = [];
     if (pathname === '/api/me') data = { id: 'qa', displayName: 'QA Leader', isGuest: false, isRegistered: true, platformRole: 'superadmin', permissions: ['admin.access'], memberships: [] };
     else if (pathname === '/api/event-archetypes') data = catalogue;
-    else if (pathname.endsWith('/compose')) data = { schemaVersion: '1.1.0', proposalHash: 'qa', baselineETag: '"new"', facts: { items: [] }, roleRequirements: [], workflowContributions: [], warnings: [], navigation: [], readiness: { status: 'notReady', blockers: [] }, moduleDecisions: [] };
+    else if (pathname.endsWith('/compose')) data = { schemaVersion: '2.0.0', proposalHash: 'qa', baselineETag: '"new"', facts: { items: [] }, roleRequirements: [], workflowContributions: [], warnings: [], navigation: [], readiness: { status: 'notReady', blockers: [] }, moduleDecisions: [] };
     else if (pathname.includes('/details-session/') && pathname.endsWith('/message')) {
       const payload = route.request().postDataJSON(); messages.push(payload);
       const snapshot = payload.appContext.knownFacts.snapshot;

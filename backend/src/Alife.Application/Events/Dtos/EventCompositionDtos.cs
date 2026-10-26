@@ -1,11 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Alife.Application.Events.Services;
 using Alife.Domain.Enums;
 
 namespace Alife.Application.Events.Dtos;
 
 public sealed record LocalizedTextDto(string En, string Zh);
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record EventFactInputDto(
     string Code,
     JsonElement? Value,
@@ -14,12 +16,15 @@ public sealed record EventFactInputDto(
     Guid? ConfirmedByMemberId = null,
     DateTime? ConfirmedUtc = null);
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record EventFactSetInput(IReadOnlyList<EventFactInputDto> Items);
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ModuleSelectionInput(string ModuleCode, bool Selected, string? Reason = null);
 
 public sealed record HumanDecisionInput(string Code, string Decision, string? Reason = null);
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record EventPlanComposeRequest(
     string SchemaVersion,
     string? ArchetypeCode,
@@ -28,8 +33,10 @@ public sealed record EventPlanComposeRequest(
     int? BasePlanVersion = null,
     string? ActivityTypeCode = null,
     bool UseRecommendedWorkflow = false,
-    IReadOnlyDictionary<string, bool>? ArrangementConfirmations = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, bool>? ModuleConfirmations = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, bool>? ModuleConfirmations = null,
+    ActivityPlanData? ActivityPlan = null,
+    int? ActivityTypeVersion = null,
+    IReadOnlyList<string>? RemovedPresetKeys = null);
 
 public sealed record EventFactSetDto(
     int? Version,
@@ -87,6 +94,8 @@ public sealed record EventPlanDiffDto(
     IReadOnlyList<string> ChangedModules,
     IReadOnlyList<string> BlockingRetirements);
 
+public sealed record EventProjectModuleSourceDto(string ModuleCode, string ActivityId, IReadOnlyList<string> QuestionCodes);
+
 public sealed record EventPlanProposalDto(
     string SchemaVersion,
     string ProposalHash,
@@ -105,8 +114,9 @@ public sealed record EventPlanProposalDto(
     string? ActivityTypeCode = null,
     int? ActivityTypeVersion = null,
     EventWorkflowRecommendationDto? WorkflowRecommendation = null,
-    IReadOnlyDictionary<string, bool>? ArrangementConfirmations = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, bool>? ModuleConfirmations = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, bool>? ModuleConfirmations = null,
+    string? ActivityPlanHash = null,
+    IReadOnlyList<EventProjectModuleSourceDto>? ProjectSources = null);
 
 public sealed record EventWorkflowRecommendationDto(
     string Code,
@@ -126,7 +136,6 @@ public sealed record EventPlanSnapshotDto(
     Guid? AcceptedByMemberId,
     DateTime? AcceptedUtc,
     string ETag,
-    bool IsLegacyBackfill,
     EventPlanProposalDto Plan,
     IReadOnlyList<HumanDecisionInput> HumanDecisions);
 
@@ -156,6 +165,37 @@ public sealed record EventActivityTypeServiceSlotPresetDto(
     int RequiredCount,
     string EligibilityCode);
 
+public sealed record EventTemplatePresetProjectDto(
+    string PresetKey,
+    LocalizedTextDto Name,
+    LocalizedTextDto Conditions,
+    string[] Attributes,
+    IReadOnlyDictionary<string, string> DefaultAnswers,
+    bool RepeatForEachOccurrence,
+    ProjectConfigurationDefaultsDto? DefaultConfiguration = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string[]? EventFactSuggestions = null);
+
+/// <summary>Optional template hints; null means the organiser must determine the fact.</summary>
+public sealed record ProjectConfigurationDefaultsDto(
+    LocalizedTextDto? Eligibility = null,
+    int? MinimumAge = null,
+    int? MaximumAge = null,
+    int? Capacity = null,
+    bool? AllowWaitlist = null,
+    bool? RequiresGuardianConsent = null,
+    long? FeeMinor = null,
+    string? Currency = null,
+    string? FeeChargeScope = null,
+    LocalizedTextDto? Terms = null);
+
+public sealed record EventProjectQuestionDefinitionDto(
+    string Code,
+    LocalizedTextDto Question,
+    string[] AppliesToAttributes,
+    string[] RequiredModules,
+    string[] Dependencies,
+    string[] UnavailableModules);
+
 public sealed record EventActivityTypeDto(
     string Code,
     int Version,
@@ -166,7 +206,8 @@ public sealed record EventActivityTypeDto(
     EventActivityTypeDefaultsDto Defaults,
     IReadOnlyList<string> PreselectedModules,
     string? RecommendedWorkflowTemplateCode,
-    IReadOnlyList<EventActivityTypeServiceSlotPresetDto> PresetServiceSlots);
+    IReadOnlyList<EventActivityTypeServiceSlotPresetDto> PresetServiceSlots,
+    IReadOnlyList<EventTemplatePresetProjectDto> PresetProjects);
 
 public sealed record EventWorkspaceDto(
     Guid EventId,
@@ -228,8 +269,7 @@ public sealed record EventOccurrenceDto(
     DateTime StartUtc,
     DateTime EndUtc,
     DateOnly LocalDate,
-    EventOccurrenceStatus Status,
-    bool IsLegacyBackfill);
+    EventOccurrenceStatus Status);
 
 public sealed record CreateEventRoleAssignmentRequest(
     string RoleRequirementKey,

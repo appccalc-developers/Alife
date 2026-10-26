@@ -1,3 +1,4 @@
+import { virtualChurchMainHallText } from '../i18n/virtualChurchMainHall'
 import { Component, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
@@ -805,13 +806,13 @@ export default function VirtualChurchMainHallView() {
       onPointerCancel={() => { if (touchInput.current[field] === value) touchInput.current[field] = 0 }}
       onLostPointerCapture={() => { if (touchInput.current[field] === value) touchInput.current[field] = 0 }}
     >{icon}</button>
-  return createPortal(<main ref={pageRef} tabIndex={-1} data-vc-interior="main-hall" className="virtual-church-ui fixed inset-0 z-[9999] flex flex-col" aria-label={zh ? '主堂内部参考预览' : 'Main auditorium reference preview'}>
+  return createPortal(<main ref={pageRef} tabIndex={-1} data-vc-interior="main-hall" className="virtual-church-ui fixed inset-0 z-[9999] flex flex-col" aria-label={zh ? virtualChurchMainHallText.mainAuditoriumReferencePreview.zh : virtualChurchMainHallText.mainAuditoriumReferencePreview.en}>
     <header className="vc-interior-header">
-      <button type="button" onClick={() => returnToFoyerDoor(returnDoor)} className={action}><ArrowLeft size={17} />{zh ? '返回门厅' : 'Back to foyer'}</button>
-      <div className="vc-interior-caption"><h1>{zh ? '主堂内部 · 2017 影像参考' : 'Main auditorium · 2017 photo reference'}</h1><p className="hidden sm:block">{zh ? '空间比例和座椅排法仍待现场核对' : 'Room proportions and seating layout await site verification'}</p></div>
-      <button type="button" onClick={() => void updateLanguage(zh ? 'en' : 'zh')} className={action}>{zh ? 'English' : '中文'}</button>
+      <button type="button" onClick={() => returnToFoyerDoor(returnDoor)} className={action}><ArrowLeft size={17} />{zh ? virtualChurchMainHallText.backToFoyer.zh : virtualChurchMainHallText.backToFoyer.en}</button>
+      <div className="vc-interior-caption"><h1>{zh ? virtualChurchMainHallText.mainAuditorium2017PhotoReference.zh : virtualChurchMainHallText.mainAuditorium2017PhotoReference.en}</h1><p className="hidden sm:block">{zh ? virtualChurchMainHallText.roomProportionsAndSeatingLayoutAwaitSiteVerification.zh : virtualChurchMainHallText.roomProportionsAndSeatingLayoutAwaitSiteVerification.en}</p></div>
+      <button type="button" onClick={() => void updateLanguage(zh ? 'en' : 'zh')} className={action}>{zh ? virtualChurchMainHallText.switchLanguage.zh : virtualChurchMainHallText.switchLanguage.en}</button>
     </header>
-    <div className="relative min-h-0 flex-1" aria-label={zh ? '2017 年主堂照片约束的原创三维候选：紫红座椅、木条墙面和浅色舞台' : 'Original 3D candidate based on 2017 auditorium photos: burgundy chairs, timber slats and pale stage'}>
+    <div className="relative min-h-0 flex-1" aria-label={zh ? virtualChurchMainHallText.original3dCandidateBasedOn2017AuditoriumPhotos.zh : virtualChurchMainHallText.original3dCandidateBasedOn2017AuditoriumPhotos.en}>
       {!failed ? <HallCanvasBoundary key={revision} onFailure={() => setFailed(true)}>
         <Canvas shadows="percentage" frameloop="demand" dpr={[1, performancePreset.maxDevicePixelRatio]} style={{ touchAction: 'none' }} camera={{ position: enteredFromFoyerDoor ? [entryWalkStart.x, MAIN_HALL_WALK_EYE_HEIGHT, entryWalkStart.z] : [...MAIN_HALL_CAMERA.entrance.position], fov: enteredFromFoyerDoor ? 67 : MAIN_HALL_CAMERA.entrance.fov, near: .1, far: 80 }} gl={{ antialias: true }} onCreated={({ gl }) => {
           gl.toneMapping = ACESFilmicToneMapping
@@ -850,29 +851,29 @@ export default function VirtualChurchMainHallView() {
             // Closing help returns keys to the existing walk controller. The
             // focused help button keeps its own keys while the guide is open.
             if (walkHelpOpen) pageRef.current?.focus({ preventScroll: true })
-          }}><CircleHelp size={16} aria-hidden="true" />{walkHelpOpen ? (zh ? '收起说明' : 'Hide controls') : (zh ? '操作说明' : 'Controls')}</button>
-          <p id={walkHelpId} hidden={!walkHelpOpen} className="vc-interior-hint">{zh ? 'WASD / 方向键移动 · Q/E 转向；触屏可用下方箭头。走回后门可返回门厅。' : 'WASD / arrow keys to move · Q/E to turn; use the lower arrows on touchscreens. Walk back through a rear door to return to the foyer.'}</p>
+          }}><CircleHelp size={16} aria-hidden="true" />{walkHelpOpen ? (zh ? virtualChurchMainHallText.hideControls.zh : virtualChurchMainHallText.hideControls.en) : (zh ? virtualChurchMainHallText.controls.zh : virtualChurchMainHallText.controls.en)}</button>
+          <p id={walkHelpId} hidden={!walkHelpOpen} className="vc-interior-hint">{zh ? virtualChurchMainHallText.wasdArrowKeysToMoveQETo.zh : virtualChurchMainHallText.wasdArrowKeysToMoveQETo.en}</p>
         </div>
-        <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-end justify-between gap-3" aria-label={zh ? '步行触屏操作' : 'Walk touch controls'}>
+        <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-end justify-between gap-3" aria-label={zh ? virtualChurchMainHallText.walkTouchControls.zh : virtualChurchMainHallText.walkTouchControls.en}>
           <div className="grid grid-cols-3 gap-1">
-            <span />{walkControl('forward', 1, zh ? '向前走' : 'Walk forward', <ArrowUp size={20} />)}<span />
-            {walkControl('strafe', -1, zh ? '向左平移' : 'Step left', <ArrowLeft size={20} />)}
-            {walkControl('forward', -1, zh ? '向后走' : 'Walk backward', <ArrowDown size={20} />)}
-            {walkControl('strafe', 1, zh ? '向右平移' : 'Step right', <ArrowRight size={20} />)}
+            <span />{walkControl('forward', 1, zh ? virtualChurchMainHallText.walkForward.zh : virtualChurchMainHallText.walkForward.en, <ArrowUp size={20} />)}<span />
+            {walkControl('strafe', -1, zh ? virtualChurchMainHallText.stepLeft.zh : virtualChurchMainHallText.stepLeft.en, <ArrowLeft size={20} />)}
+            {walkControl('forward', -1, zh ? virtualChurchMainHallText.walkBackward.zh : virtualChurchMainHallText.walkBackward.en, <ArrowDown size={20} />)}
+            {walkControl('strafe', 1, zh ? virtualChurchMainHallText.stepRight.zh : virtualChurchMainHallText.stepRight.en, <ArrowRight size={20} />)}
           </div>
           <div className="flex gap-1">
-            {walkControl('turn', -1, zh ? '向左转' : 'Turn left', <RotateCcw size={19} />)}
-            {walkControl('turn', 1, zh ? '向右转' : 'Turn right', <RotateCcw className="scale-x-[-1]" size={19} />)}
+            {walkControl('turn', -1, zh ? virtualChurchMainHallText.turnLeft.zh : virtualChurchMainHallText.turnLeft.en, <RotateCcw size={19} />)}
+            {walkControl('turn', 1, zh ? virtualChurchMainHallText.turnRight.zh : virtualChurchMainHallText.turnRight.en, <RotateCcw className="scale-x-[-1]" size={19} />)}
           </div>
         </div>
       </> : null}
-      {failed ? <div role="alert" className="vc-interior-panel absolute left-1/2 top-4 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 p-4 text-center"><p>{zh ? '主堂预览暂时无法显示，仍可返回门厅。' : 'The auditorium preview could not display. You can still return to the foyer.'}</p><button type="button" className={`${action} mt-3`} onClick={() => { setFailed(false); setRevision(value => value + 1) }}><RotateCcw size={16} />{zh ? '重试预览' : 'Retry preview'}</button></div> : null}
+      {failed ? <div role="alert" className="vc-interior-panel absolute left-1/2 top-4 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 p-4 text-center"><p>{zh ? virtualChurchMainHallText.theAuditoriumPreviewCouldNotDisplayYouCan.zh : virtualChurchMainHallText.theAuditoriumPreviewCouldNotDisplayYouCan.en}</p><button type="button" className={`${action} mt-3`} onClick={() => { setFailed(false); setRevision(value => value + 1) }}><RotateCcw size={16} />{zh ? virtualChurchMainHallText.retryPreview.zh : virtualChurchMainHallText.retryPreview.en}</button></div> : null}
     </div>
     <footer className="vc-interior-footer">
-      <button type="button" aria-label={zh ? '从后方看舞台' : 'View the stage'} aria-pressed={view === 'entrance'} onClick={() => setView('entrance')} className={action}><Eye size={16} /><span className="vc-interior-label-full" aria-hidden="true">{zh ? '从后方看舞台' : 'View the stage'}</span><span className="vc-interior-label-compact" aria-hidden="true">{zh ? '舞台' : 'Stage'}</span></button>
-      <button type="button" aria-label={zh ? '从舞台看座席' : 'View the seating'} aria-pressed={view === 'stage'} onClick={() => setView('stage')} className={action}><Eye size={16} /><span className="vc-interior-label-full" aria-hidden="true">{zh ? '从舞台看座席' : 'View the seating'}</span><span className="vc-interior-label-compact" aria-hidden="true">{zh ? '座席' : 'Seating'}</span></button>
-      <button type="button" aria-label={zh ? '步行查看' : 'Walk through'} aria-pressed={view === 'walk'} onClick={() => { setView('walk'); pageRef.current?.focus({ preventScroll: true }) }} className={action}><Footprints size={16} /><span className="vc-interior-label-full" aria-hidden="true">{zh ? '步行查看' : 'Walk through'}</span><span className="vc-interior-label-compact" aria-hidden="true">{zh ? '步行' : 'Walk'}</span></button>
-      <span className="vc-interior-note">{zh ? '仅供视觉评审；不代表 2026 年现状 · 窗外为示意天光' : 'Visual review only; not a record of the 2026 interior · Illustrative window daylight'}</span>
+      <button type="button" aria-label={zh ? virtualChurchMainHallText.viewTheStage.zh : virtualChurchMainHallText.viewTheStage.en} aria-pressed={view === 'entrance'} onClick={() => setView('entrance')} className={action}><Eye size={16} /><span className="vc-interior-label-full" aria-hidden="true">{zh ? virtualChurchMainHallText.viewTheStage.zh : virtualChurchMainHallText.viewTheStage.en}</span><span className="vc-interior-label-compact" aria-hidden="true">{zh ? virtualChurchMainHallText.stage.zh : virtualChurchMainHallText.stage.en}</span></button>
+      <button type="button" aria-label={zh ? virtualChurchMainHallText.viewTheSeating.zh : virtualChurchMainHallText.viewTheSeating.en} aria-pressed={view === 'stage'} onClick={() => setView('stage')} className={action}><Eye size={16} /><span className="vc-interior-label-full" aria-hidden="true">{zh ? virtualChurchMainHallText.viewTheSeating.zh : virtualChurchMainHallText.viewTheSeating.en}</span><span className="vc-interior-label-compact" aria-hidden="true">{zh ? virtualChurchMainHallText.seating.zh : virtualChurchMainHallText.seating.en}</span></button>
+      <button type="button" aria-label={zh ? virtualChurchMainHallText.walkThrough.zh : virtualChurchMainHallText.walkThrough.en} aria-pressed={view === 'walk'} onClick={() => { setView('walk'); pageRef.current?.focus({ preventScroll: true }) }} className={action}><Footprints size={16} /><span className="vc-interior-label-full" aria-hidden="true">{zh ? virtualChurchMainHallText.walkThrough.zh : virtualChurchMainHallText.walkThrough.en}</span><span className="vc-interior-label-compact" aria-hidden="true">{zh ? virtualChurchMainHallText.walk.zh : virtualChurchMainHallText.walk.en}</span></button>
+      <span className="vc-interior-note">{zh ? virtualChurchMainHallText.visualReviewOnlyNotARecordOfThe.zh : virtualChurchMainHallText.visualReviewOnlyNotARecordOfThe.en}</span>
     </footer>
   </main>, document.body)
 }

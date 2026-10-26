@@ -1,3 +1,4 @@
+import { mediaPickerInputText } from '../../i18n/mediaPickerInput.ts'
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, type ChangeEvent, type ReactNode } from 'react'
 import { Folder, FolderOpen, Image as ImageIcon, RefreshCw, Upload, Video, X } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
@@ -118,22 +119,22 @@ const MediaPickerInput = forwardRef<MediaPickerInputHandle, Props>(({
   const [refreshToken, setRefreshToken] = useState(0)
   const isZh = language === 'zh'
   const copy = useMemo(() => ({
-    browse: isZh ? '选择' : 'Choose',
-    close: isZh ? '关闭' : 'Close',
-    public: isZh ? '公共' : 'Public',
-    group: isZh ? '本小组' : 'Group',
-    currentFolder: isZh ? '当前文件夹' : 'Current folder',
-    parent: isZh ? '上一级' : 'Parent',
-    refresh: isZh ? '刷新' : 'Refresh',
-    upload: uploading ? (isZh ? '上传中...' : 'Uploading...') : (isZh ? '上传' : 'Upload'),
-    empty: isZh ? '此文件夹没有可选媒体。' : 'No selectable media in this folder.',
-    folders: isZh ? '文件夹' : 'Folders',
-    media: isZh ? '媒体' : 'Media',
-    select: isZh ? '使用' : 'Use',
-    imageOnly: isZh ? '请选择图片文件。' : 'Please choose an image file.',
-    mediaOnly: isZh ? '请选择图片或视频文件。' : 'Please choose an image or video file.',
-    loadFailed: isZh ? '无法加载媒体文件夹。' : 'Unable to load media folder.',
-    uploadFailed: isZh ? '上传失败。' : 'Upload failed.',
+    browse: isZh ? mediaPickerInputText.choose.zh : mediaPickerInputText.choose.en,
+    close: isZh ? mediaPickerInputText.close.zh : mediaPickerInputText.close.en,
+    public: isZh ? mediaPickerInputText.public.zh : mediaPickerInputText.public.en,
+    group: isZh ? mediaPickerInputText.group.zh : mediaPickerInputText.group.en,
+    currentFolder: isZh ? mediaPickerInputText.currentFolder.zh : mediaPickerInputText.currentFolder.en,
+    parent: isZh ? mediaPickerInputText.parent.zh : mediaPickerInputText.parent.en,
+    refresh: isZh ? mediaPickerInputText.refresh.zh : mediaPickerInputText.refresh.en,
+    upload: uploading ? (isZh ? mediaPickerInputText.uploading.zh : mediaPickerInputText.uploading.en) : (isZh ? mediaPickerInputText.upload.zh : mediaPickerInputText.upload.en),
+    empty: isZh ? mediaPickerInputText.noSelectableMediaInThisFolder.zh : mediaPickerInputText.noSelectableMediaInThisFolder.en,
+    folders: isZh ? mediaPickerInputText.folders.zh : mediaPickerInputText.folders.en,
+    media: isZh ? mediaPickerInputText.media.zh : mediaPickerInputText.media.en,
+    select: isZh ? mediaPickerInputText.use.zh : mediaPickerInputText.use.en,
+    imageOnly: isZh ? mediaPickerInputText.pleaseChooseAnImageFile.zh : mediaPickerInputText.pleaseChooseAnImageFile.en,
+    mediaOnly: isZh ? mediaPickerInputText.pleaseChooseAnImageOrVideoFile.zh : mediaPickerInputText.pleaseChooseAnImageOrVideoFile.en,
+    loadFailed: isZh ? mediaPickerInputText.unableToLoadMediaFolder.zh : mediaPickerInputText.unableToLoadMediaFolder.en,
+    uploadFailed: isZh ? mediaPickerInputText.uploadFailed.zh : mediaPickerInputText.uploadFailed.en,
   }), [isZh, uploading])
   const publicRoot = 'global'
   const groupRoot = groupId ? `groups/${groupId}` : ''
@@ -341,7 +342,7 @@ const MediaPickerInput = forwardRef<MediaPickerInputHandle, Props>(({
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
               {loading ? (
-                <div className="grid min-h-48 place-items-center text-sm text-slate-500">{isZh ? '正在加载...' : 'Loading...'}</div>
+                <div className="grid min-h-48 place-items-center text-sm text-slate-500">{isZh ? mediaPickerInputText.loading.zh : mediaPickerInputText.loading.en}</div>
               ) : (
                 <div className="space-y-5">
                   {listing.folders.length > 0 ? (

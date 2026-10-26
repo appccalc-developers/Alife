@@ -3,7 +3,7 @@ namespace Alife.Application.Events.Services;
 internal static class EventDutyAccess
 {
     public static Guid OwnerId(Alife.Domain.Entities.GroupEvent e)
-        => e.AccountableOwnerMemberId == Guid.Empty ? e.CreatedByMemberId : e.AccountableOwnerMemberId;
+        => e.AccountableOwnerMemberId;
     public static bool IsTaskParticipant(bool approvedGroupMember, bool owner, bool acceptedTeam, bool acceptedRole)
         => approvedGroupMember && (owner || acceptedTeam || acceptedRole);
 

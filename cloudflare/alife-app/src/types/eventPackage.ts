@@ -9,7 +9,6 @@ export type EventApprovalAssessment = {
 }
 export type EventPackageStatus = 'draft' | 'submitted' | 'returnedForAmendment' | 'rejected' | 'approvedWithConditions' | 'approved' | 'withdrawn' | 'superseded'
 export type EventPackageApprovalValidity = 'notDecided' | 'active' | 'invalidated' | 'expired' | 'revoked'
-export type LegacyEventPackageTransition = 'formalPackageRequired' | 'legacyReadOnlyPackage' | 'timeLimitedCompatibility' | 'safetyCriticalBlocked'
 export type EventPackageDecisionType = 'approve' | 'approveWithConditions' | 'returnForAmendment' | 'reject' | 'revoke' | 'conditionWaiver'
 export type EventPackageConditionStatus = 'open' | 'evidenceSubmitted' | 'verified' | 'rejected' | 'expired' | 'waived'
 export type EventLifecycleGate = 'publish' | 'registration' | 'payment' | 'execute'
@@ -33,13 +32,11 @@ export type EventPackageManifest = {
   eventPlanVersion: number
   governancePolicyVersion: string
   governanceTier: EventGovernanceTier
-  legacyTransition: LegacyEventPackageTransition
   eventTitle: LocalizedText
   startUtc: string
   endUtc: string
   modules: EventPackageModuleSummary[]
   blockers: LocalizedText[]
-  /** Optional while pre-1.0 stored manifests remain readable during rollout. */
   triggerReasons?: Array<{ code: string; message: LocalizedText }>
   requiredSpecialistDecisions?: string[]
   sections?: Array<{
@@ -137,8 +134,8 @@ export type EventPackageDecisionRequest = {
   }>
 }
 
-export type EventPublicationStatus = 'legacyImplicit' | 'draft' | 'published' | 'unpublished'
-export type EventRegistrationStatus = 'legacyImplicit' | 'closed' | 'open'
+export type EventPublicationStatus = 'draft' | 'published' | 'unpublished'
+export type EventRegistrationStatus = 'closed' | 'open'
 
 export type EventLifecycle = {
   eventId: string

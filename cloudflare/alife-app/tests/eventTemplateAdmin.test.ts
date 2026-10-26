@@ -80,3 +80,18 @@ test('editing clones nested server state and preserves immutable identifiers loc
   assert.equal(source.template.name.en, 'Community picnic')
   assert.equal(source.template.presetServiceSlots[0].label.en, 'Host')
 })
+
+const preset=()=>({presetKey:'dinner',name:{en:' Dinner ',zh:' 晚餐 '},conditions:{en:' Hall ',zh:' 礼堂 '},attributes:['meal','outdoor'],defaultAnswers:{foodService:'yes' as const,weatherPlan:'unknown' as const},repeatForEachOccurrence:false})
+test('project presets round trip bilingual content, answers and independent attributes',()=>{
+ const form={...validForm(),presetProjects:[{...preset(),defaultAnswers:{...preset().defaultAnswers,safetyReview:'yes' as const},eventFactSuggestions:['safety.requiresRam','scale.multiZone']}]};assert.equal(validateEventTemplateAdminForm(form,archetypes,modules,icons),null)
+ const request=toUpdateEventTemplateRequest(form);assert.equal(request.presetProjects[0].name.en,'Dinner');assert.equal(request.presetProjects[0].conditions.zh,'礼堂');assert.deepEqual(request.presetProjects[0].attributes,['meal','outdoor']);assert.deepEqual(request.presetProjects[0].eventFactSuggestions,['safety.requiresRam','scale.multiZone']);assert.equal(request.presetProjects[0].defaultAnswers.projectSelection,'no');assert.equal('safetyReview' in request.presetProjects[0].defaultAnswers,false)
+ const source={template:{...form,version:4},isActive:true} as AdminEventActivityTemplate
+ const copy=eventTemplateToAdminForm(source);copy.presetProjects[0].defaultAnswers.foodService='no';assert.equal(source.template.presetProjects[0].defaultAnswers.foodService,'yes')
+})
+test('project validation rejects duplicate keys, unknown attributes and unknown question codes',()=>{
+ const form={...validForm(),presetProjects:[preset()]}
+ assert.equal(validateEventTemplateAdminForm({...form,presetProjects:[preset(),preset()]},archetypes,modules,icons),'projects')
+ assert.equal(validateEventTemplateAdminForm({...form,presetProjects:[{...preset(),attributes:['custom']}]},archetypes,modules,icons),'projects')
+ assert.equal(validateEventTemplateAdminForm({...form,presetProjects:[{...preset(),defaultAnswers:{custom:'yes'}}]},archetypes,modules,icons),'projects')
+ assert.equal(validateEventTemplateAdminForm({...form,presetProjects:[{...preset(),name:{en:'Dinner',zh:''}}]},archetypes,modules,icons),'projects')
+})

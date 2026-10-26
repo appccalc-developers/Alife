@@ -8,8 +8,11 @@ on:
     paths:
       - "README.html"
       - ".github/workflows/deploy-cloudflare-worker.yml"
+      - ".github/workflows/virtual-church-quality.yml"
       - "cloudflare/alife-app/**"
       - "cloudflare/speed-layer/**"
+      - "tools/virtual-church/**"
+      - "tools/blender/virtual_church/**"
 
 permissions:
   contents: read
@@ -19,7 +22,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  quality:
+    uses: ./.github/workflows/virtual-church-quality.yml
+    permissions:
+      contents: read
+
   deploy:
+    needs: quality
     runs-on: ubuntu-latest
 
     env:
@@ -108,11 +117,16 @@ jobs:
 
       - name: Test Worker speed layer
         working-directory: ./cloudflare/speed-layer
-        run: npm test
+        run: |
+          npm run build:worker
+          npm run test:built
 
       - name: Prepare Worker deployment config
         working-directory: ./cloudflare/speed-layer
-        run: npm run prepare:deploy-config
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVENT_RESET_DO_SECRET_REQUIRED=false npm run prepare:deploy-config
 
       - name: Deploy Worker
         working-directory: ./cloudflare/speed-layer

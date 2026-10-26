@@ -13,7 +13,7 @@ public sealed partial class EventOperationsCoreTests
     public async Task RosterBatch_VersionOneRequiresPublishedEventAndAcceptedCoordinator()
     {
         await using var db = CreateDb(); var owner = Guid.NewGuid(); var coordinator = Guid.NewGuid(); var candidate = Guid.NewGuid();
-        var e = SeedEvent(db, Guid.NewGuid(), owner); e.CollaborationVersion = 1; e.PublicationStatus = EventPublicationStatus.Draft;
+        var e = SeedEvent(db, Guid.NewGuid(), owner); e.PublicationStatus = EventPublicationStatus.Draft;
         var occurrence = SeedOccurrence(db, e);
         db.Members.AddRange(Member(owner, "Owner"), Member(coordinator, "Coordinator"), Member(candidate, "Candidate"));
         foreach (var id in new[] { coordinator, candidate })
@@ -44,7 +44,7 @@ public sealed partial class EventOperationsCoreTests
     public async Task RosterBatch_ConflictRollsBackAll_AndReplayDoesNotNotifyAgain()
     {
         await using var db = CreateDb(); var owner = Guid.NewGuid(); var a = Guid.NewGuid();
-        var e = SeedEvent(db, Guid.NewGuid(), owner); var first = SeedOccurrence(db, e); var second = SeedOccurrence(db, e);
+        var e = SeedEvent(db, Guid.NewGuid(), owner); var first = SeedOccurrence(db, e); var second = SeedOccurrence(db, e); SeedRosterCoordinator(db, e, owner);
         second.StartUtc = second.StartUtc.AddDays(7); second.EndUtc = second.EndUtc.AddDays(7);
         db.Members.AddRange(Member(owner, "Owner"), Member(a, "A")); SeedPlan(db, e, Fact("people.volunteersRequired", true));
         await db.SaveChangesAsync(); var service = new EventOperationsService(db, Authorization(owner));
@@ -70,7 +70,7 @@ public sealed partial class EventOperationsCoreTests
     public async Task RosterBatch_ApprovedOrdinaryInvitationRequiresSelfResponse_AndReplacementRetainsHistory()
     {
         await using var db = CreateDb(); var owner = Guid.NewGuid(); var a = Guid.NewGuid(); var b = Guid.NewGuid();
-        var e = SeedEvent(db, Guid.NewGuid(), owner); var occurrence = SeedOccurrence(db, e);
+        var e = SeedEvent(db, Guid.NewGuid(), owner); var occurrence = SeedOccurrence(db, e); SeedRosterCoordinator(db, e, owner);
         db.Members.AddRange(Member(owner, "Owner"), Member(a, "A"), Member(b, "B")); SeedPlan(db, e, Fact("people.volunteersRequired", true));
         foreach (var id in new[] { a, b }) db.GroupMemberships.Add(new() { Id = Guid.NewGuid(), GroupId = e.GroupId, MemberId = id, Status = MembershipStatus.Approved });
         await db.SaveChangesAsync(); var service = new EventOperationsService(db, Authorization(owner), new EventPackageInvalidationService(db));

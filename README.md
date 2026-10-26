@@ -4,7 +4,7 @@ ALIFE is an alpha-stage bilingual community platform for overseas Chinese Christ
 
 > **Current-source statement:** this README describes the repository at `main` as reviewed on 17 September 2026. It documents implemented source, not production availability, live-provider reliability, migration state, or user adoption.
 
-[Open the project overview](https://ccalc.live/project/) · [Open the website](https://ccalc.live) · [Read the system architecture](docs/architecture.md) · [Read the Event overview](docs/events/README.md) · [Read the engineering retrospective](docs/project-retrospective.en.md)
+[Open the project overview](https://ccalc.live/project/) · [Open the website](https://ccalc.live) · [Read the system architecture](docs/architecture.md) · [Read the Event overview](docs/events/README.md) · [Read the engineering retrospective](archive/pending-docs-review/2026-10-10/docs/project-retrospective.en.md)
 
 ## What ALIFE Is Today
 
@@ -362,7 +362,7 @@ SQL-backed concurrency/migration tests are opt-in and must target only an approv
 | Event product overview | [Event README](docs/events/README.md) |
 | Event business rules | [Event core contract](docs/events/EVENT-CONTRACT.md) |
 | Event delivery boundary | [Event implementation status](docs/events/IMPLEMENTATION-STATUS.md) |
-| Engineering history | [Retrospective](docs/project-retrospective.en.md) and [verification audit](docs/project-retrospective-verification.md) |
+| Engineering history | [Retrospective](archive/pending-docs-review/2026-10-10/docs/project-retrospective.en.md) and [verification audit](archive/pending-docs-review/2026-10-10/docs/project-retrospective-verification.md) |
 
 ## Maturity and Known Boundaries
 
@@ -375,4 +375,4 @@ ALIFE is a broad, test-covered alpha codebase. The repository demonstrates imple
 - completion of partial Event modules;
 - real-user task completion, adoption, or ministry outcomes.
 
-Keep those claims separate from source-level capability. For how the architecture reached its current form, see the [evidence-based retrospective](docs/project-retrospective.en.md).
+Keep those claims separate from source-level capability. For how the architecture reached its current form, see the [evidence-based retrospective](archive/pending-docs-review/2026-10-10/docs/project-retrospective.en.md).

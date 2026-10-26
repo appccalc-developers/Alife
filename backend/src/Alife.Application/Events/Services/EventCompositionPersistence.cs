@@ -17,22 +17,20 @@ public static class EventCompositionPersistence
 
     public static EventPlanSnapshotDto ToSnapshotDto(EventPlanSnapshot snapshot)
     {
-        if (!snapshot.IsLegacyBackfill)
-        {
-            var stored = JsonSerializer.Deserialize<StoredEventPlanDocument>(snapshot.SnapshotJson, JsonOptions)
-                ?? throw new JsonException("Event plan snapshot payload is missing.");
-            return new EventPlanSnapshotDto(
-                snapshot.EventId,
-                snapshot.Version,
-                snapshot.AcceptedByMemberId,
-                snapshot.AcceptedUtc,
-                snapshot.ETag,
-                false,
-                stored.Plan,
-                stored.HumanDecisions);
-        }
-
-        return CreateLegacySnapshot(snapshot);
+        if (!EventCompositionDefinitions.IsSupportedSchema(snapshot.SchemaVersion))
+            throw new JsonException("Pre-reset Event plan snapshots are not supported by Event 2.0.");
+        var stored = JsonSerializer.Deserialize<StoredEventPlanDocument>(snapshot.SnapshotJson, JsonOptions)
+            ?? throw new JsonException("Event plan snapshot payload is missing.");
+        if (!EventCompositionDefinitions.IsSupportedSchema(stored.Plan.SchemaVersion))
+            throw new JsonException("Stored Event plan schema is not supported by Event 2.0.");
+        return new EventPlanSnapshotDto(
+            snapshot.EventId,
+            snapshot.Version,
+            snapshot.AcceptedByMemberId,
+            snapshot.AcceptedUtc,
+            snapshot.ETag,
+            stored.Plan,
+            stored.HumanDecisions);
     }
 
     public static string CreatePlanETag(int version, string proposalHash)
@@ -50,8 +48,7 @@ public static class EventCompositionPersistence
         => EventWorkAccess.OwnerAsync(dbContext, groupEvent, memberId, cancellationToken);
 
     public static async Task<bool> CanAuthorRamAsync(IAlifeDbContext db, GroupEvent e, Guid actor, CancellationToken ct)
-        => e.CollaborationVersion == 0 && await EventWorkAccess.OwnerAsync(db,e,actor,ct) ||
-            await EventWorkAccess.RoleAsync(db,e,actor,"SAFETY.RAM","ram.author",ct);
+        => await EventWorkAccess.RoleAsync(db,e,actor,"SAFETY.RAM","ram.author",ct);
 
     public static async Task<bool> CanViewEventTeamAsync(
         IAlifeDbContext dbContext,
@@ -111,7 +108,7 @@ public static class EventCompositionPersistence
         CancellationToken cancellationToken)
     {
         var protectedCodes = new HashSet<string>(StringComparer.Ordinal) { "TEAM.WORK" };
-        if (await dbContext.EventEnrollments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id, cancellationToken))
+        if (await dbContext.EventRegistrationApplications.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id, cancellationToken))
         {
             protectedCodes.Add("PEOPLE.REGISTRATION");
         }
@@ -232,8 +229,7 @@ public static class EventCompositionPersistence
         EventPlanProposalDto plan,
         GroupEvent groupEvent,
         DateTime checkedUtc,
-        CancellationToken cancellationToken,
-        int rosterRulesVersion = 1)
+        CancellationToken cancellationToken)
     {
         var additions = new Dictionary<string, List<LocalizedTextDto>>(StringComparer.Ordinal);
         void Add(string module, LocalizedTextDto blocker)
@@ -279,20 +275,21 @@ public static class EventCompositionPersistence
                 .ToListAsync(cancellationToken);
             if (slots.Count == 0) Add("SERVICE.ROSTER", new("Define required service slots.", "請定義必要崗位。"));
             var rosterGroups = await dbContext.EventRosterGroups.AsNoTracking().Where(x => x.EventId == groupEvent.Id).ToListAsync(cancellationToken);
-            foreach (var slot in slots.Where(x => x.Confirmed < x.RequiredCount && (rosterRulesVersion < 2 || EventRosterPolicy.IsCritical(x.RoleCode, x.EligibilityCode, rosterGroups.FirstOrDefault(g => g.RoleCode == x.RoleCode)?.ModuleCode))))
+            foreach (var slot in slots.Where(x => x.Confirmed < x.RequiredCount &&
+                EventRosterPolicy.IsCritical(x.RoleCode, x.EligibilityCode,
+                    rosterGroups.FirstOrDefault(g => g.RoleCode == x.RoleCode)?.ModuleCode)))
                 Add("SERVICE.ROSTER", new($"{slot.RoleCode}: {slot.Confirmed}/{slot.RequiredCount} confirmed.",
                     $"{slot.RoleCode}：已確認 {slot.Confirmed}/{slot.RequiredCount}。"));
         }
 
         var satisfiedOperationalRules = new HashSet<(string ModuleCode, string RuleCode)>();
-        if (groupEvent.CollaborationVersion >= 1)
         {
             var adopted = await dbContext.EventModuleReports.AsNoTracking().Where(x => x.EventId == groupEvent.Id && x.AdoptedRevisionId != null).Select(x => x.ModuleCode).ToArrayAsync(cancellationToken);
             foreach (var module in plan.ModuleDecisions.Where(x => x.Status != EventModuleDecisionStatus.Inactive && EventWorkAccess.ReportRoles.ContainsKey(x.ModuleCode)))
             {
                 if (!adopted.Contains(module.ModuleCode)) Add(module.ModuleCode, new("The module lead's submitted report must be adopted by the event owner.", "活动负责人须采用模块负责人提交的报告。"));
-                // Version 1 uses the adopted report as the programme, hospitality and communication plan.
-                // Child and transport specialist checks below are retained independently.
+                // The adopted report is the programme, hospitality and communication plan.
+                // Child and transport specialist checks below remain independent.
                 if (module.ModuleCode is "PROGRAM.PRODUCTION" or "FOOD.HOSPITALITY" or "COMMS.FOLLOWUP")
                     foreach (var rule in EventCompositionDefinitions.ModulesByCode[module.ModuleCode].ReadinessRules)
                         satisfiedOperationalRules.Add((module.ModuleCode, rule));
@@ -438,52 +435,6 @@ public static class EventCompositionPersistence
             assignment.EndedUtc,
             assignment.CreatedUtc,
             assignment.UpdatedUtc);
-
-    private static EventPlanSnapshotDto CreateLegacySnapshot(EventPlanSnapshot snapshot)
-    {
-        var exists = new EventFactInputDto(
-            "event.exists",
-            JsonSerializer.SerializeToElement(true),
-            EventFactCertainty.Confirmed,
-            EventFactSource.LegacyBackfill);
-        var team = EventCompositionDefinitions.ModulesByCode["TEAM.WORK"];
-        var decision = new ModuleDecisionDto(
-            team.Code, team.Version, team.Name, EventModuleDecisionStatus.Required,
-            ["legacy-backfill", "policy-accountable-owner"], team.Dependencies, team.DataClasses,
-            team.IntegrationKey, team.SurfaceKey, team.NavigationOrder);
-        var warning = new LocalizedTextDto(
-            "Review migrated event facts before relying on readiness.",
-            "依賴準備度前，請先人工檢查已遷移的活動事實。");
-        var blocker = new LocalizedTextDto(
-            "Confirm the migrated event plan.",
-            "確認已遷移的活動方案。");
-        var plan = new EventPlanProposalDto(
-            EventCompositionDefinitions.LegacySchemaVersion,
-            snapshot.ProposalHash,
-            snapshot.ETag,
-            null,
-            null,
-            null,
-            new EventFactSetDto(1, [exists], EventCompositionEngine.Hash(new[] { exists })),
-            [decision],
-            [new RoleRequirementDto(
-                "TEAM.WORK:event.accountableOwner", "TEAM.WORK", "event.accountableOwner",
-                1, 1, 1, ["owningGroupLeaderOrDelegate"], [])],
-            team.WorkflowContributions.Select(x => new WorkflowContributionDto(team.Code, x, team.IntegrationKey)).ToArray(),
-            new ReadinessDto(EventReadinessStatus.Blocked, [blocker], [warning], snapshot.CreatedUtc),
-            [
-                new EventWorkspaceItemDto("workspace.overview", null, "tab", "overview", null,
-                    new LocalizedTextDto("Overview", "總覽"), 10, EventReadinessStatus.Blocked, [blocker], []),
-                new EventWorkspaceItemDto("workspace.governance", null, "tab", "governance", null,
-                    new LocalizedTextDto("Governance", "審批治理"), 15, EventReadinessStatus.Blocked, [blocker], []),
-                new EventWorkspaceItemDto(team.SurfaceKey, team.Code, "tab", "team", null,
-                    new LocalizedTextDto("Tasks and handoffs", "任務與交接"), team.NavigationOrder, EventReadinessStatus.Blocked, [blocker], [])
-            ],
-            new EventPlanDiffDto([], [], [], []),
-            [warning]);
-        return new EventPlanSnapshotDto(
-            snapshot.EventId, snapshot.Version, null, null, snapshot.ETag, true, plan, []);
-    }
 
     private sealed record StoredEventPlanDocument(
         EventPlanProposalDto Plan,

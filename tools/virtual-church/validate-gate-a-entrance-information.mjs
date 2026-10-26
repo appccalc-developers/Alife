@@ -15,11 +15,12 @@ const interactionPath = path.join(
   'virtualChurchInteractionContract.ts',
 )
 
-const [viewSource, sceneSource, interactionSource, controlsSource] = await Promise.all([
+const [viewSource, sceneSource, interactionSource, controlsSource, copySource] = await Promise.all([
   readFile(viewPath, 'utf8'),
   readFile(scenePath, 'utf8'),
   readFile(interactionPath, 'utf8'),
   readFile(path.join(appRoot, 'src', 'views', 'virtualChurchTourControls.css'), 'utf8'),
+  readFile(path.join(appRoot, 'src', 'i18n', 'virtualChurch.ts'), 'utf8'),
 ])
 
 for (const removedPhysicalFragment of [
@@ -75,7 +76,7 @@ for (const fragment of [
   "if (path === '/events') { setShowGuide(false); setShowGatherings(true); return }",
 ]) {
   assert.ok(
-    viewSource.includes(fragment),
+    (fragment.includes(": '") ? copySource : viewSource).includes(fragment),
     `Missing near-entrance information contract: ${fragment}`,
   )
 }

@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { creationMessage } from '../src/utils/eventCreationCopy.ts'
 import type { EventActivityType, EventArchetype, ModuleDecision } from '../src/types/eventComposition.ts'
-import { confirmArrangementModule, moduleConfirmationSummary, confirmArrangementGroup, invalidateArrangementConfirmation, selectArrangementModule, changeOptionalModule, composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, creationSettings, initialCreationDraft, restoreCreationDraft, selectCreationTemplate, validateCreationDraft, creationDraftIssue } from '../src/utils/eventCreationDraft.ts'
+import { confirmArrangementModule, invalidateArrangementConfirmation, selectArrangementModule, changeOptionalModule, composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, creationSettings, initialCreationDraft, purgeRetiredCreationDrafts, restoreCreationDraft, selectCreationTemplate, validateCreationDraft, creationDraftIssue } from '../src/utils/eventCreationDraft.ts'
 
 const type: EventActivityType = {
   code: 'shared-meal', archetypeCode: 'simple-social', version: 2,
@@ -18,6 +18,23 @@ const category = (item: EventActivityType): EventArchetype => ({
   conditionalModules: [], workflowTemplateRecommendations: [], activityTypes: [item],
 })
 const draft = () => ({ ...selectCreationTemplate(initialCreationDraft(), type), title: { en: 'Meal', zh: '聚餐' }, description: { en: 'Together', zh: '相聚' }, maxCapacity: '20' })
+
+test('Event 2 startup deletes only known retired Event draft keys', () => {
+  const values = new Map([
+    ['alife:event-create:v1:member:group', 'old'],
+    ['alife:event-create:v2:member:group', 'old'],
+    ['alife:event-create:v3:member:group', 'current'],
+    ['alife:unrelated', 'keep'],
+  ])
+  const storage = {
+    get length() { return values.size },
+    key: (index: number) => [...values.keys()][index] ?? null,
+    removeItem: (key: string) => { values.delete(key) },
+  }
+
+  assert.equal(purgeRetiredCreationDrafts(storage), 2)
+  assert.deepEqual([...values.keys()].sort(), ['alife:event-create:v3:member:group', 'alife:unrelated'])
+})
 
 test('template suggestions are not recorded as human selections or confirmed facts', () => {
   const request = composeCreationDraft(draft(), type)
@@ -92,7 +109,7 @@ test('duplicate submissions are blocked, retries reuse keys and changed proposal
 
 test('new drafts roundtrip, isolate viewers and groups, and reject legacy or invalid persisted values', () => {
   const value = draft(), catalogue = [category(type)]
-  assert.deepEqual(restoreCreationDraft(JSON.stringify({ version: 3, draft: value }), catalogue), value)
+  assert.deepEqual(restoreCreationDraft(JSON.stringify({ version: 5, draft: value }), catalogue), value)
   assert.equal(restoreCreationDraft(JSON.stringify(value), catalogue), null)
   assert.equal(restoreCreationDraft(JSON.stringify({ version: 1, draft: value }), catalogue), null)
   assert.equal(restoreCreationDraft(JSON.stringify({ version: 2, draft: { ...value, title: {} } }), catalogue), null)
@@ -108,6 +125,7 @@ test('one-off and recurring payloads retain bilingual copy and only include appl
   assert.equal(creationSeries(value, category(type)), null)
   assert.deepEqual(creationEvent(value, type, 'Leader').title, value.title)
   assert.equal(creationEvent(value, type, 'Leader').posterImageUrl, null)
+  assert.equal(Object.hasOwn(creationEvent(value, type, 'Leader'), 'ram'), false)
   const repeat = selectCreationTemplate(value, recurring)
   assert.equal(creationEvent(repeat, recurring, 'Leader').maxCapacity, 0)
   assert.equal(repeat.maxCapacity, '20')
@@ -128,47 +146,23 @@ test('readiness tasks and required-module warnings use readable bilingual labels
 })
 
 
-test('legacy section metadata remains readable until explicitly reviewed as modules', () => {
-  let value = draft()
-  assert.ok(Object.values(composeCreationDraft(value, type).arrangementConfirmations!).every(x => x === false))
-  value.moduleConfirmations = undefined
-  value.arrangementConfirmations = { people: true, safety: true, food: true }
-  value.factValues['safety.requiresRam'] = 'yes'
-  value = selectArrangementModule(value, 'SAFETY.RAM', false)
-  assert.equal(value.arrangementConfirmations!.safety, false)
-  assert.equal(value.arrangementConfirmations!.people, true)
-  assert.equal(value.moduleOverrides['SAFETY.RAM'], false)
-  assert.equal(value.factValues['safety.requiresRam'], 'yes')
-  value = confirmArrangementGroup(value, 'food', true, [{ moduleCode: 'FOOD.HOSPITALITY', status: 'selected' } as ModuleDecision])
-  assert.equal(value.arrangementConfirmations!.food, true)
-  assert.equal(value.factValues['food.serviceRequired'], 'unknown')
-  const restored = restoreCreationDraft(JSON.stringify({ version: 3, draft: value }), [category(type)])!
-  assert.equal(restored.arrangementConfirmations!.food, true)
-  assert.equal(composeCreationDraft(restored, type).arrangementConfirmations!.safety, false)
-  assert.ok(Object.values(invalidateArrangementConfirmation(restored).arrangementConfirmations!).every(x => x === false))
-})
-
-test('travel confirmation does not invent transport or accommodation facts, and invalid stored flags fail closed', () => {
-  const value = confirmArrangementGroup(draft(), 'travel', true, [{ moduleCode: 'MOVE.STAY', status: 'selected' } as ModuleDecision])
+test('module review does not invent transport or accommodation facts', () => {
+  const value = confirmArrangementModule(draft(), 'MOVE.STAY', true, [{ moduleCode: 'MOVE.STAY', status: 'selected' } as ModuleDecision])
   assert.equal(value.factValues['move.transportRequired'], 'unknown')
   assert.equal(value.factValues['move.accommodationRequired'], 'unknown')
-  assert.equal(value.arrangementConfirmations!.travel, true)
-  assert.equal(restoreCreationDraft(JSON.stringify({ version: 3, draft: { ...value, arrangementConfirmations: { travel: 'yes' } } }), [category(type)]), null)
+  assert.equal(value.moduleConfirmations?.['MOVE.STAY'], true)
 })
 
 
-test('module confirmation is independent, invalidates precisely and never infers old section confirmation', () => {
+test('module confirmation is independent and invalidates precisely', () => {
   const draft = initialCreationDraft()
   const ram = confirmArrangementModule(draft, 'SAFETY.RAM', true, [])
   assert.equal(ram.moduleConfirmations?.['SAFETY.RAM'], true)
-  assert.equal(moduleConfirmationSummary(ram.moduleConfirmations).safety, false)
   const both = confirmArrangementModule(ram, 'SAFEGUARDING.CHILD', true, [])
-  assert.equal(moduleConfirmationSummary(both.moduleConfirmations).safety, true)
+  assert.equal(both.moduleConfirmations?.['SAFEGUARDING.CHILD'], true)
   const changed = invalidateArrangementConfirmation(both, 'SAFETY.RAM')
   assert.equal(changed.moduleConfirmations?.['SAFETY.RAM'], false)
   assert.equal(changed.moduleConfirmations?.['SAFEGUARDING.CHILD'], true)
-  const old = { ...draft, moduleConfirmations: undefined, arrangementConfirmations: { safety: true } }
-  assert.equal(moduleConfirmationSummary(old.moduleConfirmations).safety, false)
 })
 
 
@@ -190,6 +184,6 @@ test('detail validation locates hidden time controls and preserves single-langua
   assert.equal(creationDraftIssue({ ...value, timeZone: 'invalid/zone' }, type, category(type), true)?.field, 'timeZone')
   assert.equal(creationDraftIssue({ ...value, startLocal: '2026-09-27T02:30' }, type, category(type), false)?.field, 'startLocal')
   assert.equal(creationDraftIssue({ ...value, endLocal: value.startLocal }, type, category(type), false)?.field, 'endLocal')
-  assert.equal(creationDraftIssue({ ...value, maxCapacity: '0' }, type, category(type), false)?.field, 'maxCapacity')
+  assert.equal(creationDraftIssue({ ...value, maxCapacity: '-1' }, type, category(type), false)?.field, 'maxCapacity')
   assert.equal(creationDraftIssue({ ...value, intervalWeeks: '53' }, recurring, category(recurring), false)?.field, 'intervalWeeks')
 })

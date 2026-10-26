@@ -1,3 +1,4 @@
+import { visitSectionText } from '../../i18n/visitSection.ts'
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowRight } from 'lucide-react'
@@ -66,7 +67,7 @@ const VisitSection = ({ copy, language }: Props) => {
     }
     if (!email && !phoneNumber) result.contact = copy.visitContactHint
     if (!message) result.message = copy.visitContactMessageRequired
-    if (!contactForm.consent) result.consent = language === 'zh' ? '请先同意隐私说明' : 'Please accept the privacy notice'
+    if (!contactForm.consent) result.consent = language === 'zh' ? visitSectionText.pleaseAcceptThePrivacyNotice.zh : visitSectionText.pleaseAcceptThePrivacyNotice.en
 
     return result
   }, [contactForm, copy, language])
@@ -213,8 +214,8 @@ const VisitSection = ({ copy, language }: Props) => {
                       onChange={(event) => setContactForm((current) => ({ ...current, consent: event.target.checked }))}
                     />
                     {language === 'zh'
-                      ? '我同意教会使用这些资料回复本次请求。提交不会创建 ALIFE 账号。'
-                      : 'I agree that the church may use these details to respond. Submitting does not create an ALIFE account.'}
+                      ? visitSectionText.iAgreeThatTheChurchMayUseTheseDetails.zh
+                      : visitSectionText.iAgreeThatTheChurchMayUseTheseDetails.en}
                   </label>
                   {touched.consent && errors.consent ? <span className="text-xs font-medium text-rose-600">{errors.consent}</span> : null}
 
@@ -272,7 +273,7 @@ const VisitSection = ({ copy, language }: Props) => {
                       onChange={(event) => setContactForm((current) => ({ ...current, preferredLanguage: event.target.value as ContactLanguage }))}
                       className="min-h-11 min-w-0 rounded-lg border border-home-border bg-white px-3 text-sm font-medium text-home-gold-text outline-none transition focus:border-home-green focus:ring-2 focus:ring-home-green/20"
                     >
-                      <option value="zh">中文</option>
+                      <option value="zh">{visitSectionText.label}</option>
                       <option value="en">English</option>
                       <option value="bilingual">Bilingual</option>
                     </select>

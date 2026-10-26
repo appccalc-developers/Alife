@@ -1,6 +1,6 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
 import { BoxGeometry, Color, DirectionalLight, Frustum, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, PCFShadowMap, PerspectiveCamera, Scene, Vector3 } from 'three'
 import { MAIN_HALL_DIMENSIONS } from '../src/views/virtualChurchMainHallLayout.ts'
 import { MAIN_HALL_DAYLIGHT_KEY_POSITION } from '../src/views/virtualChurchMainHallWindows.ts'
@@ -28,7 +28,7 @@ test('historical ceiling channels run lengthwise while three independent lightin
   // Geometry/draw bound, not measured FPS: same two instanced materials,
   // 23 extra boxes = 276 triangles for the whole room, not per chair.
   assert.equal((MAIN_HALL_LIGHTING_TRACKS.length - 3) * 12, 276)
-  const source = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url),'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url))
   for (const [name, placement] of [['main-hall-lighting-tracks','MAIN_HALL_LIGHTING_TRACKS'],['main-hall-track-heads','MAIN_HALL_LIGHTING_HEADS']]) {
     assert.equal((source.match(new RegExp(`name="${name}"`, 'g')) ?? []).length, 1)
     assert.ok(source.includes(`name="${name}" placements={${placement}}`))
@@ -50,7 +50,7 @@ test('bounded pale hemisphere fill stays subordinate to the window key without a
     .multiplyScalar(fill.hemisphereIntensity).addScalar(fill.ambientIntensity)
   for (const y of [-1, 0, 1]) assert.ok(response(y).toArray().every(v => Number.isFinite(v) && v > 0 && v < 2.1))
   assert.ok(response(1).b > response(-1).b * 2)
-  const view = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url),'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url))
   assert.equal((view.match(/<ambientLight/g)??[]).length,1)
   assert.equal((view.match(/<hemisphereLight/g)??[]).length,1)
   assert.match(view,/<ambientLight intensity=\{MAIN_HALL_FILL_RESPONSE.ambientIntensity\}/)
@@ -96,7 +96,7 @@ test('static instanced chair/door shadow state reuses camera motion and refreshe
 })
 
 test('actual auditorium integration confines cached shadows to one light, four chair caster batches and room architecture', () => {
-  const view = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url),'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url))
   assert.equal((view.match(/<directionalLight/g)??[]).length,1)
   assert.equal((view.match(/<HallStaticShadows \/>/g)??[]).length,1)
   assert.match(view,/useLayoutEffect\(\(\) => installVirtualChurchShadowCache\(scene, gl\), \[scene, gl\]\)/)

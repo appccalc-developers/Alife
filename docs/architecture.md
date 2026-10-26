@@ -297,7 +297,6 @@ AI-assisted workflows run through the Cloudflare speed layer:
 
 - generic AI router under `/api/ai`;
 - Event Details Assistant sessions under `/api/events/details-session/*`;
-- enrollment sessions under `/api/enrollments/session/*`;
 - review sessions under `/api/reviews/session/*`.
 
 Durable Object classes:
@@ -306,7 +305,7 @@ Durable Object classes:
 - `EnrollmentSession`
 - `ReviewSession`
 
-The Durable Objects keep session state and call Gemini. `EventPlanningSession` is the historical configured class name and now delegates only to the Details Assistant. Completed drafts are committed to backend REST APIs by the frontend, preserving the separation between temporary AI conversation state and durable business records. The former `/api/events/session/*` and `/api/events/extract` planning endpoints are retired.
+The Durable Objects keep temporary session state and call Gemini. `EventPlanningSession` is the historical configured class name and now delegates only to the Details Assistant. `EnrollmentSession` retains the old Event-only namespace for protected reset inventory and clearing but has no product session route and cannot create a new enrollment session. Completed details and review drafts are committed to backend REST APIs by the frontend, preserving the separation between temporary AI conversation state and durable business records. The former `/api/events/session/*`, `/api/events/extract` and `/api/enrollments/session/*` endpoints are retired.
 
 ## Image Architecture
 
@@ -354,6 +353,8 @@ It is a standard .NET publish/container flow, not Native AOT in the current proj
 - configures Durable Object bindings and migrations;
 - sets `API_PROXY_TARGET`;
 - requires `GEMINI_API_KEY`.
+
+All three Event-only Durable Object class names remain stable. Ordinary Worker deployments retain their bindings and do not include a class deletion migration. The former protected production Event reset workflow is retired. The separately authorised one-time production Event cutover has no SQL/R2 recovery copy; Event session storage must be inventoried and any stored data cleared and verified empty before writes reopen, with the new data epoch isolating stale clients. Reset-only maintenance code still requires a matching frozen epoch, a dedicated token, a signed request and an approved fingerprint, but the ordinary Cloudflare deployment neither invokes it nor supplies those reset credentials. The normal API deployment reads the exact SQL target and Event migration state first and stops whenever the Event 2.0 storage migration is pending. It then requires an existing current Event data epoch and explicit open/frozen write mode before its normal runtime configuration and migration steps; it cannot purge Event data or silently select a pre-reset epoch.
 
 `cloudflare/images-api/wrangler.toml`:
 

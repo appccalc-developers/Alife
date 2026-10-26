@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Alife.Api;
 using Alife.Api.Controllers;
 using Alife.Api.Security;
 using Alife.Application.Abstractions.Identity;
@@ -223,6 +224,7 @@ public sealed class BibleReadingProgressPipelineTests
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddScoped<ICurrentMemberAccessor, CurrentMemberAccessor>();
             builder.Services.AddSingleton(Mediator);
+            builder.Services.AddSingleton<EventWriteFreezeState>();
             builder.Services.AddSingleton(Substitute.For<ILineLoginService>());
             builder.Services.AddSingleton(Substitute.For<IIdentityAccessService>());
             // Real JWT middleware with test-owned values; not a test of live

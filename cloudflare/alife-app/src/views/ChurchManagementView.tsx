@@ -1,3 +1,4 @@
+import { churchManagementViewText } from '../i18n/churchManagementView.ts'
 import { useAuthStore } from '../stores/auth'
 import { churchManagementTabs } from '../utils/groupManagementSections'
 import AdminView from './AdminView'
@@ -15,25 +16,25 @@ const ChurchManagementView = ({ churchGroupId }: { churchGroupId: string }) => {
       sectionParamName="section"
       visibleSections={churchManagementTabs}
       sectionLabels={{
-        group: isChinese ? '资料与设置' : 'Profile & settings',
-        venues: isChinese ? '场地与房间管理' : 'Venues & rooms',
-        members: isChinese ? '成员管理' : 'Member management',
-        contacts: isChinese ? '联系人' : 'Contacts',
-        subgroups: isChinese ? '团契' : 'Fellowships',
-        ministries: isChinese ? '事工' : 'Ministries',
+        group: isChinese ? churchManagementViewText.profileSettings.zh : churchManagementViewText.profileSettings.en,
+        venues: isChinese ? churchManagementViewText.venuesRooms.zh : churchManagementViewText.venuesRooms.en,
+        members: isChinese ? churchManagementViewText.memberManagement.zh : churchManagementViewText.memberManagement.en,
+        contacts: isChinese ? churchManagementViewText.contacts.zh : churchManagementViewText.contacts.en,
+        subgroups: isChinese ? churchManagementViewText.fellowships.zh : churchManagementViewText.fellowships.en,
+        ministries: isChinese ? churchManagementViewText.ministries.zh : churchManagementViewText.ministries.en,
       }}
       membersContent={auth.hasAdminPermission('admin.members.view')
         ? <AdminView embedded sectionOverride="users" />
         : undefined}
       workspaceEyebrow={(
         <>
-          <span className="desktop:hidden">{isChinese ? '教会生活 / 管理' : 'Church / Management'}</span>
-          <span className="hidden desktop:inline">{isChinese ? '教会生活 / 教会管理' : 'Church Life / Church Management'}</span>
+          <span className="desktop:hidden">{isChinese ? churchManagementViewText.churchManagement.zh : churchManagementViewText.churchManagement.en}</span>
+          <span className="hidden desktop:inline">{isChinese ? churchManagementViewText.churchLifeChurchManagement.zh : churchManagementViewText.churchLifeChurchManagement.en}</span>
         </>
       )}
       workspaceDescription={isChinese
-        ? '在同一页面维护教会资料、场地与房间、成员、联系人、团契与事工。'
-        : 'Manage church profile, venues and rooms, members, contacts, fellowships, and ministries in one place.'}
+        ? churchManagementViewText.manageChurchProfileVenuesAndRoomsMembersContactsFellowships.zh
+        : churchManagementViewText.manageChurchProfileVenuesAndRoomsMembersContactsFellowships.en}
       subgroupDetailBasePath={auth.isAdmin ? '/admin/groups' : undefined}
     />
   )

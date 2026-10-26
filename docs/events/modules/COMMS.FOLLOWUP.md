@@ -52,6 +52,8 @@ Owners review bilingual content and an immutable audience snapshot before send. 
 
 Partial. Bilingual Event content, public/group projections, poster preparation/publication, in-app notification foundations and Event Review CRUD exist. They do not form a complete Event communications workspace or audited broadcast lifecycle. The retired generic workflow surface is not a current communications capability.
 
+For schema 2.0 the Event-level `comms.followupRequired=yes` answer contributes the single COMMS.FOLLOWUP need. It does not auto-publish copy or create a separate project communications approval. Project policy, offer and selection changes can generate limited transactional in-app notices through the current registration notification path, with no birth date, health/consent evidence or price amount. These operational notices do not implement the target reviewed audience broadcast, external delivery or full follow-up workflow.
+
 The [continuous preparation flow](../EVENT-SETUP-FLOW.md) provides a separate post-creation poster studio after formal approval. It reuses the existing AI/image services, requires human preview/adoption, and saves only the poster association through an authorized, no-store, ETag/idempotency-protected API. Poster drafts remain local until adopted. Explicit publication after active approval uses existing audience-filtered projections. Poster artwork is outside formal approval by product contract; adoption preserves Package validity. Audited broadcasts remain incomplete.
 
 

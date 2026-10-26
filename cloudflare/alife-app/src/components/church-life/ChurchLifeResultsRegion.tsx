@@ -1,3 +1,4 @@
+import { churchLifeResultsRegionText } from '../../i18n/churchLifeResultsRegion.ts'
 import type { ReactNode } from 'react'
 import { LoaderCircle } from 'lucide-react'
 
@@ -15,7 +16,7 @@ const ChurchLifeResultsRegion = ({ busy, children, language }: Props) => (
         role="status"
       >
         <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-        {language === 'zh' ? '正在更新结果' : 'Updating results'}
+        {language === 'zh' ? churchLifeResultsRegionText.updatingResults.zh : churchLifeResultsRegionText.updatingResults.en}
       </div>
     ) : null}
     {children}

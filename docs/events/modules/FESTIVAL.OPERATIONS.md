@@ -14,7 +14,7 @@ Coordinate multi-zone live operations, command, crowd flow, first aid, weather, 
 
 ### Activation
 
-Required when `scale.multiZone == true` (`multi-zone-live-operation`).
+Required when `scale.multiZone == true` (`multi-zone-live-operation`). Schema 2.0 asks this once in Event Details, not on each project. An Event-level `unknown` remains unresolved; an explicit `yes` retains the unavailable-module blocker rather than silently becoming `no`.
 
 ### Dependencies
 

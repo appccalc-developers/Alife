@@ -2,6 +2,7 @@ name = "alife-cloudflare-api"
 main = "worker/index.js"
 compatibility_date = "2026-04-17"
 workers_dev = true
+keep_vars = false
 
 [[routes]]
 pattern = "images.ccalc.live"
@@ -17,8 +18,25 @@ binding = "HELP_BUCKET"
 bucket_name = "ccalc"
 preview_bucket_name = "ccalc"
 
+[[r2_buckets]]
+binding = "EVENT_RESET_RECOVERY_BUCKET"
+bucket_name = "ccalc-event-reset-recovery"
+preview_bucket_name = "ccalc-event-reset-recovery"
+
 [vars]
 R2_BUCKET_NAME = "ccalc"
 R2_PUBLIC_BASE_URL = "https://images.ccalc.live"
 BUCKET_LIST_LIMIT = "500"
 HELP_BUCKET_OBJECT_KEY = "images.ccalc.live/openapi.yaml"
+RESET_SOURCE_BUCKET_NAME = "ccalc"
+EVENT_RESET_RECOVERY_BUCKET_NAME = "ccalc-event-reset-recovery"
+EVENT_SCHEMA_EPOCH = "2.0.0"
+EVENT_RUNTIME_ENVIRONMENT = "production"
+EVENT_WRITE_MODE = "open"
+
+# EVENT_RESET_FILE_ADMIN_SECRET, EVENT_RESET_FILE_SIGNING_SECRET,
+# EVENT_RESET_FILE_FINALIZE_SECRET, EVENT_RESET_FILE_FINALIZE_SIGNING_SECRET,
+# and the exact EVENT_RESET_TARGET_RESOURCE are installed as encrypted Worker
+# bindings only by an explicitly authorized Event maintenance operation. Wrangler
+# deployments preserve existing secrets even with keep_vars=false. This file is
+# the source of truth for normal, unfrozen non-secret variables.

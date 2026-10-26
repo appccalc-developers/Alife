@@ -96,7 +96,7 @@ public sealed class ListFileAssetsQueryHandler(
             fileAsset.StorageProvider,
             fileAsset.BucketName,
             fileAsset.ObjectKey,
-            fileAsset.Visibility == Domain.Enums.FileAssetVisibility.MemberPrivate ? null : fileAsset.PublicUrl,
+            fileAsset.Visibility == Domain.Enums.FileAssetVisibility.MemberPrivate || fileAsset.Purpose == Domain.Enums.FileAssetPurpose.AlbumPhoto ? null : fileAsset.PublicUrl,
             $"/api/file-assets/{fileAsset.Id}/open",
             fileAsset.OriginalFileName,
             fileAsset.StoredFileName,

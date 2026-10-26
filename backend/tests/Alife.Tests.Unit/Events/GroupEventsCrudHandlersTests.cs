@@ -1,6 +1,7 @@
 using Alife.Application.Events.Commands.CreateGroupEvent;
 using Alife.Application.Events.Commands.DeleteGroupEvent;
 using Alife.Application.Events.Commands.UpdateGroupEvent;
+using Alife.Application.Events.Composition;
 using Alife.Application.Events.Queries.GetGroupEvents;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Dtos;
@@ -35,17 +36,13 @@ public class GroupEventsCrudHandlersTests
             .Returns(true);
 
         var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
-        var handler = new CreateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService);
+        var engine = new EventCompositionEngine();
+        var handler = new CreateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService, engine);
+        var start = new DateTime(2026, 1, 10, 10, 0, 0, DateTimeKind.Utc);
+        var end = new DateTime(2026, 1, 10, 12, 0, 0, DateTimeKind.Utc);
 
         var result = await handler.Handle(
-            new CreateGroupEventCommand(
-                groupId,
-                currentMemberId,
-                "English Title",
-                "中文標題",
-                new DateTime(2026, 1, 10, 10, 0, 0, DateTimeKind.Utc),
-                new DateTime(2026, 1, 10, 12, 0, 0, DateTimeKind.Utc),
-                "{\"description\":\"test\"}"),
+            CurrentCreate(engine, groupId, currentMemberId, "English Title", "中文標題", start, end),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -64,19 +61,20 @@ public class GroupEventsCrudHandlersTests
         var groupId = Guid.NewGuid();
         var memberId = Guid.NewGuid();
         authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(true);
+        var engine = new EventCompositionEngine();
         var handler = new CreateGroupEventCommandHandler(
             dbContext,
             authorization,
-            Substitute.For<IEventCacheInvalidationService>());
+            Substitute.For<IEventCacheInvalidationService>(),
+            engine);
+        var start = DateTime.UtcNow;
+        var end = start.AddHours(1);
 
-        var result = await handler.Handle(new CreateGroupEventCommand(
-            groupId,
-            memberId,
-            "Event",
-            "活动",
-            DateTime.UtcNow,
-            DateTime.UtcNow.AddHours(1),
-            "{\"visibility\":\"secret\"}"), CancellationToken.None);
+        var result = await handler.Handle(CurrentCreate(engine, groupId, memberId, "Event", "活动", start, end) with
+        {
+            EventDataJson = EventCompositionTestData.CurrentEventData("Event", "活动", start, end)
+                .Replace("groupVisible", "secret", StringComparison.Ordinal)
+        }, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Empty(dbContext.GroupEvents);
@@ -102,17 +100,13 @@ public class GroupEventsCrudHandlersTests
             .Returns(true);
 
         var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
-        var handler = new CreateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService);
+        var engine = new EventCompositionEngine();
+        var handler = new CreateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService, engine);
+        var start = new DateTime(2026, 1, 10, 10, 0, 0, DateTimeKind.Utc);
+        var end = new DateTime(2026, 1, 10, 12, 0, 0, DateTimeKind.Utc);
 
         var result = await handler.Handle(
-            new CreateGroupEventCommand(
-                groupId,
-                leaderId,
-                "English Title",
-                "中文標題",
-                new DateTime(2026, 1, 10, 10, 0, 0, DateTimeKind.Utc),
-                new DateTime(2026, 1, 10, 12, 0, 0, DateTimeKind.Utc),
-                "{\"description\":\"test\"}"),
+            CurrentCreate(engine, groupId, leaderId, "English Title", "中文標題", start, end),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -235,7 +229,8 @@ public class GroupEventsCrudHandlersTests
                     DateTime.UtcNow,
                     DateTime.UtcNow,
                     RamStatus: EventRamStatus.Approved,
-                    Visibility: EventVisibilityPolicy.Public)
+                    Visibility: EventVisibilityPolicy.Public,
+                    PublicationStatus: EventPublicationStatus.Published)
             ]);
         var handler = new GetGroupEventsQueryHandler(eventReadService, groupReadService, groupAuthorizationService);
 
@@ -281,7 +276,8 @@ public class GroupEventsCrudHandlersTests
                     DateTime.UtcNow, DateTime.UtcNow.AddHours(1),
                     "{\"visibility\":\"churchVisible\",\"description\":{\"en\":\"Welcome\"},\"contactProfileIds\":[\"secret\"]}",
                     DateTime.UtcNow, DateTime.UtcNow,
-                    [Guid.NewGuid()], EventRamStatus.Approved, EventVisibilityPolicy.ChurchVisible)
+                    [Guid.NewGuid()], EventRamStatus.Approved, EventVisibilityPolicy.ChurchVisible,
+                    PublicationStatus: EventPublicationStatus.Published)
             ]);
         var handler = new GetGroupEventsQueryHandler(eventReadService, groupReadService, groupAuthorizationService);
 
@@ -350,7 +346,8 @@ public class GroupEventsCrudHandlersTests
                     DateTime.UtcNow, DateTime.UtcNow.AddHours(1),
                     "{\"visibility\":\"churchVisible\",\"personResponsible\":\"Private lead\",\"contactProfileIds\":[\"secret\"]}",
                     DateTime.UtcNow, DateTime.UtcNow,
-                    [Guid.NewGuid()], EventRamStatus.Approved, EventVisibilityPolicy.ChurchVisible)
+                    [Guid.NewGuid()], EventRamStatus.Approved, EventVisibilityPolicy.ChurchVisible,
+                    PublicationStatus: EventPublicationStatus.Published)
             ]);
         var handler = new GetGroupEventsQueryHandler(eventReadService, groupReadService, groupAuthorizationService);
 
@@ -396,7 +393,7 @@ public class GroupEventsCrudHandlersTests
     }
 
     [Fact]
-    public async Task UpdateGroupEvent_WhenAuthorized_UpdatesEvent()
+    public async Task UpdateGroupEvent_WithoutComposition_IsRejectedBeforeMutation()
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
@@ -410,6 +407,7 @@ public class GroupEventsCrudHandlersTests
             Id = eventId,
             GroupId = groupId,
             CreatedByMemberId = currentMemberId,
+            AccountableOwnerMemberId = currentMemberId,
             TitleEn = "Before",
             TitleZh = "更新前",
             StartDate = new DateTime(2026, 3, 1, 8, 0, 0, DateTimeKind.Utc),
@@ -439,12 +437,9 @@ public class GroupEventsCrudHandlersTests
                 "{\"after\":true}"),
             CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Value);
-        Assert.Equal("After", result.Value.TitleEn);
-        Assert.Equal("更新後", result.Value.TitleZh);
-        Assert.Equal("{\"after\":true}", result.Value.EventDataJson);
-        Assert.True(result.Value.UpdatedUtc >= createdUtc);
+        Assert.Equal(Alife.Application.Common.Models.AppResultStatus.ValidationError, result.Status);
+        Assert.Equal(EventCompositionDefinitions.UnsupportedSchemaErrorCode, result.Code);
+        Assert.Equal("Before", (await dbContext.GroupEvents.SingleAsync()).TitleEn);
     }
 
     [Fact]
@@ -461,6 +456,7 @@ public class GroupEventsCrudHandlersTests
             Id = eventId,
             GroupId = groupId,
             CreatedByMemberId = currentMemberId,
+            AccountableOwnerMemberId = currentMemberId,
             TitleEn = "Delete me",
             TitleZh = "刪除我",
             StartDate = DateTime.UtcNow,
@@ -485,6 +481,36 @@ public class GroupEventsCrudHandlersTests
             .IgnoreQueryFilters()
             .SingleAsync(x => x.Id == eventId);
         Assert.True(deletedEvent.IsDeleted);
+    }
+
+    private static CreateGroupEventCommand CurrentCreate(
+        EventCompositionEngine engine,
+        Guid groupId,
+        Guid memberId,
+        string titleEn,
+        string titleZh,
+        DateTime start,
+        DateTime end)
+    {
+        var definition = EventCompositionDefinitions.ActivityTypesByCode["shared-meal"];
+        var composition = EventCompositionTestData.CurrentRequest(
+            activityPlan: EventCompositionTestData.ConfirmedPresetPlan(definition),
+            activityTypeVersion: definition.Version,
+            removedPresetKeys: []);
+        var proposal = engine.Compose(composition,
+            new EventCompositionContext("\"plan-new\"", HasAccountableOwner: true));
+        Assert.True(proposal.IsSuccess, proposal.Message);
+        return new(
+            groupId,
+            memberId,
+            titleEn,
+            titleZh,
+            start,
+            end,
+            EventCompositionTestData.CurrentEventData(titleEn, titleZh, start, end),
+            Composition: composition,
+            CompositionProposalHash: proposal.Value!.ProposalHash,
+            IdempotencyKey: $"test-{Guid.NewGuid():N}");
     }
 
     private static GroupDto CreateGroup(Guid groupId, bool isChurch)

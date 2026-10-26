@@ -1,6 +1,6 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
 import { PerspectiveCamera, Vector3 } from 'three'
 import { MAIN_HALL_CHAIR_PARTS, MAIN_HALL_CHAIRS, MAIN_HALL_DIMENSIONS, MAIN_HALL_STAGE_ACCESS } from '../src/views/virtualChurchMainHallLayout.ts'
 import { MAIN_HALL_FOYER_EXIT_CENTERS, MAIN_HALL_FOYER_EXIT_THRESHOLD_Z, MAIN_HALL_WALK_START, MAIN_HALL_WALK_REVIEW_DURATION_MS, createMainHallWalkReview, mainHallWalkReviewEnabled, mainHallFoyerExitDoorAt, mainHallWalkStartForDoor, mainHallWalkable, stepMainHallWalk } from '../src/views/virtualChurchMainHallWalk.ts'
@@ -51,7 +51,7 @@ test('background, manual input, blur, clock failures and slow callbacks cannot r
 })
 
 test('runtime review feeds the existing controller and is disabled for reduced motion without its own timer', () => {
-  const view = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   const controller = view.split('function HallWalkCamera(')[1].split('function HallRearDoor(')[0]
   assert.ok(view.includes('mainHallWalkReviewEnabled(new URLSearchParams(window.location.search)) && !reducedMotion'))
   assert.ok(controller.includes('if (startingWalk && inputReview) reviewRun.current = createMainHallWalkReview()'))
@@ -99,7 +99,7 @@ test('only the two cut rear openings can hand a walking visitor back to the matc
   assert.equal(mainHallWalkable(0, MAIN_HALL_FOYER_EXIT_THRESHOLD_Z), false)
   assert.equal(mainHallFoyerExitDoorAt(Number.NaN, 11), null)
   assert.equal(mainHallFoyerExitDoorAt(0, Number.NaN), null)
-  const view = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(view, /mainHallFoyerExitDoorAt\(x, z\)/)
   assert.match(view, /onExit\(exitDoor\)/)
   assert.match(view, /main-hall-foyer-exit-/)
@@ -159,7 +159,7 @@ test('right/left turn inputs move the actual camera view to the corresponding si
       assert.equal(result.z, pose.z)
     }
   }
-  const view = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(view, /Number\(keys.has\('KeyE'\) \|\| keys.has\('ArrowRight'\)\) - Number\(keys.has\('KeyQ'\) \|\| keys.has\('ArrowLeft'\)\)/)
   assert.match(view, /walkControl\('turn', 1, zh \? '向右转' : 'Turn right'/)
   assert.match(view, /walkControl\('turn', -1, zh \? '向左转' : 'Turn left'/)
@@ -168,7 +168,7 @@ test('right/left turn inputs move the actual camera view to the corresponding si
 })
 
 test('walk preview keeps photo comparison, bilingual controls and demand rendering', () => {
-  const view = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(view, /view === 'walk'/)
   assert.match(view, /<HallCamera view=\{view\}/)
   assert.match(view, /frameloop="demand"/)
@@ -186,7 +186,7 @@ test('walk preview keeps photo comparison, bilingual controls and demand renderi
 })
 
 test('explicit walk-mode entry hands keyboard focus to the scene without weakening control focus guards', () => {
-  const view = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   const walkButton = view.split("aria-label={zh ? '步行查看' : 'Walk through'}")[1].split('</button>')[0]
   assert.match(walkButton, /onClick=\{\(\) => \{ setView\('walk'\); pageRef\.current\?\.focus\(\{ preventScroll: true \}\) \}\}/)
   // A focused return/language button, form or dialog must still own its keys.

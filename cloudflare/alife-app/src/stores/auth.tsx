@@ -1,4 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { clearPrivatePageCaches } from '../db/collections/pageCollection'
+import { removeCachedRecords } from '../db/httpCache'
 import { authService } from '../services/authService'
 import { activeEntityService } from '../services/activeEntityService'
 import { applyDocumentLocale, getInitialLanguage, saveLanguagePreference, type Language } from '../i18n/locale'
@@ -31,13 +33,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const [language, setLanguage] = useState<Language>(() => getInitialLanguage())
+  const profileSequence = useRef(0)
+
+  useEffect(() => {
+    // Discard legacy private records even when visiting an auth-optional page.
+    void Promise.all([removeCachedRecords(['pageDetail']), removeCachedRecords(['pagePublicationReviewCopy'])])
+  }, [])
 
   useEffect(() => {
     applyDocumentLocale(language)
   }, [language])
 
   const fetchMe = useCallback(async () => {
+    const sequence = ++profileSequence.current
     const profile = await authService.getMe()
+    if (sequence !== profileSequence.current) throw new DOMException('Superseded profile', 'AbortError')
+    if (activeEntityService.getViewerId() !== profile.id) await clearPrivatePageCaches()
+    if (sequence !== profileSequence.current) throw new DOMException('Superseded profile', 'AbortError')
     activeEntityService.setViewer(profile.id)
     setMe(profile)
     return profile
@@ -68,9 +80,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authService.logout()
     } finally {
+      ++profileSequence.current
+      await clearPrivatePageCaches()
       activeEntityService.setViewer()
+      setMe(null)
     }
-    setMe(null)
     try {
       await fetchMe()
     } catch {

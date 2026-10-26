@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -77,7 +78,7 @@ test('window ownership survives StrictMode replay and frees all buffers on real 
   assert.equal(disposed, 0)
   guard.release(release); await Promise.resolve()
   assert.equal(disposed, 5)
-  const view = readFileSync(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchStudyRoomView.tsx', import.meta.url))
   assert.match(view, /windowCleanup.release\(\(\) => Object.values\(windows\).forEach\(part => part.dispose\(\)\)\)/)
   for (const part of ['wall','frames','sills','glazing','vista']) assert.match(view, new RegExp(`windows\\.${part}\\} attach="geometry" dispose=\\{null\\}`))
   assert.equal((view.match(/<directionalLight/g) ?? []).length, 1)

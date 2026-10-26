@@ -53,17 +53,20 @@ public sealed record EventActivityTypeDefinition(
     EventActivityTypeDefaultsDto Defaults,
     IReadOnlyList<string> PreselectedModules,
     string? RecommendedWorkflowTemplateCode,
-    IReadOnlyList<EventActivityTypeServiceSlotPresetDto> PresetServiceSlots)
+    IReadOnlyList<EventActivityTypeServiceSlotPresetDto> PresetServiceSlots,
+    IReadOnlyList<EventTemplatePresetProjectDto> PresetProjects)
 {
     public EventActivityTypeDto ToDto() => new(
         Code, Version, ArchetypeCode, Name, Description, IconKey, Defaults,
-        PreselectedModules, RecommendedWorkflowTemplateCode, PresetServiceSlots);
+        PreselectedModules, RecommendedWorkflowTemplateCode, PresetServiceSlots, PresetProjects);
 }
 
 public static class EventCompositionDefinitions
 {
-    public const string SchemaVersion = "1.1.0";
-    public const string LegacySchemaVersion = "1.0.0";
+    public const string SchemaVersion = "2.0.0";
+    public const string UnsupportedSchemaErrorCode = "event.schema.unsupported";
+    public static bool IsSupportedSchema(string? schemaVersion) =>
+        string.Equals(schemaVersion, SchemaVersion, StringComparison.Ordinal);
     public static readonly IReadOnlySet<string> ActivityTypeIconKeys = new HashSet<string>(
         ["meal", "people", "map", "outdoors", "camp", "retreat", "children", "training", "fellowship", "worship", "study", "prayer", "festival", "celebration", "outreach", "performance"],
         StringComparer.Ordinal);
@@ -353,9 +356,9 @@ public static class EventCompositionDefinitions
         IReadOnlyList<string> modules,
         IReadOnlyList<EventActivityTypeServiceSlotPresetDto> presetServiceSlots,
         string? workflow = null)
-        => new(code, 2, archetypeCode, Text(nameEn, nameZh), Text(descriptionEn, descriptionZh), iconKey,
+        => new(code, 5, archetypeCode, Text(nameEn, nameZh), Text(descriptionEn, descriptionZh), iconKey,
             new EventActivityTypeDefaultsDto(visibility, registrationMode, "People"), modules, workflow,
-            presetServiceSlots);
+            presetServiceSlots, EventTemplateProjectDefaults.ForTemplate(code, archetypeCode == "recurring-gathering"));
 
     private static EventActivityTypeServiceSlotPresetDto Slot(string roleCode, int requiredCount)
         => new(roleCode, roleCode switch

@@ -41,8 +41,8 @@ public static class EventWorkAccess
             .AnyAsync(x => x.EventId == e.Id && x.MemberId == actor && x.Status == EventTeamMemberStatus.Accepted && x.EndedUtc == null, ct);
     }
     public static async Task<bool> ReviewContextAsync(IAlifeDbContext db, GroupEvent e, Guid actor, CancellationToken ct)
-        => await ReviewerAsync(db,e,actor,ct) && (e.CollaborationVersion == 0 ||
-            await db.EventRamActions.AnyAsync(x => x.EventId == e.Id && (x.Action == "submit" || x.Action == "legacy-submitted" || x.Action == "legacy-approved"), ct));
+        => await ReviewerAsync(db,e,actor,ct) &&
+            await db.EventRamActions.AnyAsync(x => x.EventId == e.Id && x.Action == "submit", ct);
     public static async Task<bool> EnabledAsync(IAlifeDbContext db, Guid eventId, string module, CancellationToken ct)
     {
         var row = await db.EventPlanSnapshots.AsNoTracking().Where(x => x.EventId == eventId && x.IsActive).OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);

@@ -32,7 +32,8 @@ public sealed class EventSafeguardingChildConsentCheckInTests
         var worker = await service.GetWorkspaceAsync(seeded.Event.Id, null, seeded.Worker.Id, default);
         Assert.True(worker.IsSuccess, worker.Message);
         Assert.Equal("checkInDuty", worker.Value!.AccessMode);
-        Assert.Equal(Guid.Empty, Assert.Single(worker.Value.Children).EnrollmentId);
+        Assert.Null(Assert.Single(worker.Value.Children).RegistrationParticipantId);
+        Assert.Empty(worker.Value.RegistrationParticipantOptions);
         Assert.Empty(Assert.Single(worker.Value.Children).Guardians);
         Assert.Empty(worker.Value.WorkerEvidence);
         Assert.Empty(worker.Value.Audit);
@@ -53,10 +54,78 @@ public sealed class EventSafeguardingChildConsentCheckInTests
         var service = new EventSafeguardingService(db, Authorization());
 
         Assert.Equal(AppResultStatus.Forbidden, (await service.RegisterChildAsync(seeded.Event.Id, seeded.OrdinaryTeam.Id,
-            new(seeded.Enrollment.Id, null), "ordinary-register", default)).Status);
+            new(seeded.Participant.Id), "ordinary-register", default)).Status);
         Assert.Equal(AppResultStatus.Forbidden, (await service.CheckInAsync(seeded.Event.Id, seeded.Occurrence.Id,
             seeded.ChildRegistration.Id, seeded.Guardian.Id, seeded.ChildETag, "guardian-checkin", default)).Status);
         Assert.Empty(await db.AuditLogs.Where(x => x.Action == "safeguarding.occurrence.check-in").ToListAsync());
+    }
+
+    [Fact]
+    public async Task RegistrationParticipantChild_CanBeLinkedWithoutMember()
+    {
+        await using var db = CreateDb();
+        var seeded = Seed(db);
+        var participant = AddRegistrationParticipant(db, seeded.Event.Id, seeded.Guardian.Id,
+            "Child without account", isChild: true, memberId: null);
+        await db.SaveChangesAsync();
+        var service = new EventSafeguardingService(db, Authorization());
+
+        var before = await service.GetWorkspaceAsync(seeded.Event.Id, null, seeded.Lead.Id, default);
+        Assert.Contains(before.Value!.RegistrationParticipantOptions,
+            x => x.RegistrationParticipantId == participant.Id && x.MemberId is null);
+        var registered = await service.RegisterChildAsync(seeded.Event.Id, seeded.Lead.Id,
+            new(RegistrationParticipantId: participant.Id), "new-participant-child", default);
+        Assert.True(registered.IsSuccess, registered.Message);
+        var child = Assert.Single(registered.Value!.Children, x => x.RegistrationParticipantId == participant.Id);
+        Assert.Null(child.ChildMemberId);
+        Assert.Equal("Child without account", child.DisplayName);
+        var stored = await db.EventChildRegistrations.SingleAsync(x => x.Id == child.Id);
+        Assert.Null(stored.ChildMemberId);
+
+        var guardian = await service.AddGuardianAsync(seeded.Event.Id, child.Id, seeded.Lead.Id,
+            new(seeded.Guardian.Id, "Parent"), child.ETag, "new-participant-guardian", default);
+        Assert.True(guardian.IsSuccess, guardian.Message);
+        var relationship = Assert.Single(Assert.Single(guardian.Value!.Children,
+            x => x.Id == child.Id).Guardians);
+        var confirmed = await service.ConfirmGuardianAsync(seeded.Event.Id, relationship.Id,
+            seeded.Guardian.Id, relationship.ETag, "new-participant-confirm", default);
+        Assert.True(confirmed.IsSuccess, confirmed.Message);
+        Assert.Contains(confirmed.Value!.Children,
+            x => x.RegistrationParticipantId == participant.Id && x.IsGuardian && x.GuardianStatus == EventGuardianRelationshipStatus.Confirmed);
+        Assert.Equal(AppResultStatus.Forbidden,
+            (await service.GetMyContextAsync(seeded.Event.Id, seeded.Unrelated.Id, default)).Status);
+        participant.SeatStatus = "cancelled";
+        await db.SaveChangesAsync();
+        var checkIn = await service.CheckInAsync(seeded.Event.Id, seeded.Occurrence.Id,
+            child.Id, seeded.Lead.Id, child.ETag, "cancelled-child-checkin", default);
+        Assert.Equal(AppResultStatus.Conflict, checkIn.Status);
+        Assert.Contains("seat is no longer active", checkIn.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RegistrationParticipantChild_RejectsCrossEventAdultCancelledAndDuplicateSources()
+    {
+        await using var db = CreateDb();
+        var seeded = Seed(db);
+        var adult = AddRegistrationParticipant(db, seeded.Event.Id, seeded.Guardian.Id, "Adult", isChild: false, memberId: null);
+        var cancelled = AddRegistrationParticipant(db, seeded.Event.Id, seeded.Guardian.Id, "Cancelled", isChild: true, memberId: null);
+        cancelled.SeatStatus = "cancelled";
+        var otherEvent = AddRegistrationParticipant(db, Guid.NewGuid(), seeded.Guardian.Id, "Other event child", isChild: true, memberId: null);
+        var duplicateMember = AddRegistrationParticipant(db, seeded.Event.Id, seeded.Guardian.Id,
+            "Existing child", isChild: true, memberId: seeded.Child.Id);
+        await db.SaveChangesAsync();
+        var service = new EventSafeguardingService(db, Authorization());
+
+        foreach (var invalid in new[] { adult, cancelled, otherEvent })
+            Assert.Equal(AppResultStatus.ValidationError,
+                (await service.RegisterChildAsync(seeded.Event.Id, seeded.Lead.Id,
+                    new(RegistrationParticipantId: invalid.Id), $"invalid-{invalid.Id:N}", default)).Status);
+        Assert.Equal(AppResultStatus.ValidationError,
+            (await service.RegisterChildAsync(seeded.Event.Id, seeded.Lead.Id,
+                new(Guid.Empty), "missing-source", default)).Status);
+        Assert.Equal(AppResultStatus.Conflict,
+            (await service.RegisterChildAsync(seeded.Event.Id, seeded.Lead.Id,
+                new(RegistrationParticipantId: duplicateMember.Id), "duplicate-member", default)).Status);
     }
 
     [Fact]
@@ -118,7 +187,7 @@ public sealed class EventSafeguardingChildConsentCheckInTests
         {
             x.Action, x.EntityId, x.ActorMemberId, x.TargetMemberId, x.BeforeJson, x.AfterJson, x.MetadataJson
         })), StringComparison.Ordinal);
-        Assert.Equal("{}", (await db.EventEnrollments.SingleAsync(x => x.Id == seeded.Enrollment.Id)).EnrollmentJson);
+        Assert.Equal("{}", (await db.EventRegistrationParticipants.SingleAsync(x => x.Id == seeded.Participant.Id)).AnswersJson);
     }
 
     [Fact]
@@ -190,17 +259,15 @@ public sealed class EventSafeguardingChildConsentCheckInTests
         Assert.Contains(ratioReadiness.Blockers, x => x.En.Contains("1/2", StringComparison.Ordinal));
 
         var secondChild = Member("Second child");
-        var secondEnrollment = new EventEnrollment { Id = Guid.NewGuid(), GroupId = seeded.Group.Id,
-            EventId = seeded.Event.Id, MemberId = secondChild.Id, EnrollmentJson = "{}",
-            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
+        var secondParticipant = AddRegistrationParticipant(db, seeded.Event.Id, seeded.Guardian.Id,
+            secondChild.DisplayName!, isChild: true, memberId: secondChild.Id);
         var secondRegistration = new EventChildRegistration { Id = Guid.NewGuid(), EventId = seeded.Event.Id,
-            EnrollmentId = secondEnrollment.Id, ChildMemberId = secondChild.Id,
+            RegistrationParticipantId = secondParticipant.Id, ChildMemberId = secondChild.Id,
             CreatedByMemberId = seeded.Lead.Id, CreatedUtc = DateTime.UtcNow };
         var persistedConfig = await db.EventSafeguardingConfigurations.SingleAsync();
         persistedConfig.PolicyVersionId = ratioPolicy.Id;
         persistedConfig.PolicyVersion = ratioPolicy;
         db.Members.Add(secondChild);
-        db.EventEnrollments.Add(secondEnrollment);
         db.EventChildRegistrations.Add(secondRegistration);
         db.EventSafeguardingPolicyVersions.Add(ratioPolicy);
         db.EventSafeguardingWorkerEligibility.AddRange(ratioEvidence);
@@ -253,6 +320,19 @@ public sealed class EventSafeguardingChildConsentCheckInTests
     private static AlifeDbContext CreateDb() => new(new DbContextOptionsBuilder<AlifeDbContext>()
         .UseInMemoryDatabase(Guid.NewGuid().ToString("N")).Options);
 
+    private static EventRegistrationParticipant AddRegistrationParticipant(AlifeDbContext db, Guid eventId,
+        Guid organiserId, string name, bool isChild, Guid? memberId)
+    {
+        var application = new EventRegistrationApplication { Id = Guid.NewGuid(), EventId = eventId,
+            OrganiserMemberId = organiserId, CreatedByMemberId = organiserId, QueuedUtc = DateTime.UtcNow };
+        var participant = new EventRegistrationParticipant { Id = Guid.NewGuid(), ApplicationId = application.Id,
+            Application = application, MemberId = memberId, DisplayName = name, IsChild = isChild,
+            SeatStatus = "confirmed" };
+        db.EventRegistrationApplications.Add(application);
+        db.EventRegistrationParticipants.Add(participant);
+        return participant;
+    }
+
     private static Seeded Seed(AlifeDbContext db, int requiredCheckInWorkers = 1)
     {
         var group = new Group { Id = Guid.NewGuid(), NameJson = "{}", CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
@@ -263,13 +343,13 @@ public sealed class EventSafeguardingChildConsentCheckInTests
             EndDate = OccurrenceStart.AddHours(3), CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
         var occurrence = new EventOccurrence { Id = Guid.NewGuid(), EventId = groupEvent.Id, StartUtc = OccurrenceStart,
             EndUtc = OccurrenceStart.AddHours(3), LocalDate = DateOnly.FromDateTime(OccurrenceStart), CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
-        var enrollment = new EventEnrollment { Id = Guid.NewGuid(), GroupId = group.Id, EventId = groupEvent.Id,
-            MemberId = child.Id, EnrollmentJson = "{}", CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
+        var participant = AddRegistrationParticipant(db, groupEvent.Id, guardian.Id,
+            child.DisplayName!, isChild: true, memberId: child.Id);
         var policy = Policy(group.Id, lead.Id, 1, PolicyJson(requiredCheckInWorkers));
         var configuration = new EventSafeguardingConfiguration { Id = Guid.NewGuid(), EventId = groupEvent.Id,
             PolicyVersionId = policy.Id, PolicyVersion = policy, ConfiguredByMemberId = lead.Id, ConfiguredUtc = DateTime.UtcNow };
         var childRegistration = new EventChildRegistration { Id = Guid.NewGuid(), EventId = groupEvent.Id,
-            EnrollmentId = enrollment.Id, ChildMemberId = child.Id, PhotoUrl = "https://example.invalid/child.jpg",
+            RegistrationParticipantId = participant.Id, ChildMemberId = child.Id, PhotoUrl = "https://example.invalid/child.jpg",
             CreatedByMemberId = lead.Id, CreatedUtc = DateTime.UtcNow };
         var relationship = new EventChildGuardianRelationship { Id = Guid.NewGuid(), ChildRegistrationId = childRegistration.Id,
             GuardianMemberId = guardian.Id, RelationshipLabel = "Guardian", Status = EventGuardianRelationshipStatus.Confirmed,
@@ -289,12 +369,12 @@ public sealed class EventSafeguardingChildConsentCheckInTests
         var leadEvidence = Evidence(groupEvent.Id, policy.Id, lead.Id, EventSafeguardingReadiness.LeadRoleKey, "childMinistryApproved", lead.Id);
         var workerEvidence = Evidence(groupEvent.Id, policy.Id, worker.Id, EventSafeguardingReadiness.CheckInWorkerRoleKey, "eventCheckInApproved", lead.Id);
         db.Groups.Add(group); db.Members.AddRange(owner, lead, worker, ordinary, guardian, child, unrelated);
-        db.GroupEvents.Add(groupEvent); db.EventOccurrences.Add(occurrence); db.EventEnrollments.Add(enrollment);
+        db.GroupEvents.Add(groupEvent); db.EventOccurrences.Add(occurrence);
         db.EventSafeguardingPolicyVersions.Add(policy); db.EventSafeguardingConfigurations.Add(configuration);
         db.EventChildRegistrations.Add(childRegistration); db.EventRoleAssignments.AddRange(leadRole, workerRole);
         db.EventTeamMembers.Add(ordinaryTeam); db.EventSafeguardingWorkerEligibility.AddRange(leadEvidence, workerEvidence);
         SeedSafeguardingPlan(db, groupEvent);
-        return new(group, groupEvent, occurrence, enrollment, childRegistration, collector, owner, lead, worker, ordinary, guardian, child, unrelated,
+        return new(group, groupEvent, occurrence, participant, childRegistration, collector, owner, lead, worker, ordinary, guardian, child, unrelated,
             $"\"safeguarding-child-{childRegistration.ConcurrencyToken:N}\"");
     }
 
@@ -319,7 +399,7 @@ public sealed class EventSafeguardingChildConsentCheckInTests
     {
         var facts = new[] { new EventFactInputDto("people.childrenPresent", JsonSerializer.SerializeToElement(true), EventFactCertainty.Confirmed, EventFactSource.Human),
             new EventFactInputDto("people.registrationMode", JsonSerializer.SerializeToElement("required"), EventFactCertainty.Confirmed, EventFactSource.Human) };
-        var plan = new EventCompositionEngine().Compose(new(EventCompositionDefinitions.LegacySchemaVersion, null, new(facts), []),
+        var plan = new EventCompositionEngine().Compose(EventCompositionTestData.CurrentRequest(facts: facts),
             new EventCompositionContext("\"baseline\"", HasAccountableOwner: true)).Value!;
         groupEvent.ActivePlanVersion = 1;
         db.EventPlanSnapshots.Add(new EventPlanSnapshot { Id = Guid.NewGuid(), EventId = groupEvent.Id, Version = 1,
@@ -333,7 +413,7 @@ public sealed class EventSafeguardingChildConsentCheckInTests
         value.IsApprovedMemberAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         return value;
     }
-    private sealed record Seeded(Group Group, GroupEvent Event, EventOccurrence Occurrence, EventEnrollment Enrollment,
+    private sealed record Seeded(Group Group, GroupEvent Event, EventOccurrence Occurrence, EventRegistrationParticipant Participant,
         EventChildRegistration ChildRegistration, EventChildAuthorisedCollector Collector, Member Owner, Member Lead,
         Member Worker, Member OrdinaryTeam, Member Guardian, Member Child, Member Unrelated, string ChildETag);
 }

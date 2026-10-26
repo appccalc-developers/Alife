@@ -5,6 +5,7 @@ import {
   fetchPublicPageDetail,
   getCachedPublicPageDetailRecord,
   publicPageDetailQueryKey,
+  isPageDeleted,
 } from '../db/collections/pageCollection'
 import type { CachedHttpResponse } from '../db/httpCache'
 import { QUERY_STALE_TIME_MS, queryClient } from '../db/queryClient'
@@ -71,16 +72,18 @@ export const usePublicPageDetailQuery = (pageId: string) => {
     : undefined
   const query = useQuery<PageDetailDto | null>({
     queryKey,
-    queryFn: () => fetchPublicPageDetail(pageId),
+    queryFn: ({ signal }) => fetchPublicPageDetail(pageId, signal),
     enabled: Boolean(pageId),
-    initialData: pageId && publicHomeBootstrap.homePage?.id === pageId
+    initialData: pageId && !isPageDeleted(pageId) && publicHomeBootstrap.homePage?.id === pageId
       ? publicHomeBootstrap.homePage
       : undefined,
     initialDataUpdatedAt: 0,
     // PageView retains its previous public page. A navigation from the root can
     // also retain the already-rendered homepage, while a cold deep link never
     // shows unrelated bootstrap content.
-    placeholderData: (previousPage) => previousPage ?? retainedHomePage ?? undefined,
+    placeholderData: (previousPage) =>
+      (previousPage && !isPageDeleted(previousPage.id) ? previousPage : undefined) ??
+      (retainedHomePage && !isPageDeleted(retainedHomePage.id) ? retainedHomePage : undefined),
     staleTime: QUERY_STALE_TIME_MS,
     refetchOnMount: true,
     refetchOnWindowFocus: 'always',
@@ -94,7 +97,7 @@ export const usePublicPageDetailQuery = (pageId: string) => {
     void hydrateRecentPublicCache(
       queryKey,
       () => getCachedPublicPageDetailRecord(pageId),
-      (page) => page?.visibility === 'public',
+      (page) => !isPageDeleted(pageId) && page?.visibility === 'public',
     )
   }, [pageId])
 

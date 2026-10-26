@@ -1,10 +1,11 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { virtualChurchResourceBelongsToProfile } from '../src/views/virtualChurchPerformanceContract.ts'
 import { virtualChurchAppShellRequestMatches } from '../src/views/virtualChurchPwaContract.ts'
 
-const view = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+const view = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
 const css = readFileSync(new URL('../src/views/virtualChurchTourControls.css', import.meta.url), 'utf8')
 
 test('tour presentation is deferred with the 3D route and cannot restyle V2 or other pages', () => {
@@ -49,7 +50,9 @@ test('entrance and main-hall actions stay at the edge without a central banner',
 test('release entrance validator rejects central placement, visible banners and undersized actions', () => {
   const validator = readFileSync(new URL('../../../tools/virtual-church/validate-gate-a-entrance-information.mjs', import.meta.url), 'utf8')
   const checks = validator.slice(validator.indexOf('for (const removedPhysicalFragment'), validator.indexOf('const report ='))
-  const validate = new Function('assert', 'viewSource', 'sceneSource', 'interactionSource', 'controlsSource', checks)
+  const copy = readFileSync(new URL('../src/i18n/virtualChurch.ts', import.meta.url), 'utf8')
+  const validateWithCopy = new Function('assert', 'viewSource', 'sceneSource', 'interactionSource', 'controlsSource', 'copySource', checks)
+  const validate = (...args: unknown[]) => validateWithCopy(...args, copy)
   const scene = readFileSync(new URL('../src/views/virtualChurchScene.ts', import.meta.url), 'utf8')
   const interaction = readFileSync(new URL('../src/views/virtualChurchInteractionContract.ts', import.meta.url), 'utf8')
   assert.doesNotThrow(() => validate(assert, view, scene, interaction, css))

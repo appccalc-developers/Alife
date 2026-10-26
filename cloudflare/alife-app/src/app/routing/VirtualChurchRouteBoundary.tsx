@@ -1,3 +1,4 @@
+import { virtualChurchRecoveryCopy } from '../../i18n/virtualChurchRecovery'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import {
   VIRTUAL_CHURCH_RECOVERY_CLEANUP_TIMEOUT_MS,
@@ -227,6 +228,7 @@ class VirtualChurchRouteBoundary extends Component<
 
     const chunkLoadError = virtualChurchChunkLoadFailed(this.state.error)
     const errorMessage = virtualChurchErrorMessage(this.state.error)
+    const copy = virtualChurchRecoveryCopy[document.documentElement.lang.startsWith('zh') ? 'zh' : 'en']
 
     return (
       <main className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#f4f7f5] px-6 text-[#173f36]">
@@ -236,25 +238,18 @@ class VirtualChurchRouteBoundary extends Component<
           role="alert"
         >
           <h1 id="virtual-church-recovery-title" className="text-2xl font-black">
-            虚拟教堂暂时无法打开
+            {copy.title}
           </h1>
           <p className="mt-3 text-sm leading-6 text-[#64756e]">
             {chunkLoadError
               ? this.state.offline
-                ? '当前离线，暂时无法取得更新后的教堂资源。现有缓存已保留；联网后再清理并重载。'
-                : '页面代码更新时发生了加载冲突。我们已尝试刷新失效缓存；如果页面没有自动恢复，请重新加载。'
-              : '加载 3D 场景时发生了运行时错误。教堂页面已安全停止，普通查经和小组功能不受影响。'}
-          </p>
-          <p className="mt-2 text-xs leading-5 text-[#82918b]">
-            {chunkLoadError
-              ? this.state.offline
-                ? 'Offline: existing caches are preserved. Reconnect, then clean and reload the church resources.'
-                : 'The page code could not finish updating. Reload to recover the latest resources.'
-              : 'The 3D scene stopped after a runtime error. Other Alife features remain available.'}
+                ? copy.offline
+                : copy.conflict
+              : copy.runtime}
           </p>
           <details className="mt-5 rounded-xl bg-[#f2f5f3] px-4 py-3 text-left">
             <summary className="cursor-pointer text-xs font-black text-[#176b5a]">
-              技术详情 / Technical details
+              {copy.technicalDetails}
             </summary>
             <code className="mt-2 block break-words text-xs leading-5 text-[#53635d]">
               {errorMessage}
@@ -269,19 +264,19 @@ class VirtualChurchRouteBoundary extends Component<
               onClick={this.handleReload}
             >
               {this.state.recoveryRequested
-                ? '正在清理并重载 / Cleaning…'
+                ? copy.cleaning
                 : chunkLoadError && this.state.offline
-                  ? '联网后重试 / Reconnect to retry'
+                  ? copy.reconnect
                 : chunkLoadError
-                  ? '清理并重载 / Clean reload'
-                  : '重新加载 / Reload'}
+                  ? copy.cleanReload
+                  : copy.reload}
             </button>
             <button
               type="button"
               className="inline-flex h-11 items-center justify-center rounded-xl border border-[#176b5a] bg-white px-5 text-sm font-black text-[#176b5a]"
               onClick={() => window.location.assign('/')}
             >
-              返回首页 / Home
+              {copy.home}
             </button>
           </div>
         </section>

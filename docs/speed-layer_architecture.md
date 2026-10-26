@@ -267,7 +267,6 @@ Routes:
 | `GET /api/ai/status` | AI feature status |
 | `POST /api/ai/translate-text-fields` | Bilingual text field translation helper |
 | `/api/events/details-session/*` | Event Details Assistant session |
-| `/api/enrollments/session/*` | Enrollment session |
 | `/api/reviews/session/*` | Review session |
 
 Durable Object classes:
@@ -276,7 +275,9 @@ Durable Object classes:
 - `EnrollmentSession`
 - `ReviewSession`
 
-Durable Objects store temporary conversation and draft state. The configured `EventPlanningSession` class name remains as a thin adapter for Details Assistant state; the retired Event planning/extraction routes are not mounted. Final event, enrollment, and review records are committed by the frontend to the backend API after human review.
+Durable Objects store temporary conversation and draft state. The configured `EventPlanningSession` class name remains as a thin adapter for Details Assistant state. `EnrollmentSession` is a cleanup-only retained Event namespace with no product session route; it cannot create new sessions. The retired Event planning/extraction and enrollment-session routes are not mounted. Final Event and review records are committed by the frontend to the backend API after human review.
+
+The three Event Durable Object class names and bindings remain stable. Ordinary Worker version uploads include no class deletion migration. The former protected production Event reset workflow is retired. In the separately authorised one-time Event 2.0 cutover, Event session objects are inventoried, stored data is cleared and verified empty, and the new data epoch isolates stale clients; no recovery copy is required. Reset-only maintenance handlers remain in the Worker, guarded by a matching frozen epoch, dedicated token, raw-body HMAC, approved fingerprint and exact namespace and batch identity. Normal CI tests and deploys the Worker without calling these handlers or providing the reset token and fingerprint; later object deletion needs separate authorisation.
 
 ## Configuration
 
@@ -292,9 +293,11 @@ Durable Objects store temporary conversation and draft state. The configured `Ev
 | `IMAGES_API_PROXY_TARGET` | Optional image API origin override used by the standard local stack |
 | `GEMINI_MODEL` | Gemini model override |
 | `GEMINI_API_KEY` | Required Worker secret |
+| `EVENT_RESET_DO_TOKEN` | Reset-only credential recognized by the dormant maintenance handler; the normal deployment config excludes it and ordinary Workers Builds do not supply it |
+| `EVENT_RESET_DO_APPROVED_FINGERPRINT` | Reset-only fingerprint accepted by the dormant maintenance handler; normal deployment does not set it |
 | `API_CACHE` | Workers KV binding used as the global public-page L2 cache |
 | `EVENT_SESSIONS` | Durable Object namespace |
-| `ENROLLMENT_SESSIONS` | Durable Object namespace |
+| `ENROLLMENT_SESSIONS` | Cleanup-only retained Event Durable Object namespace; no product session route |
 | `REVIEW_SESSIONS` | Durable Object namespace |
 | `routes` | Custom domain routing |
 

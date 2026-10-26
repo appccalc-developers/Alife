@@ -39,8 +39,8 @@ public sealed class EventChildRegistration
 {
     public Guid Id { get; set; }
     public Guid EventId { get; set; }
-    public Guid EnrollmentId { get; set; }
-    public Guid ChildMemberId { get; set; }
+    public Guid RegistrationParticipantId { get; set; }
+    public Guid? ChildMemberId { get; set; }
     public string? PhotoUrl { get; set; }
     public bool IsActive { get; set; } = true;
     public Guid CreatedByMemberId { get; set; }
@@ -50,8 +50,8 @@ public sealed class EventChildRegistration
     public Guid ConcurrencyToken { get; set; } = Guid.NewGuid();
 
     public GroupEvent Event { get; set; } = null!;
-    public EventEnrollment Enrollment { get; set; } = null!;
-    public Member ChildMember { get; set; } = null!;
+    public EventRegistrationParticipant? RegistrationParticipant { get; set; }
+    public Member? ChildMember { get; set; }
     public Member CreatedByMember { get; set; } = null!;
     public Member? EndedByMember { get; set; }
     public ICollection<EventChildGuardianRelationship> Guardians { get; set; } = [];

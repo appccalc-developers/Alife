@@ -510,10 +510,11 @@ for (const fragment of [
   'disabled={this.state.recoveryRequested || (chunkLoadError && this.state.offline)}',
   "window.addEventListener('online', this.updateConnectionState)",
   "window.addEventListener('offline', this.updateConnectionState)",
-  '现有缓存已保留',
-  '虚拟教堂暂时无法打开',
-  '技术详情 / Technical details',
-  '清理并重载 / Clean reload',
+  'copy.offline',
+  'copy.title',
+  'copy.technicalDetails',
+  'copy.cleanReload',
+  "document.documentElement.lang.startsWith('zh') ? 'zh' : 'en'",
 ]) {
   requireSource(routeBoundarySource, fragment, 'Route white-screen recovery')
 }

@@ -15,7 +15,7 @@ public sealed class EventRamPolicyVersion
     public DateTime? PublishedUtc { get; set; }
 }
 
-/// <summary>Immutable assessment content, including legacy approval evidence during upgrade.</summary>
+/// <summary>Immutable RAM assessment content and approval evidence.</summary>
 public sealed class EventRamRevision
 {
     public int? EventPlanVersion { get; set; }

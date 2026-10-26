@@ -1,3 +1,4 @@
+import { useShellNavigationText } from '../../i18n/useShellNavigation.ts'
 import { BookMarked, Church, ClipboardCheck, Globe2, Handshake, MessageSquareText, Settings2, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
 import { activeEntityService } from '../../services/activeEntityService'
 import { useAuthStore } from '../../stores/auth'
@@ -39,18 +40,18 @@ export const useShellNavigation = ({
   const groupDirectory = useGroupLifeDirectory()
   const currentTasksQuery = useCurrentTasks()
   const isChinese = auth.language === 'zh'
-  const memberAccountLabel = isChinese ? '成员账号' : 'Member account'
-  const personalCenterLabel = isChinese ? '个人中心' : 'Personal Center'
+  const memberAccountLabel = isChinese ? useShellNavigationText.memberAccount.zh : useShellNavigationText.memberAccount.en
+  const personalCenterLabel = isChinese ? useShellNavigationText.personalCenter.zh : useShellNavigationText.personalCenter.en
   const contextualWorkspaceGroupId = currentGroupIsChurch ? '' : contextualGroupId
   const groupContentItems: ShellNavItem[] = getGroupLifeMemberships(auth.memberships, churchGroupId, groupDirectory.data ?? [])
     .map((membership) => ({
       key: `group-life:${membership.groupId}`,
-      label: localizeText(membership.groupName, auth.language) || (isChinese ? '未命名小组' : 'Unnamed group'),
+      label: localizeText(membership.groupName, auth.language) || (isChinese ? useShellNavigationText.unnamedGroup.zh : useShellNavigationText.unnamedGroup.en),
       description: membership.role === 'leader'
-        ? (isChinese ? '组长' : 'Group leader')
+        ? (isChinese ? useShellNavigationText.groupLeader.zh : useShellNavigationText.groupLeader.en)
         : membership.role === 'coLeader'
-          ? (isChinese ? '副组长' : 'Co-leader')
-          : (isChinese ? '活跃组员' : 'Active member'),
+          ? (isChinese ? useShellNavigationText.coLeader.zh : useShellNavigationText.coLeader.en)
+          : (isChinese ? useShellNavigationText.activeMember.zh : useShellNavigationText.activeMember.en),
       to: `/groups/${encodeURIComponent(membership.groupId)}?view=overview`,
       matchPathOnly: true,
       matchDescendants: true,
@@ -66,16 +67,16 @@ export const useShellNavigation = ({
   const eventItems: ShellNavItem[] = eventBasePath ? [
     {
       key: 'event:notice',
-      label: isChinese ? '活动通知' : 'Notice',
-      description: isChinese ? '活动详情与发布内容' : 'Event details and published content',
+      label: isChinese ? useShellNavigationText.notice.zh : useShellNavigationText.notice.en,
+      description: isChinese ? useShellNavigationText.eventDetailsAndPublishedContent.zh : useShellNavigationText.eventDetailsAndPublishedContent.en,
       to: eventBasePath,
       icon: <EventsIcon />,
       onClick: () => activeEntityService.setEvent(activeEventId),
     },
     eventLifecycle === 'upcoming' && acceptsEnrollments ? {
       key: 'event:enrollments',
-      label: isChinese ? '报名管理' : 'Enrollment',
-      description: isChinese ? '报名名单和参与状态' : 'Registrations and attendance status',
+      label: isChinese ? useShellNavigationText.enrollment.zh : useShellNavigationText.enrollment.en,
+      description: isChinese ? useShellNavigationText.registrationsAndAttendanceStatus.zh : useShellNavigationText.registrationsAndAttendanceStatus.en,
       to: `${eventBasePath}?section=enrollments`,
       matchSearch: '?section=enrollments',
       icon: <EnrollmentIcon />,
@@ -83,8 +84,8 @@ export const useShellNavigation = ({
     } : null,
     eventLifecycle === 'past' ? {
       key: 'event:memories',
-      label: isChinese ? '图文回顾' : 'Memories',
-      description: isChinese ? '照片、回顾和活动沉淀' : 'Photos, recaps, and event memory',
+      label: isChinese ? useShellNavigationText.memories.zh : useShellNavigationText.memories.en,
+      description: isChinese ? useShellNavigationText.photosRecapsAndEventMemory.zh : useShellNavigationText.photosRecapsAndEventMemory.en,
       to: `${eventBasePath}?section=memories`,
       matchSearch: '?section=memories',
       icon: <MemoriesIcon />,
@@ -107,7 +108,7 @@ export const useShellNavigation = ({
     ? {
       key: 'app:onboarding',
       label: translateUi(auth.language, 'onboarding'),
-      description: isChinese ? '完成成员资料' : 'Complete your member profile',
+      description: isChinese ? useShellNavigationText.completeYourMemberProfile.zh : useShellNavigationText.completeYourMemberProfile.en,
       to: '/onboarding',
       icon: <OnboardingIcon />,
     }
@@ -117,15 +118,15 @@ export const useShellNavigation = ({
   const accountItems: ShellNavItem[] = !auth.loading && !auth.isGuest
     ? [{
       key: 'app:profile-settings',
-      label: isChinese ? '个人资料' : 'Profile settings',
-      description: isChinese ? '联系方式、登录安全和小组邀请' : 'Contact details, sign-in security, and group invitations',
+      label: isChinese ? useShellNavigationText.profileSettings.zh : useShellNavigationText.profileSettings.en,
+      description: isChinese ? useShellNavigationText.contactDetailsSignInSecurityAndGroupInvitations.zh : useShellNavigationText.contactDetailsSignInSecurityAndGroupInvitations.en,
       to: PROFILE_SETTINGS_PATH,
       matchPathOnly: true,
       icon: <UserRound className="h-5 w-5" />,
     }, {
       key: 'app:tasks',
-      label: isChinese ? '当前事务' : 'Current tasks',
-      description: isChinese ? '处理职能待办和成员通知' : 'Handle duty tasks and member notifications',
+      label: isChinese ? useShellNavigationText.currentTasks.zh : useShellNavigationText.currentTasks.en,
+      description: isChinese ? useShellNavigationText.handleDutyTasksAndMemberNotifications.zh : useShellNavigationText.handleDutyTasksAndMemberNotifications.en,
       to: '/tasks',
       matchPathOnly: true,
       icon: <ClipboardCheck className="h-5 w-5" />,
@@ -133,20 +134,20 @@ export const useShellNavigation = ({
         {
           text: String(taskCounts.urgent),
           compactText: formatTaskCount(taskCounts.urgent),
-          accessibleLabel: `${isChinese ? '紧要事务' : 'Urgent tasks'}: ${taskCounts.urgent}`,
+          accessibleLabel: `${isChinese ? useShellNavigationText.urgentTasks.zh : useShellNavigationText.urgentTasks.en}: ${taskCounts.urgent}`,
           tone: 'urgent',
         },
         {
           text: String(taskCounts.general),
           compactText: formatTaskCount(taskCounts.general),
-          accessibleLabel: `${isChinese ? '一般事务' : 'General tasks'}: ${taskCounts.general}`,
+          accessibleLabel: `${isChinese ? useShellNavigationText.generalTasks.zh : useShellNavigationText.generalTasks.en}: ${taskCounts.general}`,
           tone: 'general',
         },
       ],
     }, {
       key: 'app:study',
-      label: isChinese ? '查经进度' : 'Bible Study Progress',
-      description: isChinese ? '中英文经文阅读与小组查经' : 'Bilingual Scripture reading and group study',
+      label: isChinese ? useShellNavigationText.bibleStudyProgress.zh : useShellNavigationText.bibleStudyProgress.en,
+      description: isChinese ? useShellNavigationText.bilingualScriptureReadingAndGroupStudy.zh : useShellNavigationText.bilingualScriptureReadingAndGroupStudy.en,
       to: '/study',
       matchPathOnly: true,
       icon: <BookMarked className="h-5 w-5" />,
@@ -156,8 +157,8 @@ export const useShellNavigation = ({
   const contentItems: ShellNavItem[] = [
     ...(siteForumEntryEnabled ? [{
       key: 'app:forum',
-      label: isChinese ? '论坛' : 'Forum',
-      description: isChinese ? '全站分享、问答和资源' : 'Site-wide sharing, Q&A, and resources',
+      label: isChinese ? useShellNavigationText.forum.zh : useShellNavigationText.forum.en,
+      description: isChinese ? useShellNavigationText.siteWideSharingQAAndResources.zh : useShellNavigationText.siteWideSharingQAAndResources.en,
       to: '/forum',
       icon: <MessageSquareText className="h-5 w-5" />,
     }] : []),
@@ -177,17 +178,17 @@ export const useShellNavigation = ({
 
   const workspaceSections: ShellNavSection[] = [
     contextualItems.length
-      ? { key: 'workspace-event', label: isChinese ? '当前活动' : 'Current event', description: isChinese ? '活动通知、报名和回顾' : 'Notice, enrollment, and memories', items: contextualItems }
+      ? { key: 'workspace-event', label: isChinese ? useShellNavigationText.currentEvent.zh : useShellNavigationText.currentEvent.en, description: isChinese ? useShellNavigationText.noticeEnrollmentAndMemories.zh : useShellNavigationText.noticeEnrollmentAndMemories.en, items: contextualItems }
       : null,
   ].filter(isPresent)
 
   const platformSections: ShellNavSection[] = [
     {
       key: 'platform-church-life',
-      label: isChinese ? '教会生活' : 'Church Life',
+      label: isChinese ? useShellNavigationText.churchLife.zh : useShellNavigationText.churchLife.en,
       description: auth.isGuest
-        ? (isChinese ? '主日证道与教会公开内容' : 'Sunday sermons and public church content')
-        : (isChinese ? '会众网站与教会活动' : 'Congregation website and church events'),
+        ? (isChinese ? useShellNavigationText.sundaySermonsAndPublicChurchContent.zh : useShellNavigationText.sundaySermonsAndPublicChurchContent.en)
+        : (isChinese ? useShellNavigationText.congregationWebsiteAndChurchEvents.zh : useShellNavigationText.congregationWebsiteAndChurchEvents.en),
       to: auth.isGuest ? '/sermons' : '/church',
       icon: <Church className="h-5 w-5" />,
       collapsible: true,
@@ -197,24 +198,24 @@ export const useShellNavigation = ({
       items: [
         ...(canOpenChurchManagement ? [{
           key: 'church:management',
-          label: isChinese ? '教会管理' : 'Church Management',
-          description: isChinese ? '教会资料、场地、成员、联系人、团契与事工' : 'Church profile, venues, members, contacts, fellowships, and ministries',
+          label: isChinese ? useShellNavigationText.churchManagement.zh : useShellNavigationText.churchManagement.en,
+          description: isChinese ? useShellNavigationText.churchProfileVenuesMembersContactsFellowshipsAndMinistries.zh : useShellNavigationText.churchProfileVenuesMembersContactsFellowshipsAndMinistries.en,
           to: '/church/manage?section=group',
           matchPathOnly: true,
           icon: <Settings2 className="h-5 w-5" />,
         }] : []),
         ...(!auth.loading && !auth.isGuest && auth.canReviewPages ? [{
           key: 'church:homepage',
-          label: isChinese ? '首页管理' : 'Homepage Management',
-          description: isChinese ? '首页内容、公开导航与页面发布审核' : 'Homepage content, public navigation, and page publication review',
+          label: isChinese ? useShellNavigationText.homepageManagement.zh : useShellNavigationText.homepageManagement.en,
+          description: isChinese ? useShellNavigationText.homepageContentPublicNavigationAndPagePublicationReview.zh : useShellNavigationText.homepageContentPublicNavigationAndPagePublicationReview.en,
           to: '/church/homepage',
           matchPathOnly: true,
           icon: <Globe2 className="h-5 w-5" />,
         }] : []),
         ...(!auth.loading && !auth.isGuest && auth.hasAdminPermission('admin.visitRequests.receive') ? [{
           key: 'church:visitors',
-          label: isChinese ? '访客接待' : 'Visitor Care',
-          description: isChinese ? '参观联系请求和跟进状态' : 'Visit requests and follow-up status',
+          label: isChinese ? useShellNavigationText.visitorCare.zh : useShellNavigationText.visitorCare.en,
+          description: isChinese ? useShellNavigationText.visitRequestsAndFollowUpStatus.zh : useShellNavigationText.visitRequestsAndFollowUpStatus.en,
           to: '/church/visit-requests',
           matchPathOnly: true,
           icon: <Handshake className="h-5 w-5" />,
@@ -223,8 +224,8 @@ export const useShellNavigation = ({
     },
     {
       key: 'platform-group-life',
-      label: isChinese ? '小组生活' : 'Group Life',
-      description: isChinese ? '你已加入的小组，按组长、副组长、活跃组员排序' : 'Your groups, ordered by leader, co-leader, then active member',
+      label: isChinese ? useShellNavigationText.groupLife.zh : useShellNavigationText.groupLife.en,
+      description: isChinese ? useShellNavigationText.yourGroupsOrderedByLeaderCoLeaderThenActive.zh : useShellNavigationText.yourGroupsOrderedByLeaderCoLeaderThenActive.en,
       to: '/groups',
       icon: <UsersRound className="h-5 w-5" />,
       collapsible: groupContentItems.length > 0,
@@ -248,13 +249,13 @@ export const useShellNavigation = ({
       }
       : null,
     contentItems.length
-      ? { key: 'platform-content', label: isChinese ? '公开内容' : 'Public content', description: isChinese ? '面向访客和成员的入口' : 'Visitor and member-facing entry points', items: contentItems }
+      ? { key: 'platform-content', label: isChinese ? useShellNavigationText.publicContent.zh : useShellNavigationText.publicContent.en, description: isChinese ? useShellNavigationText.visitorAndMemberFacingEntryPoints.zh : useShellNavigationText.visitorAndMemberFacingEntryPoints.en, items: contentItems }
       : null,
     canOpenSystemManagement
       ? {
         key: 'platform-management',
-        label: isChinese ? '系统管理' : 'System Management',
-        description: isChinese ? '平台角色、内容、文件与审计能力' : 'Platform roles, content, files, and audit capabilities',
+        label: isChinese ? useShellNavigationText.systemManagement.zh : useShellNavigationText.systemManagement.en,
+        description: isChinese ? useShellNavigationText.platformRolesContentFilesAndAuditCapabilities.zh : useShellNavigationText.platformRolesContentFilesAndAuditCapabilities.en,
         to: '/admin',
         icon: <ShieldCheck className="h-5 w-5" />,
         collapsible: false,
@@ -266,36 +267,8 @@ export const useShellNavigation = ({
   ].filter(isPresent)
 
   const copy: NavigationCopy = isChinese
-    ? {
-      alife: '平台入口',
-      collapse: '收起侧边栏',
-      expand: '展开侧边栏',
-      menu: '菜单',
-      openMenu: '打开导航菜单',
-      closeMenu: '关闭导航菜单',
-      communityWorkspace: '未选择小组',
-      platformWorkspace: '平台工作区',
-      contentWorkspace: '内容入口',
-      currentSpace: '当前小组',
-      pagesSection: '页面',
-      eventsSection: '活动',
-      accountSection: '账号',
-    }
-    : {
-      alife: 'Platform',
-      collapse: 'Collapse sidebar',
-      expand: 'Expand sidebar',
-      menu: 'Menu',
-      openMenu: 'Open navigation menu',
-      closeMenu: 'Close navigation menu',
-      communityWorkspace: 'No group selected',
-      platformWorkspace: 'Platform workspace',
-      contentWorkspace: 'Content',
-      currentSpace: 'Current group',
-      pagesSection: 'Pages',
-      eventsSection: 'Events',
-      accountSection: 'Account',
-    }
+    ? { ...useShellNavigationText.localizedCopy.zh }
+    : { ...useShellNavigationText.localizedCopy.en }
 
   return {
     copy,

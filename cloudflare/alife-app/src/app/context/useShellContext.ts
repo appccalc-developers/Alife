@@ -39,17 +39,13 @@ export const useShellContext = () => {
   const groupForumMatch = path.match(/^\/groups\/([^/]+)\/forum(?:\/posts\/[^/]+)?$/)
   const groupAlbumMatch = path.match(/^\/groups\/([^/]+)\/albums(?:\/[^/]+)?$/)
   const groupEventCreateMatch = path.match(/^\/groups\/([^/]+)\/events\/new$/)
-  const groupEventEditMatch = path.match(/^\/groups\/([^/]+)\/events\/([^/]+)\/edit$/)
   const groupEventDetailMatch = groupEventCreateMatch ? null : path.match(/^\/groups\/([^/]+)\/events\/([^/]+)$/)
-  const groupEventEnrollmentMatch = path.match(/^\/groups\/([^/]+)\/events\/([^/]+)\/enroll$/)
   const groupEventReviewMatch = path.match(/^\/groups\/([^/]+)\/events\/([^/]+)\/review$/)
   const eventCreateMatch = path.match(/^\/events\/new$/)
-  const eventEditMatch = path.match(/^\/events\/([^/]+)\/edit$/)
   const eventDetailMatchCandidate = path.match(/^\/events\/([^/]+)$/)
-  const eventDetailMatch = eventDetailMatchCandidate && !['new', 'edit', 'enroll', 'review'].includes(eventDetailMatchCandidate[1])
+  const eventDetailMatch = eventDetailMatchCandidate && !['new', 'review'].includes(eventDetailMatchCandidate[1])
     ? eventDetailMatchCandidate
     : null
-  const eventEnrollmentMatch = path.match(/^\/events\/([^/]+)\/enroll$/)
   const eventReviewMatch = path.match(/^\/events\/([^/]+)\/review$/)
   const sermonDetailMatch = path.match(/^\/sermons\/[^/]+$/)
   const pageEditMatch = path.match(/^\/pages\/([^/]+)\/edit$/)
@@ -60,10 +56,8 @@ export const useShellContext = () => {
     groupManageMatch?.[1],
     groupCreatePageMatch?.[1],
     groupEventDetailMatch?.[1],
-    groupEventEnrollmentMatch?.[1],
     groupEventReviewMatch?.[1],
     groupEventCreateMatch?.[1],
-    groupEventEditMatch?.[1],
     groupForumMatch?.[1],
     groupAlbumMatch?.[1],
   ].map(normalizeRouteGroupId)
@@ -71,20 +65,15 @@ export const useShellContext = () => {
   const routeGroupManageId = routeGroupIds[2]
   const routeGroupCreatePageId = routeGroupIds[3]
   const routeGroupEventDetailId = routeGroupIds[4]
-  const routeGroupEventEnrollmentId = routeGroupIds[5]
-  const routeGroupEventReviewId = routeGroupIds[6]
+  const routeGroupEventReviewId = routeGroupIds[5]
   const routeSearchGroupId = normalizeRouteGroupId(searchParams.get('groupId'))
 
   const activeIds = useActiveEntityIds({
     groupId: routeGroupIds.find(Boolean) || routeSearchGroupId || undefined,
     pageId: pageEditMatch?.[1] || searchParams.get('page') || undefined,
     eventId: groupEventDetailMatch?.[2] ||
-      groupEventEditMatch?.[2] ||
-      groupEventEnrollmentMatch?.[2] ||
       groupEventReviewMatch?.[2] ||
       eventDetailMatch?.[1] ||
-      eventEditMatch?.[1] ||
-      eventEnrollmentMatch?.[1] ||
       eventReviewMatch?.[1] ||
       undefined,
     sermonId: sermonDetailMatch?.[0]?.split('/')[2] || undefined,
@@ -95,16 +84,12 @@ export const useShellContext = () => {
   const isPageEditorScreen = Boolean(routeGroupCreatePageId || pageEditMatch || path === '/pages/edit' || path === '/pages/new')
   const isEventScreen = Boolean(
     eventCreateMatch ||
-    eventEditMatch ||
     eventDetailMatch ||
-    eventEnrollmentMatch ||
     eventReviewMatch ||
     groupEventCreateMatch ||
-    groupEventEditMatch ||
     routeGroupEventDetailId ||
-    routeGroupEventEnrollmentId ||
     routeGroupEventReviewId ||
-    ['/events', '/events/enroll', '/events/review', '/events/edit'].includes(path),
+    ['/events', '/events/review'].includes(path),
   )
   const isSermonDetailScreen = Boolean(sermonDetailMatch || path === '/sermons/watch')
   const isOnboardingScreen = path === '/onboarding'
@@ -118,7 +103,7 @@ export const useShellContext = () => {
     ? ''
     : routeGroupIds.find(Boolean) ||
       activeIds.groupId ||
-      ((eventCreateMatch || eventEditMatch || pageEditMatch) ? CurrentGroup?.id || '' : '')
+      ((eventCreateMatch || pageEditMatch) ? CurrentGroup?.id || '' : '')
 
   const membership = contextualGroupId ? auth.memberships.find((item) => item.groupId === contextualGroupId) : null
   const isPlatformAdmin = auth.isAdmin
@@ -126,14 +111,10 @@ export const useShellContext = () => {
   const canOpenCurrentGroupManagement = canManageCurrentGroup
   const managementGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
   const contextualEventRouteId = groupEventDetailMatch?.[2] ||
-    groupEventEditMatch?.[2] ||
-    groupEventEnrollmentMatch?.[2] ||
     groupEventReviewMatch?.[2] ||
     eventDetailMatch?.[1] ||
-    eventEditMatch?.[1] ||
-    eventEnrollmentMatch?.[1] ||
     eventReviewMatch?.[1] ||
-    (['/events', '/events/edit', '/events/enroll', '/events/review'].includes(path) ? activeIds.eventId : '')
+    (['/events', '/events/review'].includes(path) ? activeIds.eventId : '')
   const isEventDetailScreen = Boolean(contextualEventRouteId)
 
   useEffect(() => {

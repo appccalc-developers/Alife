@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -30,7 +31,7 @@ test('V3 movement follows both rendered assets and dialogs, without blocking com
   }
   assert.equal(virtualChurchPlayerInputEnabled('v3', true, 'degraded', false), true)
   assert.equal(virtualChurchPlayerInputEnabled('v2', true, 'loading', false), true)
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /const playerControlsEnabled = virtualChurchPlayerInputEnabled\(\s*config3D.visualVersion, interactive3DEnabled, runtimeStatus, dialogOpen/)
   const diagnostic = source.split('const applyDiagnosticInput =')[0].split('useEffect(() => {').at(-1)!
   assert.match(diagnostic, /\|\| !playerControlsEnabled/)
@@ -39,7 +40,7 @@ test('V3 movement follows both rendered assets and dialogs, without blocking com
 })
 
 test('actual keyboard handlers reject covered input, enable after readiness, and discard held keys and queued actions on cleanup/blur', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const body = source.split('const previousOverflow = document.body.style.overflow')[1]
     .split('}, [dialogOpen, playerControlsEnabled])')[0]
   assert.ok(body.includes('const onKeyDown'), 'exercise the actual effect, not a duplicate handler')
@@ -115,7 +116,7 @@ test('complete contiguous sequence passes, while prefix loss, hidden/clock failu
 })
 
 test('whole-sequence hook is opt-in, passive, frame-deduplicated and removed on exit', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchPerformanceProbe.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchPerformanceProbe.tsx', import.meta.url))
   const hook = source.split('const VirtualChurchContinuousTimingProbe =')[1].split('// Mounted only')[0]
   assert.match(source, /params.has\('profile3d'\) && params.get\('profile3dInput'\) === 'continuous' && visualVersion === 'v3'/)
   assert.match(hook, /observedEpoch === epoch.current/)
@@ -137,7 +138,7 @@ test('V3 deferred effects wait for both current rendered assets, while V2 retain
 })
 
 test('V3 post-processing alone uses the two-asset deferred gate', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /attributeFilter: requireCharacterReady\s*\? \[VIRTUAL_CHURCH_HERO_READY_ATTRIBUTE, VIRTUAL_CHURCH_CHARACTER_READY_ATTRIBUTE\]/)
   assert.match(source, /const postProcessingReady = useDeferredAfterHero\(\s*250,\s*true,\s*performanceCfg.postProcessing,\s*config3D.visualVersion === 'v3'/)
   assert.match(source, /const detailedSiteAssetsReady = useDeferredAfterHero\(\s*virtualChurchDeferredDelayMs\('siteDetails', perfConfig.isMobile\),\s*true,\s*\)/)
@@ -204,7 +205,7 @@ test('diagnostic ownership is root-local and disposal preserves unrelated runtim
 })
 
 test('the live view owns character diagnostics only while its current Canvas session is enabled', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /virtualChurchCharacterDiagnosticScope\?\.write\(\(root\) =>/)
   assert.match(source, /if \(!interactive3DEnabled \|\| !profile3DEnabled\) return\s+const scope = beginVirtualChurchCharacterDiagnosticScope\(\)/)
   assert.match(source, /scope\.dispose\(\)\s+if \(virtualChurchCharacterDiagnosticScope === scope\) virtualChurchCharacterDiagnosticScope = null/)
@@ -256,7 +257,7 @@ test('character retry is explicit, single-flight, and leaves church failure/read
 })
 
 test('retry only remounts the failed V2 or V3 character boundary and exposes a bilingual keyboard-operable control', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /<GateAHeroAssetBoundary\s+key=\{`\$\{gateAAssetPath\}:\$\{characterRetryRevision\}`\}/)
   assert.match(source, /<LegacyCharacterAssetBoundary\s+key=\{`\$\{characterId\}:\$\{characterRetryRevision\}`\}/)
   assert.equal((source.match(/characterRetryRevision=\{characterRetryRevision\}/g) ?? []).length, 2)
@@ -275,7 +276,7 @@ test('retry only remounts the failed V2 or V3 character boundary and exposes a b
 })
 
 test('success clearing is wired inside the rendered-frame gate, not fallback or mount', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const hook = source.slice(source.indexOf('const useVirtualChurchRenderedAssetSignal'), source.indexOf('const LoadedChurchHeroAsset'))
   assert.equal((hook.match(/markVirtualChurchRenderedAssetReady\(/g) ?? []).length, 1)
   assert.match(hook, /if \(!pendingRef.current \|\| gl.getContext\(\).isContextLost\(\)\) return/)
@@ -283,7 +284,7 @@ test('success clearing is wired inside the rendered-frame gate, not fallback or 
 })
 
 test('neither visual version shows a stand-in person, while both wait for a posed and dressed character', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const avatar = source.slice(source.indexOf('const DeferredPlayerAvatar ='), source.indexOf('const LandingDust ='))
   assert.doesNotMatch(source, /GateAFemaleHeroAvatar/)
   assert.match(avatar, /<GateAHeroAssetBoundary[\s\S]*fallback=\{null\}/)
@@ -316,7 +317,7 @@ test('neither visual version shows a stand-in person, while both wait for a pose
 })
 
 test('an unavailable optional motion review retains the actual character model', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const boundary = source.slice(source.indexOf('class OptionalSharedMotionBoundary'), source.indexOf('class GateAHeroAssetBoundary'))
   assert.match(boundary, /clearFailedGltfAsset\(this\.props\.motionPath\)/)
   assert.match(boundary, /return this\.state\.failed \? this\.props\.fallback : this\.props\.children/)

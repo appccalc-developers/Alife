@@ -18,5 +18,4 @@ public class EventWorkflowTemplate
 
     public Group? OwnerGroup { get; set; }
     public Member? CreatedByMember { get; set; }
-    public ICollection<EventWorkflowRun> Runs { get; set; } = [];
 }

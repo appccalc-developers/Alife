@@ -22,6 +22,7 @@ const accessibilityPath = resolve(
 )
 const teleportPath = resolve(appRoot, 'src', 'views', 'virtualChurchTeleport.ts')
 const normalizeSource = (source) => source.replace(/\r\n?/gu, '\n')
+const copySource = await readFile(resolve(appRoot, 'src', 'i18n', 'virtualChurch.ts'), 'utf8')
 
 const [viewSource, statusSource, contractSource, accessibilitySource, teleportSource] =
   await Promise.all([
@@ -189,7 +190,7 @@ for (const fragment of [
   'if (!enabled && groupRef.current) {\n      groupRef.current.visible = false',
   'reducedMotion={reducedMotion}',
 ]) {
-  requireSource(viewSource, fragment, 'Runtime status and motion wiring')
+  requireSource(/^[A-Za-z0-9]+: '/.test(fragment) ? copySource : viewSource, fragment, 'Runtime status and motion wiring')
 }
 
 if (

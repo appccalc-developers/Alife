@@ -1,3 +1,4 @@
+import { regionalPhoneInputText } from '../../i18n/regionalPhoneInput.ts'
 import { useEffect, useId, useRef, useState } from 'react'
 import {
   composePhoneNumber,
@@ -59,7 +60,7 @@ const RegionalPhoneInput = ({ value, onChange, language, label, hint, error, dis
       <div className="mt-1.5 grid grid-cols-[minmax(8.5rem,0.9fr)_minmax(0,1.4fr)] gap-2">
         <select
           id={`${id}-region`}
-          aria-label={language === 'zh' ? '国家或地区代码' : 'Country or region code'}
+          aria-label={language === 'zh' ? regionalPhoneInputText.countryOrRegionCode.zh : regionalPhoneInputText.countryOrRegionCode.en}
           value={selectedRegion}
           disabled={disabled}
           onChange={(event) => updateRegion(event.target.value as SupportedPhoneRegionCode)}
@@ -79,7 +80,7 @@ const RegionalPhoneInput = ({ value, onChange, language, label, hint, error, dis
           autoFocus={autoFocus}
           maxLength={16}
           disabled={disabled}
-          placeholder={language === 'zh' ? '本地号码' : 'Local number'}
+          placeholder={language === 'zh' ? regionalPhoneInputText.localNumber.zh : regionalPhoneInputText.localNumber.en}
           value={nationalNumber}
           onChange={(event) => updateNumber(event.target.value)}
           aria-invalid={Boolean(visibleError)}

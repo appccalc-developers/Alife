@@ -123,7 +123,7 @@ public sealed class ListAdminEventActivityTemplatesQueryHandler(
             moduleOptions,
             EventCompositionDefinitions.ActivityTypeIconKeys.OrderBy(x => x, StringComparer.Ordinal).ToArray(),
             EventCompositionDefinitions.ActivityTypeWorkflowRecommendationCodes.OrderBy(x => x, StringComparer.Ordinal).ToArray(),
-            true));
+            true, EventProjectQuestionCatalog.Definitions));
     }
 }
 
@@ -153,7 +153,8 @@ public sealed class CreateAdminEventActivityTemplateCommandHandler(
             request.Request.Defaults,
             request.Request.PreselectedModules,
             request.Request.RecommendedWorkflowTemplateCode,
-            request.Request.PresetServiceSlots);
+            request.Request.PresetServiceSlots,
+            request.Request.PresetProjects);
         if (error is not null) return AppResult<AdminEventActivityTemplateDto>.Validation(error);
         if (await catalog.FindAsync(code, true, cancellationToken) is not null)
         {
@@ -166,7 +167,8 @@ public sealed class CreateAdminEventActivityTemplateCommandHandler(
             code, 1, request.Request.ArchetypeCode, request.Request.Name,
             request.Request.Description, request.Request.IconKey, request.Request.Defaults,
             request.Request.PreselectedModules, request.Request.RecommendedWorkflowTemplateCode,
-            request.Request.PresetServiceSlots);
+            request.Request.PresetServiceSlots,
+            request.Request.PresetProjects);
         var entity = EventActivityTemplateCatalog.CreateVersionEntity(
             definition, request.Request.IsActive, false, request.CurrentMemberId, now);
         dbContext.EventActivityTemplateVersions.Add(entity);
@@ -228,15 +230,17 @@ public sealed class UpdateAdminEventActivityTemplateCommandHandler(
             request.Request.Defaults,
             request.Request.PreselectedModules,
             request.Request.RecommendedWorkflowTemplateCode,
-            request.Request.PresetServiceSlots);
+            request.Request.PresetServiceSlots,
+            request.Request.PresetProjects);
         if (error is not null) return AppResult<AdminEventActivityTemplateDto>.Validation(error);
 
         var currentEntity = await dbContext.EventActivityTemplateVersions
             .FirstOrDefaultAsync(x => x.Code == code && x.IsCurrent, cancellationToken);
         if (currentEntity is null)
         {
-            currentEntity = EventActivityTemplateCatalog.CreateSystemSeedEntities()
-                .SingleOrDefault(x => x.Code == code);
+            currentEntity = currentEntry.IsSystemPreset
+                ? EventActivityTemplateCatalog.CreateVersionEntity(currentEntry.Definition, currentEntry.IsActive, true, null, currentEntry.UpdatedUtc)
+                : null;
             if (currentEntity is null)
             {
                 return AppResult<AdminEventActivityTemplateDto>.Conflict(
@@ -256,7 +260,8 @@ public sealed class UpdateAdminEventActivityTemplateCommandHandler(
             request.Request.Defaults,
             request.Request.PreselectedModules,
             request.Request.RecommendedWorkflowTemplateCode,
-            request.Request.PresetServiceSlots);
+            request.Request.PresetServiceSlots,
+            request.Request.PresetProjects);
         var nextEntity = EventActivityTemplateCatalog.CreateVersionEntity(
             nextDefinition,
             request.Request.IsActive,
@@ -323,8 +328,10 @@ internal static partial class EventActivityTemplateAdminRules
         EventActivityTypeDefaultsDto defaults,
         IReadOnlyList<string> modules,
         string? workflowCode,
-        IReadOnlyList<EventActivityTypeServiceSlotPresetDto> slots)
+        IReadOnlyList<EventActivityTypeServiceSlotPresetDto> slots,
+        IReadOnlyList<EventTemplatePresetProjectDto> projects)
     {
+        if (modules is null || slots is null || name is null || description is null || defaults is null) return "Template sections are required.";
         if (!CodePattern().IsMatch(code)) return "Template code must use 3-80 lowercase letters, numbers, or hyphens and start with a letter.";
         if (!EventCompositionDefinitions.ArchetypesByCode.ContainsKey(archetypeCode)) return "Unknown archetypeCode.";
         if (string.IsNullOrWhiteSpace(name.En) || string.IsNullOrWhiteSpace(name.Zh) || name.En.Trim().Length > 200 || name.Zh.Trim().Length > 200)
@@ -353,7 +360,7 @@ internal static partial class EventActivityTemplateAdminRules
             if (slot.RequiredCount is < 1 or > 999) return $"requiredCount must be 1-999 for service-slot {slot.RoleCode}.";
             if (slot.EligibilityCode != "approvedGroupMember") return $"Unknown eligibilityCode for service-slot {slot.RoleCode}.";
         }
-        return null;
+        return EventProjectQuestionCatalog.ValidatePresetProjects(projects);
     }
 
     public static EventActivityTypeDefinition BuildDefinition(
@@ -366,7 +373,8 @@ internal static partial class EventActivityTemplateAdminRules
         EventActivityTypeDefaultsDto defaults,
         IReadOnlyList<string> modules,
         string? workflowCode,
-        IReadOnlyList<EventActivityTypeServiceSlotPresetDto> slots)
+        IReadOnlyList<EventActivityTypeServiceSlotPresetDto> slots,
+        IReadOnlyList<EventTemplatePresetProjectDto> projects)
         => new(
             code,
             version,
@@ -379,7 +387,10 @@ internal static partial class EventActivityTemplateAdminRules
             string.IsNullOrWhiteSpace(workflowCode) ? null : workflowCode,
             slots.Select(x => new EventActivityTypeServiceSlotPresetDto(
                 x.RoleCode.Trim(), new(x.Label.En.Trim(), x.Label.Zh.Trim()),
-                x.RequiredCount, x.EligibilityCode)).ToArray());
+                x.RequiredCount, x.EligibilityCode)).ToArray(),
+            projects.Select(p => new EventTemplatePresetProjectDto(p.PresetKey, new(p.Name.En.Trim(), p.Name.Zh.Trim()),
+                new(p.Conditions.En, p.Conditions.Zh), p.Attributes.ToArray(), p.DefaultAnswers.OrderBy(a => a.Key, StringComparer.Ordinal).ToDictionary(a => a.Key, a => a.Value, StringComparer.Ordinal), p.RepeatForEachOccurrence,
+                p.DefaultConfiguration, p.EventFactSuggestions?.ToArray())).ToArray());
 
     public static AdminEventActivityTemplateDto ToDto(EventActivityTemplateCatalogEntry entry)
         => new(entry.Definition.ToDto(), entry.IsActive, entry.IsSystemPreset, entry.ETag, entry.UpdatedUtc);
@@ -396,6 +407,7 @@ internal static partial class EventActivityTemplateAdminRules
             definition.PreselectedModules,
             definition.RecommendedWorkflowTemplateCode,
             definition.PresetServiceSlots,
+            definition.PresetProjects,
             isActive
         };
 

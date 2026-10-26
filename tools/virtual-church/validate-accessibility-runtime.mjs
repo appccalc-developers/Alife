@@ -21,6 +21,7 @@ const contractPath = resolve(
 )
 const globalStylePath = resolve(appRoot, 'src', 'styles', 'global.css')
 const normalizeSource = (source) => source.replace(/\r\n?/gu, '\n')
+const copySource = await readFile(resolve(appRoot, 'src', 'i18n', 'virtualChurch.ts'), 'utf8')
 
 const [viewSource, hookSource, contractSource, globalStyleSource, controlsSource] = await Promise.all([
   readFile(viewPath, 'utf8').then(normalizeSource),
@@ -233,7 +234,7 @@ for (const fragment of [
   "landscapeHint: 'Turn for a wider view, or keep exploring upright'",
   "&& runtimeStatus === 'ready'\n        && !dialogOpen\n        && !nearEntranceInfoVisible",
 ]) {
-  requireSource(viewSource, fragment, 'V3 landscape layout wiring')
+  requireSource(/^[A-Za-z]+: '/.test(fragment) ? copySource : viewSource, fragment, 'V3 landscape layout wiring')
 }
 for (const fragment of [
   '@media (orientation: landscape) and (max-width: 1023px) and (max-height: 600px)',
@@ -272,7 +273,7 @@ for (const fragment of [
   "cameraMode !== 'showcase'",
   '!dialogOpen',
 ]) {
-  requireSource(viewSource, fragment, 'Near-entrance information accessibility')
+  requireSource(/^[A-Za-z]+: '/.test(fragment) ? copySource : viewSource, fragment, 'Near-entrance information accessibility')
 }
 if (!/<div\s+aria-atomic="true"\s+aria-live="polite"\s+className="sr-only"\s+role="status"\s*>\s*\{nearEntranceInfoVisible[\s\S]*?t\.nearEntranceInfoTitle[\s\S]*?t\.nearEntranceInfoDetail/u.test(viewSource)) {
   errors.push('near-entrance announcement must use a persistent atomic polite live region')

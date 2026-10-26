@@ -42,7 +42,6 @@ const requiredEventPackageEnums = [
   'eventPackageConditionStatus',
   'eventLifecycleGate',
   'eventPackageEnforcementMode',
-  'legacyEventPackageTransition',
   'eventChangeClassification',
 ]
 const requiredEventPackageAuthorizationRules = [

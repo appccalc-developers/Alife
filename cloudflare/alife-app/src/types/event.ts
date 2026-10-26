@@ -11,60 +11,6 @@ export type EventRuleDto = {
   isMandatory: boolean
 }
 
-export type OptionalActivityDto = {
-  id?: string
-  name: MultilingualString
-  extraFee: number
-}
-
-export type RamMissingInformation = {
-  code: string
-  fieldPath: string
-  message: MultilingualString
-}
-
-export type RamHazard = {
-  id?: string
-  hazard: MultilingualString
-  likelihood: number | null
-  impact: number | null
-  riskScore: number | null
-  controlMeasures: MultilingualString
-  personResponsible: string
-}
-
-export type RamEmergencyContact = {
-  role: MultilingualString
-  name: string
-  phone: string
-}
-
-export type RamOutingSafety = {
-  transportRequired: boolean | null
-  licensedDriverConfirmed: boolean | null
-  vehicleRegistrationConfirmed: boolean | null
-  vehicleWofConfirmed: boolean | null
-  venueRiskAssessed: boolean | null
-  firstAidKitAvailable: boolean | null
-  trainedFirstAiderName: string
-  trainedFirstAiderQualificationConfirmed: boolean | null
-  participantHealthNeedsReviewed: boolean | null
-  weatherPlanReviewed: boolean | null
-}
-
-export type EventRamDraft = {
-  activityName: MultilingualString
-  activityDescription: MultilingualString
-  participantCount: number | null
-  participantAgeRange: MultilingualString
-  isOuting: boolean | null
-  hazards: RamHazard[]
-  emergencyContacts: RamEmergencyContact[]
-  outingSafety: RamOutingSafety
-  missingInformation: RamMissingInformation[]
-  leaderConfirmed: boolean
-}
-
 export type EventRamStatus = 'draft' | 'awaitingReview' | 'approved'
 
 export type EventRamAssessmentRecord = {
@@ -96,17 +42,18 @@ export type EventDto = {
   endDate: string
   registrationDeadline: string
   maxCapacity: number
+  registrationMode?: 'none' | 'required'
+  registrationRulesVersion?: number
   capacityUnit: 'Families' | 'People'
   hardConstraints: EventRuleDto[]
-  optionalActivities: OptionalActivityDto[]
   baseFeePerAdult?: number | null
   baseFeePerChild?: number | null
   currency: string
   posterImageUrl?: string | null
   galleryUrls: string[]
-  legacySummary?: MultilingualString | null
   contactProfileIds?: string[]
-  ram?: EventRamDraft
+  ram?: import('./ramGovernance').RamDraft
+  requiresRam?: boolean
 }
 
 export type GroupEventRecord = {

@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
@@ -67,7 +68,7 @@ test('compact guard room precedes the first main-hall door without blocking the 
   assert.equal(virtualChurchPositionIsBlocked(guardX, guardZ, 0), true)
   const [axisX, axisZ] = entranceLocalToSource(route.axisX, .3)
   assert.equal(virtualChurchPositionIsBlocked(axisX, axisZ, 0), false)
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /foyerGuardRoomShell: BoxInstance\[\]/)
   assert.match(source, /\.\.\.foyerGuardRoomDoor/)
   assert.match(source, /\.\.\.foyerGuardRoomFrames/)
@@ -88,7 +89,7 @@ test('foyer guide lands on the straight entrance axis inside the V3 shell', asyn
   assert.ok(Math.abs(ahead.x - local.x) < .01, 'the entry camera must face along the straight aisle')
   assert.ok(Math.abs(local.x - VIRTUAL_CHURCH_FOYER_CIRCULATION.axisX) < .01)
   assert.ok(pitch < 0 && pitch > -.8)
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /foyer: '门厅内景'/)
   assert.match(source, /foyer: 'Inside the foyer'/)
   assert.match(source, /左侧门卫室、两处主堂门和迎宾桌.*咖啡窗及相邻的深色双门/)
@@ -136,7 +137,7 @@ test('photo-comparison camera stands by the entrance and faces both left doors a
   const farGlazingOffset = Math.atan2(Math.sin(farGlazingBearing - forwardBearing), Math.cos(farGlazingBearing - forwardBearing))
   assert.ok(Math.abs(farGlazingOffset) < horizontalHalfFov - .02,
     'the photo comparison should retain at least the near edge of the daylit exit')
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /mainHallView: '正门看主堂方向'/)
   assert.match(source, /mainHallView: 'Entrance view toward main hall'/)
   assert.match(source, /\.\.\.\(v3 \? \[\{ icon: Eye, title: t\.mainHallView, detail: t\.mainHallViewDetail, action: onMainHallView \}\] : \[\]\),\s*\.\.\.\(v3 \? \[\{ icon: Building2, title: t\.mainHallInterior,[^\n]+\}\] : \[\]\),\s*\{ icon: Building2, title: t\.foyer/,
@@ -190,7 +191,7 @@ test('secondary-hall comparison camera sees the confirmed cafe-adjacent double d
       assert.ok(Math.abs(offset) < horizontalHalfFov - .02, 'the cafe-adjacent double doors fit in the review frame')
     }
   }
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /secondaryHallView: '副堂方向对照'/)
   assert.match(source, /secondaryHallView: 'Toward the secondary hall'/)
   assert.match(source, /onSecondaryHallView=\{viewSecondaryHall\}/)
@@ -216,7 +217,7 @@ test('photo-backed stair replaces a false room door without closing the far righ
   assert.equal(blocked(pier.centerX, route.branchDepthZ), false, 'the pier cannot close the cross passage')
   assert.equal(blocked(route.axisX, midZ), false, 'the straight route to the glazing remains open')
   assert.equal(blocked(route.axisX + 6.5, route.branchDepthZ), false, 'the right corridor remains connected')
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /foyerStairDarkwork/)
   assert.match(source, /vc:foyer-stair-undercroft/)
   assert.match(source, /result\.color\.set\('#464c4a'\)/,
@@ -287,7 +288,7 @@ test('photographed stair planters share small collision footprints and stay insi
   const [routeX, routeZ] = entranceLocalToSource(route.axisX + 6.5, route.branchDepthZ)
   assert.equal(virtualChurchPositionIsBlocked(routeX, routeZ, .095), false,
     'the right branch remains passable beside the planters')
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const planterComponent = source.slice(source.indexOf('const FoyerStairPlanters ='), source.indexOf('const FoyerCafeEquipment ='))
   assert.equal((planterComponent.match(/<instancedMesh\b/g) ?? []).length, 2)
   assert.equal((planterComponent.match(/<mesh\b/g) ?? []).length, 1,
@@ -311,7 +312,7 @@ test('photo-confirmed service-adjacent doors are dark without assigning that fin
     'the service window should read as a tall glazed opening, not a short slot')
   assert.ok(frontage.visibleDepth > 1 && frontage.visibleDepth < route.branchRightX - route.aisleRightX,
     'the cut-through recess must stay inside the right-hand shell')
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /'#464b4a'/)
   assert.match(source, /'#d5d9d3'/,
     'the photographed cafe-adjacent vision lights should stay bright')
@@ -387,14 +388,14 @@ test('left branch has a traversable corridor with two side-room fronts and a clo
   const [seamX, seamZ] = entranceLocalToSource(route.aisleLeftX, (route.partitionEndZ + route.leftBranchOpeningStartZ) / 2)
   assert.equal(virtualChurchPositionIsBlocked(seamX, seamZ, .095), true,
     'the old foyer partition must join the new corridor front without an outdoor gap')
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /foyerLeftBranchEndDoor: BoxInstance\[\]/)
   assert.match(source, /foyerLeftBranchEndFrames: BoxInstance\[\]/)
   assert.match(source, /foyerLeftBranchEndHandle: BoxInstance\[\]/)
 })
 
 test('photo-backed warm corridor doors stay scoped to the left branch', async () => {
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /index < foyerRoute\.leftBranchRoomDoors\.length \? '#b5a68e' : '#d9d4c8'/)
   assert.match(source, /foyerLeftBranchEndDoor\.map\(item => \(\{ \.\.\.item, color: '#b5a68e' \}\)\)/)
   assert.match(source, /index < foyerRoute\.leftBranchRoomDoors\.length \* 3 \? '#aa9b83' : '#7e817d'/)
@@ -402,7 +403,7 @@ test('photo-backed warm corridor doors stay scoped to the left branch', async ()
 })
 
 test('photo 01 corridor wall wash stays a single texture-free left-branch draw', async () => {
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const wash = source.match(/const FoyerLeftCorridorWallWash = \(\) => \{[\s\S]*?\n\}/)?.[0]
   assert.ok(wash)
   assert.match(wash, /new MeshBasicMaterial\(\{ color: '#fff1d2', transparent: true, opacity: \.26, depthWrite: false \}\)/)
@@ -413,7 +414,7 @@ test('photo 01 corridor wall wash stays a single texture-free left-branch draw',
 })
 
 test('photo 01 corridor doors show short lever hardware in front of the closed slabs', async () => {
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const ast = ts.createSourceFile('VirtualChurchView.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const declarations = ast.statements.filter(ts.isVariableStatement)
     .flatMap(statement => [...statement.declarationList.declarations])
@@ -479,7 +480,7 @@ test('photo 01 courtyard window precedes the left corridor doors without opening
   }
   const [worldX, worldZ] = entranceLocalToSource(window.centerX, route.oppositeDoorZ + .3)
   assert.equal(virtualChurchPositionIsBlocked(worldX, worldZ, .095), true, 'the courtyard backdrop is not a walkable room')
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const photo = await readFile(new URL('../public/virtual-church-assets/v3/foyer-courtyard-reference-01.jpg', import.meta.url))
   assert.equal(photo[0], 0xff); assert.equal(photo[1], 0xd8)
   assert.ok(photo.length < 120_000)
@@ -535,7 +536,7 @@ test('right branch is a walkable corridor with two closed room fronts inside the
   }
   assert.ok(Math.hypot(route.rightBranchRoomDoors[0] - guide.x, route.rightBranchRoomDoorZ - guide.z) > 2,
     'the first unmeasured room door must not fill the comparison view')
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /foyerRoute\.aisleRightX \+ \.18, foyerRoute\.branchRightX, foyerRoute\.branchOpeningStartZ/)
   assert.match(source, /foyerBranchRoomDoors: BoxInstance\[\] = branchRoomDoorCenters\.map/)
   assert.match(source, /branchRoomDoorZ\(x\)/)
@@ -556,7 +557,7 @@ test('far glazing keeps the photographed cabinet and wall cross instead of an in
   assert.equal(virtualChurchPositionIsBlocked(cabinetX, cabinetZ, .095), true)
   const [passageX, passageZ] = entranceLocalToSource(cabinet.centerX, route.branchDepthZ)
   assert.equal(virtualChurchPositionIsBlocked(passageX, passageZ, .095), false)
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /const foyerFarCabinetWoodwork: BoxInstance\[\]/)
   assert.match(source, /const foyerFarWallCross: BoxInstance\[\]/)
   const cross = source.slice(source.indexOf('const foyerFarWallCross:'), source.indexOf('const farGlazingPanelWidth'))
@@ -580,7 +581,7 @@ test('far glazing keeps the photographed cabinet and wall cross instead of an in
 })
 
 test('the far foyer glazing uses the supplied site photo as a bounded scenic view', async () => {
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const photo = await readFile(new URL('../public/virtual-church-assets/v3/foyer-courtyard-reference-04.jpg', import.meta.url))
   assert.equal(photo[0], 0xff); assert.equal(photo[1], 0xd8)
   assert.ok(photo.length > 50_000 && photo.length < 250_000, 'one bounded reference photo, not a full-resolution scene dump')
@@ -600,7 +601,7 @@ test('the far foyer glazing uses the supplied site photo as a bounded scenic vie
 })
 
 test('the foyer opens as architecture first while preserving the event flag toggle', async () => {
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /const \[showFoyerFlags, setShowFoyerFlags\] = useState\(false\)/)
   assert.match(source, /\{showFlags \? <FoyerFlagLayer \/> : null\}/)
   assert.match(source, /onToggleFoyerFlags=\{\(\) => setShowFoyerFlags\(value => !value\)\}/)
@@ -614,7 +615,7 @@ test('V3 keeps the photographed entry volume open and branches beyond the sanctu
   assert.equal(route.rightDoorBanks.length, 1)
   assert.ok(route.leftDoorBanks[1][0] - route.leftDoorBanks[0][1] >= .55,
     'the photographed left entrances need a visible wall pier between their dark bays')
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /foyerMainHallWallStrips: BoxInstance\[\] = \[/)
   assert.match(source, /foyerMainHallThresholdRecess: BoxInstance\[\] = foyerRoute\.leftDoorBanks\.flatMap/)
   assert.match(source, /foyerLeftDoorSoffit\.map\(item => \(\{ \.\.\.item, color: '#69716e' \}\)\)/)
@@ -700,7 +701,7 @@ test('V3 keeps the photographed entry volume open and branches beyond the sanctu
 })
 
 test('the photographed main-hall door lintel stays shallow and meets the high wall', async () => {
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const soffit = source.match(/const foyerLeftDoorSoffit: BoxInstance\[\] = \[\{[\s\S]*?position: \[foyerRoute\.aisleLeftX \+ ([\d.]+), ([\d.]+),[\s\S]*?scale: \[([\d.]+), ([\d.]+),/)
   const wall = source.match(/const foyerMainHallUpperWall: BoxInstance\[\] = \[\s*\{[\s\S]*?position: \[foyerRoute\.aisleLeftX \+ [\d.]+, ([\d.]+),[\s\S]*?scale: \[\.018, ([\d.]+),/)
   assert.ok(soffit && wall)
@@ -713,7 +714,7 @@ test('the photographed main-hall door lintel stays shallow and meets the high wa
 })
 
 test('photographed main-hall and cafe doors have loop pulls, with motion confined to the main hall', async () => {
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const ast = ts.createSourceFile('VirtualChurchView.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const declaration = ast.statements.filter(ts.isVariableStatement)
     .flatMap(statement => [...statement.declarationList.declarations])
@@ -747,7 +748,7 @@ test('photographed main-hall and cafe doors have loop pulls, with motion confine
 })
 
 test('photo-backed main-hall leaves and jambs remain pale while cafe-side doors stay charcoal in the same batches', async () => {
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const ast = ts.createSourceFile('foyer.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const initializer = (name: string) => {
     let result = ''
@@ -840,7 +841,7 @@ test('third-person camera shares the foyer opening and shortens only after cross
   assert.equal(virtualChurchPositionIsBlocked(clearAxis[0], clearAxis[1], 0), false)
   assert.equal(virtualChurchPositionIsBlocked(clearRight[0], clearRight[1], 0), false)
 
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(source, /if \(virtualChurchPositionIsInsideWalkableFoyer\(x, z, config3D\.visualVersion\)\) return false/)
   assert.match(source, /const THIRD_PERSON_FOYER_CAMERA_DISTANCE = 3\.25/)
   assert.match(source, /const cameraDistance = virtualChurchPositionIsInsideFoyerInterior\(/)
@@ -851,7 +852,7 @@ test('third-person camera shares the foyer opening and shortens only after cross
 })
 
 test('real entrance collision keeps the follow heading and lowers a shortened boom', async () => {
-  const source = await readFile(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const source = await readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const cameraCode = source.slice(source.indexOf('const CAMERA_ENTRANCE_START ='), source.indexOf('const TerrainSurface ='))
   const code = ts.transpileModule(cameraCode, { compilerOptions: { target: ts.ScriptTarget.ES2023 } }).outputText
   const variables = {

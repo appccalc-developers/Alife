@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "alife-system-factory",
+  "version": "0.1.0",
+  "description": "Plan and guide implementation of an Alife-equivalent bilingual system with Azure + Cloudflare or Cloudflare-only deployment. Includes governance and a planning generator; complete runtime templates are not bundled."
+}

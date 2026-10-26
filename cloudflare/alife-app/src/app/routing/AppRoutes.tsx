@@ -38,10 +38,8 @@ const ChurchLifeView = lazy(() => import('../../views/ChurchLifeView'))
 const ChurchAlbumsView = lazy(() => import('../../views/ChurchAlbumsView'))
 const ChurchManagementView = lazy(() => import('../../views/ChurchManagementView'))
 const ContactDetailView = lazy(() => import('../../views/ContactDetailView'))
-const EventEditRedirect = lazy(() => import('../../views/EventEditRedirect'))
 const EventCreationWizard = lazy(() => import('../../views/EventCreationWizard'))
 const EventDetailView = lazy(() => import('../../views/EventDetailView'))
-const EventEnrollmentView = lazy(() => import('../../views/EventEnrollmentView'))
 const EventReviewView = lazy(() => import('../../views/EventReviewView'))
 const EventTemplateAdminView = lazy(() => import('../../views/EventTemplateAdminView'))
 const EventPackagePolicyAdminView = lazy(() => import('../../views/EventPackagePolicyAdminView'))
@@ -401,20 +399,14 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/virtual-church/study-room" element={<VirtualChurchPreviewRoute><VirtualChurchRouteBoundary><VirtualChurchStudyRoomView /></VirtualChurchRouteBoundary></VirtualChurchPreviewRoute>} />
           <Route path="/virtual-church/main-hall" element={<VirtualChurchPreviewRoute><VirtualChurchRouteBoundary><VirtualChurchMainHallView /></VirtualChurchRouteBoundary></VirtualChurchPreviewRoute>} />
           <Route path="/events/new" element={<EventCreationWizard />} />
-          <Route path="/events/edit" element={<EventEditRedirect />} />
-          <Route path="/events/:eventId/edit" element={<EventEditRedirect />} />
           <Route path="/events" element={<EventDetailView />} />
           <Route path="/events/:eventId" element={<EventDetailView />} />
-          <Route path="/events/enroll" element={<EventEnrollmentView />} />
-          <Route path="/events/:eventId/enroll" element={<EventEnrollmentView />} />
           <Route path="/events/review" element={<EventReviewView />} />
           <Route path="/events/:eventId/review" element={<EventReviewView />} />
           <Route path="/events/:eventId/workspace" element={<MemberRoute><EventWorkspaceView /></MemberRoute>} />
           <Route path="/events/:eventId/workspace/:surfacePath" element={<MemberRoute><EventWorkspaceView /></MemberRoute>} />
           <Route path="/groups/:groupId/events/new" element={<EventCreationWizard />} />
-          <Route path="/groups/:groupId/events/:eventId/edit" element={<EventEditRedirect />} />
           <Route path="/groups/:groupId/events/:eventId" element={<EventDetailView />} />
-          <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
           <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />
           <Route path="/groups/:groupId/events/:eventId/workspace" element={<MemberRoute><EventWorkspaceView /></MemberRoute>} />
           <Route path="/groups/:groupId/events/:eventId/workspace/:surfacePath" element={<MemberRoute><EventWorkspaceView /></MemberRoute>} />

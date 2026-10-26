@@ -1,0 +1,620 @@
+{
+  "schemaVersion": 1,
+  "updatedOn": "2026-10-18",
+  "baseline": {
+    "sourceCommit": "4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31",
+    "branch": "codex/826-public-3d-church-trial",
+    "scope": "Initial governance and generator work; product release scope awaits GOV-01 reconciliation.",
+    "productCertification": "No fresh application, database, provider or deployment certification in this task."
+  },
+  "tasks": [
+    {
+      "id": "ALIFE-ALBUM-DRIVE",
+      "title": "Protect album originals and import selected Google Drive photos",
+      "issueUrl": "https://github.com/appccalc-developers/Alife/issues/844",
+      "priority": "P1",
+      "dependsOn": [],
+      "owners": [
+        "docs/file-asset-design.md#adopted-album-photo-contract--2026-10-18",
+        "docs/cache-coordination.md"
+      ],
+      "status": "in_progress",
+      "implementation": "implemented",
+      "verification": "partial",
+      "acceptance": [
+        "ALBUM-01 through ALBUM-10: server role/status/group isolation, live public/group visibility, controlled upload and original reads, explicit confirmation, per-item retry/cancel and bilingual/mobile interaction.",
+        "Historical standard album URLs cannot bypass backend authorization or be replayed from shared/PWA caches; unrelated public media retains offline caching.",
+        "Real Google accounts, relational persistence/concurrency and deployed Worker/R2 isolation require separate target-environment evidence before release."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-18",
+          "source": "Current main working tree; album/photo services/controllers, Images/Speed Worker guards, React importer and targeted tests only; pre-existing staged/unrelated changes preserved.",
+          "environment": "Windows; .NET 10 + EF InMemory; bundled Node 24.19; headless Microsoft Edge with Playwright; fictional Google SDK/Drive/API and R2 fixtures.",
+          "check": "42 Albums/FileAssets backend checks; 30 JS importer/edge/Worker/PWA checks; 6 browser flows (local, Drive, visibility/role conflict, cancellation, deduplication, malformed input); en/zh at 320px and 1280px; production Vite/PWA bundle and generated-SW offline/cache-migration test; frontend typecheck.",
+          "outcome": "Targeted checks pass. Backend enforces approved leader/co-leader or existing platform exception, rechecks scope after storage transfer, uses serializable finalization and streaming reads, and handles uncertain commit cleanup conservatively. New upload has no public object URL. Generated SW removes historical cached album originals, blocks private offline replay and preserves public image/video offline caching. Browser screenshots and JSON evidence are under C:/Data/Alife/Temp/album-drive-import.",
+          "limitations": "No real Google configuration/account, SQL/R2 provider integration, independent bucket endpoint inventory, deployment or real mobile-device verification at this evidence point. Vite QA build disabled publicDir copying to avoid copying unrelated large 3D assets, then copied the required SW scripts and test video. Existing global locale guard and Speed Layer full typecheck fail outside changed feature files; see locale.log and contract. No migration or publication."
+        },
+        {
+          "date": "2026-10-18",
+          "source": "Live signed-in Alife /api/me, GitHub viewerPermission, Google Cloud IAM and enabled-APIs UI; screenshots under C:/Data/Alife/Temp/album-drive-import.",
+          "environment": "Existing user accounts; personal Google project alife-drive-import; read-only Alife/GitHub permission inspection; no production application writes.",
+          "check": "Confirm current Alife platform admin/admin.access, repository WRITE, Google project Owner; accept Google Cloud/API terms following explicit user confirmation; create test project and verify Google Drive API and Google Picker API in enabled services; prepare External/Testing OAuth branding form.",
+          "outcome": "Current account has application management and Google project configuration authority without being Alife's original creator. Both Google APIs are enabled. OAuth app form is prepared as Alife Drive Import (Local Test), awaiting action-time consent before User Data Policy acceptance and credential creation.",
+          "limitations": "Alife domain/deployment/production-brand authority is not established by application admin or repository WRITE. At this evidence point there was no OAuth client/API key, real Drive grant or imported photo, free trial/billing, deployment or migration; subsequent configuration evidence follows."
+        },
+        {
+          "date": "2026-10-18",
+          "source": "Current local application and Images Worker; real Google Cloud configuration UI; api-storage-probe.json, role-storage-probe.json and real-sql-r2-album.png under C:/Data/Alife/Temp/album-drive-import.",
+          "environment": "User-designated Australia Azure SQL alifeaust/alife (DNS australiaeast); localhost API/React; isolated local R2 emulator on 8787 using the unchanged active local-dev provider; current test admin and unrelated non-admin alpha fixture; actual Chenghao Google account.",
+          "check": "After explicit user consent, accept Google User Data Policy and create External/Testing app, localhost:5173-only Web OAuth client and API key restricted to localhost/Google Picker iframe and Drive/Picker APIs. Add only current account as test user and only drive.file as scope; write three browser identifiers to ignored .env.local. Upload the approved 74-byte synthetic image to own Drive. Verify SQL target/tables/provider read-only. Through real application UI create one bilingual group-visible QA album; run 15 live API/storage assertions, cross-group non-admin upload/read denials, authenticated image rendering and English/Chinese switching.",
+          "outcome": "Google configuration is complete for local testing. SQL/R2 assertions pass: upload/read preserve SHA-256, retry creates one association, visibility conflict returns 409, anonymous and unrelated non-admin reads/uploads return 403 with no-store, and Worker direct/admin URLs cannot expose the image without authorization. Real UI renders the protected /api/album-photos original. Test album 60d4341c-df4c-462e-a0d0-a53087877506 contains only local-transport-probe.png. No Docker, migration, shared provider reconfiguration, billing or deployment. One actual Google OAuth consent reached the token callback/Picker opening, but Picker stayed blank; retry awaits manual account selection.",
+          "limitations": "No completed real Drive file selection/download/import yet; browser automation cannot advance the account popup reliably. Existing another-demo alpha configuration returns alpha_account_invalid; a different existing non-admin fixture confirmed cross-group denial without changing authentication. Local R2 simulation does not prove cloud bucket/domain isolation or deployed caches. Synthetic QA album/file are retained for review; their bytes live in the task-specific local emulator. Real-device/PWA and production authority/rollout remain unverified."
+        },
+        {
+          "date": "2026-10-18",
+          "source": "AlbumPhotoImport, googleDrivePhotoService, albumImport locale and tests; authorization-fix screenshots and locale-authorization.log under C:/Data/Alife/Temp/album-drive-import.",
+          "environment": "Current localhost React source; headless Edge with fictional delayed Google SDK; signed-in Edge for actual OAuth retry.",
+          "check": "Keep the import panel visible and cancellable during OAuth, hide it only after Picker opens, and ignore late token callbacks after closing. Run 5 service unit tests, all 7 browser scenarios including delayed OAuth/cancellation and English/Chinese at 320px, frontend typecheck and locale check. Retry actual account selection.",
+          "outcome": "Unit and browser scenarios and frontend typecheck pass. Both languages render the authorization instructions with an enabled Close button. Closing before a delayed token returns creates no Picker and no upload. Actual retry shows the same visible waiting panel; Google remains at Choose an account after the automated click times out. Popup retained for user continuation.",
+          "limitations": "Global locale check remains 6/7 due to 207 pre-existing violations in unrelated modules; no changed importer file is reported. This does not complete real Drive selection/download/import or deployed R2 verification."
+        },
+        {
+          "date": "2026-10-18",
+          "source": "Current localhost source and actual Google account; real-drive-preview.png, real-drive-import-success.png, real-drive-album-zh.png and real-drive-read-probe.ps1/json under C:/Data/Alife/Temp/album-drive-import.",
+          "environment": "Actual personal Chenghao Google account and Google Picker; user-assisted account/file selection; local React/API/Images Worker with Australia Azure SQL alifeaust/alife and isolated local R2 emulator.",
+          "check": "After user selected only the approved synthetic alife-drive-import-test.png, observe Ready preview and explicitly click Confirm import. Verify 1 of 1 imported, protected 2x2 image rendering, refresh persistence and English/Chinese display. Run 17 live API/storage assertions on the newly imported asset.",
+          "outcome": "Real Google Drive download, preview and confirmed Alife import pass. Imported asset 6b72ab9d-ab1d-467a-aa63-eca5c17fc81e is associated once with QA album 60d4341c-df4c-462e-a0d0-a53087877506. Its 74 bytes match the source SHA-256. Authorized reads return 200 with private/no-store; anonymous and unrelated non-admin reads, raw Worker object URL and unauthenticated admin URL return 403. An authorized read remains allowed after the denied viewers. The album now contains two synthetic test photos, including the earlier local transport probe.",
+          "limitations": "Real personal-account acceptance is complete for this selected synthetic image. User assistance was required to operate the Google popup/Picker. This does not certify Workspace policies, deployed R2 bucket/domain isolation, deployed caches or real mobile/PWA devices. QA records and local emulator objects are retained for review. No deployment, migration, billing or Git publication at this evidence point."
+        },
+        {
+          "date": "2026-10-18",
+          "source": "Isolated codex/844-album-drive-import worktree based on main 41409821; only the album/Drive changes extracted; Issue #844.",
+          "environment": "Clean main-based source; .NET 10 with local NuGet cache; bundled Node 24; headless Edge; fictional browser/provider fixtures. Original mixed working tree and index preserved.",
+          "check": "42 Albums/FileAssets tests; 30 importer/edge/Worker/PWA JS checks; all 7 importer browser scenarios; frontend typecheck and locale check; production Vite/PWA QA bundle and generated-service-worker offline/migration browser check.",
+          "outcome": "All isolated-branch checks pass, including locale 7/7. Earlier locale failures belonged to unrelated uncommitted modules and are absent from this branch. Generated service worker removes historical originals, refuses private offline replay and preserves public image/video caching. Real-account import evidence above was produced in the original source environment, not rerun against this isolated build. Review screenshot: docs/assets/album-drive-import/real-drive-import-success.png.",
+          "limitations": "The QA build disabled publicDir copying, then copied the cache migration script and public test video. No new credentials, .env.local, dependency changes, database migration or deployment are included. Workspace/device and deployed storage/cache acceptance remain pending."
+        }
+      ],
+      "blockers": [
+        "Australia test SQL and local Worker/R2 simulation are verified; deployed bucket/domain isolation, nonstandard historical album-key inventory and real-device/PWA evidence remain pending."
+      ],
+      "nextAction": "Review the successful real personal-account import evidence. Before release, complete Workspace/device/PWA and deployed bucket/cache acceptance, inventory nonstandard historical keys and coordinate release under explicit publication authorization."
+    },
+    {
+      "id": "ALIFE-EVENT-2-RESET",
+      "title": "Cut over Event runtime to 2.0 and purge pre-launch Event instances",
+      "priority": "P0",
+      "dependsOn": [],
+      "owners": [
+        "AGENTS.md",
+        "docs/events/EVENT-CONTRACT.md",
+        "docs/events/EVENT-2-RESET.md",
+        "docs/events/event-contract.json"
+      ],
+      "status": "in_progress",
+      "implementation": "implemented",
+      "verification": "partial",
+      "acceptance": [
+        "Composition 2.0.0 is the only accepted Event runtime contract; Event 1.x requests fail with event.schema.unsupported and retired routes return 404.",
+        "The explicit preview/apply/verify reset preserves templates, policies, venue resources and non-Event data while deleting only Event instances and scoped records under a target-bound fingerprint; production irreversible mode rejects exclusive remote-file candidates.",
+        "The local reset retains its verified-backup and repeat no-op evidence; the separately authorised production operation uses the exact --Events:NoRecovery=true argument without SQL/R2 recovery copies or rollback, and records irreversible mode in its fingerprint and receipt.",
+        "Production Event writes are frozen and drained for the exact target; the three Event-only Durable Object namespaces are inventoried, any stored data is cleared and verified empty, and stale clients are isolated by the new Event data epoch without logging object IDs. Ordinary Worker version uploads remain free of lifecycle migrations.",
+        "Production apply uses a reviewed live preview fingerprint, exact target/schema/code/freeze identity, serializable transaction and count checks; post-operation verification proves zero Event-scoped rows/references and unchanged templates, policies, venue resources and non-Event data.",
+        "Normal migration, seed, application startup and deployment cannot invoke the reset or recreate a demo Event; ordinary API deployment fails when the Event 2.0 storage migration is pending and requires an existing current Event data epoch and explicit write mode."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-13",
+          "source": "Final private local reset evidence under C:/Data/Alife/Temp/Event2Reset/event2-local-reset-20261013T010000Z and its empty-state repeat; verified recovery backup under C:/Data/Alife/Backups/Event2Reset/event2-local-reset-20261012T224210Z",
+          "environment": "Only localhost,14333 / alife_db; local Azure SQL-compatible development instance and DbMigrator; no production workflow or R2 objects",
+          "check": "Restore from verified backup; preview with fingerprint ac495ebc7072cb8dbad00115f7a636073da7c92481b208cb1f4c313d3f991d26; apply and verify; remove apply.json to simulate process loss after SQL commit and rerun approved apply; run fresh empty preview/apply with fingerprint 5ecebbbd1e21eb22a55458e5900ad631f789d1883ae3ab991c50ed2193b867ca; apply forward migration and explicit questionnaire initialization; inspect preserved resources and retired tables",
+          "outcome": "Preview identified 23 Event roots, 350 affected SQL rows and zero files; apply deleted 350. Verify found zero Event instance rows and unchanged counts/hashes for 50 preserved tables. The post-commit retry reconstructed apply evidence with recoveredAfterCommit=true only after proving the exact empty post-state. Fresh no-op changed zero rows/files. Local forward migration removed old enrollment/workflow instance tables; all 16 current templates are version 4 (composition 2.0/questionnaire 2), and seven venue resources and the RAM policy remain.",
+          "limitations": "Zero file candidates do not exercise nonempty R2 handling. Local migration and SQL evidence do not certify production or live provider behavior; the retired recovery/finalize workflow is no longer an acceptance condition."
+        },
+        {
+          "date": "2026-10-13",
+          "source": "Final current-source no-op evidence under C:/Data/Alife/Temp/Event2Reset/event2-local-reset-20261013-final-noop",
+          "environment": "Local current-source Event reset verification; no production workflow or R2 objects",
+          "check": "Run preview/apply/verify with schema profile event-2.0, schema hash 939cd7e358e2ab91e259e096aa9168efec4012a5d9510240b3fd8487c69102ad and fingerprint af7305eb12be50040ecc33e3a9f3354f192a37d5bfba0eb3db3669c1116ecee6",
+          "outcome": "Preview found 0 Event roots, 0 SQL rows and 0 files; apply deleted 0 rows; verify found instanceRows=0, preservedTables=50 and fileFailures=0. The earlier nonempty rehearsal remains the deletion and recovery-path evidence.",
+          "limitations": "A no-op cannot exercise nonempty SQL deletion or R2 handling. This local evidence does not certify production or deployed provider behavior."
+        },
+        {
+          "date": "2026-10-14",
+          "source": "Current-source production read-only inspection and authenticated Event reset-status endpoint; private migration inspection at C:/Data/Alife/Temp/Event2ProdNoRecovery20261014/migration-inspect-production/event2-migration-gate.json",
+          "environment": "Production Azure SQL ccalc.database.windows.net / ccalc and current Azure Function App; no SQL purge or forward migration established by this evidence",
+          "check": "Verify exact Azure resource and live connection target; inspect Event2 migration state and Event-scoped row counts; authenticate reset-status after setting Event write freeze epoch event2-20261013T2243Z",
+          "outcome": "Three Event roots remain at preflight. Migration 20261012225333_Event2RemoveLegacyEventStorage is pending. Backend reports Event writes frozen, zero active mutations, valid configuration and matching schema/data/freeze epochs. This is preflight only.",
+          "limitations": "This is preflight evidence only; the separate production purge and provider results are recorded in the following entry."
+        },
+        {
+          "date": "2026-10-14",
+          "source": "Protected production purge evidence under C:/Data/Alife/Temp/Event2ProdNoRecovery20261014/evidence (preview.json, apply.json, verify.json); direct Durable Object evidence under C:/Data/Alife/Temp/Event2ProdNoRecovery20261014/do-evidence/durable-objects-direct-empty-verify.json",
+          "environment": "Production Azure SQL ccalc.database.windows.net / ccalc, Event-only Cloudflare Durable Objects and Event KV/cache; backend API remains frozen during the cutover",
+          "check": "Review no-recovery preview fingerprint 3d7fcd4aa7eeab378fddedc83f112718c8fdcb73c7ca57ad8e863cc63ff8af24; apply and verify SQL purge; directly probe exact-object Durable Object storage under approved fingerprint 42f8d9b784146287951d9d1165c8681477bb1f3815566413f301e6c168f25eef; verify Event KV/cache purge and migration-gate empty-state read",
+          "outcome": "Preview found three Event roots, 176 Event-scoped rows and zero Event-exclusive files. Apply deleted 176 rows; verify found instanceRows=0 and unchanged stable hashes for 45 preserved tables. Protected direct probe found 74/74 Durable Object storages empty, and Event KV/cache purge reported verified=true. Migration gate reports pending=true, instanceDataEmpty=true on legacy-67 schema.",
+          "limitations": "Cloudflare management inventory still reports hasStoredData=true for the 74 objects despite direct empty storage probes. This purge evidence alone does not establish schema or API deployment; production Event writes remain frozen."
+        },
+        {
+          "date": "2026-10-14",
+          "source": "Current working-tree backend/src/Alife.DbMigrator/Event2MigrationOnly.cs and targeted unit tests",
+          "environment": "Local Release build and focused tests; no production migration run",
+          "check": "Build the isolated Event 2.0 migration-only command in Release and run six focused argument, exact target, pending-order and schema-gate tests after adding apply-prerequisite",
+          "outcome": "Release build passed with zero warnings/errors and six targeted tests passed. The command now exposes apply-prerequisite, apply and verify, enforces the exact legacy-67→legacy-75→2.0 Event migration order, and exits before ordinary seed, sermon normalization and cache work. Read-only preflight remains Event2MigrationGate=inspect; the command has no preview mode.",
+          "limitations": "Local build and tests alone do not establish a production migration or API deployment; the production migration is recorded separately below."
+        },
+        {
+          "date": "2026-10-14",
+          "source": "Production isolated migration logs at C:/Data/Alife/Temp/Event2ProdNoRecovery20261014/event2-prerequisite-migration.log, event2-migration-only.log, event2-migration-verify.log and event2-migration-final-verify.log",
+          "environment": "Exact production Azure SQL ccalc.database.windows.net / ccalc, with Event API writes frozen",
+          "check": "Run apply-prerequisite against empty legacy-67 Event storage; verify the legacy-75 project-operations schema and sole pending Event 2.0 migration; run Event2 storage apply; run separate read-only verify of migration history and retired/preserved storage",
+          "outcome": "The project-operations prerequisite was applied and verified. The Event 2.0 storage migration was then applied and verified. A separate verify confirmed its retired storage is absent. A strengthened profile check initially flagged dbo.group_events because the verifier's expected digest was stale; correcting that digest without production-data mutation made the final read-only verification pass.",
+          "limitations": "API 2.0 runtime behavior and unfreeze were not established by these SQL migration logs."
+        },
+        {
+          "date": "2026-10-14",
+          "source": "Azure production API ZIP deployment output for artifact SHA-256 8dc12317a248fb2be2345710444991522709791bc454e1d63fbd555e9e0308fc; authenticated Event reset-status and public-upcoming reads",
+          "environment": "Production Azure Function App with Event writes frozen at event2-20261013T2243Z",
+          "check": "Deploy reviewed API 2.0 ZIP; deploy open-mode Speed and Images Workers; remove the API freeze epoch; read authenticated configuration/schema/data epoch status and public upcoming; remove temporary SQL firewall rule",
+          "outcome": "Azure reported deployment successful. After removing the freeze epoch, authenticated status returned ApiFrozen=false, configurationValid=true, schemaEpoch=2.0.0, dataEpoch=event2-20261013T2243Z, activeMutations=0 and publicUpcomingCount=0. Speed Worker f43a15ce-208e-4f2d-84f4-cad3afd237a8 and Images Worker cb78b3ae-c42e-4be7-9024-99ba7c56c369 were deployed open. The temporary SQL firewall rule codex-event2-20261014 was removed.",
+          "limitations": "An authenticated production compose dry-run and live Event 1.x rejection check remain unavailable pending an appropriate login. Source tests cover 1.x rejection; the live authenticated behavior is not claimed."
+        }
+      ],
+      "blockers": [
+        "Run authenticated no-persistence production compose and Event 1.x rejection checks when an appropriate login is available; Cloudflare management hasStoredData remains inconsistent with direct empty probes."
+      ],
+      "nextAction": "With an appropriately authorized login, run non-persisting 2.0 compose and Event 1.x rejection checks against the migrated production API; retain the direct-empty Durable Object evidence while investigating Cloudflare's stale management inventory."
+    },
+    {
+      "id": "ALIFE-PAGE-CACHE-SAFETY",
+      "title": "Repair private page viewer isolation, PWA API exclusion and deletion freshness",
+      "priority": "P1",
+      "dependsOn": [],
+      "owners": [
+        "docs/pages/PAGE-CONTRACT.md",
+        "docs/cache-coordination.md",
+        "docs/pwa.md"
+      ],
+      "status": "done",
+      "implementation": "implemented",
+      "verification": "verified",
+      "acceptance": [
+        "Working/review copies remain viewer-scoped memory only; logout, identity changes and late responses cannot expose a previous copy; language switching retains data identity.",
+        "Generated production Service Worker never caches or replays API image/video/document requests; legacy runtime migration preserves current precache and unrelated caches.",
+        "Deletion clears every page-copy variant and affected lists without late refill; failed deletion preserves data; local type/build and targeted regression checks cover the repair."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "source": "Issue #832; isolated codex/832-page-cache-safety publication branch based on 4ed35f68, with unrelated audit evidence excluded",
+          "environment": "Local Windows/Node 24 and headless Microsoft Edge/Playwright; intercepted page APIs and a synthetic local file/API server for the generated production SW",
+          "check": "11 page/http/PWA cache regressions; 30 existing bilingual/locale/navigation/adapter checks; pageCache.browser.cjs covers view, review, group preview, editor, logout/language switching and deletion/reload; pwaCache.browser.cjs covers activation migration, private cache exclusion/offline rejection and public image/video offline replay",
+          "outcome": "All 11 new and 30 related existing checks pass. Browser scenarios pass for working/review copies, group preview, editor, logout/language switching, failed/successful deletion and reload. The final rebuilt production SW passes legacy-cache migration, private image/video/document exclusion and offline rejection, and public image/video offline replay. Final application/config type checks and production build pass. All targeted checks and both browser suites were rerun successfully on the isolated publication tree; ship-dist contains its rebuilt SW. Existing churchLife import, Package source-string, web-dialog false-positive and personal-task fixture failures were reconfirmed separately and are outside this repair.",
+          "limitations": "Synthetic accounts/APIs only; no live backend/database permissions, deployed edge, real-account acceptance or iOS device verification. Draft publication authorized by /shipit; no deployment. Build/browser artifacts: C:/Data/Alife/Temp/page-cache-fix-20261010."
+        }
+      ],
+      "blockers": [],
+      "nextAction": "Verify the repaired flows with real accounts and the deployed edge after deployment is separately authorized."
+    },
+    {
+      "id": "ALIFE-EVENT-CARD-DESIGN",
+      "title": "Document lively Event creation cards and the thin Alife design entry",
+      "priority": "P2",
+      "dependsOn": [],
+      "owners": [
+        "ALIFE-DESIGN.md",
+        "docs/events/design/event-creation-cards/DESIGN.md",
+        "docs/events/design/EVENT-WORKSPACE-DESIGN.md",
+        "docs/events/design/EVENT-UI-VISUAL-TOKENS.md",
+        "docs/events/IMPLEMENTATION-STATUS.md"
+      ],
+      "status": "done",
+      "implementation": "implemented",
+      "verification": "verified",
+      "acceptance": [
+        "Provide a thin surface-reading entry linking existing owners and distinguishing creation cards from saved editorial preparation.",
+        "Document the user-requested bounded card expansion/contraction, Refero recommendation provenance, draft/focus/route/reduced-motion behavior and ECARD-01 through ECARD-06 pilot criteria.",
+        "Validate documentation links, register structure and Event projection freshness; explicitly leave animated UI implementation and product acceptance pending."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "source": "Working tree based on da1ed878075e34469683e26aa7a975e41edc9f7a; ALIFE-DESIGN.md, creation-card DESIGN.md, design orientation, Event design/tokens/references/status and this scoped register entry only",
+          "environment": "Local Windows workspace; Refero pages inspected through web tools; no application mutation",
+          "check": "Seven affected Markdown files checked with Event validateLinks plus whitespace scan; register JSON/task IDs/dependencies validated; node docs/events/scripts/generate-event-docs.mjs --check; scoped git diff --check",
+          "outcome": "Local links/anchors and whitespace valid; register structure valid; Event projections and contracts current. Documentation deliverable complete.",
+          "limitations": "This entry certifies documentation only. Card morph implementation, rendered motion, real roles/provider/database verification, deployment and user visual acceptance remain pending; the designer-recommended Refero source was not verified to provide the morph."
+        }
+      ],
+      "blockers": [],
+      "nextAction": "For a subsequent authorized UI task, implement one available creation-capability pilot and verify ECARD-01 through ECARD-06 before expanding the rollout."
+    },
+    {
+      "id": "GOV-01",
+      "title": "Reconcile release requirements and current evidence",
+      "priority": "P1",
+      "dependsOn": [],
+      "owners": [
+        "docs/design/README.md",
+        "docs/design/QA.md",
+        "docs/architecture.md"
+      ],
+      "status": "ready",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Map current domain requirements to implementation and evidence without copying historical success claims.",
+        "Identify conflicts, missing authorities and proposed release scope for user review.",
+        "Split confirmed gaps into bounded tasks with stable requirement references."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Inventory identity and access first, using its contracts, handlers and nearby tests."
+    },
+    {
+      "id": "ALIFE-IDENTITY",
+      "title": "Verify identity, authorization and cross-viewer isolation",
+      "priority": "P1",
+      "dependsOn": [
+        "GOV-01"
+      ],
+      "owners": [
+        "docs/identity-access.md",
+        "docs/cache-coordination.md",
+        "docs/workspaces/IDENTITY.md"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Verify activation, Passkey login/recovery and current role checks with allowed/denied actors.",
+        "Verify revocation, group isolation and relevant cache invalidation against current source."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Choose a complete identity journey after GOV-01."
+    },
+    {
+      "id": "ALIFE-CONTENT",
+      "title": "Verify workspaces and bilingual publishing",
+      "priority": "P1",
+      "dependsOn": [
+        "GOV-01"
+      ],
+      "owners": [
+        "docs/workspaces/README.md",
+        "docs/pages/PAGE-CONTRACT.md",
+        "docs/design/UI-UX.md"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Verify reading/management scope and working/submitted/published copy separation.",
+        "Verify save/reload, concurrent edits, visibility withdrawal, bilingual switching and mobile/desktop interaction."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Derive bounded PAGE/workspace scenarios from their owners."
+    },
+    {
+      "id": "ALIFE-EVENT",
+      "title": "Reconcile Event delivery and close agreed gaps",
+      "priority": "P1",
+      "dependsOn": [
+        "GOV-01"
+      ],
+      "owners": [
+        "docs/events/AGENTS.md",
+        "docs/events/EVENT-CONTRACT.md",
+        "docs/events/IMPLEMENTATION-STATUS.md"
+      ],
+      "status": "in_progress",
+      "implementation": "partial",
+      "verification": "partial",
+      "acceptance": [
+        "Link each scoped Event requirement to its existing status, implementation and current evidence.",
+        "Keep partial/target modules explicit; verify plan acceptance, specialist approval and Package gates separately.",
+        "Complete agreed module gaps and compatibility/role/cache checks using the Event reading/update matrix.",
+        "Verify schema-1.3 Event-level decisions, version-2 project switches and attribute questions while retaining schema-1.2 historical answers and hashes."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-12",
+          "source": "Current Event 1.3 composition, project questionnaire, module and JSON contracts in the shared working tree",
+          "environment": "Local Windows Node Event documentation generator and JSON parsing",
+          "check": "Parsed machine contract and work register; checked sixteen current questions, sixteen version-4 templates and twenty-four preset projects; generated Event projections, ran generator --check and its four tests; scoped git diff --check",
+          "outcome": "Contract cardinality and JSON parsing passed; Event generator and check validated twelve modules, four archetypes, sixteen activity types, 189 API contracts and three equivalent overview structures; generator tests passed 4/4 and scoped diff has no whitespace errors.",
+          "limitations": "Documentation checks do not establish backend/frontend behavior, local database successor application, live browser/API integration or deployment; current-source application verification is still required."
+        },
+        {
+          "date": "2026-10-11",
+          "source": "Current shared working tree; EventActivityTemplateCatalog, EventProjectQuestionCatalog, EventTemplateProjectDefaults and matching machine contract/status",
+          "environment": "Local Windows .NET 10 unit tests with fixture storage; Node Event documentation generator",
+          "check": "18 focused template-admin/project-catalogue cases after rebuilding Application, Infrastructure, API and UnitTests; node docs/events/scripts/generate-event-docs.mjs and --check",
+          "outcome": "All 18 cases pass: fixed nineteen-question directory, sixteen templates/twenty-four presets, required arrays and valid answers, unchanged v2 EF seed identity, retained administrator/historical metadata and idempotent version initialization. Machine contract records composition schema 1.2 and retained 1.1/1.0 inputs; generated documents and local links pass.",
+          "limitations": "This evidence covers the template/catalogue slice. Additive local schema application, project operational slices, complete UI/role/provider flows and deployment are not established by these checks."
+        },
+        {
+          "date": "2026-10-11",
+          "source": "Current shared working tree; EventActivityOperationsController, EventActivityModuleConfigurationsController, Activity Plan/compose changes and Event project machine/topic contracts",
+          "environment": "Local Windows source inspection and explicitly identified localhost,14333 / alife_db SQL database",
+          "check": "Verified target identity; SQL BACKUP with RESTORE VERIFYONLY; applied additive 20261011113522_AddEventProjectOperations migration and template successor initialization; repeated DbMigrator run; reviewed exact API/DTO/privacy boundaries",
+          "outcome": "Recovery backup C:/Data/Alife/Backups/alife_db-event-projects-20261011.bak verified (43,126,784 bytes). First local run applied one migration and created sixteen template version-3 successors; second run applied zero migrations and created zero templates. Source and contracts cover project policies, occurrence offers, selection, age/guardian consent, fee/space handling and five typed arrangements while retaining one Event-level module owner/report/approval.",
+          "limitations": "This local database evidence does not establish live multi-account/provider behavior, shared/production database state or deployment. Backend and frontend tests are recorded separately below."
+        },
+        {
+          "date": "2026-10-11",
+          "source": "Current project-questionnaire and Event preparation frontend, scoped unit/browser fixtures and locale resources",
+          "environment": "Local Windows frontend TypeScript, Node unit/locale checks and browser fixture with intercepted Event APIs",
+          "check": "tsc -b; seven locale checks; six project-questionnaire unit cases; complete npm run test:event-composition; project browser fixture in Chinese/English at 320/1280px; focused three-case rerun after correcting a static component-layout assertion",
+          "outcome": "TypeScript and locale checks passed; project-questionnaire 6/6, complete Event composition suite 97/97, focused component-layout rerun 3/3 and four browser scenarios passed.",
+          "limitations": "Browser Event APIs were fixtures; live backend/browser provider integration is not established by this evidence."
+        },
+        {
+          "date": "2026-10-11",
+          "source": "Current Event project operations, project composition and child execution readiness backend; RAM Worker synchronization",
+          "environment": "Local Windows .NET build and isolated in-memory UnitTests; Worker targeted test fixtures",
+          "check": "Built Domain, Application, Infrastructure, API and UnitTests; ran combined Event project/operations/privacy/fee/minors/scope-proof/execute-readiness, safeguarding bridge, Package and creation/composition filter; ran Worker RAM sync and companion targeted filters",
+          "outcome": "Backend build succeeded with zero warnings/errors and 207/207 filtered unit tests passed (zero failures/skips). Current child-project execution blocker has Off and DryRun hard-gate regressions; Worker targeted filters passed 5/5 and 3/3.",
+          "limitations": "In-memory and Worker fixture checks do not establish live provider or multi-account browser behavior. Whole speed-layer TypeScript check still has pre-existing errors outside this task; shared/production migration and deployment were not performed."
+        }
+      ],
+      "blockers": [],
+      "nextAction": "Verify the schema-1.3 questionnaire and template successors against current backend/frontend/browser checks, complete live-account integration and local reference-integrity checks, resolve unrelated speed-layer TypeScript errors separately, and retain module partial/target boundaries in Event status."
+    },
+    {
+      "id": "ALIFE-COMMUNITY",
+      "title": "Verify remaining community journeys",
+      "priority": "P2",
+      "dependsOn": [
+        "GOV-01"
+      ],
+      "owners": [
+        "docs/church-life-site.md",
+        "docs/group-life-site.md",
+        "docs/sunday-bulletins.md",
+        "docs/sermon-metadata.md"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Cover groups/membership, announcements, albums, forums, contacts, notifications, sermons, bulletins, Bible reading and personal work in agreed scope.",
+        "Verify persistence, visibility, protected media, provider boundaries and bilingual behavior per journey."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Locate exact controllers, client services and tests for one journey at a time."
+    },
+    {
+      "id": "ALIFE-RELEASE",
+      "title": "Complete target-environment acceptance and handover",
+      "priority": "P1",
+      "dependsOn": [
+        "ALIFE-IDENTITY",
+        "ALIFE-CONTENT",
+        "ALIFE-EVENT",
+        "ALIFE-COMMUNITY"
+      ],
+      "owners": [
+        "docs/design/QA.md",
+        "docs/architecture.md"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "All agreed requirements have current evidence or user-accepted deferrals.",
+        "Authorized environment configuration, backups/restoration, integrations and user journeys verified.",
+        "User product acceptance and maintainable operational handover recorded."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Prepare exact environment and acceptance plan after functional gaps are assessed."
+    },
+    {
+      "id": "GEN-01",
+      "title": "Build dual-profile plugin workflow and planning generator",
+      "priority": "P1",
+      "dependsOn": [],
+      "owners": [
+        "docs/governance/README.md",
+        "plugins/alife-system-factory/skills/create-system/SKILL.md"
+      ],
+      "status": "done",
+      "implementation": "implemented",
+      "verification": "verified",
+      "acceptance": [
+        "Ask system name, resource availability and explicit deployment profile without inventing credentials or identity.",
+        "Generate distinct Azure/Cloudflare plans and shared functional parity requirements.",
+        "Validate plugin structure, skill resources and planning-generator behavior; disclose missing runtime templates."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "source": "Working tree based on 4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31; new governance and plugins/alife-system-factory files plus AGENTS.md and docs/design/README.md routing edits",
+          "environment": "Local Windows; Node CLI; no external accounts or application database",
+          "check": "node --test plugins/alife-system-factory/skills/create-system/scripts/plan-system.test.mjs",
+          "outcome": "7 tests passed: both profiles, explicit profile selection, resource availability, invalid names/slugs, non-credential resource input, source gaps and task dependency order",
+          "limitations": "Planning JSON only; no runtime template, application generation, browser, provider, database or deployment verification"
+        },
+        {
+          "date": "2026-10-10",
+          "source": "Same governance/plugin working-tree scope",
+          "environment": "Local filesystem and Node structural checks",
+          "check": "Plugin fields, skill metadata, Markdown targets, baseline authority paths and governance dependencies; git diff --check; node docs/events/scripts/generate-event-docs.mjs --check",
+          "outcome": "Package fields and two skill metadata files checked; 41 local links, 23 authority paths and 10 task dependencies valid; tracked diff whitespace check passed; Event projection check passed",
+          "limitations": "Official quick_validate.py could not run in system or bundled Python because PyYAML is missing. Alternative checks cover this package's simple frontmatter/UI fields, not the full official validator or plugin-host installation. GEN-01 completion covers planning/workflow resources only."
+        }
+      ],
+      "blockers": [],
+      "nextAction": "Continue GEN-02 source/configuration inventory and independent Azure reference extraction; GEN-03/04 remain unimplemented."
+    },
+    {
+      "id": "GEN-02",
+      "title": "Extract and verify an independent Azure reference system",
+      "priority": "P1",
+      "dependsOn": [
+        "GEN-01"
+      ],
+      "owners": [
+        "docs/architecture.md",
+        "plugins/alife-system-factory/skills/create-system/references/azure-cloudflare.md"
+      ],
+      "status": "planned",
+      "implementation": "unimplemented",
+      "verification": "unverified",
+      "acceptance": [
+        "Pin source and review reuse rights/assets; include code/contracts without tenant data, secrets or production identifiers.",
+        "Generate a differently named independent system with fresh resources and configuration.",
+        "Build and exercise complete scoped journeys, permissions, caches and saved-payload parity."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Create reviewed file and configuration inventories from the pinned Alife source."
+    },
+    {
+      "id": "GEN-03",
+      "title": "Implement and verify the pure Cloudflare reference system",
+      "priority": "P1",
+      "dependsOn": [
+        "GEN-02"
+      ],
+      "owners": [
+        "plugins/alife-system-factory/skills/create-system/references/cloudflare-only.md",
+        "docs/design/QA.md"
+      ],
+      "status": "planned",
+      "implementation": "unimplemented",
+      "verification": "unverified",
+      "acceptance": [
+        "Implement application/domain/persistence boundaries on Workers/D1 while preserving shared contracts.",
+        "Verify authentication, current role authority, one-time consumption, concurrency, transactions, cache isolation and scheduled/provider flows.",
+        "Pass the same scoped parity scenarios as the Azure reference; disclose explicit differences and unfinished capabilities."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Prove one identity/group vertical slice before porting all domains."
+    },
+    {
+      "id": "GEN-04",
+      "title": "Validate plugin installation and full project generation",
+      "priority": "P2",
+      "dependsOn": [
+        "GEN-02",
+        "GEN-03"
+      ],
+      "owners": [
+        "plugins/alife-system-factory/plugin.json",
+        "docs/governance/README.md"
+      ],
+      "status": "planned",
+      "implementation": "unimplemented",
+      "verification": "unverified",
+      "acceptance": [
+        "Install in the authorized target Codex environment and exercise intake with a new system name for each profile.",
+        "Generate from packaged resources or an explicitly available pinned source and verify the resulting systems.",
+        "Document runtime/provider/deployment evidence and publish only when specifically authorized."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Run installation rehearsal once reference implementations are ready."
+    },
+    {
+      "id": "DOCS-01",
+      "title": "Classify every Docs file and isolate pending historical material",
+      "priority": "P1",
+      "dependsOn": [],
+      "owners": [
+        "docs/governance/DOCUMENT-USAGE.zh-CN.md",
+        "docs/governance/document-register.json",
+        "AGENTS.md"
+      ],
+      "status": "done",
+      "implementation": "implemented",
+      "verification": "verified",
+      "acceptance": [
+        "Every original Docs file has separate Alife/new Church App usage decisions and reasons, including ignored local materials.",
+        "Preserve useful contracts, operations, user guides, adopted references and generation tools; move historical candidates without deletion or byte changes.",
+        "Preserve ignored status, update active historical links, enforce non-authority/archive exclusion and pass affected generation/link checks."
+      ],
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "source": "Working tree based on 4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31; Docs inventory, 99 byte-preserving file moves, active historical-link updates, archive policy, retained-guide annotations and Church App source routing",
+          "environment": "Local Windows filesystem and Node checks; no database, cloud mutation, Git publication or deployment",
+          "check": "audit-document-usage.mjs --report/--check; active Markdown/HTML link and anchor checks; Event regeneration and --check; design presentation --check; planning-generator CLI tests; git diff --check",
+          "outcome": "196 original files individually classified: 97 retained and 99 pending history; 3 new audit files; all 99 moved-file SHA-256 hashes preserved; 65 original ignored paths remain ignored; active links/anchors checked in 82 files; 11 Church App families reference retained sources; 13 task owners/dependencies valid; Event outputs and 7 design presentations current; 7 planning-generator tests passed",
+          "limitations": "Historical archival/deletion not permanently confirmed; retained mixed/current plans remain scoped. Archived originals preserve their original relative-link context, resolved through document-register original/current paths. Word text extraction and dependency review do not certify document layout or current product delivery; PDF font encoding limits text matching. External GitHub links were updated in local source but not published or live-verified; no browser/application/provider/database/deployment certification."
+        },
+        {
+          "date": "2026-10-10",
+          "source": "Issue #828 working tree based on main 830829e8; source-aware inventory, new Event card design record and updated report",
+          "environment": "Local Windows/Node 24.18.0; fixed source Git object available",
+          "check": "audit-document-usage.mjs --report --check; active links/anchors and pinned authority routing; archive Git text attributes; Event/design regeneration and checks; bounded credential-pattern scan; exact staged manifest/index blob checks; disposable public-index audit and negative integrity cases",
+          "outcome": "200 inventory records: 196 original files, 3 audit controls and 1 post-review design; 97 retained includes 1 pinned-only source reference; 99 archived originals and 65 ignored paths preserved; 88 active link files and 25 pinned authority paths valid. Detected that Git would normalize 22 publishable archive originals; added archive-scoped -text attributes and verified all archive records disable conversion. Event and seven design presentations regenerated/checked; bounded scan of the 106 original changed paths found no credential-pattern candidates. All 107 selected staged paths match the reviewed manifest; 34 public archive index blobs match their original SHA-256 and main-source content (text comparison accounts only for original line endings). Public-index audit passes with 65 local-only files absent and pinned source object unavailable; modified archive bytes and a missing current document are rejected.",
+          "limitations": "The first main-based inventory check failed because a feature-branch-only Virtual Church plan was missing. Reclassified it as a fixed source reference instead of importing runtime code/assets. Main application, archive permanence and source-only feature delivery are not certified. Whole-diff whitespace inspection reports preserved historical CRLF/legacy formatting; active/authored staged checks pass and archive originals are verified by hashes rather than reformatted. Public-snapshot reproduction script and artifacts remain under C:/Data/Alife/Temp/ship-828-20261010."
+        }
+      ],
+      "blockers": [],
+      "nextAction": "User may review the pending-history list; DOCS-RECONCILE maps draft/legacy intent to current owners before any adoption or deletion."
+    },
+    {
+      "id": "DOCS-RECONCILE",
+      "title": "Reconcile retained draft sections and historical follow-up candidates",
+      "priority": "P1",
+      "dependsOn": [
+        "DOCS-01"
+      ],
+      "owners": [
+        "docs/governance/document-register.json",
+        "docs/file-asset-design.md",
+        "docs/design/COVERAGE.md",
+        "docs/events/DESIGN-PROVENANCE.md"
+      ],
+      "status": "ready",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "Reconcile early FileAsset current-state/target paragraphs with existing DTOs, handlers, signed access and backfill; preserve adopted requirements and actual gaps.",
+        "For a bounded provenance review, map old AI-session follow-up candidates (TTL/cleanup, outage fallback, malformed output/SSE recovery, restore/commit/duplicate handling, consent copy and compatibility-route need) to current contracts/source/evidence; do not automatically reopen delivered work.",
+        "Check original business proposal intent and unresolved Event YAML/EMBOK provenance for requirements missing from current owners; record adoption, supersession or a needed user decision before implementing."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "After DOCS-01, inspect FileAsset current handlers and record which proposal sections remain relevant; historical inputs are evidence only."
+    },
+    {
+      "id": "ALIFE-VIRTUAL",
+      "title": "Assess Virtual Church when its isolated feature becomes part of the release scope",
+      "priority": "P1",
+      "dependsOn": [
+        "GOV-01"
+      ],
+      "owners": [
+        "docs/governance/README.md",
+        "docs/design/QA.md",
+        "plugins/alife-system-factory/skills/create-system/references/baseline.json"
+      ],
+      "status": "planned",
+      "implementation": "unassessed",
+      "verification": "unverified",
+      "acceptance": [
+        "First establish whether the isolated feature from PR #827 is included in the agreed release/source version; current main does not contain its runtime or plan.",
+        "Once included, use that version's owning first-release scope and inspect entry/loading/movement/reading/exit, asset rights and current evidence; do not revive older full V3 expansion/history."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "nextAction": "Reconcile PR #827 availability in GOV-01; inspect Virtual Church only in an explicitly selected source/release scope. The pinned generator baseline is not evidence of delivery on main."
+    }
+  ],
+  "deliveryBatch": {
+    "issue": "https://github.com/appccalc-developers/Alife/issues/828",
+    "branch": "agent/828-delivery-design-baseline",
+    "baseCommit": "830829e8241ef1496bf4f7b59b8f648459f2d0a3",
+    "scope": "All current publishable local governance, documentation archive, planning package and Event card design changes; Virtual Church runtime stays in PR #827.",
+    "verification": "Passed: 200-record inventory and archive attributes, 88 active link files, 25 pinned source authority paths, 14 task owner/dependency records, package declared metadata, 7 planning-generator tests, Event and 7 design presentation checks, 107-path staged manifest, 34 public archive index hashes, public-snapshot audit plus 2 integrity rejection cases, scoped authored whitespace checks and bounded credential scan. No application, plugin installation, provider/database or deployment certification."
+  }
+}

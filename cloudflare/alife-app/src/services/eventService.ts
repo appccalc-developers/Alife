@@ -1,5 +1,5 @@
 import type { RamDraft } from '../types/ramGovernance'
-import type { EventDto, EventRamAssessmentRecord, EventRamDraft, GroupEventRecord } from '../types/event'
+import type { EventDto, GroupEventRecord } from '../types/event'
 import { groupEventsQueryKey } from '../db/collections/groupCollection'
 import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
@@ -17,10 +17,34 @@ export const invalidateGroupEventsCache = async (groupId: string) => {
 }
 
 const createPersistencePayload = (eventDto: EventDto) => {
-  const { ram, ...publicEventData } = eventDto
+  const publicEventData = {
+    id: eventDto.id,
+    organizerId: eventDto.organizerId,
+    organizerDisplayName: eventDto.organizerDisplayName,
+    visibility: eventDto.visibility,
+    personResponsible: eventDto.personResponsible,
+    purpose: eventDto.purpose,
+    title: eventDto.title,
+    description: eventDto.description,
+    locationName: eventDto.locationName,
+    startDate: eventDto.startDate,
+    endDate: eventDto.endDate,
+    registrationDeadline: eventDto.registrationDeadline,
+    maxCapacity: eventDto.maxCapacity,
+    registrationMode: eventDto.registrationMode,
+    registrationRulesVersion: eventDto.registrationRulesVersion,
+    capacityUnit: eventDto.capacityUnit,
+    hardConstraints: eventDto.hardConstraints,
+    baseFeePerAdult: eventDto.baseFeePerAdult,
+    baseFeePerChild: eventDto.baseFeePerChild,
+    currency: eventDto.currency,
+    posterImageUrl: eventDto.posterImageUrl,
+    galleryUrls: eventDto.galleryUrls,
+    timeZone: eventDto.timeZone,
+    requiresRam: eventDto.requiresRam,
+  }
   return {
     eventDataJson: JSON.stringify(publicEventData),
-    ramDataJson: JSON.stringify(ram),
   }
 }
 
@@ -62,24 +86,24 @@ export const eventService = {
   createGroupEvent: async (
     groupId: string,
     eventDto: EventDto,
-    creationPlan?: EventCreationPlan & { initialRamDraft?: RamDraft },
+    creationPlan: EventCreationPlan & { initialRamDraft?: RamDraft },
   ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
-    const { eventDataJson, ramDataJson } = createPersistencePayload(eventDto)
+    const { eventDataJson } = createPersistencePayload(eventDto)
     const { data } = await http.post<GroupEventRecord>(`/api/groups/${groupId}/events`, {
       titleEn,
       titleZh,
       startDate: eventDto.startDate,
       endDate: eventDto.endDate,
       eventDataJson,
-      ramDataJson: creationPlan?.initialRamDraft ? JSON.stringify(creationPlan.initialRamDraft) : ramDataJson,
+      ramDataJson: creationPlan.initialRamDraft ? JSON.stringify(creationPlan.initialRamDraft) : undefined,
       contactProfileIds: eventDto.contactProfileIds ?? [],
-      composition: creationPlan?.composition ?? null,
-      compositionProposalHash: creationPlan?.proposalHash ?? null,
-      seriesSetup: creationPlan?.seriesSetup ?? null,
-      ...(creationPlan?.arrangements ? { arrangements: creationPlan.arrangements } : {}),
-    }, creationPlan ? { headers: { 'Idempotency-Key': creationPlan.idempotencyKey } } : undefined)
+      composition: creationPlan.composition,
+      compositionProposalHash: creationPlan.proposalHash,
+      seriesSetup: creationPlan.seriesSetup ?? null,
+      ...(creationPlan.arrangements ? { arrangements: creationPlan.arrangements } : {}),
+    }, { headers: { 'Idempotency-Key': creationPlan.idempotencyKey } })
     await invalidateGroupEventsCache(groupId)
     return data
   },
@@ -87,7 +111,8 @@ export const eventService = {
   updateGroupEvent: async (
     eventId: string,
     eventDto: EventDto,
-    expectedUpdatedUtc?: string,
+    expectedUpdatedUtc: string,
+    updatePlan: Pick<EventCreationPlan, 'composition' | 'proposalHash'> & { planETag: string },
     seriesUpdate?: PreparationSeriesUpdate,
   ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
@@ -100,8 +125,11 @@ export const eventService = {
       endDate: eventDto.endDate,
       eventDataJson,
       contactProfileIds: eventDto.contactProfileIds ?? [],
+      composition: updatePlan.composition,
+      compositionProposalHash: updatePlan.proposalHash,
+      planETag: updatePlan.planETag,
       ...(seriesUpdate ? { seriesUpdate } : {}),
-    }, expectedUpdatedUtc ? { headers: { 'If-Match': `"${expectedUpdatedUtc}"` } } : undefined)
+    }, { headers: { 'If-Match': `"${expectedUpdatedUtc}"` } })
     await invalidateGroupEventsCache(data.groupId)
     return data
   },
@@ -115,28 +143,4 @@ export const eventService = {
     }
   },
 
-  getEventRam: async (eventId: string): Promise<EventRamAssessmentRecord> => {
-    const { data } = await http.get<EventRamAssessmentRecord>(`/api/events/${eventId}/ram`)
-    return data
-  },
-
-  saveEventRam: async (eventId: string, ram: EventRamDraft): Promise<EventRamAssessmentRecord> => {
-    const { data } = await http.put<EventRamAssessmentRecord>(`/api/events/${eventId}/ram`, {
-      ramDataJson: JSON.stringify(ram),
-    })
-    await invalidateGroupEventsCache(data.groupId)
-    return data
-  },
-
-  submitEventRam: async (eventId: string): Promise<EventRamAssessmentRecord> => {
-    const { data } = await http.post<EventRamAssessmentRecord>(`/api/events/${eventId}/ram/submit`, {})
-    await invalidateGroupEventsCache(data.groupId)
-    return data
-  },
-
-  approveEventRam: async (eventId: string): Promise<EventRamAssessmentRecord> => {
-    const { data } = await http.post<EventRamAssessmentRecord>(`/api/events/${eventId}/ram/approve`, {})
-    await invalidateGroupEventsCache(data.groupId)
-    return data
-  },
 }

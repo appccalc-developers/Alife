@@ -396,7 +396,7 @@ export default defineConfig(({ command, mode }) => {
           /^\/virtual-church-assets\//,
         ],
         skipWaiting: true,
-        importScripts: ['/virtual-church-cache-maintenance.js'],
+        importScripts: ['/sw-runtime-cache-migration.js', '/virtual-church-cache-maintenance.js'],
         globPatterns: ['**/*.{js,css,html,json,png,svg,ico,webp,woff2}'],
         // Historical article covers are numerous and load lazily. Keep them out
         // of the install-time precache and let the image runtime cache retain
@@ -420,8 +420,14 @@ export default defineConfig(({ command, mode }) => {
         ],
         runtimeCaching: [
           {
-            // Bulletin PDF navigations must never enter the document/offline cache.
-            urlPattern: ({ url }) => /^\/(?:images\/)?api\/(?:church-life\/bulletins(?:\/|$)|private-files\/private\/sunday-bulletins\/)/.test(url.pathname),
+            // API requests must win before resource/document rules, including
+            // private files reached through the image proxy or another origin.
+            urlPattern: ({ url }) => {
+              try {
+                const path = decodeURIComponent(url.pathname)
+                return /^\/(?:images\/)?api(?:\/|$)/i.test(path) || /(?:^|\/)groups\/[^/]+\/albums(?:\/|$)/i.test(path)
+              } catch { return true }
+            },
             handler: 'NetworkOnly',
           },
           {
@@ -456,7 +462,7 @@ export default defineConfig(({ command, mode }) => {
             urlPattern: virtualChurchPublicVideoRequestMatches,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'alife-video-cache',
+              cacheName: 'alife-video-cache-v2',
               rangeRequests: true,
               expiration: {
                 maxEntries: 6,
@@ -500,7 +506,7 @@ export default defineConfig(({ command, mode }) => {
             urlPattern: virtualChurchAppShellRequestMatches,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'alife-app-cache',
+              cacheName: 'alife-app-cache-v2',
               expiration: {
                 maxEntries: 80,
                 maxAgeSeconds: ONE_WEEK_IN_SECONDS,
@@ -528,7 +534,7 @@ export default defineConfig(({ command, mode }) => {
             urlPattern: virtualChurchPublicImageOrFontRequestMatches,
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'alife-image-cache',
+              cacheName: 'alife-image-cache-v2',
               expiration: {
                 maxEntries: 120,
                 maxAgeSeconds: THIRTY_DAYS_IN_SECONDS,
@@ -545,11 +551,12 @@ export default defineConfig(({ command, mode }) => {
           {
             // External images (from Cloudflare Image Service) - StaleWhileRevalidate
             urlPattern: ({ url }) =>
+              !/^\/(?:images\/)?api(?:\/|$)/i.test(url.pathname) &&
               url.origin !== self.location.origin &&
               (url.pathname.match(/\/images\//) || url.pathname.match(/\/covers\//)),
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'alife-external-image-cache',
+              cacheName: 'alife-external-image-cache-v2',
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: THIRTY_DAYS_IN_SECONDS,
@@ -565,7 +572,7 @@ export default defineConfig(({ command, mode }) => {
             urlPattern: virtualChurchPublicRuntimeRequestMatches,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'alife-runtime-cache',
+              cacheName: 'alife-runtime-cache-v2',
               expiration: {
                 maxEntries: 80,
                 maxAgeSeconds: ONE_WEEK_IN_SECONDS,
@@ -593,10 +600,6 @@ export default defineConfig(({ command, mode }) => {
           changeOrigin: true,
         },
         '/api/events/details-session': {
-          target: aiProxyTarget,
-          changeOrigin: true,
-        },
-        '/api/enrollments/session': {
           target: aiProxyTarget,
           changeOrigin: true,
         },

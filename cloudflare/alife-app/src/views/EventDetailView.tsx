@@ -1,3 +1,4 @@
+import { eventDetailViewText } from '../i18n/eventDetailView.ts'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { LayoutDashboard, Pencil } from 'lucide-react'
@@ -12,12 +13,11 @@ import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import CoverImage from '../components/CoverImage'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { activeEntityService } from '../services/activeEntityService'
-import { enrollmentSessionService } from '../services/enrollmentSessionService'
+import { registrationWorkService, type RegistrationWork } from '../services/eventRegistrationWorkService'
 import { eventService } from '../services/eventService'
 import { normalizeApiError } from '../services/http'
 import { parseReviewDraft, reviewSessionService } from '../services/reviewSessionService'
 import { useAuthStore } from '../stores/auth'
-import type { EventEnrollmentRecord } from '../types/enrollment'
 import type { EventDto, GroupEventRecord, MultilingualString } from '../types/event'
 import type { EventReviewRecord } from '../types/review'
 import { contactService } from '../services/contactService'
@@ -26,7 +26,7 @@ import { getEventLifecycle, readEventLifecycleData } from '../utils/eventLifecyc
 import { buildScopedEventDetailPath } from '../utils/eventRoutes'
 import useConfirmation from '../hooks/useConfirmation'
 
-type EventDetailSection = 'notice' | 'workflow' | 'enrollments' | 'memories'
+type EventDetailSection = 'notice' | 'enrollments' | 'memories'
 
 const EventNoticePanel = ({ event, eventDto, language, contacts, currentGroupRoute }: { event: GroupEventRecord; eventDto: EventDto; language: string; contacts: ContactProfileDto[]; currentGroupRoute: boolean }) => {
   const text = getLabels(language)
@@ -126,21 +126,8 @@ const EventNoticePanel = ({ event, eventDto, language, contacts, currentGroupRou
         </AppSectionCard>
       ) : null}
 
-      {eventDto.optionalActivities.length ? (
-        <AppSectionCard dense title={text.optionalActivities}>
-          <ul className="flex flex-wrap gap-2">
-            {eventDto.optionalActivities.map((activity, index) => (
-              <li key={`${localized(activity.name, language)}-${index}`} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800">
-                {localized(activity.name, language)}
-                {activity.extraFee > 0 ? <span className="ml-1 text-xs">+{eventDto.currency} {activity.extraFee}</span> : null}
-              </li>
-            ))}
-          </ul>
-        </AppSectionCard>
-      ) : null}
-
       {contacts.length ? (
-        <AppSectionCard dense title={language === 'zh' ? '活动联系人' : 'Event contacts'}>
+        <AppSectionCard dense title={language === 'zh' ? eventDetailViewText.eventContacts.zh : eventDetailViewText.eventContacts.en}>
           <div className="grid gap-3 sm:grid-cols-2">
             {contacts.map((contact) => (
               <Link key={contact.id} to={currentGroupRoute ? `/contacts/${encodeURIComponent(contact.id)}` : `/groups/${encodeURIComponent(contact.ownerGroupId)}/contacts/${encodeURIComponent(contact.id)}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-emerald-300 hover:bg-emerald-50/50">
@@ -334,7 +321,7 @@ const EventDetailView = () => {
   const text = getLabels(language)
   const [event, setEvent] = useState<GroupEventRecord | null>(null)
   const canEditPlan = Boolean(me?.id && event?.accountableOwnerMemberId === me.id)
-  const [enrollments, setEnrollments] = useState<EventEnrollmentRecord[]>([])
+  const [registrationWork, setRegistrationWork] = useState<RegistrationWork | null>(null)
   const [reviews, setReviews] = useState<EventReviewRecord[]>([])
   const [contacts, setContacts] = useState<ContactProfileDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -349,16 +336,16 @@ const EventDetailView = () => {
     if (!eventId) return
     setRelatedLoading(true)
     try {
-      const [nextEnrollments, nextReviews] = await Promise.all([
-        enrollmentSessionService.listEventEnrollments(eventId).catch(() => [] as EventEnrollmentRecord[]),
+      const [nextRegistrationWork, nextReviews] = await Promise.all([
+        isGuest ? Promise.resolve(null) : registrationWorkService.get(eventId).catch(() => null),
         reviewSessionService.listEventReviews(eventId).catch(() => [] as EventReviewRecord[]),
       ])
-      setEnrollments(nextEnrollments)
+      setRegistrationWork(nextRegistrationWork)
       setReviews(nextReviews)
     } finally {
       setRelatedLoading(false)
     }
-  }, [eventId])
+  }, [eventId, isGuest])
 
   useEffect(() => {
     if (!groupId || !eventId) return
@@ -369,15 +356,15 @@ const EventDetailView = () => {
 
     Promise.all([
       eventService.getGroupEvents(groupId, me?.id ?? 'anonymous'),
-      enrollmentSessionService.listEventEnrollments(eventId).catch(() => [] as EventEnrollmentRecord[]),
+      isGuest ? Promise.resolve(null) : registrationWorkService.get(eventId).catch(() => null),
       reviewSessionService.listEventReviews(eventId).catch(() => [] as EventReviewRecord[]),
       contactService.list(groupId).catch(() => [] as ContactProfileDto[]),
     ])
-      .then(([events, nextEnrollments, nextReviews, groupContacts]) => {
+      .then(([events, nextRegistrationWork, nextReviews, groupContacts]) => {
         if (cancelled) return
         const nextEvent = events.find((item) => item.id === eventId) ?? null
         setEvent(nextEvent)
-        setEnrollments(nextEnrollments)
+        setRegistrationWork(nextRegistrationWork)
         setReviews(nextReviews)
         const ids = new Set(nextEvent?.contactProfileIds ?? [])
         setContacts(groupContacts.filter((contact) => ids.has(contact.id)))
@@ -396,7 +383,7 @@ const EventDetailView = () => {
     return () => {
       cancelled = true
     }
-  }, [eventId, groupId, me?.id, text.eventLoadFailed])
+  }, [eventId, groupId, isGuest, me?.id, text.eventLoadFailed])
 
   const eventDto = useMemo(() => (event ? parseEventDto(event) : null), [event])
   const lifecycle = event ? getEventLifecycle(event) : null
@@ -407,20 +394,20 @@ const EventDetailView = () => {
     ? [formatDateTime(eventDto.startDate, language), eventLocation].filter(Boolean).join(' · ')
     : undefined
   const lifecycleLabel = lifecycle === 'planning'
-    ? (language === 'zh' ? '筹备中' : 'Planning')
+    ? (language === 'zh' ? eventDetailViewText.planning.zh : eventDetailViewText.planning.en)
     : lifecycle === 'past'
-      ? (language === 'zh' ? '已结束' : 'Past')
+      ? (language === 'zh' ? eventDetailViewText.past.zh : eventDetailViewText.past.en)
       : lifecycle === 'upcoming'
-        ? (language === 'zh' ? '即将举行' : 'Upcoming')
+        ? (language === 'zh' ? eventDetailViewText.upcoming.zh : eventDetailViewText.upcoming.en)
         : ''
   const sectionContext = activeSection === 'enrollments'
-      ? (language === 'zh' ? '报名' : 'Enrollment')
+      ? (language === 'zh' ? eventDetailViewText.enrollment.zh : eventDetailViewText.enrollment.en)
       : activeSection === 'memories'
-        ? (language === 'zh' ? '回顾' : 'Memories')
-        : (language === 'zh' ? '活动通知' : 'Event notice')
+        ? (language === 'zh' ? eventDetailViewText.memories.zh : eventDetailViewText.memories.en)
+        : (language === 'zh' ? eventDetailViewText.eventNotice.zh : eventDetailViewText.eventNotice.en)
   const eventScopeContext = routeGroupId
-    ? (language === 'zh' ? '教会生活 / 活动' : 'Church Life / Events')
-    : (language === 'zh' ? '小组生活 / 活动' : 'Group Life / Events')
+    ? (language === 'zh' ? eventDetailViewText.churchLifeEvents.zh : eventDetailViewText.churchLifeEvents.en)
+    : (language === 'zh' ? eventDetailViewText.groupLifeEvents.zh : eventDetailViewText.groupLifeEvents.en)
   const eventContext = (
     <>
       <span className="desktop:hidden">{eventScopeContext}</span>
@@ -433,10 +420,6 @@ const EventDetailView = () => {
     return <Navigate to="/" replace />
   }
 
-  if (activeSection === 'workflow') {
-    return <Navigate to={`${eventBasePath}/workspace`} replace />
-  }
-
   if (
     event &&
     ((activeSection === 'enrollments' && (lifecycle !== 'upcoming' || !acceptsEnrollments)) ||
@@ -447,23 +430,23 @@ const EventDetailView = () => {
 
   return (
     <AppPageShell
-      title={eventTitle || (language === 'zh' ? '活动' : 'Events')}
+      title={eventTitle || (language === 'zh' ? eventDetailViewText.events.zh : eventDetailViewText.events.en)}
       context={eventContext}
       subtitle={eventSubtitle}
       backLink={searchParams.get('flow') === 'setup'
-        ? { to: `${eventBasePath}/workspace?flow=setup&stage=arrangements&module=people.registration`, label: language === 'zh' ? '返回活动筹备' : 'Back to event preparation' }
+        ? { to: `${eventBasePath}/workspace?flow=setup&stage=arrangements&module=people.registration`, label: language === 'zh' ? eventDetailViewText.backToEventPreparation.zh : eventDetailViewText.backToEventPreparation.en }
         : { to: backToEventsPath, label: text.backToEvents }}
       status={lifecycle ? <AppBadge variant={lifecycle === 'upcoming' ? 'success' : lifecycle === 'planning' ? 'warning' : 'neutral'}>{lifecycleLabel}</AppBadge> : undefined}
       primaryAction={!isGuest && event ? (
         <AppTitleBarAction
-          label={canEditPlan ? (language === 'zh' ? '继续筹备' : 'Continue preparation') : (language === 'zh' ? '活动工作台' : 'Event workspace')}
+          label={canEditPlan ? (language === 'zh' ? eventDetailViewText.continuePreparation.zh : eventDetailViewText.continuePreparation.en) : (language === 'zh' ? eventDetailViewText.eventWorkspace.zh : eventDetailViewText.eventWorkspace.en)}
           icon={<LayoutDashboard className="h-4 w-4" />}
           to={`${eventBasePath}/workspace${canEditPlan ? '?flow=setup&stage=arrangements' : ''}`}
         />
       ) : undefined}
-      overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
+      overflowLabel={language === 'zh' ? eventDetailViewText.moreActions.zh : eventDetailViewText.moreActions.en}
       overflowActions={event ? [...((canManage || canAuditRam) ? [{
-        label: language === 'zh' ? (canAuditRam ? 'RAM 独立审核' : '活动工作区') : (canAuditRam ? 'Independent RAM review' : 'Event workspace'),
+        label: language === 'zh' ? (canAuditRam ? eventDetailViewText.eventDetailViewLabel : eventDetailViewText.eventDetailViewLabel2) : (canAuditRam ? 'Independent RAM review' : 'Event workspace'),
         icon: <Pencil className="h-4 w-4" />,
         to: `${eventBasePath}/workspace${canAuditRam ? '/ram' : ''}`,
         onSelect: () => activeEntityService.setEvent(eventId),
@@ -489,14 +472,12 @@ const EventDetailView = () => {
         <>
           {activeSection === 'enrollments' ? (
             <EnrollmentPanel
-              event={event}
-              eventDto={eventDto}
-              enrollments={enrollments}
+              eventId={eventId}
+              work={registrationWork}
               language={language}
               memberId={me?.id}
               isGuest={isGuest}
               loading={relatedLoading}
-              onRefresh={refreshRelated}
             />
           ) : activeSection === 'memories' ? (
             <MemoriesPanel

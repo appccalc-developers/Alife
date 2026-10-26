@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -5,7 +6,7 @@ import { MAIN_HALL_CHAIR_APPEARANCE } from '../src/views/virtualChurchMainHallMa
 import { MAIN_HALL_CAMERA, MAIN_HALL_CHAIR_PARTS, MAIN_HALL_CHAIR_REFERENCE, MAIN_HALL_CHAIR_ROW_LINKS, MAIN_HALL_CHAIRS, MAIN_HALL_DIMENSIONS, MAIN_HALL_REAR_ACOUSTIC_FIELD, MAIN_HALL_REFERENCE, MAIN_HALL_SIDE_WINDOW_BAYS, MAIN_HALL_STAGE_ACCESS, MAIN_HALL_STAGE_FRONT_DOORS, MAIN_HALL_STAGE_RECESS } from '../src/views/virtualChurchMainHallLayout.ts'
 
 test('auditorium failure unmounts the Canvas and keeps explicit bounded recovery', () => {
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(hall, /\{!failed \? <HallCanvasBoundary/)
   assert.match(hall, /<\/HallCanvasBoundary> : null\}/)
   assert.match(hall, /virtualChurchShouldReportContextLoss\(gl\.domElement\.isConnected, pageRef\.current\?\.querySelector\('canvas'\) === gl\.domElement\)/)
@@ -17,7 +18,7 @@ test('auditorium failure unmounts the Canvas and keeps explicit bounded recovery
 })
 
 test('auditorium context counters are opt-in and observe release before suppressing detached-canvas recovery', () => {
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(hall, /const hallContextReleaseDiagnosticEnabled = new URLSearchParams\(window.location.search\)\s*\.get\('profile3dGpu'\) === 'release'/)
   assert.match(hall, /if \(!hallContextReleaseDiagnosticEnabled\) return/)
   assert.match(hall, /data-virtual-church-hall-context-release-diagnostic/)
@@ -49,7 +50,7 @@ test('chair proportions follow the supplier reference instead of oversized place
 })
 
 test('historical chair candidate keeps matte procedural upholstery in the existing seat batches', () => {
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   const palette = [...MAIN_HALL_CHAIR_APPEARANCE.seatColors, ...MAIN_HALL_CHAIR_APPEARANCE.backColors].map(color => color.slice(1))
   assert.equal(palette.length, 6)
   for (const hex of palette) {
@@ -69,7 +70,7 @@ test('historical chair candidate keeps matte procedural upholstery in the existi
 })
 
 test('photo-informed light direction reuses one key and one cached map without continuous rendering', () => {
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   const keys = [...hall.matchAll(/<directionalLight\b[^>]*\/>/g)]
   assert.equal(keys.length, 1)
   assert.match(keys[0][0], /position=\{MAIN_HALL_DAYLIGHT_KEY_POSITION\}/)
@@ -83,7 +84,7 @@ test('photo-informed light direction reuses one key and one cached map without c
 })
 
 test('chairs retain one ambient carpet-contact batch alongside bounded cached daylight shadows', () => {
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(hall, /name="main-hall-chair-contact" args=\{\[undefined, undefined, MAIN_HALL_CHAIRS\.length\]\}/)
   assert.match(hall, /replace\('#include <opaque_fragment>'/,
     'MeshBasicMaterial uses opaque_fragment; an obsolete output_fragment hook would leave hard-edged squares')
@@ -95,7 +96,7 @@ test('chairs retain one ambient carpet-contact batch alongside bounded cached da
 })
 
 test('2017 carpet candidate uses one warm procedural floor with alternating tile grain', () => {
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   const materials = readFileSync(new URL('../src/views/virtualChurchMainHallMaterials.ts', import.meta.url), 'utf8')
   assert.match(materials, /float tileTurn = mod\(cell\.x \+ cell\.y, 2\.0\)/)
   assert.match(materials, /float fibreAxis = mix\(local\.x \+ local\.y \* \.16, local\.y \+ local\.x \* \.16, tileTurn\)/)
@@ -106,7 +107,7 @@ test('2017 carpet candidate uses one warm procedural floor with alternating tile
 })
 
 test('2017 ceiling diffusers stay on the existing underside material without new geometry or assets', () => {
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   const materials = readFileSync(new URL('../src/views/virtualChurchMainHallMaterials.ts', import.meta.url), 'utf8')
   assert.match(hall, /const ceilingDiffuserShader: MeshStandardMaterial\['onBeforeCompile'\]/)
   assert.match(materials, /vHallCeilingUnder = step\(0\.5, -normal\.y\)/)
@@ -124,7 +125,7 @@ test('2017 rear acoustic square field replaces central slats within the existing
   const slats = Array.from({ length: 92 }, (_, index) => -10.47 + index * .23)
     .filter(x => Math.abs(x) > field.halfWidth + .06)
   assert.ok(slats.length > 40 && slats.length < 65, 'keep flanking timber without slats crossing the central field')
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(hall, /backSlats:[\s\S]*?\.filter\(\(\{ position \}\) => Math\.abs\(position\[0\]\) > MAIN_HALL_REAR_ACOUSTIC_FIELD\.halfWidth \+ \.06\)/)
   assert.match(hall, /name="main-hall-rear-acoustic-wall"[^\n]*onBeforeCompile=\{rearAcousticFieldShader\}/)
   assert.match(hall, /customProgramCacheKey=\{\(\) => 'main-hall-rear-acoustic-v1'\}/)
@@ -166,7 +167,7 @@ test('slim metal chair links stay within rows and never span an aisle', () => {
     assert.ok(link.width > 0 && link.width < .1)
     assert.equal(link.z, neighbors[0].z)
   }
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(hall, /main-hall-chair-linked-frames/)
   assert.match(hall, /MAIN_HALL_CHAIR_ROW_LINKS\.map/)
 })
@@ -208,7 +209,7 @@ test('2017 photo-informed side glazing follows the opposing rear/front photo vie
     assert.ok(bay.centerZ + bay.length / 2 < MAIN_HALL_DIMENSIONS.depth / 2 - .3)
     assert.ok(bay.centerZ - bay.length / 2 > -MAIN_HALL_DIMENSIONS.depth / 2 + .3)
   }
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(hall, /main-hall-window-glazing/)
   assert.match(hall, /<HallSideWindows \/>/)
   assert.match(hall, /main-hall-side-window-frames/)
@@ -224,7 +225,7 @@ test('2017 stage-front door pair faces the audience without adding a walkable ex
     assert.ok(Math.abs(door.centerX) + door.width / 2 < room.width / 2 - .3)
     assert.ok(door.faceZ > -room.depth / 2 && door.faceZ < MAIN_HALL_STAGE_RECESS.faceZ + .1)
   }
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(hall, /sideWindowPanes: Placement\[\] = \[/)
   assert.match(hall, /MAIN_HALL_STAGE_FRONT_DOORS\.flatMap/)
   assert.match(hall, /sideWindowFrames\.push\(/)
@@ -243,13 +244,13 @@ test('2017 stage recess remains inside the old-photo candidate without changing 
   assert.ok(recess.faceZ < room.stageZ - room.stageDepth / 2,
     'the recessed backdrop must stay behind the stage, not cover instruments or seats')
   assert.ok(recess.wingX + recess.wingWidth / 2 < room.width / 2)
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(hall, /main-hall-stage-recess/)
   assert.match(hall, /main-hall-stage-wings-and-reveals/)
 })
 
 test('stage wall wash stays a single local visual pass without extra lights or photo assets', () => {
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(hall, /name="main-hall-stage-wall-wash" position=\{\[0, stageRecessCentreY, stageRecess\.faceZ \+ \.04\]\}/)
   assert.match(hall, /onBeforeCompile=\{stageWallWashShader\}/)
   assert.match(hall, /transparent opacity=\{\.48\} depthWrite=\{false\}/)
@@ -270,15 +271,15 @@ test('photo-informed shallow stage approaches have slim rails without closing th
   for (const centerX of access.stairCentersX) {
     assert.ok(Math.abs(centerX) + access.railOffsetX < MAIN_HALL_DIMENSIONS.width / 2)
   }
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(hall, /main-hall-stage-handrails/)
   assert.match(hall, /stageAccess\.stairCentersX\.map/)
 })
 
 test('local guest V3 guide opens an original-geometry review, not a remote photo texture or V2 replacement', () => {
   const routes = readFileSync(new URL('../src/app/routing/AppRoutes.tsx', import.meta.url), 'utf8')
-  const church = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
-  const hall = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url), 'utf8')
+  const church = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
+  const hall = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx', import.meta.url))
   assert.match(routes, /path="\/virtual-church\/main-hall" element=\{<VirtualChurchPreviewRoute><VirtualChurchRouteBoundary><VirtualChurchMainHallView/)
   assert.match(church, /\.\.\.\(v3 \? \[\{ icon: Building2, title: t\.mainHallInterior, detail: t\.mainHallInteriorDetail, action: \(\) => onNavigate\('\/virtual-church\/main-hall'\)/)
   assert.match(church, /mainHallInterior: '主堂内部 · 2017 参考'/)

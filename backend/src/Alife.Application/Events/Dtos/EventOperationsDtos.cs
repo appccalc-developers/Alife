@@ -9,7 +9,7 @@ public sealed record InviteEventTeamMemberRequest(Guid MemberId);
 public sealed record EventTaskDependencyDto(Guid Id, Guid DependsOnEventTaskId, string DependencyType);
 public sealed record EventTaskBlockerDto(Guid Id, string Reason, Guid CreatedByMemberId, DateTime CreatedUtc,
     Guid? ResolvedByMemberId, string? Resolution, DateTime? ResolvedUtc);
-public sealed record EventTaskDto(Guid Id, Guid EventId, Guid? WorkflowStepId, LocalizedTextDto Title,
+public sealed record EventTaskDto(Guid Id, Guid EventId, LocalizedTextDto Title,
     LocalizedTextDto Description, Guid? AssignedMemberId, EventTaskStatus Status, bool IsRequired,
     bool RequiresApproval, bool IsRestricted, DateTime? DueUtc, DateTime? CompletedUtc, string ETag,
     IReadOnlyList<EventTaskDependencyDto> Dependencies, IReadOnlyList<EventTaskBlockerDto> Blockers,
@@ -19,7 +19,7 @@ public sealed record EventTaskDto(Guid Id, Guid EventId, Guid? WorkflowStepId, L
     DateTime? PreparationUpdatedUtc = null, bool PreparationPublicationCandidate = false, string? ActivityId = null);
 public sealed record CreateEventTaskRequest(LocalizedTextDto Title, LocalizedTextDto? Description,
     Guid? AssignedMemberId, DateTime? DueUtc, bool IsRequired = false, bool RequiresApproval = false,
-    bool IsRestricted = false, Guid? WorkflowStepId = null, Guid? ReviewerMemberId = null, string Stage = "preparation", Guid? EventOccurrenceId = null,
+    bool IsRestricted = false, Guid? ReviewerMemberId = null, string Stage = "preparation", Guid? EventOccurrenceId = null,
     bool RequireAcceptance = false, string? ActivityId = null);
 public sealed record UpdateEventTaskRequest(LocalizedTextDto Title, LocalizedTextDto? Description,
     Guid? AssignedMemberId, DateTime? DueUtc, EventTaskStatus Status, bool IsRequired,

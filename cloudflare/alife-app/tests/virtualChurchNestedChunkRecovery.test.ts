@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -46,9 +47,9 @@ test('one automatic clean reload is guarded by both URL marker and session state
 })
 
 test('scene errors use the same cache recovery as route errors, without clearing its guard during recovery entry', () => {
-  const view = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const routes = readFileSync(new URL('../src/app/routing/AppRoutes.tsx', import.meta.url), 'utf8')
-  const boundary = readFileSync(new URL('../src/app/routing/VirtualChurchRouteBoundary.tsx', import.meta.url), 'utf8')
+  const boundary = readLocalizedSource(new URL('../src/app/routing/VirtualChurchRouteBoundary.tsx', import.meta.url))
 
   assert.match(view, /if \(virtualChurchChunkLoadFailed\(error\)\) void recoverVirtualChurchChunkOnce\(\)/)
   assert.match(view, /sceneRuntimeError && virtualChurchChunkLoadFailed\(sceneRuntimeError\)[\s\S]*?recoverVirtualChurchChunkOnce\(true\)/)

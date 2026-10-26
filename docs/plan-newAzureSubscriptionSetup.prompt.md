@@ -1,12 +1,14 @@
 ## Plan: Alife Azure Subscription Setup
 
+> Retained checklist for the Azure profile of a new independent Church App. The [current architecture](architecture.md) owns topology; this is an operational reference, not authorization to provision resources, migrate a shared database, alter GitHub settings or deploy. Use fresh project-specific resources/configuration and approved targets. Missing settings and live verification stay explicit.
+
 Prepare a repeatable, low-risk setup for the Azure side of Alife: Azure Functions API, Azure SQL, deployment identity, app settings, and migration/smoke-test readiness. The Cloudflare Worker frontend, image proxy, and Durable Object AI sessions remain in Cloudflare and should be configured separately through Wrangler.
 
 ## Target Architecture
 
 - Backend API: Azure Functions isolated worker, .NET 10.
 - Database: Azure SQL, migrated by `backend/src/Alife.DbMigrator`.
-- Frontend/edge: Cloudflare Worker in `frontend/alife-app/worker/index.ts`.
+- Frontend: `cloudflare/alife-app`; edge: `cloudflare/speed-layer/src/index.ts`.
 - AI sessions: Cloudflare Durable Objects for events, enrollments, and reviews.
 - Auth: JWT in HttpOnly cookie issued by the backend.
 
@@ -43,8 +45,9 @@ Prepare a repeatable, low-risk setup for the Azure side of Alife: Azure Function
 - `backend/src/Alife.Api/local.settings.json`
 - `backend/src/Alife.DbMigrator/Program.cs`
 - `backend/src/Alife.Infrastructure/Persistence/Migrations/`
-- `frontend/alife-app/wrangler.jsonc`
-- `frontend/alife-app/worker/index.ts`
+- `cloudflare/speed-layer/wrangler.jsonc`
+- `cloudflare/speed-layer/src/index.ts`
+- `cloudflare/alife-app/package.json`
 
 ## Verification
 

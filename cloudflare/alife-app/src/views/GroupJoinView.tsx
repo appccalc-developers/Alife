@@ -1,3 +1,4 @@
+import { groupJoinViewText } from '../i18n/groupJoinView.ts'
 import GroupLoadError from '../components/group/GroupLoadError'
 import { isNotFound } from '../db/httpError'
 import { useEffect, useMemo, useState } from 'react'
@@ -122,12 +123,12 @@ const GroupJoinView = () => {
   }
 
   if (loading) {
-    return <AppPageShell title={t('joinGroup')} context={language === 'zh' ? '小组生活 / 加入小组' : 'Group Life / Join group'}><p className="rounded bg-white p-3">{t('loadingGroup')}</p></AppPageShell>
+    return <AppPageShell title={t('joinGroup')} context={language === 'zh' ? groupJoinViewText.groupLifeJoinGroup.zh : groupJoinViewText.groupLifeJoinGroup.en}><p className="rounded bg-white p-3">{t('loadingGroup')}</p></AppPageShell>
   }
 
   if (!group) {
     return (
-      <AppPageShell title={t('joinGroup')} context={language === 'zh' ? '小组生活 / 加入小组' : 'Group Life / Join group'}>
+      <AppPageShell title={t('joinGroup')} context={language === 'zh' ? groupJoinViewText.groupLifeJoinGroup.zh : groupJoinViewText.groupLifeJoinGroup.en}>
         <AppEmptyState title={t('groupNotFound')} description={error || t('groupNotFoundDescription')} />
       </AppPageShell>
     )
@@ -162,7 +163,7 @@ const GroupJoinView = () => {
       }}
     />
   ) : auth.isGuest ? (
-    <AppTitleBarAction label={language === 'zh' ? '登录或注册' : 'Sign in or register'} icon={<UserPlus className="h-4 w-4" />} to={buildOnboardingLocation(`/groups/${encodeURIComponent(groupId)}/join`)} />
+    <AppTitleBarAction label={language === 'zh' ? groupJoinViewText.signInOrRegister.zh : groupJoinViewText.signInOrRegister.en} icon={<UserPlus className="h-4 w-4" />} to={buildOnboardingLocation(`/groups/${encodeURIComponent(groupId)}/join`)} />
   ) : canSubmit ? (
     <AppTitleBarAction
       label={submitting ? t('submitting') : group.accessType === 'protected' ? t('submitJoinRequest') : t('confirmJoinGroup')}
@@ -175,12 +176,12 @@ const GroupJoinView = () => {
   return (
     <AppPageShell
       title={localizeText(group.name, language)}
-      context={language === 'zh' ? '小组生活 / 加入小组' : 'Group Life / Join group'}
+      context={language === 'zh' ? groupJoinViewText.groupLifeJoinGroup.zh : groupJoinViewText.groupLifeJoinGroup.en}
       subtitle={localizeText(group.description, language) || description}
       status={<div className="flex flex-wrap items-center gap-2"><AccessTypeBadge accessType={group.accessType} showProtected />{statusBadge}</div>}
       primaryAction={primaryAction}
       backLink={{
-        label: language === 'zh' ? '返回小组生活' : 'Back to Group Life',
+        label: language === 'zh' ? groupJoinViewText.backToGroupLife.zh : groupJoinViewText.backToGroupLife.en,
         to: backPath,
       }}
     >

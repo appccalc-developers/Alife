@@ -1,3 +1,4 @@
+import { onboardingViewText } from '../i18n/onboardingView.ts'
 import { identityWorkflowError } from '../services/identityWorkflowError'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
@@ -329,12 +330,12 @@ const OnboardingView = () => {
       const sessionConflict = !auth.isGuest && Boolean(auth.me?.id && context.activationMemberId && auth.me.id !== context.activationMemberId)
       return (
         <div>
-          <ScreenHeading icon={KeyRound} title={context.approvalRequired ? (auth.language === 'zh' ? '核对 ALIFE 邀请' : 'Review your ALIFE invitation') : t('activationTitle')} description={context.approvalRequired ? (auth.language === 'zh' ? '核对资料并同意加入。同工批准后，您才能建立 Passkey。' : 'Check your details and agree to join. You can create a Passkey after a leader approves the invitation.') : t('activationDescription')} />
+          <ScreenHeading icon={KeyRound} title={context.approvalRequired ? (auth.language === 'zh' ? onboardingViewText.reviewYourAlifeInvitation.zh : onboardingViewText.reviewYourAlifeInvitation.en) : t('activationTitle')} description={context.approvalRequired ? (auth.language === 'zh' ? onboardingViewText.checkYourDetailsAndAgreeToJoinYouCan.zh : onboardingViewText.checkYourDetailsAndAgreeToJoinYouCan.en) : t('activationDescription')} />
           {context.displayName ? <p className="mt-4 text-lg font-bold">{context.displayName}</p> : null}
           {sessionConflict ? <div className="mt-4"><p role="alert">{t('activationSignOutFirst')}</p><button type="button" className="alife-secondary-button mt-3" disabled={busy} onClick={() => { setBusy(true); void auth.logout().catch(error => setStatus(identityWorkflowError(error, auth.language))).finally(() => setBusy(false)) }}>{t('logout')}</button></div> : null}
           {!mobileDevice ? <div className="mt-5 rounded-2xl border border-[#e37b63]/20 bg-[#fff2ed] p-4 text-sm leading-6 text-[#915040]">{t('activationMobileRequired')}</div> : <PasskeyPrivacy t={t} />}
-          <label className="mt-4 flex min-h-11 items-start gap-3 text-sm"><input type="checkbox" checked={invitationConsent} onChange={event => setInvitationConsent(event.target.checked)} />{auth.language === 'zh' ? '我确认这是我的帐号，同意加入并设置 Passkey。' : 'I confirm this is my account and agree to join and set up a Passkey.'}</label>
-          {context.approvalRequired ? <div className="mt-4 space-y-3"><p role="status">{auth.language === 'zh' ? '邀请仍待同工审核。接受邀请不会立即激活帐号。' : 'This invitation awaits approval. Accepting it does not activate the account.'}</p><button className="alife-primary-button w-full" disabled={busy || !invitationConsent || sessionConflict || context.accepted} onClick={() => { setBusy(true); void identityAccessService.acceptInvitation().then(setContext).catch(error => setStatus(identityWorkflowError(error, auth.language))).finally(() => setBusy(false)) }}>{auth.language === 'zh' ? (context.accepted ? '已接受，等待审核' : '接受邀请') : (context.accepted ? 'Accepted; awaiting approval' : 'Accept invitation')}</button><button className="alife-secondary-button w-full" disabled={busy} onClick={() => { setBusy(true); void identityAccessService.resume().then(setContext).catch(error => setStatus(identityWorkflowError(error, auth.language))).finally(() => setBusy(false)) }}>{t('applicationCheck')}</button></div> : null}
+          <label className="mt-4 flex min-h-11 items-start gap-3 text-sm"><input type="checkbox" checked={invitationConsent} onChange={event => setInvitationConsent(event.target.checked)} />{auth.language === 'zh' ? onboardingViewText.iConfirmThisIsMyAccountAndAgreeTo.zh : onboardingViewText.iConfirmThisIsMyAccountAndAgreeTo.en}</label>
+          {context.approvalRequired ? <div className="mt-4 space-y-3"><p role="status">{auth.language === 'zh' ? onboardingViewText.thisInvitationAwaitsApprovalAcceptingItDoesNotActivate.zh : onboardingViewText.thisInvitationAwaitsApprovalAcceptingItDoesNotActivate.en}</p><button className="alife-primary-button w-full" disabled={busy || !invitationConsent || sessionConflict || context.accepted} onClick={() => { setBusy(true); void identityAccessService.acceptInvitation().then(setContext).catch(error => setStatus(identityWorkflowError(error, auth.language))).finally(() => setBusy(false)) }}>{auth.language === 'zh' ? (context.accepted ? onboardingViewText.content : onboardingViewText.content2) : (context.accepted ? 'Accepted; awaiting approval' : 'Accept invitation')}</button><button className="alife-secondary-button w-full" disabled={busy} onClick={() => { setBusy(true); void identityAccessService.resume().then(setContext).catch(error => setStatus(identityWorkflowError(error, auth.language))).finally(() => setBusy(false)) }}>{t('applicationCheck')}</button></div> : null}
           <button className="alife-primary-button mt-6 w-full" type="button" disabled={busy || !mobileDevice || sessionConflict || context.approvalRequired || !invitationConsent} onClick={() => void completeActivation()}>
             {busy ? t('checkingPasskey') : t('activateWithPasskey')}
           </button>
@@ -351,7 +352,7 @@ const OnboardingView = () => {
           {searchParams.get('source') === 'church' ? (
           <ScreenHeading icon={UserPlus} title={searchParams.get('source') === 'church' ? t('churchApplicationTitle') : t('groupApplicationTitle', { group: groupName || t('group') })} description={searchParams.get('source') === 'church' ? t('churchApplicationJourney') : t('groupApplicationDescription')} />
           ) : (
-          <ScreenHeading icon={UserPlus} title={applicationIntent === 'recovery' ? (auth.language === 'zh' ? '恢复原帐号' : 'Recover your account') : applicationIntent === 'continuation' ? (auth.language === 'zh' ? '继续原申请' : 'Continue your application') : t('groupApplicationTitle', { group: groupName || t('group') })} description={applicationIntent === 'join' ? t('groupApplicationDescription') : (auth.language === 'zh' ? '提交后，请向现场同工出示本机上的申请编号。核实并关联原帐号或原申请后，在本页继续。' : 'After submitting, show this phone’s application reference to a leader in person. Continue here after they verify and link your account or original application.')} />
+          <ScreenHeading icon={UserPlus} title={applicationIntent === 'recovery' ? (auth.language === 'zh' ? onboardingViewText.recoverYourAccount.zh : onboardingViewText.recoverYourAccount.en) : applicationIntent === 'continuation' ? (auth.language === 'zh' ? onboardingViewText.continueYourApplication.zh : onboardingViewText.continueYourApplication.en) : t('groupApplicationTitle', { group: groupName || t('group') })} description={applicationIntent === 'join' ? t('groupApplicationDescription') : (auth.language === 'zh' ? onboardingViewText.afterSubmittingShowThisPhoneSApplicationReferenceTo.zh : onboardingViewText.afterSubmittingShowThisPhoneSApplicationReferenceTo.en)} />
           )}
           <BrowserApplicationPanel key={searchParams.get('application') || context.groupJoinInviteId || 'application'} applicationId={searchParams.get('application') || undefined} inviteId={context.groupJoinInviteId || undefined}>
           {auth.isGuest && applicationIntent === 'join' ? (
@@ -363,8 +364,8 @@ const OnboardingView = () => {
               {capabilities.lineLegacyEnabled ? <button className="alife-secondary-button mt-3 w-full" type="button" disabled={busy} onClick={() => void startLine(true)}>{t('continueWithLine')}</button> : null}
             </div>
           ) : null}
-          {auth.isGuest ? <label className="mt-5 block text-sm font-semibold">{auth.language === 'zh' ? '办理事项' : 'What would you like to do?'}<select className="alife-input mt-2" value={applicationIntent} onChange={event => setApplicationIntent(event.target.value)}><option value="join">{auth.language === 'zh' ? '申请加入' : 'Apply to join'}</option><option value="recovery">{auth.language === 'zh' ? '恢复原帐号（无需联系方式）' : 'Recover my account (no contact details required)'}</option><option value="continuation">{auth.language === 'zh' ? '换了浏览器，继续原申请' : 'Continue an application from another browser'}</option></select></label> : null}
-          <ApplicationForm declarationLabel={applicationIntent === 'join' ? undefined : (auth.language === 'zh' ? '请简述需要恢复或继续办理的事项' : 'Briefly describe what you need to recover or continue')} value={application} onChange={setApplication} onSubmit={submitApplication} busy={busy} t={t} />
+          {auth.isGuest ? <label className="mt-5 block text-sm font-semibold">{auth.language === 'zh' ? onboardingViewText.whatWouldYouLikeToDo.zh : onboardingViewText.whatWouldYouLikeToDo.en}<select className="alife-input mt-2" value={applicationIntent} onChange={event => setApplicationIntent(event.target.value)}><option value="join">{auth.language === 'zh' ? onboardingViewText.applyToJoin.zh : onboardingViewText.applyToJoin.en}</option><option value="recovery">{auth.language === 'zh' ? onboardingViewText.recoverMyAccountNoContactDetailsRequired.zh : onboardingViewText.recoverMyAccountNoContactDetailsRequired.en}</option><option value="continuation">{auth.language === 'zh' ? onboardingViewText.continueAnApplicationFromAnotherBrowser.zh : onboardingViewText.continueAnApplicationFromAnotherBrowser.en}</option></select></label> : null}
+          <ApplicationForm declarationLabel={applicationIntent === 'join' ? undefined : (auth.language === 'zh' ? onboardingViewText.brieflyDescribeWhatYouNeedToRecoverOrContinue.zh : onboardingViewText.brieflyDescribeWhatYouNeedToRecoverOrContinue.en)} value={application} onChange={setApplication} onSubmit={submitApplication} busy={busy} t={t} />
           </BrowserApplicationPanel>
         </div>
       )
@@ -412,7 +413,7 @@ const OnboardingView = () => {
         <button className="alife-primary-button mt-6 w-full" type="button" disabled={busy || !capabilities.passkeysEnabled} onClick={() => void runPasskeyAuthentication()}>{t('usePasskey')}</button>
         <label className="mt-4 flex min-h-11 items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1 h-4 w-4" checked={publicDevice} onChange={event => setPublicDevice(event.target.checked)} /><span>{t('publicDevice')}<span className="block text-xs text-[#66766f]">{t('publicDeviceHint')}</span></span></label>
         <PasskeyPrivacy t={t} />
-        {import.meta.env.DEV ? <button className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#9b6447]/35 bg-[#f8eee6] px-4 text-sm font-bold text-[#7b4e36] transition hover:border-[#9b6447]/60 hover:bg-[#f4e5da]" type="button" disabled={busy} onClick={() => navigate('/internal/alpha-login')}><FlaskConical className="h-4 w-4" aria-hidden="true" />{auth.language === 'zh' ? '本地测试：跳过 Passkey' : 'Local testing: skip Passkey'}</button> : null}
+        {import.meta.env.DEV ? <button className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#9b6447]/35 bg-[#f8eee6] px-4 text-sm font-bold text-[#7b4e36] transition hover:border-[#9b6447]/60 hover:bg-[#f4e5da]" type="button" disabled={busy} onClick={() => navigate('/internal/alpha-login')}><FlaskConical className="h-4 w-4" aria-hidden="true" />{auth.language === 'zh' ? onboardingViewText.localTestingSkipPasskey.zh : onboardingViewText.localTestingSkipPasskey.en}</button> : null}
         <button className="alife-secondary-button mt-5 w-full" type="button" disabled={busy} onClick={() => { setMode('firstTime'); setStatus('') }}>{t('churchApplicationTitle')}</button>
         <button className="mt-3 min-h-11 w-full text-sm font-semibold text-[#176b5a]" type="button" disabled={busy} onClick={() => { formStarted.current = Date.now(); setMode('recovery'); setStatus('') }}>{t('lostPasskey')}</button>
       </div>
@@ -446,7 +447,7 @@ const OnboardingView = () => {
           <IntentButton icon={UserPlus} title={t('churchApplicationTitle')} hint={t('churchApplicationDescription')} disabled={busy} onClick={() => { setStatus(''); setMode('firstTime') }} />
         </div>
         <div className="mt-6 border-t border-[#2f4b42]/10 pt-5">
-          <p className="text-xs font-bold text-[#718079]">{auth.language === 'zh' ? '需要其他帮助？' : 'Need another way in?'}</p>
+          <p className="text-xs font-bold text-[#718079]">{auth.language === 'zh' ? onboardingViewText.needAnotherWayIn.zh : onboardingViewText.needAnotherWayIn.en}</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <button type="button" className="group flex min-h-20 items-center gap-3 rounded-2xl border border-[#2f4b42]/10 bg-white/68 p-3 text-left transition hover:border-[#176b5a]/25 hover:bg-[#edf5f1]" onClick={() => { formStarted.current = Date.now(); setMode('visitor') }}>
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e3f0eb] text-[#176b5a]"><MessageSquareText className="h-5 w-5" aria-hidden="true" /></span>
@@ -460,7 +461,7 @@ const OnboardingView = () => {
         </div>
         {!capabilities.passkeysEnabled ? <p className="mt-3 text-sm text-[#915040]">{t('passkeyUnavailable')}</p> : null}
         <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-[#176b5a]">
-          {import.meta.env.DEV ? <button type="button" className="inline-flex items-center gap-1.5 text-[#9b6447]" onClick={() => navigate('/internal/alpha-login')}><FlaskConical className="h-4 w-4" aria-hidden="true" />{auth.language === 'zh' ? '本地测试登录' : 'Local test login'}</button> : null}
+          {import.meta.env.DEV ? <button type="button" className="inline-flex items-center gap-1.5 text-[#9b6447]" onClick={() => navigate('/internal/alpha-login')}><FlaskConical className="h-4 w-4" aria-hidden="true" />{auth.language === 'zh' ? onboardingViewText.localTestLogin.zh : onboardingViewText.localTestLogin.en}</button> : null}
           <button type="button" onClick={() => { formStarted.current = Date.now(); setMode('recovery') }}>{t('lostPasskey')}</button>
           {capabilities.lineLegacyEnabled ? <button type="button" disabled={busy} onClick={() => void startLine()}>{t('lineLegacyAccess')}</button> : null}
         </div>
@@ -475,13 +476,13 @@ const OnboardingView = () => {
         <div className="absolute -bottom-28 -left-24 h-72 w-72 rounded-full border border-[#f08b72]/20 bg-[#e37b63]/10" />
         <div className="relative flex items-center gap-3"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff9ef] shadow-[0_12px_30px_rgba(0,0,0,0.2)]"><img src={logo} alt={t('appName')} className="h-10 w-auto" /></span><div><p className="text-xl font-bold">ALIFE</p><p className="text-sm text-[#a9c8bd]">{t('secureMemberAccess')}</p></div></div>
         <div className="relative max-w-lg py-12">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.07] px-3 py-1.5 text-xs font-bold text-[#b9d8cd]"><ShieldCheck className="h-4 w-4" aria-hidden="true" />{auth.language === 'zh' ? '社区从这里继续' : 'Community continues here'}</span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.07] px-3 py-1.5 text-xs font-bold text-[#b9d8cd]"><ShieldCheck className="h-4 w-4" aria-hidden="true" />{auth.language === 'zh' ? onboardingViewText.communityContinuesHere.zh : onboardingViewText.communityContinuesHere.en}</span>
           <p className="mt-6 text-4xl font-black leading-[1.12] tracking-[-0.045em] xl:text-5xl">{t('loginPageIntro')}</p>
           <p className="mt-5 max-w-md text-sm leading-7 text-[#b9d2c9]">{t('identitySecurityFooter')}</p>
           <div className="mt-9 grid grid-cols-3 gap-3 border-t border-white/10 pt-6 text-xs font-bold text-[#cce0d8]">
-            <span>{auth.language === 'zh' ? '安全登录' : 'Secure access'}</span>
-            <span>{auth.language === 'zh' ? '资料由你掌握' : 'Your data, your control'}</span>
-            <span>{auth.language === 'zh' ? '中英文支持' : 'English and Chinese'}</span>
+            <span>{auth.language === 'zh' ? onboardingViewText.secureAccess.zh : onboardingViewText.secureAccess.en}</span>
+            <span>{auth.language === 'zh' ? onboardingViewText.yourDataYourControl.zh : onboardingViewText.yourDataYourControl.en}</span>
+            <span>{auth.language === 'zh' ? onboardingViewText.englishAndChinese.zh : onboardingViewText.englishAndChinese.en}</span>
           </div>
         </div>
       </aside>

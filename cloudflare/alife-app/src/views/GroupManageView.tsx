@@ -1,3 +1,4 @@
+import { groupManageViewText } from '../i18n/groupManageView.ts'
 import PersonalPasskeyRecovery from '../components/identity/PersonalPasskeyRecovery'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -52,59 +53,59 @@ const formatDate = (value: string, language: string) => {
 const isPlatformAdminRole = (role?: string | null) => role === 'admin' || role === 'superadmin'
 
 const formatPlatformRole = (role: string | undefined | null, language: string) => {
-  if (role === 'superadmin') return language === 'zh' ? '系统管理员' : 'System Admin'
-  if (role === 'admin') return language === 'zh' ? '管理员' : 'Admin'
+  if (role === 'superadmin') return language === 'zh' ? groupManageViewText.systemAdmin.zh : groupManageViewText.systemAdmin.en
+  if (role === 'admin') return language === 'zh' ? groupManageViewText.admin.zh : groupManageViewText.admin.en
   return ''
 }
 
 const managementCopy = (language: string, isChurch?: boolean) => {
-  const workspace = isChurch ? (language === 'zh' ? '教会' : 'Church') : (language === 'zh' ? '小组' : 'Group')
+  const workspace = isChurch ? (language === 'zh' ? groupManageViewText.church.zh : groupManageViewText.church.en) : (language === 'zh' ? groupManageViewText.group.zh : groupManageViewText.group.en)
   return language === 'zh'
     ? {
-      title: `${workspace}运营中心`,
-      subtitle: '把成员、活动、内容和设置放在一个清晰的工作台里处理。',
-      back: `返回${workspace}`,
-      members: '成员',
-      membersHint: '审批、邀请、角色和成员状态',
-      applications: '申请',
-      applicationsHint: '二维码申请、组长身份核验与手机激活',
-      contacts: '联系人',
-      contactsHint: '联系人资料、公开范围和留言入口',
-      venues: '场地与房间管理',
-      venuesHint: '维护场地目录、容量与长期占用日历',
-      events: '活动',
-      eventsHint: '创建活动、维护报名和后续回顾',
-      pages: '页面',
-      pagesHint: '发布页面和小组资料',
-      albums: '相册',
-      albumsHint: '整理图片、子相册和页面展示',
-      announcements: '公告',
-      subgroups: isChurch ? '团契' : '事工',
-      subgroupsHint: isChurch ? '维护团契及负责人' : '管理事工团队和负责人',
-      ministries: '事工',
-      settings: '设置',
-      settingsHint: `${workspace}资料、访问规则和高级操作`,
-      pending: '待审批',
-      approved: '活跃成员',
-      inactive: '非活跃',
-      totalMembers: '成员总数',
-      upcomingEvents: '近期活动',
-      planningEvents: '筹备中活动',
-      totalEvents: '全部活动',
-      pastEvents: '已结束',
-      inviteMember: '邀请成员',
-      createEvent: '创建活动',
-      addPage: '新建页面',
-      emptyMembersTitle: '还没有成员记录',
-      emptyMembersBody: '可以先邀请成员，或等待成员提交加入申请。',
-      emptyEventsTitle: '还没有活动',
-      emptyEventsBody: '用 AI 活动助理创建第一场活动，之后可在这里维护报名和回顾。',
-      viewEventPosts: '查看发布内容',
-      addReview: '添加回顾',
-      enroll: '报名',
-      enrollmentClosed: '报名已截止',
-      noEnrollment: '无需报名',
-      noEventsInSection: '此分类中还没有活动。',
+      title: groupManageViewText.managementCopyTitle(workspace),
+      subtitle: groupManageViewText.managementCopySubtitle,
+      back: groupManageViewText.managementCopyBack(workspace),
+      members: groupManageViewText.managementCopyMembers,
+      membersHint: groupManageViewText.managementCopyMembersHint,
+      applications: groupManageViewText.managementCopyApplications,
+      applicationsHint: groupManageViewText.managementCopyApplicationsHint,
+      contacts: groupManageViewText.managementCopyContacts,
+      contactsHint: groupManageViewText.managementCopyContactsHint,
+      venues: groupManageViewText.managementCopyVenues,
+      venuesHint: groupManageViewText.managementCopyVenuesHint,
+      events: groupManageViewText.managementCopyEvents,
+      eventsHint: groupManageViewText.managementCopyEventsHint,
+      pages: groupManageViewText.managementCopyPages,
+      pagesHint: groupManageViewText.managementCopyPagesHint,
+      albums: groupManageViewText.managementCopyAlbums,
+      albumsHint: groupManageViewText.managementCopyAlbumsHint,
+      announcements: groupManageViewText.managementCopyAnnouncements,
+      subgroups: isChurch ? groupManageViewText.managementCopySubgroups : groupManageViewText.managementCopySubgroups2,
+      subgroupsHint: isChurch ? groupManageViewText.managementCopySubgroupsHint : groupManageViewText.managementCopySubgroupsHint2,
+      ministries: groupManageViewText.managementCopyMinistries,
+      settings: groupManageViewText.managementCopySettings,
+      settingsHint: groupManageViewText.managementCopySettingsHint(workspace),
+      pending: groupManageViewText.managementCopyPending,
+      approved: groupManageViewText.managementCopyApproved,
+      inactive: groupManageViewText.managementCopyInactive,
+      totalMembers: groupManageViewText.managementCopyTotalMembers,
+      upcomingEvents: groupManageViewText.managementCopyUpcomingEvents,
+      planningEvents: groupManageViewText.managementCopyPlanningEvents,
+      totalEvents: groupManageViewText.managementCopyTotalEvents,
+      pastEvents: groupManageViewText.managementCopyPastEvents,
+      inviteMember: groupManageViewText.managementCopyInviteMember,
+      createEvent: groupManageViewText.managementCopyCreateEvent,
+      addPage: groupManageViewText.managementCopyAddPage,
+      emptyMembersTitle: groupManageViewText.managementCopyEmptyMembersTitle,
+      emptyMembersBody: groupManageViewText.managementCopyEmptyMembersBody,
+      emptyEventsTitle: groupManageViewText.managementCopyEmptyEventsTitle,
+      emptyEventsBody: groupManageViewText.managementCopyEmptyEventsBody,
+      viewEventPosts: groupManageViewText.managementCopyViewEventPosts,
+      addReview: groupManageViewText.managementCopyAddReview,
+      enroll: groupManageViewText.managementCopyEnroll,
+      enrollmentClosed: groupManageViewText.managementCopyEnrollmentClosed,
+      noEnrollment: groupManageViewText.managementCopyNoEnrollment,
+      noEventsInSection: groupManageViewText.managementCopyNoEventsInSection,
     }
     : {
       title: `${workspace} Operations`,
@@ -241,8 +242,8 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
   const t = useUiText()
   const { requestConfirmation, confirmationModal } = useConfirmation()
   const { language } = useAuthStore()
-  const groupLeadLabel = isChurch ? (language === 'zh' ? '教会领袖' : 'Church leader') : (language === 'zh' ? '组长' : 'Group lead')
-  const assistantLeadLabel = isChurch ? (language === 'zh' ? '副带领人' : 'Co-leader') : (language === 'zh' ? '副组长' : 'Assistant lead')
+  const groupLeadLabel = isChurch ? (language === 'zh' ? groupManageViewText.churchLeader.zh : groupManageViewText.churchLeader.en) : (language === 'zh' ? groupManageViewText.groupLead.zh : groupManageViewText.groupLead.en)
+  const assistantLeadLabel = isChurch ? (language === 'zh' ? groupManageViewText.coLeader.zh : groupManageViewText.coLeader.en) : (language === 'zh' ? groupManageViewText.assistantLead.zh : groupManageViewText.assistantLead.en)
   const approvedMembers = memberships.filter((member) => member.status === 'approved')
   const leader = approvedMembers.find((member) => member.role === 'leader')
   const coLeaderCandidates = approvedMembers.filter(
@@ -250,7 +251,7 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
   )
   const canTransferLeadership = Boolean(leader && currentMemberId && leader.memberId === currentMemberId)
   const getDisplayName = (member: GroupMemberToolRow) => member.displayName || t('memberShort', { id: shortId(member.memberId) })
-  const transferLabel = isChurch ? (language === 'zh' ? '移交教会带领职责' : 'Transfer church leadership') : t('transferLeadership')
+  const transferLabel = isChurch ? (language === 'zh' ? groupManageViewText.transferChurchLeadership.zh : groupManageViewText.transferChurchLeadership.en) : t('transferLeadership')
 
   if (!leader) return null
 
@@ -267,7 +268,7 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
               <Crown size={18} aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium uppercase text-slate-500">{isChurch ? (language === 'zh' ? '当前教会领袖' : 'Current church leader') : (language === 'zh' ? '当前组长' : 'Current group lead')}</p>
+              <p className="text-xs font-medium uppercase text-slate-500">{isChurch ? (language === 'zh' ? groupManageViewText.currentChurchLeader.zh : groupManageViewText.currentChurchLeader.en) : (language === 'zh' ? groupManageViewText.currentGroupLead.zh : groupManageViewText.currentGroupLead.en)}</p>
               <p className="truncate font-medium text-slate-950">{getDisplayName(leader)}</p>
             </div>
           </div>
@@ -293,7 +294,7 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
                       requestConfirmation({
                         title: transferLabel,
                         description: isChurch
-                          ? (language === 'zh' ? `确定将教会带领职责移交给 ${displayName} 吗？你会成为副带领人。` : `Transfer church leadership to ${displayName}? You will become a co-leader.`)
+                          ? (language === 'zh' ? groupManageViewText.transferChurchLeadershipToYouWillBecomeACo.zh(displayName) : groupManageViewText.transferChurchLeadershipToYouWillBecomeACo.en(displayName))
                           : t('transferLeadershipConfirm', { name: displayName }),
                         confirmLabel: transferLabel,
                       }).then((confirmed) => {
@@ -302,7 +303,7 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
                     }}
                   >
                     <ArrowRightLeft size={14} aria-hidden="true" className="mr-1.5" />
-                    {isChurch ? (language === 'zh' ? `将 ${displayName} 设为教会领袖` : `Make ${displayName} church leader`) : t('transferLeadershipTo', { name: displayName })}
+                    {isChurch ? (language === 'zh' ? groupManageViewText.makeChurchLeader.zh(displayName) : groupManageViewText.makeChurchLeader.en(displayName)) : t('transferLeadershipTo', { name: displayName })}
                   </AppActionButton>
                 </div>
               )
@@ -344,9 +345,9 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
   const getDisplayName = (member: GroupMemberToolRow) => member.displayName || t('memberShort', { id: shortId(member.memberId) })
   const getRoleLabel = (member: GroupMemberToolRow) =>
     member.role === 'coLeader'
-      ? auth.language === 'zh' ? '副组长' : 'Assistant lead'
+      ? auth.language === 'zh' ? groupManageViewText.assistantLead.zh : groupManageViewText.assistantLead.en
       : t('groupMemberRole')
-  const groupLeadLabel = auth.language === 'zh' ? '组长' : 'Group lead'
+  const groupLeadLabel = auth.language === 'zh' ? groupManageViewText.groupLead.zh : groupManageViewText.groupLead.en
   const renderPlatformRoleBadge = (member: GroupMemberToolRow) => {
     if (!isPlatformAdminRole(member.platformRole)) return null
     return (
@@ -374,8 +375,8 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
   }
 
   const profileCopy = auth.language === 'zh'
-    ? { edit: '修改资料', description: '修改该成员的基本账号资料。', displayName: '显示名称', email: '邮箱', phone: '手机号', phoneHint: '选择地区后输入本地号码，可以保留开头的 0。', phoneInvalid: '请检查电话号码和所选地区。', cancel: '取消', save: '保存修改', saving: '保存中…', loading: '正在读取资料…', required: '显示名称为必填项。', failed: '无法更新成员资料。', close: '关闭弹窗' }
-    : { edit: 'Edit member', description: 'Update this member’s basic account information.', displayName: 'Display name', email: 'Email', phone: 'Phone', phoneHint: 'Choose a region and enter the local number. A leading zero is accepted.', phoneInvalid: 'Check the phone number and selected region.', cancel: 'Cancel', save: 'Save changes', saving: 'Saving…', loading: 'Loading profile…', required: 'Display name is required.', failed: 'Unable to update this member.', close: 'Close dialog' }
+    ? { ...groupManageViewText.localizedCopy.zh }
+    : { ...groupManageViewText.localizedCopy.en }
 
   const openProfileDialog = async (member: GroupMemberToolRow) => {
     setProfileTarget(member)
@@ -427,7 +428,7 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
     <ManagementPanelShell
       framed={framed}
       title={copy.members}
-      subtitle={allowInvite ? copy.membersHint : (auth.language === 'zh' ? '查看教会成员、申请状态和成员角色。' : 'Review church members, requests, and member roles.')}
+      subtitle={allowInvite ? copy.membersHint : (auth.language === 'zh' ? groupManageViewText.reviewChurchMembersRequestsAndMemberRoles.zh : groupManageViewText.reviewChurchMembersRequestsAndMemberRoles.en)}
       action={allowInvite ? (
         <AppActionButton variant="primary" onClick={onInviteMember}>
           <UserPlus size={16} aria-hidden="true" className="mr-1.5" />
@@ -438,14 +439,14 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
       {memberships.length === 0 ? (
         <AppEmptyState
           title={copy.emptyMembersTitle}
-          description={allowInvite ? copy.emptyMembersBody : (auth.language === 'zh' ? '目前还没有教会成员记录。' : 'There are no church member records yet.')}
+          description={allowInvite ? copy.emptyMembersBody : (auth.language === 'zh' ? groupManageViewText.thereAreNoChurchMemberRecordsYet.zh : groupManageViewText.thereAreNoChurchMemberRecordsYet.en)}
           actionLabel={allowInvite ? copy.inviteMember : undefined}
           onAction={allowInvite ? onInviteMember : undefined}
         />
       ) : null}
 
       <MemberCategory title={copy.pending} count={requestedMembers.length} icon={<UserPlus className="h-4 w-4" />}>
-          {requestedMembers.length === 0 ? <p className="text-sm text-slate-500">{auth.language === 'zh' ? '目前没有待审批的成员。' : 'There are no pending member requests.'}</p> : null}
+          {requestedMembers.length === 0 ? <p className="text-sm text-slate-500">{auth.language === 'zh' ? groupManageViewText.thereAreNoPendingMemberRequests.zh : groupManageViewText.thereAreNoPendingMemberRequests.en}</p> : null}
           {requestedMembers.map((member) => (
             <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
               <div>
@@ -721,10 +722,10 @@ type EventsPanelProps = {
 const eventTabs: EventLifecycle[] = ['past', 'upcoming', 'planning']
 
 const eventVisibilityLabel = (event: GroupEventRecord, language: string, isChurch = false) => {
-  if (event.visibility === 'public') return language === 'zh' ? '公开可见' : 'Public'
-  if (event.visibility === 'churchVisible') return language === 'zh' ? '教会内可见' : 'Church members'
-  if (isChurch) return language === 'zh' ? '教会内可见' : 'Church members'
-  return language === 'zh' ? '小组内可见' : 'Group members'
+  if (event.visibility === 'public') return language === 'zh' ? groupManageViewText.public.zh : groupManageViewText.public.en
+  if (event.visibility === 'churchVisible') return language === 'zh' ? groupManageViewText.churchMembers.zh : groupManageViewText.churchMembers.en
+  if (isChurch) return language === 'zh' ? groupManageViewText.churchMembers.zh : groupManageViewText.churchMembers.en
+  return language === 'zh' ? groupManageViewText.groupMembers.zh : groupManageViewText.groupMembers.en
 }
 
 const EventsPanel = ({ groupId, isChurch = false, events, copy, currentGroupRoute = false, framed = true }: EventsPanelProps) => {
@@ -819,10 +820,10 @@ const EventsPanel = ({ groupId, isChurch = false, events, copy, currentGroupRout
                       {activeTab === 'planning' ? <AppActionButton size="sm" variant="secondary" onClick={() => {
                         activeEntityService.setEvent(event.id)
                         navigate(`${detailPath}/workspace?flow=setup&stage=arrangements`)
-                      }}>{language === 'zh' ? '继续筹备' : 'Continue preparation'}</AppActionButton> : null}
+                      }}>{language === 'zh' ? groupManageViewText.continuePreparation.zh : groupManageViewText.continuePreparation.en}</AppActionButton> : null}
                       {activeTab === 'upcoming' && lifecycleData.acceptsEnrollments && (lifecycleData.registrationDeadlineTime ?? 0) >= Date.now() ? <AppActionButton size="sm" variant="primary" onClick={() => {
                         activeEntityService.setEvent(event.id)
-                        navigate(`${detailPath}/enroll`)
+                        navigate(`/events/${event.id}/registration-work`)
                       }}>{copy.enroll}</AppActionButton> : null}
                     </div>
                   </div>
@@ -916,13 +917,13 @@ const GroupManageView = ({
   const activeSection = resolveManageSection(searchParams.get(sectionParamName), visibleSections, group?.isChurch)
   const copy = managementCopy(language, group?.isChurch)
   const allGroupManagementSections: Array<{ key: ManageSection; label: string; hint: string }> = [
-    { key: 'group', label: language === 'zh' ? '资料与设置' : 'Profile & settings', hint: language === 'zh' ? '名称、介绍、带领团队与访问规则' : 'Name, description, leadership, and access' },
+    { key: 'group', label: language === 'zh' ? groupManageViewText.profileSettings.zh : groupManageViewText.profileSettings.en, hint: language === 'zh' ? groupManageViewText.nameDescriptionLeadershipAndAccess.zh : groupManageViewText.nameDescriptionLeadershipAndAccess.en },
     { key: 'venues', label: copy.venues, hint: copy.venuesHint },
     { key: 'members', label: copy.members, hint: copy.membersHint },
     { key: 'applications', label: copy.applications, hint: copy.applicationsHint },
     { key: 'contacts', label: copy.contacts, hint: copy.contactsHint },
     { key: 'subgroups', label: copy.subgroups, hint: copy.subgroupsHint },
-    ...(group?.isChurch ? [{ key: 'ministries' as const, label: copy.ministries, hint: language === 'zh' ? '教会事工团队' : 'Church ministry teams' }] : []),
+    ...(group?.isChurch ? [{ key: 'ministries' as const, label: copy.ministries, hint: language === 'zh' ? groupManageViewText.churchMinistryTeams.zh : groupManageViewText.churchMinistryTeams.en }] : []),
     { key: 'pages', label: copy.pages, hint: copy.pagesHint },
   ]
   const groupManagementSections = visibleSections?.length
@@ -936,7 +937,7 @@ const GroupManageView = ({
   const subgroupType = group?.isChurch && activeSection === 'subgroups' ? 'fellowship' : 'ministry'
   const subgroupTitle = subgroupType === 'fellowship' ? copy.subgroups : copy.ministries
   const addSubgroupLabel = language === 'zh'
-    ? (subgroupType === 'fellowship' ? '添加团契' : '添加事工')
+    ? (subgroupType === 'fellowship' ? groupManageViewText.addSubgroupLabel : groupManageViewText.addSubgroupLabel2)
     : (subgroupType === 'fellowship' ? 'Add fellowship' : 'Add ministry')
   const displayedSubgroups = group?.isChurch
     ? subgroups.filter((subgroup) => (subgroup.groupType ?? 'fellowship') === subgroupType)
@@ -1066,10 +1067,10 @@ const GroupManageView = ({
 
   const managementWorkspace = (
       <div className={integrated ? 'space-y-4' : 'space-y-5'}>
-        {groupId && activeSection === 'group' && !group?.isChurch ? <Link className="inline-flex min-h-11 items-center rounded-xl border border-[#176b5a]/20 bg-white px-4 font-semibold text-[#176b5a]" to={`/groups/${groupId}/venues`}>{language === 'zh' ? '场地与房间管理' : 'Venue and room management'}</Link> : null}
+        {groupId && activeSection === 'group' && !group?.isChurch ? <Link className="inline-flex min-h-11 items-center rounded-xl border border-[#176b5a]/20 bg-white px-4 font-semibold text-[#176b5a]" to={`/groups/${groupId}/venues`}>{language === 'zh' ? groupManageViewText.venueAndRoomManagement.zh : groupManageViewText.venueAndRoomManagement.en}</Link> : null}
         {!integrated && showGroupManagementNavigation ? (
           <nav
-            aria-label={language === 'zh' ? `${group?.isChurch ? '教会' : '小组'}管理视图` : `${group?.isChurch ? 'Church' : 'Group'} management views`}
+            aria-label={language === 'zh' ? groupManageViewText.managementViews.zh(group?.isChurch ? groupManageViewText.managementWorkspace : groupManageViewText.managementWorkspace2) : groupManageViewText.managementViews.en(group?.isChurch ? 'Church' : 'Group')}
             className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             <div className="flex min-w-max items-center gap-1 border-b border-[#ccd9d3]" role="tablist">
@@ -1183,7 +1184,7 @@ const GroupManageView = ({
                 <ManagementPanelShell
                   framed={false}
                   title={subgroupTitle}
-                  subtitle={subgroupType === 'fellowship' ? copy.subgroupsHint : (language === 'zh' ? '管理事工团队和负责人' : 'Ministry teams and their leaders')}
+                  subtitle={subgroupType === 'fellowship' ? copy.subgroupsHint : (language === 'zh' ? groupManageViewText.ministryTeamsAndTheirLeaders.zh : groupManageViewText.ministryTeamsAndTheirLeaders.en)}
                   action={
                     <AppActionButton variant="primary" onClick={() => {
                       if (!guardGroupProfileNavigation()) return
@@ -1195,17 +1196,17 @@ const GroupManageView = ({
                   }
                 >
                   {!group.isChurch && subgroups.some((subgroup) => subgroup.groupType !== 'ministry') ? (
-                    <p className="mb-3 text-sm text-slate-500">{language === 'zh' ? '已有下属团契保留原类型；此处只能新增事工组。' : 'Existing child fellowships retain their type. Only ministry groups can be added here.'}</p>
+                    <p className="mb-3 text-sm text-slate-500">{language === 'zh' ? groupManageViewText.existingChildFellowshipsRetainTheirTypeOnlyMinistryGroups.zh : groupManageViewText.existingChildFellowshipsRetainTheirTypeOnlyMinistryGroups.en}</p>
                   ) : null}
                   {displayedSubgroups.length === 0 ? (
-                    <p className="text-sm text-slate-500">{language === 'zh' ? `尚未创建${subgroupTitle}组` : `No ${subgroupType === 'fellowship' ? 'fellowship' : 'ministry'} groups yet`}</p>
+                    <p className="text-sm text-slate-500">{language === 'zh' ? groupManageViewText.noGroupsYet.zh(subgroupTitle) : groupManageViewText.noGroupsYet.en(subgroupType === 'fellowship' ? 'fellowship' : 'ministry')}</p>
                   ) : (
                     <div className="space-y-2">
                       {displayedSubgroups.map((subgroup) => (
                         <div key={subgroup.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
                           <div>
                             <p className="font-medium text-slate-950">{localizeText(subgroup.name, language)}</p>
-                            <span className="mr-2 text-xs text-slate-600">{subgroup.groupType === 'ministry' ? copy.ministries : (language === 'zh' ? '团契' : 'Fellowship')}</span>
+                            <span className="mr-2 text-xs text-slate-600">{subgroup.groupType === 'ministry' ? copy.ministries : (language === 'zh' ? groupManageViewText.fellowship.zh : groupManageViewText.fellowship.en)}</span>
                             <AccessTypeBadge accessType={subgroup.accessType} />
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -1310,9 +1311,9 @@ const GroupManageView = ({
         <AppPageShell
           title={embeddedWorkspace ? localizeText(group?.name, language) || copy.title : copy.title}
           context={workspaceEyebrow || (activeSection === 'group'
-            ? (group?.isChurch ? (language === 'zh' ? '教会生活 / 教会管理' : 'Church Life / Church Management') : (language === 'zh' ? '小组生活 / 小组管理' : 'Group Life / Group Management'))
-            : `${group?.isChurch ? (language === 'zh' ? '教会管理' : 'Church Management') : (language === 'zh' ? '小组管理' : 'Group Management')} / ${copy[activeSection]}`)}
-          subtitle={workspaceDescription || (embeddedWorkspace ? (language === 'zh' ? '在这里维护资料、成员、联系人和事工。' : 'Maintain profile, members, contacts, and ministries here.') : copy.subtitle)}
+            ? (group?.isChurch ? (language === 'zh' ? groupManageViewText.churchLifeChurchManagement.zh : groupManageViewText.churchLifeChurchManagement.en) : (language === 'zh' ? groupManageViewText.groupLifeGroupManagement.zh : groupManageViewText.groupLifeGroupManagement.en))
+            : `${group?.isChurch ? (language === 'zh' ? groupManageViewText.churchManagement.zh : groupManageViewText.churchManagement.en) : (language === 'zh' ? groupManageViewText.groupManagement.zh : groupManageViewText.groupManagement.en)} / ${copy[activeSection]}`)}
+          subtitle={workspaceDescription || (embeddedWorkspace ? (language === 'zh' ? groupManageViewText.maintainProfileMembersContactsAndMinistriesHere.zh : groupManageViewText.maintainProfileMembersContactsAndMinistriesHere.en) : copy.subtitle)}
           status={group ? <AccessTypeBadge accessType={group.accessType} showProtected /> : undefined}
           backLink={!embeddedWorkspace ? {
             to: workspacePath,

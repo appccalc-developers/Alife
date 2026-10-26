@@ -113,11 +113,26 @@ requireSource(
   '`alife-virtual-church-code-${VIRTUAL_CHURCH_ASSET_RELEASE}`',
   'Vite PWA config',
 )
-requireSource(
-  viteConfigSource,
-  "importScripts: ['/virtual-church-cache-maintenance.js']",
-  'Vite PWA config',
-)
+const viteAst = ts.createSourceFile(viteConfigPath, viteConfigSource, ts.ScriptTarget.Latest, true)
+const configuredScripts = []
+const configuredAppCaches = []
+const inspectViteProperty = (node) => {
+  if (ts.isPropertyAssignment(node)) {
+    if (node.name.getText(viteAst) === 'importScripts' && ts.isArrayLiteralExpression(node.initializer)) {
+      configuredScripts.push(...node.initializer.elements.filter(ts.isStringLiteralLike).map(value => value.text))
+    }
+    if (node.name.getText(viteAst) === 'cacheName' && ts.isStringLiteralLike(node.initializer)
+      && node.initializer.text.startsWith('alife-app-cache')) configuredAppCaches.push(node.initializer.text)
+  }
+  ts.forEachChild(node, inspectViteProperty)
+}
+inspectViteProperty(viteAst)
+for (const script of ['/sw-runtime-cache-migration.js', '/virtual-church-cache-maintenance.js']) {
+  if (!configuredScripts.includes(script)) errors.push(`Vite PWA config does not import ${script}`)
+}
+if (configuredAppCaches.length !== 1 || !/^alife-app-cache-v\d+$/.test(configuredAppCaches[0])) {
+  errors.push('Vite PWA config must use one versioned application cache after the privacy migration')
+}
 requireSource(
   viteConfigSource,
   'cacheName: VIRTUAL_CHURCH_CACHE_NAME',
@@ -801,6 +816,79 @@ for (const selectedPath of selectedV3Paths) {
   }
 }
 
+// Execute the generated registration against inert Workbox constructors. This
+// exercises the actual serialized callbacks without depending on minifier names,
+// argument grouping or a browser/network/cache implementation.
+const inspectBuiltCacheGuards = async (source) => {
+  const importedScripts = [], routes = []
+  const workbox = {
+    clientsClaim() {}, precacheAndRoute() {}, cleanupOutdatedCaches() {},
+    createHandlerBoundToURL: url => url,
+    registerRoute: (match, strategy) => routes.push({ match, strategy }),
+  }
+  for (const kind of ['CacheFirst', 'NetworkFirst', 'NetworkOnly', 'StaleWhileRevalidate',
+    'ExpirationPlugin', 'CacheableResponsePlugin', 'RangeRequestsPlugin', 'BackgroundSyncPlugin', 'NavigationRoute']) {
+    workbox[kind] = function (options) { this.kind = kind; this.options = options }
+  }
+  const define = (dependencies, factory) => {
+    if (dependencies.length !== 1 || !/^\.\/workbox-/.test(dependencies[0])) {
+      throw new Error('Unexpected built Service Worker dependency')
+    }
+    factory(workbox)
+  }
+  const origin = 'https://fixture.invalid'
+  runInNewContext(source, {
+    define, URL,
+    self: { define, skipWaiting() {}, location: { origin } },
+    importScripts: (...scripts) => importedScripts.push(...scripts),
+  }, { timeout: 5000 })
+  for (const script of configuredScripts) {
+    if (!importedScripts.includes(script)) errors.push(`built Service Worker does not import ${script}`)
+  }
+  const cache = (name, kind) => {
+    const matches = routes.filter(route => route.strategy?.options?.cacheName === name)
+    if (matches.length !== 1 || matches[0].strategy.kind !== kind) throw new Error(`Expected one ${kind} route for ${name}`)
+    return matches[0].strategy.options
+  }
+  const code = cache(codeCacheName, 'CacheFirst')
+  const assets = cache(cacheName, 'CacheFirst')
+  const application = cache(configuredAppCaches[0], 'NetworkFirst')
+  for (const options of [code, assets]) {
+    const statuses = options.plugins.find(plugin => plugin.kind === 'CacheableResponsePlugin')?.options?.statuses
+    if (!statuses || statuses.length !== 1 || statuses[0] !== 200) errors.push(`built ${options.cacheName} must cache only successful responses`)
+  }
+  const verifyResponse = async (options, pathname, destination, mime, expected, status = 200) => {
+    const guards = options.plugins.filter(plugin => typeof plugin.cacheWillUpdate === 'function')
+    if (!guards.length) throw new Error(`Missing MIME guard on ${options.cacheName}`)
+    const request = { url: `${origin}${pathname}`, destination, mode: destination === 'document' ? 'navigate' : 'cors' }
+    const response = { status, headers: { get: name => name.toLowerCase() === 'content-type' ? mime : null } }
+    let candidate = response
+    for (const guard of guards) {
+      candidate = await guard.cacheWillUpdate({ request, response: candidate })
+      if (!candidate) break
+    }
+    if ((candidate === response) !== expected) errors.push(`built ${options.cacheName} MIME/status guard failed: ${pathname}, ${mime}, ${status}`)
+  }
+  for (const mime of ['text/javascript', 'application/javascript', 'application/ecmascript', 'text/html', 'text/css', '']) {
+    await verifyResponse(code, '/assets/VirtualChurchView-fixture.js', 'script', mime, /javascript|ecmascript/.test(mime))
+  }
+  await verifyResponse(assets, '/virtual-church-assets/fixture.glb', '', 'model/gltf-binary', true)
+  await verifyResponse(assets, '/virtual-church-assets/fixture.glb', '', 'text/html; charset=utf-8', false)
+  for (const [path, destination, mime] of [['/assets/index.js', 'script', 'application/javascript'],
+    ['/assets/index.css', 'style', 'text/css'], ['/', 'document', 'text/html']]) {
+    await verifyResponse(application, path, destination, mime, true)
+    await verifyResponse(application, path, destination, 'application/octet-stream', false)
+    await verifyResponse(application, path, destination, mime, false, 404)
+    if (destination !== 'document') await verifyResponse(application, path, destination, 'text/html', false)
+  }
+  for (const path of ['/api/me', '/api/private-file.js', '/images/api/private-file.png', '/images/groups/g/albums/a/photo.jpg']) {
+    const url = new URL(path, origin)
+    const route = routes.find(({ match }) => typeof match === 'function'
+      && match({ url, request: { url: url.href, destination: 'script', mode: 'cors' } }))
+    if (route?.strategy?.kind !== 'NetworkOnly') errors.push(`built Service Worker can cache protected response: ${path}`)
+  }
+}
+
 let distEvidence = null
 if (validateDist) {
   const distRoot = resolve(distRootOption?.slice('--dist-root='.length) ?? resolve(appRoot, 'dist'))
@@ -852,24 +940,7 @@ if (validateDist) {
         `built v3 root inventory mismatch: ${JSON.stringify(normalizedDistV3Entries)}`,
       )
     }
-    if (!distSwSource.includes('importScripts("/virtual-church-cache-maintenance.js")')) {
-      errors.push('built Service Worker does not import the Virtual Church cache maintenance script')
-    }
-    if (!distSwSource.includes(`cacheName:"${cacheName}"`)) {
-      errors.push(`built Service Worker does not use current 3D cache ${cacheName}`)
-    }
-    if (!distSwSource.includes(`cacheName:"${codeCacheName}"`)) {
-      errors.push(`built Service Worker does not use current 3D code cache ${codeCacheName}`)
-    }
-    if (
-      !distSwSource.includes('(?:javascript|ecmascript)\\b/i.test')
-      || !distSwSource.includes('/^text\\/html\\b/i.test')
-      || !distSwSource.includes('/^text\\/css\\b/i.test')
-      || !distSwSource.includes('cacheName:"alife-app-cache",plugins:')
-      || (distSwSource.match(/cacheWillUpdate/g) ?? []).length < 3
-    ) {
-      errors.push('built Service Worker does not reject wrong-MIME 3D and application code assets')
-    }
+    await inspectBuiltCacheGuards(distSwSource)
     if (!distSwSource.includes('createHandlerBoundToURL("/index.html")')) {
       errors.push('built Service Worker does not provide the precached SPA navigation fallback')
     }

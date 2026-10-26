@@ -1,3 +1,4 @@
+import { groupDashboardText } from '../../i18n/groupDashboard.ts'
 import { useEffect, useState } from 'react'
 import { ArrowUpRight, Bell, BookOpenText, CalendarDays, Images, MessagesSquare, Settings2, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -47,7 +48,7 @@ const GroupContentArtwork = ({ imageUrl, title, language, index }: { imageUrl?: 
       {imageUrl && !imageFailed ? (
         <img
           src={normalizeImageUrl(imageUrl)}
-          alt={language === 'zh' ? `${title}内容封面` : `${title} content cover`}
+          alt={language === 'zh' ? groupDashboardText.contentCover.zh(title) : groupDashboardText.contentCover.en(title)}
           className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.025] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           loading="lazy"
           onError={() => setImageFailed(true)}
@@ -65,7 +66,7 @@ const GroupContentArtwork = ({ imageUrl, title, language, index }: { imageUrl?: 
       <div className="absolute inset-0 bg-[linear-gradient(118deg,rgba(13,79,67,0.08)_0%,transparent_55%,rgba(24,51,45,0.18)_100%)]" aria-hidden="true" />
       <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/35 to-transparent" aria-hidden="true" />
       <span className="absolute left-4 top-4 rounded-full border border-white/25 bg-[#102a24]/70 px-3 py-1.5 text-[0.65rem] font-black text-white shadow-sm backdrop-blur-md">
-        {language === 'zh' ? '小组内容' : 'Group content'}
+        {language === 'zh' ? groupDashboardText.groupContent.zh : groupDashboardText.groupContent.en}
       </span>
     </div>
   )
@@ -106,7 +107,7 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
       const end = new Date(start)
       end.setDate(end.getDate() + 7)
       return {
-        label: language === 'zh' ? `第 ${index + 1} 周` : `Week ${index + 1}`,
+        label: language === 'zh' ? groupDashboardText.week.zh(index + 1) : groupDashboardText.week.en(index + 1),
         count: churchUpcomingEvents.filter((event) => {
           const date = new Date(event.startDate)
           return date >= start && date < end
@@ -127,11 +128,11 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
     return (
       <AppPageShell
         title={groupName}
-        context={language === 'zh' ? '教会生活 / 总览' : 'Church Life / Overview'}
-        subtitle={groupDescription || (language === 'zh' ? '查看教会近期安排与重要公告。' : 'See the church’s upcoming schedule and important notices.')}
-        overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
+        context={language === 'zh' ? groupDashboardText.churchLifeOverview.zh : groupDashboardText.churchLifeOverview.en}
+        subtitle={groupDescription || (language === 'zh' ? groupDashboardText.seeTheChurchSUpcomingScheduleAndImportantNotices.zh : groupDashboardText.seeTheChurchSUpcomingScheduleAndImportantNotices.en)}
+        overflowLabel={language === 'zh' ? groupDashboardText.moreActions.zh : groupDashboardText.moreActions.en}
         overflowActions={canManage ? [{
-          label: language === 'zh' ? '管理教会' : 'Manage church',
+          label: language === 'zh' ? groupDashboardText.manageChurch.zh : groupDashboardText.manageChurch.en,
           icon: <Settings2 className="h-4 w-4" />,
           to: '/church/manage',
         }] : []}
@@ -143,27 +144,27 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
           <div className="relative grid gap-9 lg:grid-cols-[minmax(0,1.2fr)_minmax(17rem,.8fr)] lg:items-end">
             <div>
               <div className="flex flex-wrap gap-x-7 gap-y-3 text-xs font-bold text-[#687c74]">
-                <span><strong className="mr-2 text-xl font-black text-[#17362f]">{churchUpcomingEvents.length}</strong>{language === 'zh' ? '近期活动' : 'upcoming events'}</span>
-                <span><strong className="mr-2 text-xl font-black text-[#17362f]">{announcements.length}</strong>{language === 'zh' ? '当前公告' : 'active notices'}</span>
+                <span><strong className="mr-2 text-xl font-black text-[#17362f]">{churchUpcomingEvents.length}</strong>{language === 'zh' ? groupDashboardText.upcomingEvents.zh : groupDashboardText.upcomingEvents.en}</span>
+                <span><strong className="mr-2 text-xl font-black text-[#17362f]">{announcements.length}</strong>{language === 'zh' ? groupDashboardText.activeNotices.zh : groupDashboardText.activeNotices.en}</span>
               </div>
             </div>
 
             <div className="rounded-[1.6rem] border border-white/80 bg-white/70 p-5 shadow-[0_16px_40px_rgba(35,73,63,0.08)] backdrop-blur-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-[#19705d]">{language === 'zh' ? '未来四周' : 'Next four weeks'}</p>
-                  <p className="mt-1 text-sm font-bold text-[#25463e]">{language === 'zh' ? '已发布活动安排' : 'Published event schedule'}</p>
+                  <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-[#19705d]">{language === 'zh' ? groupDashboardText.nextFourWeeks.zh : groupDashboardText.nextFourWeeks.en}</p>
+                  <p className="mt-1 text-sm font-bold text-[#25463e]">{language === 'zh' ? groupDashboardText.publishedEventSchedule.zh : groupDashboardText.publishedEventSchedule.en}</p>
                 </div>
                 <CalendarDays className="h-5 w-5 text-[#f1b486]" aria-hidden="true" />
               </div>
-              <svg className="mt-4 h-24 w-full overflow-visible" viewBox="0 0 100 78" role="img" aria-label={language === 'zh' ? '未来四周已发布活动数量折线图' : 'Published event count for the next four weeks'}>
+              <svg className="mt-4 h-24 w-full overflow-visible" viewBox="0 0 100 78" role="img" aria-label={language === 'zh' ? groupDashboardText.publishedEventCountForTheNextFourWeeks.zh : groupDashboardText.publishedEventCountForTheNextFourWeeks.en}>
                 <defs><linearGradient id="church-overview-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#9ed9c5" stopOpacity="0.32" /><stop offset="100%" stopColor="#9ed9c5" stopOpacity="0" /></linearGradient></defs>
                 <polygon points={`8,72 ${chartLine} 92,72`} fill="url(#church-overview-area)" />
                 <polyline points={chartLine} fill="none" stroke="#258b73" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                 {chartPoints.map((point) => <circle key={point.label} cx={point.x} cy={point.y} r="2.8" fill="#fffdf8" stroke="#d98b5f" strokeWidth="2" />)}
               </svg>
               <div className="grid grid-cols-4 gap-2 text-center text-[0.62rem] font-bold text-[#85938d]">{chartPoints.map((point) => <span key={point.label}>{point.label}<strong className="mt-0.5 block text-xs text-[#25463e]">{point.count}</strong></span>)}</div>
-              <p className="mt-3 text-[0.62rem] leading-4 text-[#89968f]">{language === 'zh' ? '数据仅来自已批准且尚未结束的教会活动。' : 'Only approved church events that have not ended are included.'}</p>
+              <p className="mt-3 text-[0.62rem] leading-4 text-[#89968f]">{language === 'zh' ? groupDashboardText.onlyApprovedChurchEventsThatHaveNotEndedAre.zh : groupDashboardText.onlyApprovedChurchEventsThatHaveNotEndedAre.en}</p>
             </div>
           </div>
         </header>
@@ -175,7 +176,7 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
               <span className="text-2xl font-black leading-none">{new Date(nextEvent.startDate).getDate()}</span>
             </time>
             <div className="min-w-0 flex-1">
-              <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-[#9b6447]">{language === 'zh' ? '下一个教会活动' : 'Next church event'}</p>
+              <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-[#9b6447]">{language === 'zh' ? groupDashboardText.nextChurchEvent.zh : groupDashboardText.nextChurchEvent.en}</p>
               <h2 className="mt-1 truncate text-xl font-black tracking-[-0.025em] text-[#18332d]">{eventTitle(nextEvent)}</h2>
               <p className="mt-1 text-sm text-[#708078]">{new Date(nextEvent.startDate).toLocaleString(locale, { weekday: 'long', hour: '2-digit', minute: '2-digit' })}</p>
             </div>
@@ -186,7 +187,7 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
         <div className="grid gap-7 xl:grid-cols-[minmax(0,1.08fr)_minmax(19rem,.92fr)]">
           <section aria-labelledby="church-events-heading">
             <div className="mb-4 flex items-end justify-between gap-4 px-1">
-              <div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? '日程' : 'Schedule'}</p><h2 id="church-events-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? '近期活动' : 'Upcoming events'}</h2></div>
+              <div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? groupDashboardText.schedule.zh : groupDashboardText.schedule.en}</p><h2 id="church-events-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? groupDashboardText.upcomingEventsLabel.zh : groupDashboardText.upcomingEventsLabel.en}</h2></div>
               <span className="text-xs font-bold text-[#89958f]">{churchUpcomingEvents.length}</span>
             </div>
             <div className="overflow-hidden rounded-[1.65rem] border border-[#dfe7e3] bg-white shadow-[0_12px_36px_rgba(24,51,45,0.05)]">
@@ -197,15 +198,15 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
                   <ArrowUpRight className="h-4 w-4 text-[#9aaba4] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" />
                 </Link>
               ))}
-              {churchUpcomingEvents.length === 0 ? <p className="px-6 py-8 text-sm leading-6 text-[#718079]">{language === 'zh' ? '目前没有已发布的近期活动。' : 'There are no published upcoming events.'}</p> : null}
+              {churchUpcomingEvents.length === 0 ? <p className="px-6 py-8 text-sm leading-6 text-[#718079]">{language === 'zh' ? groupDashboardText.thereAreNoPublishedUpcomingEvents.zh : groupDashboardText.thereAreNoPublishedUpcomingEvents.en}</p> : null}
             </div>
           </section>
 
           <section aria-labelledby="church-notices-heading" className="rounded-[1.65rem] border border-[#dfe7e3] bg-white px-6 py-6 shadow-[0_12px_36px_rgba(24,51,45,0.05)] sm:px-7">
-            <div className="flex items-start justify-between gap-4"><div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? '请留意' : 'Noticeboard'}</p><h2 id="church-notices-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? '教会公告' : 'Church notices'}</h2></div><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f8eee6] text-[#a86b4c]"><Bell className="h-4 w-4" aria-hidden="true" /></span></div>
+            <div className="flex items-start justify-between gap-4"><div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? groupDashboardText.noticeboard.zh : groupDashboardText.noticeboard.en}</p><h2 id="church-notices-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? groupDashboardText.churchNotices.zh : groupDashboardText.churchNotices.en}</h2></div><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f8eee6] text-[#a86b4c]"><Bell className="h-4 w-4" aria-hidden="true" /></span></div>
             <div className="mt-5 divide-y divide-[#e8eeeb]">
-              {announcements.slice(0, 4).map((item) => <article key={item.id} className="py-4 first:pt-0"><div className="flex items-center gap-2"><h3 className="text-sm font-black text-[#27473f]">{localizeText(item.title, language)}</h3>{item.isPinned ? <span className="rounded-full bg-[#f8eee6] px-2 py-0.5 text-[0.58rem] font-black uppercase text-[#9b6447]">{language === 'zh' ? '置顶' : 'Pinned'}</span> : null}</div><p className="mt-2 text-xs leading-5 text-[#718079]">{localizeText(item.summary, language)}</p></article>)}
-              {announcements.length === 0 ? <p className="py-4 text-sm leading-6 text-[#74837d]">{language === 'zh' ? '目前没有需要特别留意的公告。' : 'There are no active notices right now.'}</p> : null}
+              {announcements.slice(0, 4).map((item) => <article key={item.id} className="py-4 first:pt-0"><div className="flex items-center gap-2"><h3 className="text-sm font-black text-[#27473f]">{localizeText(item.title, language)}</h3>{item.isPinned ? <span className="rounded-full bg-[#f8eee6] px-2 py-0.5 text-[0.58rem] font-black uppercase text-[#9b6447]">{language === 'zh' ? groupDashboardText.pinned.zh : groupDashboardText.pinned.en}</span> : null}</div><p className="mt-2 text-xs leading-5 text-[#718079]">{localizeText(item.summary, language)}</p></article>)}
+              {announcements.length === 0 ? <p className="py-4 text-sm leading-6 text-[#74837d]">{language === 'zh' ? groupDashboardText.thereAreNoActiveNoticesRightNow.zh : groupDashboardText.thereAreNoActiveNoticesRightNow.en}</p> : null}
             </div>
           </section>
         </div>
@@ -220,15 +221,15 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
   return (
     <AppPageShell
       title={groupName}
-      context={language === 'zh' ? '小组生活 / 总览' : 'Group Life / Overview'}
-      subtitle={groupDescription || (language === 'zh' ? '查看小组最近的活动、公告与已发布内容。' : 'See the group’s latest events, notices, and published content.')}
+      context={language === 'zh' ? groupDashboardText.groupLifeOverview.zh : groupDashboardText.groupLifeOverview.en}
+      subtitle={groupDescription || (language === 'zh' ? groupDashboardText.seeTheGroupSLatestEventsNoticesAndPublished.zh : groupDashboardText.seeTheGroupSLatestEventsNoticesAndPublished.en)}
     >
     <div className="space-y-7 pb-4">
-      <section className="grid grid-cols-3 overflow-hidden rounded-[1.5rem] border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] shadow-[var(--alife-shadow-soft)]" aria-label={language === 'zh' ? '小组近况' : 'Group at a glance'}>
+      <section className="grid grid-cols-3 overflow-hidden rounded-[1.5rem] border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] shadow-[var(--alife-shadow-soft)]" aria-label={language === 'zh' ? groupDashboardText.groupAtAGlance.zh : groupDashboardText.groupAtAGlance.en}>
         {[
-          { value: allUpcomingEvents.length, label: language === 'zh' ? '近期活动' : 'Events' },
-          { value: announcements.length, label: language === 'zh' ? '当前公告' : 'Notices' },
-          { value: pages.length, label: language === 'zh' ? '内容入口' : 'Content' },
+          { value: allUpcomingEvents.length, label: language === 'zh' ? groupDashboardText.events.zh : groupDashboardText.events.en },
+          { value: announcements.length, label: language === 'zh' ? groupDashboardText.notices.zh : groupDashboardText.notices.en },
+          { value: pages.length, label: language === 'zh' ? groupDashboardText.content.zh : groupDashboardText.content.en },
         ].map((item) => (
           <div key={item.label} className="border-r border-[var(--alife-line)] px-3 py-4 text-center last:border-r-0 sm:px-5 sm:py-5">
             <strong className="block text-2xl font-black tabular-nums text-[#18332d]">{item.value}</strong>
@@ -240,7 +241,7 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
       <div className="grid gap-7 xl:grid-cols-[minmax(0,1.08fr)_minmax(19rem,.92fr)]">
         <section aria-labelledby="group-events-heading">
           <div className="mb-4 flex items-end justify-between gap-4 px-1">
-            <div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? '接下来' : 'Coming up'}</p><h2 id="group-events-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? '小组日程' : 'Group schedule'}</h2></div>
+            <div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? groupDashboardText.comingUp.zh : groupDashboardText.comingUp.en}</p><h2 id="group-events-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? groupDashboardText.groupSchedule.zh : groupDashboardText.groupSchedule.en}</h2></div>
             <CalendarDays className="h-5 w-5 text-[#c07c56]" aria-hidden="true" />
           </div>
           <div className="overflow-hidden rounded-[1.65rem] border border-[#dfe7e3] bg-white shadow-[0_12px_36px_rgba(24,51,45,0.05)]">
@@ -251,21 +252,21 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
                 <ArrowUpRight className="h-4 w-4 text-[#a0ada7] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" />
               </Link>
             ))}
-            {upcomingEvents.length === 0 ? <div className="px-6 py-10"><p className="text-sm font-bold text-[#405c54]">{language === 'zh' ? '日程正在准备中' : 'The schedule is taking shape'}</p><p className="mt-2 text-sm text-[#74837d]">{language === 'zh' ? '暂时没有已发布的近期活动。' : 'There are no published upcoming events yet.'}</p></div> : null}
+            {upcomingEvents.length === 0 ? <div className="px-6 py-10"><p className="text-sm font-bold text-[#405c54]">{language === 'zh' ? groupDashboardText.theScheduleIsTakingShape.zh : groupDashboardText.theScheduleIsTakingShape.en}</p><p className="mt-2 text-sm text-[#74837d]">{language === 'zh' ? groupDashboardText.thereAreNoPublishedUpcomingEventsYet.zh : groupDashboardText.thereAreNoPublishedUpcomingEventsYet.en}</p></div> : null}
           </div>
         </section>
 
         <section aria-labelledby="group-notices-heading" className="rounded-[1.65rem] border border-[#dfe7e3] bg-white px-6 py-6 shadow-[0_12px_36px_rgba(24,51,45,0.05)] sm:px-7">
-          <div className="flex items-start justify-between gap-4"><div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? '公告板' : 'Noticeboard'}</p><h2 id="group-notices-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? '小组公告' : 'Group notices'}</h2></div><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f8eee6] text-[#a86b4c]"><Bell className="h-4 w-4" aria-hidden="true" /></span></div>
+          <div className="flex items-start justify-between gap-4"><div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? groupDashboardText.noticeboardLabel.zh : groupDashboardText.noticeboardLabel.en}</p><h2 id="group-notices-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? groupDashboardText.groupNotices.zh : groupDashboardText.groupNotices.en}</h2></div><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f8eee6] text-[#a86b4c]"><Bell className="h-4 w-4" aria-hidden="true" /></span></div>
           <div className="mt-5 divide-y divide-[#e8eeeb]">
-            {announcements.slice(0, 4).map((item) => <article key={item.id} className="py-4 first:pt-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-black text-[#27473f]">{localizeText(item.title, language)}</h3>{item.isPinned ? <span className="rounded-full bg-[#f8eee6] px-2 py-0.5 text-[0.58rem] font-black uppercase text-[#9b6447]">{language === 'zh' ? '置顶' : 'Pinned'}</span> : null}</div><p className="mt-2 text-xs leading-5 text-[#718079]">{localizeText(item.summary, language)}</p></article>)}
-            {announcements.length === 0 ? <div className="py-5"><p className="text-sm font-bold text-[#405c54]">{language === 'zh' ? '暂无重要提醒' : 'Nothing urgent right now'}</p><p className="mt-2 text-xs leading-5 text-[#74837d]">{language === 'zh' ? '新的小组公告会显示在这里。' : 'New group notices will appear here.'}</p></div> : null}
+            {announcements.slice(0, 4).map((item) => <article key={item.id} className="py-4 first:pt-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-black text-[#27473f]">{localizeText(item.title, language)}</h3>{item.isPinned ? <span className="rounded-full bg-[#f8eee6] px-2 py-0.5 text-[0.58rem] font-black uppercase text-[#9b6447]">{language === 'zh' ? groupDashboardText.pinned.zh : groupDashboardText.pinned.en}</span> : null}</div><p className="mt-2 text-xs leading-5 text-[#718079]">{localizeText(item.summary, language)}</p></article>)}
+            {announcements.length === 0 ? <div className="py-5"><p className="text-sm font-bold text-[#405c54]">{language === 'zh' ? groupDashboardText.nothingUrgentRightNow.zh : groupDashboardText.nothingUrgentRightNow.en}</p><p className="mt-2 text-xs leading-5 text-[#74837d]">{language === 'zh' ? groupDashboardText.newGroupNoticesWillAppearHere.zh : groupDashboardText.newGroupNoticesWillAppearHere.en}</p></div> : null}
           </div>
         </section>
       </div>
 
       <section aria-labelledby="group-pages-heading">
-        <div className="mb-4 flex items-end justify-between gap-4 px-1"><div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? '发现' : 'Discover'}</p><h2 id="group-pages-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? '小组内容' : 'Group content'}</h2></div><Images className="h-5 w-5 text-[#87968f]" aria-hidden="true" /></div>
+        <div className="mb-4 flex items-end justify-between gap-4 px-1"><div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? groupDashboardText.discover.zh : groupDashboardText.discover.en}</p><h2 id="group-pages-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? groupDashboardText.groupContent.zh : groupDashboardText.groupContent.en}</h2></div><Images className="h-5 w-5 text-[#87968f]" aria-hidden="true" /></div>
         {pages.length ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{pages.slice(0, 6).map((page, index) => {
           const pageTitle = localizeText(page.title, language)
           const cardText = localizeText(page.cardText, language) || localizeText(page.description, language)
@@ -273,11 +274,11 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
             <GroupContentArtwork imageUrl={page.cardImageUrl} title={pageTitle} language={language} index={index} />
             <div className="flex min-h-36 flex-col p-5 sm:p-6">
               <h3 className="line-clamp-2 text-lg font-black leading-snug tracking-[-0.02em] text-[#18332d]">{pageTitle}</h3>
-              {cardText ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#66766f]">{cardText}</p> : <p className="mt-2 text-sm leading-6 text-[#839089]">{language === 'zh' ? '打开查看小组分享的完整内容。' : 'Open the full content shared by the group.'}</p>}
-              <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-black text-[#176b5a]">{language === 'zh' ? '查看内容' : 'View content'}<ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" /></span>
+              {cardText ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#66766f]">{cardText}</p> : <p className="mt-2 text-sm leading-6 text-[#839089]">{language === 'zh' ? groupDashboardText.openTheFullContentSharedByTheGroup.zh : groupDashboardText.openTheFullContentSharedByTheGroup.en}</p>}
+              <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-black text-[#176b5a]">{language === 'zh' ? groupDashboardText.viewContent.zh : groupDashboardText.viewContent.en}<ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" /></span>
             </div>
           </Link>
-        })}</div> : <div className="rounded-[1.5rem] border border-dashed border-[#cfdcd6] bg-white/55 px-6 py-8 text-sm text-[#718079]">{language === 'zh' ? '这个小组还没有发布内容。' : 'This group has not published any content yet.'}</div>}
+        })}</div> : <div className="rounded-[1.5rem] border border-dashed border-[#cfdcd6] bg-white/55 px-6 py-8 text-sm text-[#718079]">{language === 'zh' ? groupDashboardText.thisGroupHasNotPublishedAnyContentYet.zh : groupDashboardText.thisGroupHasNotPublishedAnyContentYet.en}</div>}
       </section>
     </div>
     </AppPageShell>

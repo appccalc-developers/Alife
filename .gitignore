@@ -77,6 +77,9 @@ override.tf.json
 /tmp/
 artifacts/
 docs/virtual-church-art-direction/
+# Previously ignored local communications/prompts remain local after documentation review.
+/archive/pending-docs-review/2026-10-10/docs/Communication/
+/archive/pending-docs-review/2026-10-10/docs/VibeCoding/
 .tmpbuild/
 # Superseded local Gate A package; current release assets are r8/r9.
 cloudflare/alife-app/public/virtual-church-assets/v3/releases/gate-a-baseline-r7/

@@ -1,19 +1,31 @@
 name: Alife.API Migration and Deploy
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
     paths:
       - ".github/workflows/main_ccalc-api.yml"
+      - ".github/workflows/bible-reading-quality.yml"
       - "backend/**"
 
 permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: alife-api-migration-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  reading-privacy:
+    uses: ./.github/workflows/bible-reading-quality.yml
+    permissions:
+      contents: read
+
   migrate-and-deploy:
+    needs: reading-privacy
     runs-on: ubuntu-latest
     env:
       AZURE_FUNCTIONAPP_NAME: fapi-ccalc
@@ -46,80 +58,23 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Configure Function App runtime settings
+      - name: Confirm the production SQL target before any changes
+        working-directory: ./backend/src/Alife.DbMigrator
         shell: bash
         env:
-          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
-          JWT_KEY: ${{ secrets.JWT_KEY }}
-          LINE_LOGIN_CLIENT_ID: ${{ secrets.LINE_LOGIN_CLIENT_ID }}
-          LINE_LOGIN_CLIENT_SECRET: ${{ secrets.LINE_LOGIN_CLIENT_SECRET }}
-          LINE_LOGIN_REDIRECT_URI: ${{ secrets.LINE_LOGIN_REDIRECT_URI }}
-          FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_AUTHZ_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_AUTHZ_NAMESPACE_ID }}
-          CLOUDFLARE_API_CACHE_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_API_CACHE_NAMESPACE_ID }}
-          CLOUDFLARE_SYNC_WORKER_BASE_URL: ${{ secrets.CLOUDFLARE_SYNC_WORKER_BASE_URL }}
-          CLOUDFLARE_SYNC_API_TOKEN: ${{ secrets.CLOUDFLARE_SYNC_API_TOKEN }}
-          ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE: ${{ secrets.ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE }}
-          FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
-          FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
+          ConnectionStrings__Default: ${{ secrets.DB_CONNECTION_STRING }}
+          Events__ExpectedServer: ccalc.database.windows.net
+          Events__ExpectedDatabase: ccalc
+          Events__OutputDirectory: ${{ runner.temp }}/event2-target-identity
         run: |
           set -euo pipefail
-
-          if [ -z "${DB_CONNECTION_STRING:-}" ]; then
-            echo "Missing runtime DB connection string. Set DB_CONNECTION_STRING."
-            exit 1
-          fi
-
-          if [ "${#ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE}" -lt 24 ]; then
-            echo "Missing or invalid ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE; it must contain at least 24 characters."
-            exit 1
-          fi
-
-          if [ "${#FILE_ADMIN_BACKFILL_SECRET}" -lt 32 ] || [ "${#FILE_ACCESS_SIGNING_SECRET}" -lt 32 ]; then
-            echo "Missing file storage secrets. Configure FILE_ADMIN_BACKFILL_SECRET and FILE_ACCESS_SIGNING_SECRET in repository secrets before deployment."
-            exit 1
-          fi
-
-          settings=(
-            "Seed__IncludeDemoMembers=$Seed__IncludeDemoMembers"
-            "FileAssets__ProviderCode=$FileAssets__ProviderCode"
-            "FileAssets__BucketName=$FileAssets__BucketName"
-            "FileAssets__ImageApiBaseUrl=$FileAssets__ImageApiBaseUrl"
-            "FileAssets__UploadApiBaseUrl=$FileAssets__UploadApiBaseUrl"
-            "FileAssets__PrivateFileBaseUrl=$FileAssets__PrivateFileBaseUrl"
-            "FileAssets__PrivateFileMaxLifetimeMinutes=$FileAssets__PrivateFileMaxLifetimeMinutes"
-            "FileAssets__ImageApiAdminSecret=$FILE_ADMIN_BACKFILL_SECRET"
-            "FileAssets__PrivateFileSigningSecret=$FILE_ACCESS_SIGNING_SECRET"
-            "ConnectionStrings__Default=$DB_CONNECTION_STRING"
-            "Passkeys__Enabled=true"
-            "Passkeys__RpId=$PASSKEY_RP_ID"
-            "Passkeys__RpName=ALIFE"
-            "Passkeys__Origins__0=$PASSKEY_ORIGIN"
-            "AlphaLogin__Enabled=true"
-            "AlphaLogin__PasskeyBootstrapCodes__Stephen=$ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE"
-          )
-          [ -n "${JWT_KEY:-}" ] && settings+=("Jwt__Key=$JWT_KEY")
-          [ -n "${LINE_LOGIN_CLIENT_ID:-}" ] && settings+=("LineLogin__ClientId=$LINE_LOGIN_CLIENT_ID")
-          [ -n "${LINE_LOGIN_CLIENT_SECRET:-}" ] && settings+=("LineLogin__ClientSecret=$LINE_LOGIN_CLIENT_SECRET")
-          [ -n "${LINE_LOGIN_REDIRECT_URI:-}" ] && settings+=("LineLogin__RedirectUri=$LINE_LOGIN_REDIRECT_URI")
-          [ -n "${FRONTEND_BASE_URL:-}" ] && settings+=("Frontend__BaseUrl=$FRONTEND_BASE_URL")
-          [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] && settings+=("Cloudflare__AccountId=$CLOUDFLARE_ACCOUNT_ID")
-          [ -n "${CLOUDFLARE_ZONE_ID:-}" ] && settings+=("Cloudflare__ZoneId=$CLOUDFLARE_ZONE_ID")
-          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && settings+=("Cloudflare__ApiToken=$CLOUDFLARE_API_TOKEN")
-          [ -n "${CLOUDFLARE_AUTHZ_NAMESPACE_ID:-}" ] && settings+=("Cloudflare__AuthzNamespaceId=$CLOUDFLARE_AUTHZ_NAMESPACE_ID")
-          [ -n "${CLOUDFLARE_API_CACHE_NAMESPACE_ID:-}" ] && settings+=("Cloudflare__ApiCacheNamespaceId=$CLOUDFLARE_API_CACHE_NAMESPACE_ID")
-          [ -n "${CLOUDFLARE_SYNC_WORKER_BASE_URL:-}" ] && settings+=("Cloudflare__SyncWorkerBaseUrl=$CLOUDFLARE_SYNC_WORKER_BASE_URL")
-          [ -n "${CLOUDFLARE_SYNC_API_TOKEN:-}" ] && settings+=("Cloudflare__SyncApiToken=$CLOUDFLARE_SYNC_API_TOKEN")
-
-          az functionapp config appsettings set \
-            --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --settings "${settings[@]}" \
-            --only-show-errors \
-            --output none
+          subscription_id="$(az account show --query id --output tsv)"
+          test "$subscription_id" = '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
+          resource_id="$(az sql db show --resource-group ccalc --server ccalc --name ccalc --query id --output tsv --only-show-errors)"
+          expected_id="/subscriptions/$subscription_id/resourceGroups/ccalc/providers/Microsoft.Sql/servers/ccalc/databases/ccalc"
+          test "${resource_id,,}" = "${expected_id,,}"
+          export Events__TargetResource="$resource_id"
+          dotnet run --no-launch-profile --configuration Release -- --Events:TargetIdentity=inspect
 
       - name: Resolve SQL server and runner IP
         id: sqlfw
@@ -214,6 +169,124 @@ jobs:
         shell: bash
         run: sleep 30
 
+      - name: Inspect Event 2.0 migration before any database changes
+        working-directory: ./backend/src/Alife.DbMigrator
+        shell: bash
+        env:
+          ConnectionStrings__Default: ${{ secrets.DB_CONNECTION_STRING }}
+          Events__OutputDirectory: ${{ runner.temp }}/event2-migration-gate
+        run: |
+          set -euo pipefail
+          dotnet run --no-launch-profile --configuration Release -- --Events:Event2MigrationGate=inspect
+          gate_file="${{ runner.temp }}/event2-migration-gate/event2-migration-gate.json"
+          jq -e '(.known == true) and (.pending | type == "boolean") and (.applied | type == "boolean")' "$gate_file" >/dev/null
+          pending="$(jq -r '.pending' "$gate_file")"
+          if [ "$pending" = true ]; then
+            echo 'Event 2.0 storage migration is pending. Ordinary deployment cannot apply it; use the isolated, target-bound Event migration command.'
+            exit 1
+          fi
+
+      - name: Build Alife.API
+        working-directory: ./backend/src/Alife.Api
+        run: dotnet build --configuration Release
+
+      - name: Publish Alife.API
+        working-directory: ./backend/src/Alife.Api
+        run: dotnet publish --configuration Release --runtime linux-x64 --self-contained true --output ${{ github.workspace }}/publish
+
+      - name: Configure Function App runtime settings
+        shell: bash
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          JWT_KEY: ${{ secrets.JWT_KEY }}
+          LINE_LOGIN_CLIENT_ID: ${{ secrets.LINE_LOGIN_CLIENT_ID }}
+          LINE_LOGIN_CLIENT_SECRET: ${{ secrets.LINE_LOGIN_CLIENT_SECRET }}
+          LINE_LOGIN_REDIRECT_URI: ${{ secrets.LINE_LOGIN_REDIRECT_URI }}
+          FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_AUTHZ_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_AUTHZ_NAMESPACE_ID }}
+          CLOUDFLARE_API_CACHE_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_API_CACHE_NAMESPACE_ID }}
+          CLOUDFLARE_SYNC_WORKER_BASE_URL: ${{ secrets.CLOUDFLARE_SYNC_WORKER_BASE_URL }}
+          CLOUDFLARE_SYNC_API_TOKEN: ${{ secrets.CLOUDFLARE_SYNC_API_TOKEN }}
+          ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE: ${{ secrets.ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE }}
+          FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
+          FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DB_CONNECTION_STRING:-}" ]; then
+            echo "Missing runtime DB connection string. Set DB_CONNECTION_STRING."
+            exit 1
+          fi
+
+          if [ "${#ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE}" -lt 24 ]; then
+            echo "Missing or invalid ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE; it must contain at least 24 characters."
+            exit 1
+          fi
+
+          if [ "${#FILE_ADMIN_BACKFILL_SECRET}" -lt 32 ] || [ "${#FILE_ACCESS_SIGNING_SECRET}" -lt 32 ]; then
+            echo "Missing file storage secrets. Configure FILE_ADMIN_BACKFILL_SECRET and FILE_ACCESS_SIGNING_SECRET in repository secrets before deployment."
+            exit 1
+          fi
+
+          existing_settings="$(az functionapp config appsettings list \
+            --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
+            --only-show-errors --output json)"
+          existing_setting() {
+            jq -r --arg name "$1" '.[] | select(.name == $name) | .value' <<<"$existing_settings" | tail -n1
+          }
+          event_data_epoch="$(existing_setting EVENT_DATA_EPOCH)"
+          if [[ ! "$event_data_epoch" =~ ^[A-Za-z0-9._-]{1,128}$ ]] || [ "$event_data_epoch" = 'pre-event-2-reset' ]; then
+            echo 'A current Event 2.0 data epoch must be configured before ordinary deployment.'
+            exit 1
+          fi
+          event_write_mode="$(existing_setting EVENT_WRITE_MODE)"
+          case "$event_write_mode" in open|frozen) ;; *) echo 'Invalid Event write mode.'; exit 1 ;; esac
+
+          settings=(
+            "EVENT_RUNTIME_ENVIRONMENT=production"
+            "EVENT_SCHEMA_EPOCH=2.0.0"
+            "EVENT_DATA_EPOCH=$event_data_epoch"
+            "EVENT_WRITE_MODE=$event_write_mode"
+            "Seed__IncludeDemoMembers=$Seed__IncludeDemoMembers"
+            "FileAssets__ProviderCode=$FileAssets__ProviderCode"
+            "FileAssets__BucketName=$FileAssets__BucketName"
+            "FileAssets__ImageApiBaseUrl=$FileAssets__ImageApiBaseUrl"
+            "FileAssets__UploadApiBaseUrl=$FileAssets__UploadApiBaseUrl"
+            "FileAssets__PrivateFileBaseUrl=$FileAssets__PrivateFileBaseUrl"
+            "FileAssets__PrivateFileMaxLifetimeMinutes=$FileAssets__PrivateFileMaxLifetimeMinutes"
+            "FileAssets__ImageApiAdminSecret=$FILE_ADMIN_BACKFILL_SECRET"
+            "FileAssets__PrivateFileSigningSecret=$FILE_ACCESS_SIGNING_SECRET"
+            "ConnectionStrings__Default=$DB_CONNECTION_STRING"
+            "Passkeys__Enabled=true"
+            "Passkeys__RpId=$PASSKEY_RP_ID"
+            "Passkeys__RpName=ALIFE"
+            "Passkeys__Origins__0=$PASSKEY_ORIGIN"
+            "AlphaLogin__Enabled=true"
+            "AlphaLogin__PasskeyBootstrapCodes__Stephen=$ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE"
+          )
+          [ -n "${JWT_KEY:-}" ] && settings+=("Jwt__Key=$JWT_KEY")
+          [ -n "${LINE_LOGIN_CLIENT_ID:-}" ] && settings+=("LineLogin__ClientId=$LINE_LOGIN_CLIENT_ID")
+          [ -n "${LINE_LOGIN_CLIENT_SECRET:-}" ] && settings+=("LineLogin__ClientSecret=$LINE_LOGIN_CLIENT_SECRET")
+          [ -n "${LINE_LOGIN_REDIRECT_URI:-}" ] && settings+=("LineLogin__RedirectUri=$LINE_LOGIN_REDIRECT_URI")
+          [ -n "${FRONTEND_BASE_URL:-}" ] && settings+=("Frontend__BaseUrl=$FRONTEND_BASE_URL")
+          [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] && settings+=("Cloudflare__AccountId=$CLOUDFLARE_ACCOUNT_ID")
+          [ -n "${CLOUDFLARE_ZONE_ID:-}" ] && settings+=("Cloudflare__ZoneId=$CLOUDFLARE_ZONE_ID")
+          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && settings+=("Cloudflare__ApiToken=$CLOUDFLARE_API_TOKEN")
+          [ -n "${CLOUDFLARE_AUTHZ_NAMESPACE_ID:-}" ] && settings+=("Cloudflare__AuthzNamespaceId=$CLOUDFLARE_AUTHZ_NAMESPACE_ID")
+          [ -n "${CLOUDFLARE_API_CACHE_NAMESPACE_ID:-}" ] && settings+=("Cloudflare__ApiCacheNamespaceId=$CLOUDFLARE_API_CACHE_NAMESPACE_ID")
+          [ -n "${CLOUDFLARE_SYNC_WORKER_BASE_URL:-}" ] && settings+=("Cloudflare__SyncWorkerBaseUrl=$CLOUDFLARE_SYNC_WORKER_BASE_URL")
+          [ -n "${CLOUDFLARE_SYNC_API_TOKEN:-}" ] && settings+=("Cloudflare__SyncApiToken=$CLOUDFLARE_SYNC_API_TOKEN")
+
+          az functionapp config appsettings set \
+            --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --settings "${settings[@]}" \
+            --only-show-errors \
+            --output none
+
       - name: Run Alife.DbMigrator
         working-directory: ./backend/src/Alife.DbMigrator
         shell: bash
@@ -224,7 +297,7 @@ jobs:
           set -euo pipefail
           for attempt in 1 2 3; do
             echo "Running migrator (attempt $attempt/3)..."
-            if dotnet run --configuration Release; then
+            if dotnet run --no-launch-profile --configuration Release; then
               exit 0
             fi
 
@@ -236,14 +309,6 @@ jobs:
 
           echo "Migrator failed after 3 attempts."
           exit 1
-
-      - name: Build Alife.API
-        working-directory: ./backend/src/Alife.Api
-        run: dotnet build --configuration Release
-
-      - name: Publish Alife.API
-        working-directory: ./backend/src/Alife.Api
-        run: dotnet publish --configuration Release --runtime linux-x64 --self-contained true --output ${{ github.workspace }}/publish
 
       - name: Deploy Alife.API to Azure Functions
         uses: Azure/functions-action@v1

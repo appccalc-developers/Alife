@@ -1,6 +1,6 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
 import { Color, MeshStandardMaterial, Scene, ShaderLib, Texture, WebGLRenderTarget } from 'three'
 import { MAIN_HALL_CHAIR_APPEARANCE, MAIN_HALL_CEILING_APPEARANCE, MAIN_HALL_CEILING_BOUNCE, MAIN_HALL_CEILING_CONTACT_GLSL, MAIN_HALL_MATERIAL_RESPONSE, MAIN_HALL_ENVIRONMENT_RESPONSE, attachMainHallEnvironment, mainHallCeilingShader, mainHallChairFabricShader, mainHallChairFabricProgramKey, mainHallCarpetShader, mainHallCarpetProgramKey, mainHallWallContactShader, mainHallWallContactProgramKey, mainHallTimberShader, mainHallTimberProgramKey } from '../src/views/virtualChurchMainHallMaterials.ts'
 import { MAIN_HALL_DIMENSIONS } from '../src/views/virtualChurchMainHallLayout.ts'
@@ -22,7 +22,7 @@ test('pale matte ceiling uses existing standard illumination and retains the dif
   assert.equal(material.emissiveIntensity, 1)
   assert.equal(material.emissive.getHex(), 0)
   material.dispose()
-  const source = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url),'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url))
   const ceiling = source.split('name="main-hall-ceiling"')[1].split('</mesh>')[0]
   assert.match(ceiling, /<boxGeometry args=\{\[width, \.08, depth\]\}/)
   assert.match(ceiling, /<meshStandardMaterial \{\.\.\.MAIN_HALL_CEILING_APPEARANCE\}/)
@@ -72,7 +72,7 @@ test('chair appearance is bounded wine/dark satin, with explicit finish only on 
   assert.ok(look.frame.roughness >= .5 && look.frame.roughness <= .7)
   const frame = new Color(look.frame.color)
   assert.ok(Math.max(frame.r, frame.g, frame.b) < .05)
-  const source = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url),'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url))
   const frames = [...source.matchAll(/<Instances name="([^"]+)"[^\n]+\{\.\.\.chairFrameFinish\}/g)].map(match => match[1])
   assert.deepEqual(frames, ['main-hall-chair-legs','main-hall-chair-linked-frames','main-hall-chair-back-frames'])
   assert.match(source, /roughness=\{roughness \?\? \(rounded \? \.93 : metalness > 0 \? \.48 : \.91\)\}/)
@@ -119,7 +119,7 @@ test('timber is UV-bound, low contrast and footprint-filtered without textures',
 })
 
 test('material response is limited to existing main-hall shell and timber batches', () => {
-  const source = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url),'utf8')
+  const source = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url))
   assert.equal((source.match(/onBeforeCompile=\{mainHallWallContactShader\}/g)??[]).length, 4)
   assert.equal((source.match(/<Instances[^\n]+ timber receiveShadow \/>/g)??[]).length, 2)
   assert.match(source, /name="main-hall-side-slatting"[^\n]+ timber receiveShadow \/>/)
@@ -196,7 +196,7 @@ test('environment replay releases old targets and an old cleanup cannot overwrit
 test('environment is generated once per mount at bounded resolution, not fetched or refreshed per frame', () => {
   assert.ok(Object.isFrozen(MAIN_HALL_ENVIRONMENT_RESPONSE))
   assert.equal(MAIN_HALL_ENVIRONMENT_RESPONSE.size, 64)
-  const view = readFileSync(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url),'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchMainHallView.tsx',import.meta.url))
   const environment = view.slice(view.indexOf('function HallEnvironment()'),view.indexOf('// Structex'))
   assert.match(environment, /generator.fromScene\(room, \.04, \.1, 100, \{ size: MAIN_HALL_ENVIRONMENT_RESPONSE.size \}\)/)
   assert.match(environment, /const release = attachMainHallEnvironment\(scene, target\)/)

@@ -9,7 +9,6 @@ public sealed class EventTask
     public Guid? EventOccurrenceId { get; set; }
     public Guid Id { get; set; }
     public Guid EventId { get; set; }
-    public Guid? WorkflowStepId { get; set; }
     public string TitleEn { get; set; } = string.Empty;
     public string TitleZh { get; set; } = string.Empty;
     public string DescriptionEn { get; set; } = string.Empty;
@@ -40,7 +39,6 @@ public sealed class EventTask
     public DateTime UpdatedUtc { get; set; }
 
     public GroupEvent Event { get; set; } = null!;
-    public EventWorkflowStep? WorkflowStep { get; set; }
     public Member? AssignedMember { get; set; }
     public Member? ReviewerMember { get; set; }
     public ICollection<EventTaskApprovalAction> ApprovalActions { get; set; } = [];

@@ -1,3 +1,4 @@
+import { readLocalizedSource } from './helpers/readLocalizedSource.cjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -36,7 +37,7 @@ test('released male bytes and portrait match the approved candidate manifest; de
 })
 
 test('public picker is independent of DEV review, keeps session selection, and loads one avatar path', () => {
-  const view = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   assert.match(view, /characterReview \|\| isGateAPreview \? \(/)
   assert.match(view, /data-hero-id=\{characterReview \? undefined : choiceId\}/)
   assert.match(view, /onHeroChange\(choiceId\)/)
@@ -48,7 +49,7 @@ test('public picker is independent of DEV review, keeps session selection, and l
 })
 
 test('picker identifies each accepted sample derivative without claiming original or CC0 ownership', () => {
-  const view = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const models = [...view.matchAll(/id: reviewCharacterIds\[(\d)\],[\s\S]*?sourceModel: '([^']+)'/g)]
   const releases = ['gate-a-baseline-r9/characters/character-hero-female.manifest.json', 'male-hero-v14-r1/characters/character-hero-male.manifest.json']
   assert.equal(models.length, 2)
@@ -67,7 +68,7 @@ test('picker identifies each accepted sample derivative without claiming origina
 })
 
 test('editorial picker candidate requires DEV + V3 + exact opt-in and changes no public model loading', () => {
-  const view = readFileSync(new URL('../src/views/VirtualChurchView.tsx', import.meta.url), 'utf8')
+  const view = readLocalizedSource(new URL('../src/views/VirtualChurchView.tsx', import.meta.url))
   const css = readFileSync(new URL('../src/views/virtualChurchCharacterReview.css', import.meta.url), 'utf8')
   assert.match(view, /const editorialCharacterPreview = import\.meta\.env\.DEV\s*&& config3D\.visualVersion === 'v3'\s*&& profile3DSearchParams\.get\('vcCharacterUi'\) === 'editorial'/)
   assert.match(view, /if \(editorialCharacterPreview\) void import\('\.\/virtualChurchCharacterReview\.css'\)/)

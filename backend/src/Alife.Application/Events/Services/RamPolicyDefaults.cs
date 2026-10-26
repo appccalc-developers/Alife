@@ -5,7 +5,7 @@ namespace Alife.Application.Events.Services;
 public static class RamPolicyDefaults
 {
     public static readonly string[] CategoryCodes = ["environment", "activity", "participants", "transport", "emergency"];
-    public static readonly string[] ActivityTypes = ["generic", "hiking", "water", "sport", "transport", "camp", "meal", "outdoor", "other"];
+    public static readonly string[] ActivityTypes = ["generic", ..ActivityAttributes.Codes];
     private static RamText T(string en, string zh) => new(en, zh);
     public static RamPolicyData Create() => new(
         [

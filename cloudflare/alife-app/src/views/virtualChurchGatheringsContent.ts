@@ -1,4 +1,5 @@
 import { localizeText } from '../utils/localizedText.ts'
+import { virtualChurchGatheringColumns } from '../i18n/virtualChurchGatherings.ts'
 
 // Match SpotlightSection's displayed body fields before looking for its table.
 // A stale alias must not make the 3D dialog disagree with the public homepage.
@@ -26,5 +27,5 @@ export const readHomeGatheringSectionHtml = (contentJson: unknown, language: str
 // match; do not guess the meaning of a different homepage table.
 export const gatheringTableColumnHeaders = (rows: string[][], language: string): string[] | null => {
   if (!rows.length || !rows.every(row => row.length === 3 && /\d{1,2}[:：]\d{2}/.test(row[2]))) return null
-  return language === 'zh' ? ['聚会', '地点', '时间'] : ['Gathering', 'Location', 'Time']
+  return [...virtualChurchGatheringColumns[language === 'zh' ? 'zh' : 'en']]
 }

@@ -12,8 +12,8 @@ public static class EventLifecyclePolicy
     {
         var snapshot = groupEvent.PlanSnapshots.Where(x => x.IsActive).OrderByDescending(x => x.Version).FirstOrDefault();
         var plan = snapshot is null ? null : EventCompositionPersistence.ToSnapshotDto(snapshot).Plan;
-        return !EventRamGovernanceService.IsRequired(groupEvent, plan) || groupEvent.RamAssessment is { Status: EventRamStatus.Approved } ram &&
-            (ram.SchemaVersion != 2 || ram.Validity == "Valid");
+        return !EventRamGovernanceService.IsRequired(groupEvent, plan) ||
+            groupEvent.RamAssessment is { Status: EventRamStatus.Approved, Validity: "Valid" };
     }
     public static bool CanCreateEnrollment(GroupEvent groupEvent, DateTime utcNow, out string error)
     {

@@ -93,21 +93,6 @@ public sealed class EventCollaborationTests
     }
 
     [Fact]
-    public async Task LegacyUpgrade_PreservesIdPayloadAndUnprovenConsent()
-    {
-        await using var f = new Fixture();
-        var legacy = new EventEnrollment { Id=Guid.NewGuid(),EventId=f.Event.Id,MemberId=f.Ordinary,Status="confirmed",EnrollmentJson="{\"family\":[1,2,3,4]}",CreatedUtc=DateTime.UtcNow,UpdatedUtc=DateTime.UtcNow };
-        f.Db.EventEnrollments.Add(legacy); await f.Save(); await f.Rules(1);
-        var imported = Assert.Single(await f.Db.EventRegistrationApplications.Include(x => x.Participants).ToListAsync());
-        Assert.Equal(legacy.Id,imported.LegacyEnrollmentId);
-        var person = Assert.Single(imported.Participants); Assert.True(person.IsLegacy); Assert.Null(person.ConsentedUtc);
-        Assert.Equal(legacy.EnrollmentJson,person.AnswersJson);
-        await f.Act(imported,"cancel");
-        Assert.Equal("cancelled",legacy.Status); Assert.Equal("{\"family\":[1,2,3,4]}",legacy.EnrollmentJson);
-        Assert.Single(await f.Db.EventEnrollmentHistory.Where(x => x.EnrollmentId == legacy.Id).ToListAsync());
-    }
-
-    [Fact]
     public async Task FeeApproval_IsIndependent_AndPaymentIsIdempotent()
     {
         await using var f = new Fixture();
@@ -147,14 +132,13 @@ public sealed class EventCollaborationTests
     }
 
     [Fact]
-    public async Task RevokedOwner_CannotUseLegacyPlanManagementAuthority()
+    public async Task RevokedOwner_CannotUsePlanManagementAuthority()
     {
         await using var f = new Fixture(); await f.Save();
         Assert.True(await EventCompositionPersistence.CanManageEventAsync(f.Db,f.Authorization,f.Event,f.Owner,default));
         f.Db.GroupMemberships.Remove(await f.Db.GroupMemberships.SingleAsync(x => x.MemberId == f.Owner)); await f.Save();
         Assert.False(await EventCompositionPersistence.CanManageEventAsync(f.Db,f.Authorization,f.Event,f.Owner,default));
         Assert.False(await EventWorkAccess.PlanReaderAsync(f.Db,f.Event,f.Owner,default));
-        f.Event.CollaborationVersion = 0;
         Assert.False(await EventCompositionPersistence.CanAuthorRamAsync(f.Db,f.Event,f.Owner,default));
     }
 
@@ -272,11 +256,11 @@ public sealed class EventCollaborationTests
                 Db.Members.Add(new() { Id=id,DisplayName=id==Owner?"Owner":id==Author?"Author":"Member",CreatedUtc=DateTime.UtcNow,UpdatedUtc=DateTime.UtcNow });
                 Db.GroupMemberships.Add(new() { Id=Guid.NewGuid(),GroupId=group.Id,MemberId=id,Status=MembershipStatus.Approved,Role=MembershipRole.Member,CreatedUtc=DateTime.UtcNow,UpdatedUtc=DateTime.UtcNow });
             }
-            Event=new() { Id=Guid.NewGuid(),GroupId=group.Id,CreatedByMemberId=Owner,AccountableOwnerMemberId=Owner,TitleEn="Event",TitleZh="活动",StartDate=DateTime.UtcNow.AddDays(30),EndDate=DateTime.UtcNow.AddDays(31),EventDataJson="{\"visibility\":\"public\"}",PublicationStatus=EventPublicationStatus.Published,RegistrationStatus=EventRegistrationStatus.Open,ActivePlanVersion=1,CollaborationVersion=1,CreatedUtc=DateTime.UtcNow,UpdatedUtc=DateTime.UtcNow };
+            Event=new() { Id=Guid.NewGuid(),GroupId=group.Id,CreatedByMemberId=Owner,AccountableOwnerMemberId=Owner,TitleEn="Event",TitleZh="活动",StartDate=DateTime.UtcNow.AddDays(30),EndDate=DateTime.UtcNow.AddDays(31),EventDataJson="{\"visibility\":\"public\"}",PublicationStatus=EventPublicationStatus.Published,RegistrationStatus=EventRegistrationStatus.Open,ActivePlanVersion=1,CreatedUtc=DateTime.UtcNow,UpdatedUtc=DateTime.UtcNow };
             Db.GroupEvents.Add(Event);
             var choices = new List<ModuleSelectionInput> { new("PEOPLE.REGISTRATION",true), new("PROGRAM.PRODUCTION",true), new("MONEY.FINANCE",true), new("PLACE.RESOURCE",true) };
             if (rosterEnabled) choices.Add(new("SERVICE.ROSTER", true));
-            var plan=new EventCompositionEngine().Compose(new(EventCompositionDefinitions.LegacySchemaVersion,null,new([]),choices),new EventCompositionContext("\"initial\"",HasAccountableOwner:true)).Value!;
+            var plan=new EventCompositionEngine().Compose(EventCompositionTestData.CurrentRequest(selections: choices),new EventCompositionContext("\"initial\"",HasAccountableOwner:true)).Value!;
             Db.EventPlanSnapshots.Add(new() { Id=Guid.NewGuid(),EventId=Event.Id,Version=1,SourceFactSetId=Guid.NewGuid(),SchemaVersion=plan.SchemaVersion,ProposalHash=plan.ProposalHash,ETag=EventCompositionPersistence.CreatePlanETag(1,plan.ProposalHash),SnapshotJson=EventCompositionPersistence.SerializePlan(plan,[]),IsActive=true,AcceptedByMemberId=Owner,AcceptedUtc=DateTime.UtcNow,CreatedUtc=DateTime.UtcNow });
             Role(Author,"PROGRAM.PRODUCTION:programme.lead");
             Authorization.IsApprovedMemberAsync(Arg.Any<Guid>(),Arg.Any<Guid>(),Arg.Any<CancellationToken>()).Returns(true);

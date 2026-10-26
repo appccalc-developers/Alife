@@ -1,0 +1,23 @@
+// Fixed bilingual copy for components/events/EventSetupPipeline.tsx.
+export const eventSetupPipelineText = {
+    leaveAndDiscardUnsavedChanges: { en: 'Leave and discard unsaved changes?', zh: '离开并放弃未保存修改？' } as const,
+    unsavedEventDetailsAndAreaFormsWillBeLost: { en: 'Unsaved event details and area forms will be lost. Saved content is not affected.', zh: '当前活动资料和领域表单中尚未保存的修改将丢失。已保存内容不受影响。' } as const,
+    discardAndLeave: { en: 'Discard and leave', zh: '放弃修改并离开' } as const,
+    keepEditing: { en: 'Keep editing', zh: '继续编辑' } as const,
+    backToCurrentTasks: { en: 'Back to current tasks', zh: '返回当前事务' } as const,
+    backToEvent: { en: 'Back to event', zh: '返回活动' } as const,
+    viewEventWorkspaceFourStages: { en: 'View event workspace · four stages', zh: '查看活动工作台 · 四个阶段' } as const,
+    backToFormalApproval: { en: '← Back to formal approval', zh: '← 返回正式审批' } as const,
+    saveYourChangesThenReturnToReviewTheApproval: { en: 'Save your changes, then return to review the approval evidence. Navigation does not save or submit.', zh: '修改并保存后返回，重新核对审批资料；导航不会自动保存或提交。' } as const,
+    preparationIsFrozenRequestReopeningBeforeChangingItsConfiguration: { en: 'Preparation is frozen. Request reopening before changing its configuration.', zh: '方案已冻结。修改筹备配置须先申请重开。' } as const,
+    unsavedChangesSaveBeforeApprovalOrSwitchingStages: { en: 'Unsaved changes. Save before approval or switching stages.', zh: '有未保存修改。保存后才能进入审批或其他阶段。' } as const,
+    reloadPreparationStatus: { en: 'Reload preparation status', zh: '重新读取筹备状态' } as const,
+    thisStepIsCurrentlyUnavailable: { en: 'This step is currently unavailable', zh: '此步骤暂不可进入' } as const,
+    returnAndSaveYourPendingChanges: { en: 'Return and save your pending changes.', zh: '请返回并保存未完成的修改。' } as const,
+    approvedPreparationIsFrozenRequestReopeningBeforeEditing: { en: 'Approved preparation is frozen. Request reopening before editing.', zh: '审批通过后筹备资料已冻结，请先申请撤销审批。' } as const,
+    formalApprovalIsRequiredBeforePosterProductionAndPublication: { en: 'Formal approval is required before poster production and publication.', zh: '正式审批批准后，才可以制作海报和发布活动。' } as const,
+    returnToChanges: { en: 'Return to changes', zh: '返回修改' } as const,
+    goToFormalApproval: { en: 'Go to formal approval', zh: '前往正式审批' } as const,
+    continueEditingPreparation: { en: 'Continue editing preparation', zh: '继续修改筹备资料' } as const,
+    continueToPoster: { en: 'Continue to poster', zh: '继续海报制作' } as const,
+};

@@ -22,7 +22,7 @@ public sealed partial class RamGovernanceTests
         Assert.False(f.Ram.IsUpdated); Assert.Equal("Outdated", f.Ram.SyncStatus);
         f.Ram.SyncDueUtc = DateTime.UtcNow.AddSeconds(-1); await f.Db.SaveChangesAsync();
         var ai = Substitute.For<IRamSyncAi>();
-        ai.IdentifyAsync(Arg.Any<RamSyncContext>(), Arg.Any<CancellationToken>()).Returns([WaterRisk()]);
+        ai.IdentifyAsync(Arg.Any<RamSyncContext>(), Arg.Any<CancellationToken>()).Returns([WaterRisk() with { ActivityType="generic" }]);
         await new EventRamSyncService(f.Db, ai, f.Cache).ProcessAsync(f.Event, default);
         await ai.Received(1).IdentifyAsync(Arg.Is<RamSyncContext>(c => c.ActivityTypes.Contains("water")), Arg.Any<CancellationToken>());
         Assert.True(f.Ram.IsUpdated); Assert.Equal("AI_Updated", f.Ram.SyncStatus); Assert.NotNull(f.Ram.LastEvaluatedAt);
@@ -62,7 +62,7 @@ public sealed partial class RamGovernanceTests
     [Fact]
     public void MergeRetainsEditedAiRisks_AndProjectionContainsOnlyAggregateSignals()
     {
-        var draft = RamSyncPolicy.Merge(new() { Activities = [new() { Id = "actual-water", Type = "water", Name = Text("Actual kayaking") }] }, [WaterRisk()], "[]", out var previous);
+        var draft = RamSyncPolicy.Merge(new() { Activities = [new() { Id = "actual-water", Attributes=["water"], Name = Text("Actual kayaking") }] }, [WaterRisk()], "[]", out var previous);
         draft.Hazards[0].ControlMeasures = Text("Human override"); draft.Hazards[0].ResidualLikelihood = 2;
         var merged = RamSyncPolicy.Merge(draft, [WaterRisk()], previous, out _);
         Assert.Single(merged.Hazards); Assert.Equal("Human override", merged.Hazards[0].ControlMeasures.En);
@@ -72,12 +72,12 @@ public sealed partial class RamGovernanceTests
     }
 
     [Fact]
-    public void ChineseOnlyContextProducesTheSameActivitySignals()
+    public void ChineseSignalsDoNotInferSourceAttributesOrFlags()
     {
         var context = new RamEventPlanContextDto(Guid.NewGuid(), Guid.NewGuid(), new("", "独木舟和露营，有巴士接送"), DateTime.UtcNow, DateTime.UtcNow, null);
         var projection = RamSyncPolicy.Project(context);
         Assert.Contains("water", projection.ActivityTypes); Assert.Contains("transport", projection.ActivityTypes);
-        Assert.True(projection.Overnight); Assert.True(projection.Outdoor);
+        Assert.False(projection.Overnight); Assert.False(projection.Outdoor); Assert.Empty(projection.Activities!);
     }
 
     [Fact]
@@ -99,18 +99,6 @@ public sealed partial class RamGovernanceTests
         await f.Db.Entry(f.Ram).ReloadAsync();
         Assert.Equal(humanJson, f.Ram.RamDataJson); Assert.False(f.Ram.IsUpdated); Assert.Equal("Outdated", f.Ram.SyncStatus);
         Assert.False(await f.Db.AuditLogs.AnyAsync(a => a.Action == "event.ram.aiSynced"));
-    }
-
-    [Fact]
-    public async Task LegacyAssessmentWaitsForExplicitUpgradeWithoutCallingAi()
-    {
-        using var f = await Fixture.Create(); await f.Save(null); await f.AddAcceptedPlan();
-        f.Ram.SchemaVersion = 1; f.Ram.SyncDueUtc = DateTime.UtcNow.AddSeconds(-1); await f.Db.SaveChangesAsync();
-        var before = f.Ram.RamDataJson; var ai = Substitute.For<IRamSyncAi>();
-        await new EventRamSyncService(f.Db, ai, f.Cache).ProcessAsync(f.Event, default);
-        await ai.DidNotReceive().IdentifyAsync(Arg.Any<RamSyncContext>(), Arg.Any<CancellationToken>());
-        Assert.Equal("ram.sync.upgradeRequired", f.Ram.SyncError); Assert.Null(f.Ram.SyncDueUtc);
-        Assert.False(f.Ram.IsUpdated); Assert.Equal(before, f.Ram.RamDataJson);
     }
 
     [Fact]

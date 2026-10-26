@@ -1,4 +1,5 @@
 import type { Env } from '../index'
+import { scopeEventLogicalKey } from '../features/events/eventEpoch'
 
 export type GroupAuthzStatus = 'hit' | 'miss' | 'unbound' | 'no-principal' | 'not-applicable'
 
@@ -56,6 +57,9 @@ export const authMiddleware = async (
 }
 
 export function shouldBypassEdgeCache(pathname: string, sharedContext?: SharedCacheContext | null) {
+  // Album visibility is mutable. Never serve an old anonymous original from a cache.
+  try { if (/(?:^|\/)(?:private\/)?groups\/[^/]+\/albums(?:\/|$)/i.test(decodeURIComponent(pathname))) return true } catch { return true }
+  if (pathname.startsWith('/api/album-photos/')) return true
   if (pathname === '/api/groups/visible') return true
 
   if (pathname === '/images' || pathname.startsWith('/images/')) {
@@ -179,7 +183,7 @@ export async function writePageMeta(env: Env, pageId: string, item: Record<strin
 }
 
 export async function readEntityGroup(env: Env, entityType: string, entityId: string) {
-  const record = await readLogicalCacheRecord(createEntityGroupMapKey(entityType, entityId))
+  const record = await readLogicalCacheRecord(createEntityGroupMapKey(entityType, entityId, env))
   const groupId = readString((record as Record<string, unknown> | null)?.groupId)
   if (groupId || entityType !== 'page') {
     return groupId
@@ -201,7 +205,7 @@ export async function readEntityGroup(env: Env, entityType: string, entityId: st
 
 export async function writeEntityGroup(env: Env, entityType: string, entityId: string, groupId: string) {
   await writeLogicalCacheRecord(
-    createEntityGroupMapKey(entityType, entityId),
+    createEntityGroupMapKey(entityType, entityId, env),
     { groupId },
     AUTHZ_MIRROR_TTL_SECONDS,
   )
@@ -294,8 +298,9 @@ export function createPageMetaMapKey(pageId: string) {
   return `map:page:${pageId}:meta`
 }
 
-export function createEntityGroupMapKey(entityType: string, entityId: string) {
-  return `map:${entityType}:${entityId}:group`
+export function createEntityGroupMapKey(entityType: string, entityId: string, env?: Env) {
+  const key = `map:${entityType}:${entityId}:group`
+  return env ? scopeEventLogicalKey(env, entityType, key) : key
 }
 
 export function createLegacyEntityGroupMapRequest(entityType: string, entityId: string) {

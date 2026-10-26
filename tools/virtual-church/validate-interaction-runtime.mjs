@@ -387,18 +387,21 @@ const viewAst = ts.createSourceFile(
   true,
   ts.ScriptKind.TSX,
 )
+const copyPath = resolve(appRoot, 'src', 'i18n', 'virtualChurch.ts')
+const copyAst = ts.createSourceFile(copyPath, await readFile(copyPath, 'utf8'), ts.ScriptTarget.ESNext, true)
+requireSource(viewSource, "virtualChurchCopy as copy", 'Imported bilingual catalogue')
 let copyDeclaration
 const findCopy = (node) => {
   if (
     ts.isVariableDeclaration(node)
     && ts.isIdentifier(node.name)
-    && node.name.text === 'copy'
+    && node.name.text === 'virtualChurchCopy'
   ) {
     copyDeclaration = node
   }
   ts.forEachChild(node, findCopy)
 }
-findCopy(viewAst)
+findCopy(copyAst)
 const unwrapExpression = (expression) => {
   let current = expression
   while (
@@ -418,7 +421,7 @@ const languageObjects = new Map()
 if (copyObject && ts.isObjectLiteralExpression(copyObject)) {
   for (const property of copyObject.properties) {
     if (!ts.isPropertyAssignment(property)) continue
-    const language = property.name.getText(viewAst).replaceAll(/['"]/gu, '')
+    const language = property.name.getText(copyAst).replaceAll(/['"]/gu, '')
     const value = unwrapExpression(property.initializer)
     if (ts.isObjectLiteralExpression(value)) languageObjects.set(language, value)
   }
@@ -435,7 +438,7 @@ for (const [language, dictionary] of languageObjects) {
   const keys = []
   for (const property of dictionary.properties) {
     if (!ts.isPropertyAssignment(property)) continue
-    const key = property.name.getText(viewAst).replaceAll(/['"]/gu, '')
+    const key = property.name.getText(copyAst).replaceAll(/['"]/gu, '')
     const value = unwrapExpression(property.initializer)
     keys.push(key)
     if (!ts.isStringLiteralLike(value) || value.text.trim().length === 0) {
@@ -497,7 +500,7 @@ for (const fragment of [
   'detailed={virtualChurchShouldRenderSurroundingFacadeDetails(',
   "const t = copy[auth.language === 'zh' ? 'zh' : 'en']",
   "onClick={() => void auth.updateLanguage(auth.language === 'en' ? 'zh' : 'en')}",
-  "aria-label={auth.language === 'zh' ? 'Switch to English' : '切换到中文'}",
+  "aria-label={auth.language === 'zh' ? virtualChurchText.label.zh : virtualChurchText.label.en}",
 ]) {
   requireSource(viewSource, fragment, 'Virtual Church interaction wiring')
 }

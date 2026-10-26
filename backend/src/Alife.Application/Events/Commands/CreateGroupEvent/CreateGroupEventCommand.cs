@@ -17,7 +17,6 @@ public sealed record CreateGroupEventCommand(
     string? RamDataJson = null,
     EventPlanComposeRequest? Composition = null,
     string? CompositionProposalHash = null,
-    Guid? AccountableOwnerMemberId = null,
     EventGovernanceMode? GovernanceMode = null,
     Guid? ParentEventId = null,
     string? IdempotencyKey = null,

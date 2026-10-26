@@ -1,3 +1,4 @@
+import { groupsViewText } from '../i18n/groupsView.ts'
 import { useGroupLifeDirectory } from '../hooks/useGroupLifeDirectory'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronDown, UsersRound } from 'lucide-react'
@@ -48,8 +49,8 @@ const GroupsView = () => {
   const actionClass = 'inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]'
 
   const tabItems = [
-    { key: 'fellowship', label: zh ? '团契' : 'Fellowships' },
-    { key: 'ministry', label: zh ? '事工组' : 'Ministries' },
+    { key: 'fellowship', label: zh ? groupsViewText.fellowships.zh : groupsViewText.fellowships.en },
+    { key: 'ministry', label: zh ? groupsViewText.ministries.zh : groupsViewText.ministries.en },
   ].map(tab => {
     const next = new URLSearchParams(params)
     next.set('type', tab.key)
@@ -59,45 +60,45 @@ const GroupsView = () => {
   })
 
   return <AppPageShell>
-    <AppPageTitleBar title={zh ? '小组生活' : 'Group Life'}
-      context={zh ? '小组生活' : 'Group Life'}
-      subtitle={zh ? '认识各个小组，展开简介与图片，浏览公开内容或申请加入。' : 'Discover groups, expand their stories and pictures, and explore content or request to join.'}
-      navigation={<AppSiteNavigation items={tabItems} activeSection={groupType} label={zh ? '小组类型' : 'Group types'} idPrefix="group-directory-tab" panelId="group-directory-panel" />} />
+    <AppPageTitleBar title={zh ? groupsViewText.groupLife.zh : groupsViewText.groupLife.en}
+      context={zh ? groupsViewText.groupLife.zh : groupsViewText.groupLife.en}
+      subtitle={zh ? groupsViewText.discoverGroupsExpandTheirStoriesAndPicturesAndExplore.zh : groupsViewText.discoverGroupsExpandTheirStoriesAndPicturesAndExplore.en}
+      navigation={<AppSiteNavigation items={tabItems} activeSection={groupType} label={zh ? groupsViewText.groupTypes.zh : groupsViewText.groupTypes.en} idPrefix="group-directory-tab" panelId="group-directory-panel" />} />
     <div id="group-directory-panel" role="tabpanel" aria-labelledby={`group-directory-tab-${groupType}`} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]">
     <div className="mb-5 flex w-full flex-wrap items-end gap-3 rounded-2xl border border-[#2f4b42]/10 bg-white p-4">
-      <label className="min-w-40 flex-1 text-sm">{zh ? '搜索小组' : 'Search groups'}
+      <label className="min-w-40 flex-1 text-sm">{zh ? groupsViewText.searchGroups.zh : groupsViewText.searchGroups.en}
         <input className="alife-input mt-1 w-full" value={search} onChange={event => update('q', event.target.value)} type="search" />
       </label>
-      <label className="text-sm">{zh ? '加入状态' : 'Membership'}
+      <label className="text-sm">{zh ? groupsViewText.membership.zh : groupsViewText.membership.en}
         <select className="alife-input mt-1 block" value={filter} onChange={event => update('membership', event.target.value)}>
-          <option value="all">{zh ? '全部小组' : 'All groups'}</option>
-          <option value="joined">{zh ? '已加入' : 'Joined'}</option>
-          <option value="discover">{zh ? '尚未加入' : 'Not joined'}</option>
+          <option value="all">{zh ? groupsViewText.allGroups.zh : groupsViewText.allGroups.en}</option>
+          <option value="joined">{zh ? groupsViewText.joined.zh : groupsViewText.joined.en}</option>
+          <option value="discover">{zh ? groupsViewText.notJoined.zh : groupsViewText.notJoined.en}</option>
         </select>
       </label>
-      <label className="text-sm">{zh ? '排序' : 'Sort'}
+      <label className="text-sm">{zh ? groupsViewText.sort.zh : groupsViewText.sort.en}
         <select className="alife-input mt-1 block" value={sort} onChange={event => update('sort', event.target.value)}>
-          <option value="name">{zh ? '名称升序' : 'Name ascending'}</option>
-          <option value="name-desc">{zh ? '名称降序' : 'Name descending'}</option>
+          <option value="name">{zh ? groupsViewText.nameAscending.zh : groupsViewText.nameAscending.en}</option>
+          <option value="name-desc">{zh ? groupsViewText.nameDescending.zh : groupsViewText.nameDescending.en}</option>
         </select>
       </label>
     </div>
-    {query.isPending ? <p role="status" className="p-5">{zh ? '正在加载小组…' : 'Loading groups…'}</p>
-      : query.isError ? <AppEmptyState title={zh ? '无法加载小组' : 'Unable to load groups'}
-        description={zh ? '请重试。' : 'Please try again.'} actionLabel={zh ? '重试' : 'Retry'} onAction={() => void query.refetch()} />
-      : groups.length === 0 ? <AppEmptyState title={zh ? '没有符合条件的小组' : 'No matching groups'} description={zh ? '可以调整筛选条件；有权限发现的小组会显示在这里。' : 'Try changing the filters. Groups you can discover will appear here.'} />
+    {query.isPending ? <p role="status" className="p-5">{zh ? groupsViewText.loadingGroups.zh : groupsViewText.loadingGroups.en}</p>
+      : query.isError ? <AppEmptyState title={zh ? groupsViewText.unableToLoadGroups.zh : groupsViewText.unableToLoadGroups.en}
+        description={zh ? groupsViewText.pleaseTryAgain.zh : groupsViewText.pleaseTryAgain.en} actionLabel={zh ? groupsViewText.retry.zh : groupsViewText.retry.en} onAction={() => void query.refetch()} />
+      : groups.length === 0 ? <AppEmptyState title={zh ? groupsViewText.noMatchingGroups.zh : groupsViewText.noMatchingGroups.en} description={zh ? groupsViewText.tryChangingTheFiltersGroupsYouCanDiscoverWill.zh : groupsViewText.tryChangingTheFiltersGroupsYouCanDiscoverWill.en} />
       : <>
         <ul className="divide-y divide-[#2f4b42]/10 border-y border-[#2f4b42]/10">
           {groups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(group => {
             const membership = auth.memberships.find(m => m.groupId === group.id)
             const joined = membership?.status === 'approved'
             const base = `/groups/${encodeURIComponent(group.id)}`
-            const joinLabel = membership?.status === 'requested' ? (zh ? '查看申请状态' : 'View request')
-              : membership?.status === 'invited' ? (zh ? '查看邀请' : 'Review invitation')
-              : (zh ? '申请加入' : 'Request to join')
+            const joinLabel = membership?.status === 'requested' ? (zh ? groupsViewText.viewRequest.zh : groupsViewText.viewRequest.en)
+              : membership?.status === 'invited' ? (zh ? groupsViewText.reviewInvitation.zh : groupsViewText.reviewInvitation.en)
+              : (zh ? groupsViewText.requestToJoin.zh : groupsViewText.requestToJoin.en)
             const expanded = expandedId === group.id
             const groupName = localizeText(group.name, auth.language)
-            const description = localizeText(group.description, auth.language) || (zh ? '这个小组还没有填写简介。' : 'This group has not added a description yet.')
+            const description = localizeText(group.description, auth.language) || (zh ? groupsViewText.thisGroupHasNotAddedADescriptionYet.zh : groupsViewText.thisGroupHasNotAddedADescriptionYet.en)
             return <li key={group.id}>
               <h2>
                 <button type="button" id={`group-summary-${group.id}`} aria-expanded={expanded} aria-controls={`group-detail-${group.id}`}
@@ -118,7 +119,7 @@ const GroupsView = () => {
                     <AccessTypeBadge accessType={group.accessType} showProtected />
                     <p className="my-3 whitespace-pre-line break-words text-sm leading-6 text-[#66766f]">{description}</p>
               <div className="mt-auto flex flex-wrap gap-2 pt-2">
-                {(group.accessType === 'public' || joined || auth.canManageGroup(group.id)) && <Link className={`${actionClass} bg-[#e3f0eb] text-[#0d4f43]`} to={`${base}?view=overview&returnTo=${encodeURIComponent(returnTo)}`}>{joined ? (zh ? '进入小组' : 'Open group') : group.accessType === 'public' ? (zh ? '查看公开内容' : 'View public content') : (zh ? '查看小组内容' : 'View group content')}</Link>}
+                {(group.accessType === 'public' || joined || auth.canManageGroup(group.id)) && <Link className={`${actionClass} bg-[#e3f0eb] text-[#0d4f43]`} to={`${base}?view=overview&returnTo=${encodeURIComponent(returnTo)}`}>{joined ? (zh ? groupsViewText.openGroup.zh : groupsViewText.openGroup.en) : group.accessType === 'public' ? (zh ? groupsViewText.viewPublicContent.zh : groupsViewText.viewPublicContent.en) : (zh ? groupsViewText.viewGroupContent.zh : groupsViewText.viewGroupContent.en)}</Link>}
                 {!joined && <Link className={`${actionClass} bg-[#176b5a] text-white`} to={`${base}/join?returnTo=${encodeURIComponent(returnTo)}`}>{joinLabel}</Link>}
               </div>
                   </div>
@@ -127,10 +128,10 @@ const GroupsView = () => {
             </li>
           })}
         </ul>
-        <nav aria-label={zh ? '小组分页' : 'Group pagination'} className="mt-5 flex flex-wrap items-center justify-center gap-3">
-          <button className={`${actionClass} disabled:opacity-40`} disabled={page <= 1} onClick={() => update('p', String(page - 1))}>{zh ? '上一页' : 'Previous'}</button>
-          <span className="text-sm">{zh ? `第 ${page} / ${pageCount} 页 · ${groups.length} 个小组` : `${page} / ${pageCount} · ${groups.length} groups`}</span>
-          <button className={`${actionClass} disabled:opacity-40`} disabled={page >= pageCount} onClick={() => update('p', String(page + 1))}>{zh ? '下一页' : 'Next'}</button>
+        <nav aria-label={zh ? groupsViewText.groupPagination.zh : groupsViewText.groupPagination.en} className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <button className={`${actionClass} disabled:opacity-40`} disabled={page <= 1} onClick={() => update('p', String(page - 1))}>{zh ? groupsViewText.previous.zh : groupsViewText.previous.en}</button>
+          <span className="text-sm">{zh ? groupsViewText.groups.zh(page, pageCount, groups.length) : groupsViewText.groups.en(page, pageCount, groups.length)}</span>
+          <button className={`${actionClass} disabled:opacity-40`} disabled={page >= pageCount} onClick={() => update('p', String(page + 1))}>{zh ? groupsViewText.next.zh : groupsViewText.next.en}</button>
         </nav>
       </>}
     </div>

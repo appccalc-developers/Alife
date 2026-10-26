@@ -1,0 +1,40 @@
+name: Bible Reading Privacy
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/bible-reading-quality.yml"
+      - ".github/workflows/main_ccalc-api.yml"
+      - "backend/**"
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bible-reading-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bible-reading-privacy:
+    name: Reading authentication and member isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+
+      # These tests use synthetic credentials and an owned InMemory database.
+      # They do not start Program, read deployment secrets or apply migrations.
+      - name: Verify reading progress authorization and no-store responses
+        run: >-
+          dotnet test backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj
+          --configuration Release
+          --filter FullyQualifiedName~BibleReadingProgress
+          --logger "console;verbosity=normal"

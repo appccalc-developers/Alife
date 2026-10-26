@@ -75,7 +75,7 @@ public sealed partial class EventOperationsService
                 return AppResult<EventTaskDetailDto>.Conflict("Record preparation before submitting completion. / 请先填写准备情况。");
             if (task.AssignedMemberId != member) return AppResult<EventTaskDetailDto>.Forbidden("Only the assignee can submit completion.");
             if (pending) return AppResult<EventTaskDetailDto>.Conflict("Completion is already awaiting review.");
-            var owner = task.Event.AccountableOwnerMemberId == Guid.Empty ? task.Event.CreatedByMemberId : task.Event.AccountableOwnerMemberId;
+            var owner = task.Event.AccountableOwnerMemberId;
             var reviewer = task.ReviewerMemberId ?? (owner != member ? owner : (Guid?)null);
             if (reviewer is null || reviewer == member || !await EligibleTaskMember(task.Event, reviewer.Value, ct))
                 return AppResult<EventTaskDetailDto>.Conflict("Ask the Event owner to select an eligible, independent reviewer. / 请活动负责人指定合资格的独立审核人。");

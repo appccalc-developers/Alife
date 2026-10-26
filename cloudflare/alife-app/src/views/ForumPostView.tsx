@@ -1,3 +1,4 @@
+import { forumPostViewText } from '../i18n/forumPostView.ts'
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
@@ -155,11 +156,11 @@ const ForumCommentForm = ({
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {editorLanguages.map((editorLanguage) => (
               <label key={editorLanguage} className="text-xs font-black text-slate-500">
-                {editorLanguage === 'zh' ? '中文' : 'English'}
+                {editorLanguage === 'zh' ? forumPostViewText.english.zh : forumPostViewText.english.en}
                 <textarea
                   className="mt-1 min-h-28 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal leading-7 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:bg-white focus:ring-4 focus:ring-[#176b5a]/10"
                   value={body[editorLanguage]}
-                  placeholder={editorLanguage === 'zh' ? '写下你的回应…' : 'Write a thoughtful response…'}
+                  placeholder={editorLanguage === 'zh' ? forumPostViewText.writeAThoughtfulResponse.zh : forumPostViewText.writeAThoughtfulResponse.en}
                   disabled={disabled || mutation.isPending}
                   onChange={(event) => setBody((current) => ({ ...current, [editorLanguage]: event.target.value }))}
                 />
@@ -274,10 +275,10 @@ const ForumPostView = () => {
     ? localizedJsonText(post.titleJson, language) || text.untitled
     : text.forum
   const pageContext = churchForum
-    ? (language === 'zh' ? '教会生活 / 论坛' : 'Church Life / Forum')
+    ? (language === 'zh' ? forumPostViewText.churchLifeForum.zh : forumPostViewText.churchLifeForum.en)
     : scopedGroupId
-      ? (language === 'zh' ? '小组生活 / 论坛' : 'Group Life / Forum')
-      : (language === 'zh' ? '公开内容 / 论坛' : 'Public Content / Forum')
+      ? (language === 'zh' ? forumPostViewText.groupLifeForum.zh : forumPostViewText.groupLifeForum.en)
+      : (language === 'zh' ? forumPostViewText.publicContentForum.zh : forumPostViewText.publicContentForum.en)
   const statusLabel = post?.isHidden
     ? text.hidden
     : post?.isLocked

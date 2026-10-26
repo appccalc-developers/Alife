@@ -90,14 +90,9 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 	public DbSet<EventApprovalDecision> EventApprovalDecisions => Set<EventApprovalDecision>();
 	public DbSet<EventIdempotencyRecord> EventIdempotencyRecords => Set<EventIdempotencyRecord>();
 	public DbSet<EventRamAssessment> EventRamAssessments => Set<EventRamAssessment>();
-	public DbSet<EventEnrollment> EventEnrollments => Set<EventEnrollment>();
-    public DbSet<EventEnrollmentHistory> EventEnrollmentHistory => Set<EventEnrollmentHistory>();
     public DbSet<EventRosterDefaults> EventRosterDefaults => Set<EventRosterDefaults>();
 	public DbSet<EventReview> EventReviews => Set<EventReview>();
 	public DbSet<EventWorkflowTemplate> EventWorkflowTemplates => Set<EventWorkflowTemplate>();
-	public DbSet<EventWorkflowRun> EventWorkflowRuns => Set<EventWorkflowRun>();
-	public DbSet<EventWorkflowStep> EventWorkflowSteps => Set<EventWorkflowStep>();
-	public DbSet<EventArtifact> EventArtifacts => Set<EventArtifact>();
 	public DbSet<NotificationMessage> NotificationMessages => Set<NotificationMessage>();
 	public DbSet<Announcement> Announcements => Set<Announcement>();
 	public DbSet<ContentPost> ContentPosts => Set<ContentPost>();
@@ -131,6 +126,8 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
         ConfigureRamGovernance(modelBuilder);
         ConfigureEventCollaboration(modelBuilder);
         ConfigureEventRegistrationWork(modelBuilder);
+        ConfigureActivityOperations(modelBuilder);
+        ConfigureActivityModuleConfigurations(modelBuilder);
         ConfigureVenueCalendar(modelBuilder);
         ConfigureRosterGroups(modelBuilder);
 		const string phoneUniqueFilter = "[phone_e164] IS NOT NULL AND [is_registered] = 1";
@@ -592,6 +589,7 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 			cfg.Property(x => x.PreselectedModulesJson).IsRequired();
 			cfg.Property(x => x.RecommendedWorkflowTemplateCode).HasMaxLength(80);
 			cfg.Property(x => x.PresetServiceSlotsJson).IsRequired();
+			cfg.Property(x => x.PresetProjectsJson);
 			cfg.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
 			cfg.HasOne(x => x.CreatedByMember).WithMany().HasForeignKey(x => x.CreatedByMemberId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasIndex(x => new { x.Code, x.Version }).IsUnique();
@@ -805,7 +803,6 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 			cfg.Property(x => x.DescriptionZh).HasMaxLength(2000).IsRequired();
 			cfg.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
 			cfg.HasOne(x => x.Event).WithMany(x => x.Tasks).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
-			cfg.HasOne(x => x.WorkflowStep).WithMany().HasForeignKey(x => x.WorkflowStepId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasOne(x => x.AssignedMember).WithMany().HasForeignKey(x => x.AssignedMemberId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasIndex(x => new { x.EventId, x.Status, x.DueUtc });
 			cfg.HasOne(x => x.ReviewerMember).WithMany().HasForeignKey(x => x.ReviewerMemberId).OnDelete(DeleteBehavior.Restrict);
@@ -1010,11 +1007,12 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 			cfg.Property(x => x.PhotoUrl).HasMaxLength(1200);
 			cfg.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
 			cfg.HasOne(x => x.Event).WithMany(x => x.ChildRegistrations).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
-			cfg.HasOne(x => x.Enrollment).WithMany().HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.RegistrationParticipant).WithMany().HasForeignKey(x => x.RegistrationParticipantId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasOne(x => x.ChildMember).WithMany().HasForeignKey(x => x.ChildMemberId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasOne(x => x.CreatedByMember).WithMany().HasForeignKey(x => x.CreatedByMemberId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasOne(x => x.EndedByMember).WithMany().HasForeignKey(x => x.EndedByMemberId).OnDelete(DeleteBehavior.Restrict);
-			cfg.HasIndex(x => new { x.EventId, x.EnrollmentId }).IsUnique();
+			cfg.HasIndex(x => new { x.EventId, x.RegistrationParticipantId }).IsUnique()
+				.HasFilter("[is_active] = 1");
 			cfg.HasIndex(x => new { x.EventId, x.ChildMemberId }).IsUnique().HasFilter("[is_active] = 1");
 		});
 
@@ -1128,40 +1126,6 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 			cfg.HasIndex(x => new { x.Status, x.UpdatedUtc });
 		});
 
-		modelBuilder.Entity<EventEnrollment>(cfg =>
-		{
-			cfg.HasKey(x => x.Id);
-			cfg.Property(x => x.EnrollmentJson).IsRequired();
-            cfg.Property(x => x.Status).HasMaxLength(16).HasDefaultValue("confirmed").IsRequired();
-            cfg.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
-            cfg.HasIndex(x => new { x.EventId, x.Status, x.QueuedUtc });
-
-			cfg.HasOne(x => x.Group)
-				.WithMany()
-				.HasForeignKey(x => x.GroupId)
-				.OnDelete(DeleteBehavior.Restrict);
-
-			cfg.HasOne(x => x.Event)
-				.WithMany()
-				.HasForeignKey(x => x.EventId)
-				.OnDelete(DeleteBehavior.Restrict);
-
-			cfg.HasOne(x => x.Member)
-				.WithMany()
-				.HasForeignKey(x => x.MemberId)
-				.OnDelete(DeleteBehavior.Restrict);
-
-			cfg.HasIndex(x => new { x.EventId, x.MemberId }).IsUnique();
-			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
-		});
-
-        modelBuilder.Entity<EventEnrollmentHistory>(cfg => {
-            cfg.HasKey(x => x.Id);
-            cfg.Property(x => x.Status).HasMaxLength(16).IsRequired();
-            cfg.Property(x => x.EnrollmentJson).IsRequired();
-            cfg.HasOne(x => x.Enrollment).WithMany().HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Restrict);
-            cfg.HasIndex(x => new { x.EnrollmentId, x.ArchivedUtc });
-        });
         modelBuilder.Entity<EventRosterDefaults>(cfg => {
             cfg.HasKey(x => x.Id);
             cfg.HasIndex(x => new { x.EventId, x.Version }).IsUnique();
@@ -1169,7 +1133,7 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
             cfg.Property(x => x.RequirementsJson).IsRequired();
         });
         modelBuilder.Entity<EventServiceSlot>().HasOne<EventRosterDefaults>().WithMany().HasForeignKey(x => x.RosterDefaultsId).OnDelete(DeleteBehavior.Restrict);
-        modelBuilder.Entity<EventPackage>().Property(x => x.RosterRulesVersion).HasDefaultValue(1);
+        modelBuilder.Entity<EventPackage>().Property(x => x.RosterRulesVersion).HasDefaultValue(2);
 
 		modelBuilder.Entity<EventReview>(cfg =>
 		{
@@ -1209,48 +1173,6 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 			cfg.HasIndex(x => new { x.Code, x.Version }).IsUnique();
 			cfg.HasIndex(x => new { x.IsActive, x.Code });
 			cfg.HasIndex(x => new { x.OwnerGroupId, x.IsActive, x.UpdatedUtc });
-		});
-
-		modelBuilder.Entity<EventWorkflowRun>(cfg =>
-		{
-			cfg.HasKey(x => x.Id);
-			cfg.Property(x => x.TemplateSnapshotJson).IsRequired();
-			cfg.Property(x => x.CurrentStepKey).HasMaxLength(100);
-			cfg.HasOne(x => x.Event).WithOne(x => x.WorkflowRun).HasForeignKey<EventWorkflowRun>(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
-			cfg.HasOne(x => x.Template).WithMany(x => x.Runs).HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.Restrict);
-			cfg.HasIndex(x => x.EventId).IsUnique();
-			cfg.HasIndex(x => new { x.Status, x.UpdatedUtc });
-		});
-
-		modelBuilder.Entity<EventWorkflowStep>(cfg =>
-		{
-			cfg.HasKey(x => x.Id);
-			cfg.Property(x => x.StepKey).HasMaxLength(100).IsRequired();
-			cfg.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
-			cfg.Property(x => x.NameZh).HasMaxLength(200).IsRequired();
-			cfg.Property(x => x.IntegrationKey).HasMaxLength(80);
-			cfg.HasOne(x => x.WorkflowRun).WithMany(x => x.Steps).HasForeignKey(x => x.WorkflowRunId).OnDelete(DeleteBehavior.Cascade);
-			cfg.HasOne(x => x.AssignedMember).WithMany().HasForeignKey(x => x.AssignedMemberId).OnDelete(DeleteBehavior.Restrict);
-			cfg.HasOne(x => x.CompletedByMember).WithMany().HasForeignKey(x => x.CompletedByMemberId).OnDelete(DeleteBehavior.Restrict);
-			cfg.HasIndex(x => new { x.WorkflowRunId, x.StepKey }).IsUnique();
-			cfg.HasIndex(x => new { x.WorkflowRunId, x.SortOrder });
-		});
-
-		modelBuilder.Entity<EventArtifact>(cfg =>
-		{
-			cfg.HasKey(x => x.Id);
-			cfg.Property(x => x.ArtifactType).HasMaxLength(100).IsRequired();
-			cfg.Property(x => x.TitleEn).HasMaxLength(300).IsRequired();
-			cfg.Property(x => x.TitleZh).HasMaxLength(300).IsRequired();
-			cfg.Property(x => x.DataJson).IsRequired();
-			cfg.HasOne(x => x.Event).WithMany(x => x.Artifacts).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
-			cfg.HasOne(x => x.WorkflowStep).WithMany(x => x.Artifacts).HasForeignKey(x => x.WorkflowStepId).OnDelete(DeleteBehavior.Restrict);
-			cfg.HasOne(x => x.FileAsset).WithMany().HasForeignKey(x => x.FileAssetId).OnDelete(DeleteBehavior.Restrict);
-			cfg.HasOne(x => x.CreatedByMember).WithMany().HasForeignKey(x => x.CreatedByMemberId).OnDelete(DeleteBehavior.Restrict);
-			cfg.HasOne(x => x.ApprovedByMember).WithMany().HasForeignKey(x => x.ApprovedByMemberId).OnDelete(DeleteBehavior.Restrict);
-			cfg.HasIndex(x => new { x.EventId, x.UpdatedUtc });
-			cfg.HasIndex(x => x.WorkflowStepId);
-			cfg.HasIndex(x => x.FileAssetId);
 		});
 
 		modelBuilder.Entity<NotificationMessage>(cfg =>

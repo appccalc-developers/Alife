@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import logo from '../../assets/logo.png'
+import { virtualChurchGuestVisitEnabled } from '../../app/routing/virtualChurchPublicAccess'
 import type { HomeCopy } from './homeCopy'
 
 type Props = {
@@ -17,8 +18,16 @@ const HomeFooter = ({ copy, navItems }: Props) => (
           <p className="mt-1 text-xs leading-5 text-home-muted">{copy.footerLine}</p>
         </div>
       </div>
-      <div className="flex flex-wrap gap-x-6 gap-y-3 text-[0.84rem] font-semibold text-home-muted">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-[0.84rem] font-semibold text-home-muted">
         {navItems.map((item) => <Link key={item.href} className="border-b border-transparent pb-1 transition hover:border-home-accent/45 hover:text-home-gold-text" to={item.href}>{item.label}</Link>)}
+        {virtualChurchGuestVisitEnabled() ? (
+          <Link
+            to="/virtual-church?vcVisual=v3"
+            className="inline-flex min-h-11 items-center rounded-sm text-xs font-normal transition-colors hover:text-home-gold-text hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-home-green focus-visible:ring-offset-4"
+          >
+            {copy.virtualChurchTourLabel}
+          </Link>
+        ) : null}
       </div>
     </div>
   </footer>

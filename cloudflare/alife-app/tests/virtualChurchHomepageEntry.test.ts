@@ -2,23 +2,29 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
-test('guest-enabled homepage has one low-key bilingual 3D link without preloading scene assets', () => {
+test('guest-enabled homepage has one quiet bilingual footer link without preloading scene assets', () => {
   const managedHome = source('../src/views/home/ManagedHomePageContent.tsx')
   const renderer = source('../src/components/page/PageContentRenderer.tsx')
   const hero = source('../src/components/page-sections/LandingHeroSection.tsx')
+  const footer = source('../src/views/home/HomeFooter.tsx')
+  const copy = source('../src/i18n/home.ts')
 
-  assert.match(managedHome, /virtualChurchEntryVisible=\{virtualChurchGuestVisitEnabled\(\)\}/)
-  assert.match(renderer, /virtualChurchEntryVisible && index === 0 && section\.type === 'LandingHero'/)
-  assert.match(hero, /virtualChurchEntryVisible && mode === 'render' && !compactPreview/)
-  assert.match(hero, /to="\/virtual-church\?vcVisual=v3"/)
-  assert.match(hero, /参观 3D 教堂/)
-  assert.match(hero, /Explore the 3D church/)
-  assert.match(hero, /min-h-11/)
-  assert.match(hero, /rounded-full border border-white\/45 bg-white\/10 px-4/, 'quiet entry remains discoverable on the hero')
-  assert.doesNotMatch(managedHome, /VirtualChurchView|virtual-church-assets|import\('.*VirtualChurch/)
-  assert.doesNotMatch(hero, /VirtualChurchView|virtual-church-assets|import\('.*VirtualChurch/)
+  assert.match(footer, /virtualChurchGuestVisitEnabled\(\) \? \(/)
+  assert.equal((footer.match(/to="\/virtual-church\?vcVisual=v3"/g) ?? []).length, 1)
+  assert.match(footer, /copy\.virtualChurchTourLabel/)
+  assert.match(copy, /virtualChurchTourLabel: '参观 3D 教堂'/)
+  assert.match(copy, /virtualChurchTourLabel: 'Explore the 3D church'/)
+  assert.match(footer, /min-h-11/)
+  assert.match(footer, /text-xs font-normal/)
+  assert.match(footer, /focus-visible:/)
+  for (const code of [managedHome, renderer, hero]) {
+    assert.doesNotMatch(code, /virtualChurchEntryVisible|to="\/virtual-church/, 'only the footer owns the public homepage entry')
+  }
+  for (const code of [managedHome, hero, footer]) {
+    assert.doesNotMatch(code, /VirtualChurchView|virtual-church-assets|import\('.*VirtualChurch/)
+  }
 })
 
 test('3D and study-room reading use the same guarded guest-release condition', () => {

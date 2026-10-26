@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { loadConfigFromFile } from 'vite'
 import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises'
@@ -62,7 +63,9 @@ test('local production preview does not return the SPA shell for missing 3D asse
 })
 
 test('one-shot church CSS fault preserves HEAD and unrelated requests and then serves the original file', async (t) => {
-  const dataRoot = 'C:/Data/Alife/Temp/vc-css-recovery-20261006'
+  const dataRoot = process.platform === 'win32'
+    ? 'C:/Data/Alife/Temp/virtual-church-ci'
+    : resolve(tmpdir(), 'alife-virtual-church-ci')
   await mkdir(dataRoot, { recursive: true })
   const root = await mkdtemp(resolve(dataRoot, 'http-fixture-'))
   await mkdir(resolve(root, 'assets'))

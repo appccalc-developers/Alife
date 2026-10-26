@@ -19,7 +19,7 @@ public partial class AlifeDbContext
         {
             b.HasKey(x => x.Id); b.Property(x => x.ConcurrencyToken).IsConcurrencyToken(); b.Property(x => x.Channel).HasMaxLength(16); b.Property(x => x.InvitationMode).HasMaxLength(24);
             b.Property(x => x.ManualOrganiserName).HasMaxLength(200); b.Property(x => x.ProxyAuthorityEvidence).HasMaxLength(2000);
-            b.HasIndex(x => new { x.EventId, x.QueuedUtc }); b.HasIndex(x => x.LegacyEnrollmentId).IsUnique().HasFilter("[legacy_enrollment_id] IS NOT NULL");
+            b.HasIndex(x => new { x.EventId, x.QueuedUtc });
             b.HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict); b.HasQueryFilter(x => !x.Event.IsDeleted);
         });
         model.Entity<EventRegistrationParticipant>(b =>

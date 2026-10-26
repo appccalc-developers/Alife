@@ -1,3 +1,4 @@
+import { profileViewText } from '../i18n/profileView.ts'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Check, KeyRound, LoaderCircle, LogOut, Mail, Pencil, Phone, Plus, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -46,40 +47,8 @@ const ProfileView = () => {
   const passkeyRequest = useRef<PasskeyRequestGuard | null>(null)
 
   const copy = language === 'zh'
-    ? {
-      eyebrow: '会员账号', intro: '在这里管理你的联系方式、账号资料和小组邀请。',
-      edit: '编辑资料', cancel: '取消', save: '保存资料', saving: '保存中…', saved: '个人资料已更新。',
-      contactTitle: '联系资料', contactSubtitle: '你可以自行修改以下信息。',
-      nameRequired: '请填写显示名称。', invalidPhone: '请检查电话号码和所选地区。',
-      phoneHint: '选择地区后输入本地号码，可保留开头的 0。',
-      phoneSecurity: '修改电话号码后，原有的电话验证状态会被清除。',
-      accountStatus: '账号状态', signOutSubtitle: '退出后，需要重新登录才能使用会员功能。',
-      passkeysTitle: 'Passkey 与登录安全', passkeysSubtitle: '查看、命名、添加或撤销可用于进入 ALIFE 的 Passkey。',
-      passkeyPrivacy: 'ALIFE 只保存公钥和凭据元数据，不会接收或保存设备 PIN、指纹或面容资料。',
-      passkeyName: 'Passkey 名称', passkeyNamePlaceholder: '例如：我的手机', addPasskey: '添加 Passkey',
-      noPasskeys: '尚未添加 Passkey。', lastUsed: '最近使用', created: '建立日期', revoke: '撤销',
-      confirmRevoke: '再次点击以确认撤销', passkeyAdded: 'Passkey 已添加。', passkeyRevoked: 'Passkey 已撤销。',
-      passkeyWaiting: '正在等待 Windows 或密码管理器打开 Passkey 窗口。如果没有出现窗口，请先取消本次请求。', cancelPasskeyRequest: '取消 Passkey 验证',
-      strongAuthHint: '添加或撤销需要最近五分钟内完成 Passkey 或 LINE 强认证。首次建立也可使用管理员签发的 Alpha 设置码登录。', addPasskeyRecommended: '建议现在添加 Passkey，作为主要登录方式。',
-      mobileOnly: 'Passkey 只在个人手机上建立。电脑登录时由浏览器显示二维码，再用手机 Passkey 验证。',
-    }
-    : {
-      eyebrow: 'Member account', intro: 'Manage your contact details, account profile, and group invitations in one place.',
-      edit: 'Edit profile', cancel: 'Cancel', save: 'Save profile', saving: 'Saving…', saved: 'Your profile has been updated.',
-      contactTitle: 'Contact details', contactSubtitle: 'You can update the information below yourself.',
-      nameRequired: 'Display name is required.', invalidPhone: 'Check the phone number and selected region.',
-      phoneHint: 'Choose a region and enter the local number. You may keep its leading zero.',
-      phoneSecurity: 'Changing your phone number clears its existing verification status.',
-      accountStatus: 'Account status', signOutSubtitle: 'You will need to sign in again to use member features.',
-      passkeysTitle: 'Passkeys and sign-in security', passkeysSubtitle: 'View, name, add, or revoke passkeys that can open ALIFE.',
-      passkeyPrivacy: 'ALIFE stores only public keys and credential metadata. It never receives or stores your device PIN, fingerprint, or face data.',
-      passkeyName: 'Passkey name', passkeyNamePlaceholder: 'For example: My phone', addPasskey: 'Add passkey',
-      noPasskeys: 'No passkeys have been added.', lastUsed: 'Last used', created: 'Created', revoke: 'Revoke',
-      confirmRevoke: 'Click again to confirm revocation', passkeyAdded: 'Passkey added.', passkeyRevoked: 'Passkey revoked.',
-      passkeyWaiting: 'Waiting for Windows or your password manager to open the Passkey prompt. If no prompt appears, cancel this request first.', cancelPasskeyRequest: 'Cancel Passkey request',
-      strongAuthHint: 'Adding or revoking requires passkey or LINE strong authentication from the last five minutes. The first passkey can also follow an administrator-issued Alpha setup-code login.', addPasskeyRecommended: 'Add a passkey now to make it your primary sign-in method.',
-      mobileOnly: 'Passkeys are created only on a personal phone. On a computer, use the browser QR and approve with your phone Passkey.',
-    }
+    ? { ...profileViewText.localizedCopy.zh }
+    : { ...profileViewText.localizedCopy.en }
 
   useEffect(() => {
     if (!me || me.isGuest) return
@@ -214,17 +183,17 @@ const ProfileView = () => {
     }
   }
 
-  if (!me) return <AppPageShell title={t('profile')} context={language === 'zh' ? '个人中心 / 个人资料' : 'Personal Center / Profile'}><AppEmptyState title={t('profile')} description={t('loadingIdentity')} /></AppPageShell>
+  if (!me) return <AppPageShell title={t('profile')} context={language === 'zh' ? profileViewText.personalCenterProfile.zh : profileViewText.personalCenterProfile.en}><AppEmptyState title={t('profile')} description={t('loadingIdentity')} /></AppPageShell>
 
   return (
     <AppPageShell
       title={me.displayName || t('profile')}
-      context={language === 'zh' ? '个人中心 / 个人资料' : 'Personal Center / Profile'}
+      context={language === 'zh' ? profileViewText.personalCenterProfile2.zh : profileViewText.personalCenterProfile2.en}
       subtitle={copy.intro}
       status={<AppBadge variant={me.isRegistered ? 'success' : 'neutral'}>{me.isRegistered ? t('registered') : t('guest')}</AppBadge>}
-      backLink={{ label: language === 'zh' ? '返回个人中心' : 'Back to Personal Center', to: '/profile' }}
+      backLink={{ label: language === 'zh' ? profileViewText.backToPersonalCenter.zh : profileViewText.backToPersonalCenter.en, to: '/profile' }}
       primaryAction={!editing && !me.isGuest ? <AppTitleBarAction label={copy.edit} icon={<Pencil className="h-4 w-4" />} onClick={beginEditing} /> : undefined}
-      overflowLabel={language === 'zh' ? '更多账号操作' : 'More account actions'}
+      overflowLabel={language === 'zh' ? profileViewText.moreAccountActions.zh : profileViewText.moreAccountActions.en}
       overflowActions={[{
         label: loggingOut ? t('loggingOut') : t('logout'),
         icon: <LogOut className="h-4 w-4" />,

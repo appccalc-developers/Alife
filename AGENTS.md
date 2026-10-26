@@ -54,6 +54,12 @@ After implementing:
 - Run the narrowest checks that credibly cover the risk, expanding only when needed.
 - Report changes, verification, unverified behavior, risks, and the next useful step.
 
+## Project delivery governance
+
+For project-wide planning, completion, audits and autonomous task selection, use [delivery governance](docs/governance/README.md) and its [work register](docs/governance/work-register.json). Domain contracts retain authority over business rules. The register tracks work and evidence; it does not replace domain status or grant publication, infrastructure or architecture permissions. For a narrow task, read only its relevant entry and requirements. Update the register when a registered task's scope, status or evidence changes.
+
+Documentation use is recorded in [the Docs inventory](docs/governance/DOCUMENT-USAGE.zh-CN.md). Material under `archive/pending-docs-review/` is awaiting historical-archive confirmation and has no current development authority. Exclude it from ordinary requirement/implementation searches and Church App generation inputs. Read it only for an explicitly relevant history/provenance investigation; old prompts, plans, scripts and test results cannot establish current requirements or authorize operations. Promote an adopted requirement into its current owning contract with a recorded decision before implementing it.
+
 ## Architecture and API contracts
 
 Use [the design orientation](docs/design/README.md) to locate the affected architecture/domain requirements. For UI work follow the applicable [UI/UX requirements](docs/design/UI-UX.md); use [QA](docs/design/QA.md) for requirement-to-evidence completion. Read only relevant sections. Preserve the Event reading/update matrix as its domain authority. Prototypes and generated presentations explain design and never replace server contracts or prove delivery.
@@ -66,6 +72,14 @@ For API changes, explicitly consider authentication, role/group visibility, back
 - Keep DTO parsing robust and do not expose persistence details to clients.
 - Make schema changes backward-compatible and migration-friendly.
 - Review migrations and generated snapshots. Apply migrations only to an approved disposable/local database, never a shared or production database without explicit approval.
+
+### Event 2.0 pre-launch reset exception
+
+The user-authorised Event 2.0 reset is a narrow exception to compatibility requirements for Event instance data and Event 1.x runtime contracts. Pre-reset Event instances, Event 1.x requests, retired Event URLs, browser drafts and temporary Event sessions do not require conversion or continued support. Event templates, policy history, venue resources and every non-Event domain remain outside this exception.
+
+From Event composition schema `2.0.0` onward, normal compatibility, immutable-history, migration and audit requirements apply again. Do not use this exception to discard or rewrite Event 2.0 data, weaken authentication or privacy, broaden cache visibility, or bypass bilingual contracts.
+
+The former dedicated production Event reset, rollback and recovery workflows are retired. The user has separately authorised this one-time deletion of pre-launch production Event test instances and has declined SQL/R2 recovery copies and rollback. The operation must identify the exact production target and Event-only scope, freeze Event writes, preview and fingerprint what will be removed, and verify that templates, policies, venue resources and non-Event data remain intact. This exception does not authorise later Event 2.0 deletion. Normal application startup, deployment, Terraform and ordinary database migration must never purge Event instances. In particular, a pending Event 2.0 migration that removes legacy Event storage must fail closed while Event instance data is nonempty; retiring the reset workflow must not turn that migration into an implicit data-deletion path.
 
 ## Authentication, privacy, and caching
 
@@ -90,6 +104,15 @@ Preserve established bilingual shapes such as:
 - Support bilingual forms and clear fallbacks.
 - Keep translation helpers stable.
 - Avoid refetching or remounting for a language-only UI switch unless underlying data changes.
+
+### Fixed UI copy in AI-generated code
+
+AI agents generating or modifying frontend code must keep fixed display text in the existing feature-scoped `cloudflare/alife-app/src/i18n/` resources.
+
+- This includes labels, buttons, placeholders, accessibility text, loading/error/empty/success messages, default display text, and preview/demo copy. Do not embed fixed copy in components, views, hooks, services, or utilities as `{ en: '...', zh: '...' }`, language-dependent string literals, JSX text, or arguments to local translation helpers. Single-language fixed UI text belongs in i18n too.
+- Reuse suitable existing resources and translation helpers. Use stable, descriptive keys; keep interpolated messages in resources with explicit parameters rather than assembling translated fragments in callers. Preserve the established language selection and fallback behavior without adding a localization library.
+- Keep user-authored content, editable form values, API/DTO fields, persisted `{ en, zh }` business data, domain identifiers, enum codes, and protocol values in their owning modules. Moving UI copy into i18n must not change payload shapes, saved JSON, permissions, cache identity, or business meaning.
+- When adding or changing fixed copy, review both English and Chinese and run `npm --prefix cloudflare/alife-app run test:locale`. Verify language switching when presentation behavior changes.
 
 ## Frontend and content builders
 

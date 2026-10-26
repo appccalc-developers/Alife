@@ -6,7 +6,7 @@ import PageContentRenderer from '../components/page/PageContentRenderer'
 import PageViewSkeleton from '../components/page/PageViewSkeleton'
 import AppBackButton from '../components/layout/AppBackButton'
 import { pageSectionsCanvasClass, pageSectionsChromeClass } from '../components/page-sections/sectionPresets'
-import { fetchPageDetail, pageDetailQueryKey } from '../db/collections/pageCollection'
+import { fetchPageDetail, pageDetailQueryKey, pageReviewCopyQueryKey } from '../db/collections/pageCollection'
 import { subgroupsCollection, groupPagesCollection } from '../db/collections/groupCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { usePublicPageDetailQuery } from '../hooks/usePublicPageQueries'
@@ -48,10 +48,10 @@ const PageView = () => {
   const pageId = isPublicMenuPage ? menuPageId || publicPage?.id || '' : activePageId
 
   const privatePageQuery = useQuery({
-    queryKey: isPublicationReviewCopy ? ['pagePublicationReviewCopy', pageId] : pageDetailQueryKey(pageId),
-    queryFn: () => isPublicationReviewCopy
-      ? pageService.getPublicationReviewCopy(pageId)
-      : fetchPageDetail(pageId),
+    queryKey: isPublicationReviewCopy ? pageReviewCopyQueryKey(pageId, auth.me?.id ?? '') : pageDetailQueryKey(pageId, auth.me?.id ?? ''),
+    queryFn: ({ signal }) => isPublicationReviewCopy
+      ? pageService.getPublicationReviewCopy(pageId, auth.me?.id ?? '', signal)
+      : fetchPageDetail(pageId, auth.me?.id ?? '', signal),
     enabled: Boolean(pageId) && !isPublicPage,
   })
   const publicPageQuery = usePublicPageDetailQuery(isPublicPage ? pageId : '')

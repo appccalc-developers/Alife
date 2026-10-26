@@ -40,8 +40,10 @@ jobs:
           FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
           FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
         run: |
-          if [ "${#FILE_ADMIN_BACKFILL_SECRET}" -lt 32 ] || [ "${#FILE_ACCESS_SIGNING_SECRET}" -lt 32 ]; then
-            echo "Missing file storage secrets. Configure both FILE_ADMIN_BACKFILL_SECRET and FILE_ACCESS_SIGNING_SECRET."
+          set -euo pipefail
+          if [ "${#FILE_ADMIN_BACKFILL_SECRET}" -lt 32 ] || \
+             [ "${#FILE_ACCESS_SIGNING_SECRET}" -lt 32 ]; then
+            echo "One or more file storage secrets are missing or too short."
             exit 1
           fi
 
@@ -53,7 +55,8 @@ jobs:
           FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
           FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
         run: |
-          node -e 'process.stdout.write(JSON.stringify({FILE_ADMIN_BACKFILL_SECRET: process.env.FILE_ADMIN_BACKFILL_SECRET, FILE_ACCESS_SIGNING_SECRET: process.env.FILE_ACCESS_SIGNING_SECRET}))' |
+          set -euo pipefail
+          node -e 'process.stdout.write(JSON.stringify({FILE_ADMIN_BACKFILL_SECRET:process.env.FILE_ADMIN_BACKFILL_SECRET,FILE_ACCESS_SIGNING_SECRET:process.env.FILE_ACCESS_SIGNING_SECRET}))' |
             npx wrangler@4.88.0 secret bulk --config cloudflare/images-api/wrangler.toml
 
       - name: Deploy OpenAPI spec to R2

@@ -1,3 +1,4 @@
+import { eventFlowRailText } from '../../i18n/eventFlowRail.ts'
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { canVisitSetupStep, eventFlowLabels, setupPath, setupStages } from '../../utils/eventSetupFlow'
@@ -11,7 +12,7 @@ export default function EventFlowRail({ current, zh, eventBasePath, disabled, on
     const container = rail.current, active = container?.querySelector<HTMLElement>('[aria-current="step"]')
     if (container && active) container.scrollTo({ left: active.offsetLeft - container.offsetLeft - container.clientWidth / 2 + active.clientWidth / 2, behavior: 'instant' })
   }, [current, zh])
-  return <nav tabIndex={-1} aria-label={zh ? '活动筹备流程' : 'Event preparation flow'}><ol ref={rail} className="relative flex gap-2 overflow-x-auto pb-2">
+  return <nav tabIndex={-1} aria-label={zh ? eventFlowRailText.eventPreparationFlow.zh : eventFlowRailText.eventPreparationFlow.en}><ol ref={rail} className="relative flex gap-2 overflow-x-auto pb-2">
     {eventFlowLabels(zh).map((label, index) => {
       if (index === 1) return null
       const step = index + 1, selected = (current === 2 ? 3 : current) === step, saved = Boolean(eventBasePath && step <= 4)

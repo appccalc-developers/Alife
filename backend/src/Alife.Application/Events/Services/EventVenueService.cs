@@ -293,7 +293,7 @@ public sealed class EventVenueService(
         return new(groupEvent.Id, groupEvent.GroupId, venues.Select(ToVenueDto).ToArray(),
             reservations.Select(ToReservationDto).ToArray(), conflicts,
             new(capacitySufficient, bookingsConfirmed, conflictsResolved, blockers), true,
-            await CanManageCatalogue(groupEvent.GroupId, memberId, ct), true);
+            await CanManageCatalogue(groupEvent.GroupId, memberId, ct));
     }
 
     private async Task<bool> CanManageCatalogue(Guid groupId, Guid memberId, CancellationToken ct)

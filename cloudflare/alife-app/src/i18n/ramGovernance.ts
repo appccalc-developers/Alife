@@ -1,0 +1,33 @@
+// Fixed bilingual copy for types/ramGovernance.ts.
+export const ramGovernanceText = {
+    likelihoodLabel: { en: 'Rare', zh: '极少' },
+    likelihoodDescription: { en: 'Less than 5% chance of occurring.', zh: '发生机会低于 5%。' },
+    likelihoodLabelUnlikely: { en: 'Unlikely', zh: '不太可能' },
+    likelihoodDescriptionText529ChanceOfOccurring: { en: '5–29% chance of occurring.', zh: '发生机会为 5–29%。' },
+    likelihoodLabelModerate: { en: 'Moderate', zh: '中等' },
+    likelihoodDescriptionText3059ChanceOfOccurring: { en: '30–59% chance of occurring.', zh: '发生机会为 30–59%。' },
+    likelihoodLabelLikely: { en: 'Likely', zh: '很可能' },
+    likelihoodDescriptionText6079ChanceOfOccurring: { en: '60–79% chance of occurring.', zh: '发生机会为 60–79%。' },
+    likelihoodLabelAlmostCertain: { en: 'Almost certain', zh: '几乎肯定' },
+    likelihoodDescriptionText80OrGreaterChanceOfOccurring: { en: '80% or greater chance of occurring.', zh: '发生机会为 80% 或以上。' },
+    impactLabel: { en: 'Negligible', zh: '可忽略' },
+    impactDescription: { en: 'Minor discomfort or negligible injury.', zh: '轻微不适或可忽略的伤害。' },
+    impactLabelMinor: { en: 'Minor', zh: '轻微' },
+    impactDescriptionBasicFirstAidRecoveryInLessThanOneWeek: { en: 'Basic first aid; recovery in less than one week.', zh: '基本急救；恢复时间少于一周。' },
+    impactDescriptionAdvancedFirstAidOrMedicalVisitRecoveryIn16Weeks: { en: 'Advanced first aid or medical visit; recovery in 1–6 weeks.', zh: '进阶急救或就医；恢复时间为 1–6 周。' },
+    impactLabelMajor: { en: 'Major', zh: '严重' },
+    impactDescriptionHospitalOrEmergencyTreatmentRecoveryLongerThanSixWeeks: { en: 'Hospital or emergency treatment; recovery longer than six weeks.', zh: '医院或急诊治疗；恢复时间超过六周。' },
+    impactLabelCatastrophic: { en: 'Catastrophic', zh: '灾难性' },
+    impactDescriptionImmediateEmergencyResponsePermanentDisabilityOrDeathOrHospitalisationLongerThanSixWeeks: { en: 'Immediate emergency response; permanent disability or death, or hospitalisation longer than six weeks.', zh: '需立即紧急救援；永久残疾、死亡或住院超过六周。' },
+    ramActionLabels: {
+        'snapshot-draft': { en: 'Draft snapshot saved', zh: '已保存草稿快照' }, 'request-confirmation': { en: 'Personal confirmation requested', zh: '已请求本人确认' },
+        confirm: { en: 'Personally confirmed', zh: '本人已确认' }, submit: { en: 'Submitted for independent RAM review', zh: '已提交 RAM 独立审核' }, approve: { en: 'Independent RAM review approved', zh: 'RAM 独立审核已通过' },
+        return: { en: 'Returned for changes', zh: '退回修改' }, 'request-review': { en: 'Re-review requested', zh: '已请求重审' },
+    },
+    ramValidityLabels: {
+        Draft: { en: 'Draft', zh: '草稿' }, ReviewRequired: { en: 'Re-review required', zh: '需重审' },
+        AwaitingConfirmation: { en: 'Awaiting personal confirmation', zh: '等待本人确认' }, Confirmed: { en: 'Personally confirmed', zh: '本人已确认' },
+        AwaitingReview: { en: 'Awaiting independent RAM review', zh: '等待 RAM 独立审核' }, Valid: { en: 'Independently reviewed and valid', zh: '已通过独立审核且有效' },
+        Returned: { en: 'Returned for changes', zh: '退回修改' }, Historical: { en: 'Historical evidence', zh: '历史记录' },
+    },
+};
