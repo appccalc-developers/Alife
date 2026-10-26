@@ -3,9 +3,10 @@
     "rewrite": "/index.html",
     "exclude": [
       "/assets/*",
+      "/virtual-church-assets/*",
       "/images/*",
       "/icons/*",
-      "/*.{js,mjs,css,json,png,jpg,jpeg,gif,svg,ico,webp,woff,woff2,mp4}"
+      "/*.{js,mjs,css,json,png,jpg,jpeg,gif,svg,ico,webp,woff,woff2,wasm,glb,gltf,bin,mp4}"
     ]
   },
   "mimeTypes": {

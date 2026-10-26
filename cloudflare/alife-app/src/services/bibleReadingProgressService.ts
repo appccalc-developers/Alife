@@ -12,9 +12,9 @@ export type BibleReadingProgress = {
 export type SaveBibleReadingProgress = Omit<BibleReadingProgress, 'updatedUtc'>
 
 export const bibleReadingProgressService = {
-  async get(): Promise<BibleReadingProgress | null> {
+  async get(signal?: AbortSignal): Promise<BibleReadingProgress | null> {
     try {
-      const { data } = await http.get<BibleReadingProgress>('/api/me/bible-reading-progress')
+      const { data } = await http.get<BibleReadingProgress>('/api/me/bible-reading-progress', { signal })
       return data
     } catch (error) {
       if (typeof error === 'object' && error !== null && 'status' in error && error.status === 404) return null
@@ -22,8 +22,8 @@ export const bibleReadingProgressService = {
     }
   },
 
-  async save(progress: SaveBibleReadingProgress): Promise<BibleReadingProgress> {
-    const { data } = await http.put<BibleReadingProgress>('/api/me/bible-reading-progress', progress)
+  async save(progress: SaveBibleReadingProgress, signal?: AbortSignal): Promise<BibleReadingProgress> {
+    const { data } = await http.put<BibleReadingProgress>('/api/me/bible-reading-progress', progress, { signal })
     return data
   },
 }

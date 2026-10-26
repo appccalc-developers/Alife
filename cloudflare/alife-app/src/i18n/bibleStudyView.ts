@@ -1,5 +1,13 @@
 // Fixed bilingual copy for views/BibleStudyView.tsx.
 export const bibleStudyViewText = {
+  virtualChurchScriptureReading: { en: "Virtual church / Scripture reading", zh: "虚拟教堂 / 经文阅读" },
+  readScriptureHereGuestReadingIsNotSaved: { en: "Read Scripture here. Guest reading is not saved to member progress.", zh: "欢迎阅读经文。访客阅读不会保存到会员进度。" },
+  backToStudyRoom: { en: "Back to study room", zh: "返回查经房" },
+  inPageScriptureReadingIsNotAvailableHere: { en: "In-page Scripture reading is not available here yet. You can read on Bible.com.", zh: "本站暂未提供内嵌经文阅读。你可以在 Bible.com 阅读。" },
+  scriptureRequestsAreTemporarilyLimitedPleaseTryAgain: { en: "Scripture requests are temporarily limited. Please try again later.", zh: "经文服务目前请求过多，请稍后再试。" },
+  scriptureIsNotAvailableHereRightNow: { en: "Scripture is not available here right now.", zh: "目前无法在这里提供经文。" },
+  bibleVersionsCouldNotBeLoadedRightNow: { en: "Bible versions could not be loaded right now. Please try again shortly.", zh: "暂时无法加载中文译本，请稍后再试。" },
+  readOnBibleCom: { en: "Read on Bible.com", zh: "在 Bible.com 阅读" },
     law: { en: 'Law', zh: '律法书' },
     historyOt: { en: 'History', zh: '历史书' },
     wisdom: { en: 'Poetry & Wisdom', zh: '诗歌智慧书' },

@@ -35,6 +35,12 @@ html:has(.alife-workspace) {
   scrollbar-gutter: stable;
 }
 
+/* The fixed 3D scene covers the workspace and must use the complete viewport.
+   Leaving it restores the workspace gutter automatically, without global state. */
+html:has(.virtual-church-ui) {
+  scrollbar-gutter: auto;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -123,8 +129,89 @@ body {
   background-color: rgba(231, 241, 236, 0.5);
 }
 
+.virtual-church-ui {
+  font-family:
+    Inter,
+    "Segoe UI Variable",
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    "Noto Sans CJK SC",
+    "Noto Sans SC",
+    Arial,
+    sans-serif;
+}
+
 #root {
   min-height: 100vh;
+}
+
+.virtual-church-ui .vc-portrait-hint {
+  display: none;
+}
+
+/* Informational only: no orientation lock, input interception or animation. */
+@media (orientation: portrait) and (max-width: 767px) {
+  .virtual-church-ui[data-vc-visual="v3"] .vc-portrait-hint {
+    display: flex;
+  }
+
+  .virtual-church-ui[data-vc-visual="v3"] .vc-keyboard-hint {
+    display: none;
+  }
+}
+
+/* Match the touch-control breakpoint: desktop labels do not fit tablet/phone
+   toolbars reliably in both languages, even when the width exceeds sm. */
+@media (max-width: 1023px) {
+  .virtual-church-ui[data-vc-visual="v3"] .vc-topbar {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .virtual-church-ui[data-vc-visual="v3"] .vc-topbar {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+
+  .virtual-church-ui[data-vc-visual="v3"] .vc-topbar button {
+    width: 44px;
+    min-width: 44px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .virtual-church-ui[data-vc-visual="v3"] .vc-topbar span,
+  .virtual-church-ui[data-vc-visual="v3"] .vc-church-badge p {
+    display: none;
+  }
+
+  .virtual-church-ui[data-vc-visual="v3"] .vc-church-badge {
+    display: flex;
+    height: 44px;
+    padding: 0 12px;
+  }
+}
+
+/* Keep the landscape centre clear; the full accuracy note stays in the guide. */
+@media (orientation: landscape) and (max-width: 1023px) and (max-height: 600px) {
+  .virtual-church-ui[data-vc-visual="v3"] .vc-keyboard-hint,
+  .virtual-church-ui[data-vc-visual="v3"] .vc-accuracy-note {
+    display: none;
+  }
+
+  .virtual-church-ui[data-vc-visual="v3"] .vc-camera-switcher {
+    bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .virtual-church-ui[data-vc-visual="v3"] .vc-touch-controls {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
 }
 
 ::selection {

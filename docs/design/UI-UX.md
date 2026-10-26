@@ -32,6 +32,8 @@ Management row secondary details may expand in place; a substantial managed obje
 
 ## Preferences and baseline evidence
 
+The optional 3D church tour belongs in the public homepage footer as a secondary bilingual text link, beside the existing footer navigation. Keep it out of the hero and primary navigation, with a usable touch target and visible keyboard focus. The link uses `/virtual-church?vcVisual=v3` and the existing `virtualChurchGuestVisitEnabled()` release gate; relocating it must not enable production guest access, change route authorization, or preload scene code or assets on the homepage.
+
 Current language preference is coordinated by AuthProvider and `src/i18n/locale.ts`; a language-only change does not change permissions or data identity. Do not claim server synchronization, theme, typography or other settings exist without inspecting their implementation. New settings specify supported values, default, storage scope, reset, accessibility and viewer isolation.
 
 Fixed interface labels, messages, preview copy and default display text belong to feature-scoped resources under `src/i18n/`. This does not change editable or API `{en, zh}` content. The locale checks guard against inline bilingual copy and mismatched English/Chinese catalogue fields.

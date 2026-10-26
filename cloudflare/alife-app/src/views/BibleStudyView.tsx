@@ -9,6 +9,7 @@ import { bibleReadingProgressService } from '../services/bibleReadingProgressSer
 import { getAvailableBibleVersions } from '../services/youVersionBibleService'
 import { useAuthStore } from '../stores/auth'
 import { bibleBooks, findBibleBook } from '../utils/bibleBooks'
+import { bibleRequestFailure, type BibleRequestFailure } from '../utils/bibleRequestFailure'
 import {
   normalizeReadingPosition,
   readSavedReadingPosition,
@@ -61,11 +62,14 @@ const BibleStudyView = () => {
   const chapter = clampChapter(searchParams.get('chapter'), selectedBook.chapters)
   const reference = `${book}.${chapter}`
   const isZh = auth.language === 'zh'
+  const fromVirtualChurchStudyRoom = searchParams.get('from') === 'virtual-church-study-room'
+  const guestFromVirtualChurch = auth.isGuest && fromVirtualChurchStudyRoom
   const [testament, setTestament] = useState<Testament>(() => bibleBooks.indexOf(selectedBook) < OLD_TESTAMENT_COUNT ? 'old' : 'new')
   const [bookGroupId, setBookGroupId] = useState(() => bookGroups.find((group) => group.books.some((item) => item.id === selectedBook.id))?.id || 'gospels')
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([])
+  const [versionsLanguage, setVersionsLanguage] = useState<ReaderLanguage | null>(null)
   const [versionsLoading, setVersionsLoading] = useState(true)
-  const [versionsError, setVersionsError] = useState(false)
+  const [versionsError, setVersionsError] = useState<BibleRequestFailure | null>(null)
   const chapterPickerRef = useRef<HTMLDetailsElement>(null)
   const chapterGridRef = useRef<HTMLDivElement>(null)
   const selectedChapterRef = useRef<HTMLButtonElement>(null)
@@ -81,9 +85,11 @@ const BibleStudyView = () => {
     }
 
     let active = true
+    const request = new AbortController()
     const local = readSavedReadingPosition(memberId)
     const initialParams = new URLSearchParams(searchParams)
     const hasExplicitReference = initialParams.has('book') || initialParams.has('chapter')
+    let restoreSearch = initialParams.toString()
 
     const applyPosition = (position: SavedReadingPosition) => {
       const params = new URLSearchParams(initialParams)
@@ -94,22 +100,28 @@ const BibleStudyView = () => {
       if (!params.has('lang')) params.set('lang', position.language)
       if (!params.has('zhVersion') && position.zhVersion) params.set('zhVersion', position.zhVersion)
       if (!params.has('enVersion') && position.enVersion) params.set('enVersion', position.enVersion)
-      if (params.toString() !== searchParams.toString()) setSearchParams(params, { replace: true })
+      const nextSearch = params.toString()
+      if (nextSearch !== restoreSearch) {
+        // Our optimistic restore is not a new reading choice made by the user.
+        restoreSearch = nextSearch
+        setSearchParams(params, { replace: true })
+      }
     }
 
     if (local) applyPosition(local)
 
-    void bibleReadingProgressService.get()
+    void bibleReadingProgressService.get(request.signal)
       .then(async (remoteValue) => {
         if (!active) return
         const remote = remoteValue ? normalizeReadingPosition(remoteValue) : null
         const localIsNewer = local && (!remote || Date.parse(local.updatedUtc) > Date.parse(remote.updatedUtc))
-        const userChangedPosition = new URLSearchParams(window.location.search).toString() !== searchParams.toString()
+        const userChangedPosition = new URLSearchParams(window.location.search).toString() !== restoreSearch
+        if (userChangedPosition) return
 
         if (localIsNewer) {
-          const savedRemote = await bibleReadingProgressService.save(local)
+          const savedRemote = await bibleReadingProgressService.save(local, request.signal)
           if (active) saveReadingPosition(memberId, normalizeReadingPosition(savedRemote) || local)
-        } else if (remote && !userChangedPosition) {
+        } else if (remote) {
           saveReadingPosition(memberId, remote)
           applyPosition(remote)
         }
@@ -121,7 +133,7 @@ const BibleStudyView = () => {
         if (active) setRestoredReadingMemberId(memberId)
       })
 
-    return () => { active = false }
+    return () => { active = false; request.abort() }
     // Restore once for the authenticated user; subsequent URL changes are saved below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.me?.id, auth.isGuest])
@@ -129,6 +141,8 @@ const BibleStudyView = () => {
   useEffect(() => {
     const memberId = auth.me?.id
     if (!memberId || auth.isGuest || restoredReadingMemberId !== memberId) return
+    let active = true
+    const request = new AbortController()
     const position = {
       book,
       chapter,
@@ -138,8 +152,9 @@ const BibleStudyView = () => {
     }
     saveReadingPosition(memberId, { ...position, updatedUtc: new Date().toISOString() })
     const syncTimer = window.setTimeout(() => {
-      void bibleReadingProgressService.save(position)
+      void bibleReadingProgressService.save(position, request.signal)
         .then((remote) => {
+          if (!active) return
           const normalized = normalizeReadingPosition(remote)
           if (normalized) saveReadingPosition(memberId, normalized)
         })
@@ -147,7 +162,7 @@ const BibleStudyView = () => {
           // The local timestamp keeps this change eligible for upload on the next visit.
         })
     }, 750)
-    return () => window.clearTimeout(syncTimer)
+    return () => { active = false; request.abort(); window.clearTimeout(syncTimer) }
   }, [auth.isGuest, auth.me?.id, book, chapter, language, restoredReadingMemberId, searchParams])
 
   useEffect(() => {
@@ -158,23 +173,36 @@ const BibleStudyView = () => {
   useEffect(() => {
     let active = true
     setVersionsLoading(true)
-    setVersionsError(false)
+    setVersionsError(null)
     void getAvailableBibleVersions(language)
-      .then((versions) => { if (active) setAvailableVersions(versions.sort((left, right) => right.id - left.id)) })
-      .catch(() => {
+      .then((versions) => {
         if (active) {
-          setAvailableVersions(language === 'en' ? [englishVersion] : [])
-          setVersionsError(language === 'zh')
+          setAvailableVersions(versions.sort((left, right) => right.id - left.id))
+          setVersionsLanguage(language)
+        }
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          const failure = bibleRequestFailure(cause)
+          // Keep the existing English fallback for transient catalog failures,
+          // but do not spend another request when the App Key is limited or denied.
+          const useEnglishFallback = language === 'en' && failure === 'other'
+          setAvailableVersions(useEnglishFallback ? [englishVersion] : [])
+          setVersionsLanguage(language)
+          setVersionsError(useEnglishFallback ? null : failure)
         }
       })
       .finally(() => { if (active) setVersionsLoading(false) })
     return () => { active = false }
   }, [language])
 
+  const visibleVersions = versionsLanguage === language ? availableVersions : []
+  const versionsPending = versionsLanguage !== language || versionsLoading
+  const visibleVersionsError = versionsLanguage === language ? versionsError : null
   const defaultVersion = language === 'en'
-    ? availableVersions.find((item) => item.id === englishVersion.id) || availableVersions[0] || englishVersion
-    : availableVersions[0]
-  const version = availableVersions.find((item) => item.id === selectedVersionId) || defaultVersion
+    ? visibleVersions.find((item) => item.id === englishVersion.id) || visibleVersions[0] || englishVersion
+    : visibleVersions[0]
+  const version = visibleVersions.find((item) => item.id === selectedVersionId) || defaultVersion
   const providerUrl = useMemo(() => version?.youversion_deep_link?.toString() || 'https://www.bible.com/', [version])
   const visibleBookGroups = bookGroups.filter((group) => group.testament === testament)
   const selectedBookGroup = visibleBookGroups.find((group) => group.id === bookGroupId) || visibleBookGroups[0]
@@ -196,8 +224,9 @@ const BibleStudyView = () => {
   return (
     <AppPageShell
       title={isZh ? bibleStudyViewText.bibleStudy.zh : bibleStudyViewText.bibleStudy.en}
-      context={isZh ? bibleStudyViewText.personalCenterBibleProgress.zh : bibleStudyViewText.personalCenterBibleProgress.en}
-      subtitle={isZh ? bibleStudyViewText.chooseABookAndChapterToReadPrepareAnd.zh : bibleStudyViewText.chooseABookAndChapterToReadPrepareAnd.en}
+      context={guestFromVirtualChurch ? (isZh ? bibleStudyViewText.virtualChurchScriptureReading.zh : bibleStudyViewText.virtualChurchScriptureReading.en) : (isZh ? bibleStudyViewText.personalCenterBibleProgress.zh : bibleStudyViewText.personalCenterBibleProgress.en)}
+      subtitle={guestFromVirtualChurch ? (isZh ? bibleStudyViewText.readScriptureHereGuestReadingIsNotSaved.zh : bibleStudyViewText.readScriptureHereGuestReadingIsNotSaved.en) : (isZh ? bibleStudyViewText.chooseABookAndChapterToReadPrepareAnd.zh : bibleStudyViewText.chooseABookAndChapterToReadPrepareAnd.en)}
+      backLink={fromVirtualChurchStudyRoom ? { to: '/virtual-church/study-room', label: isZh ? bibleStudyViewText.backToStudyRoom.zh : bibleStudyViewText.backToStudyRoom.en } : undefined}
     >
       <section className="space-y-4">
         <div className="rounded-[1.5rem] border border-[#d8e1dc] bg-[#f8fbf8] p-4 shadow-[0_16px_38px_rgba(30,54,48,0.06)] sm:p-5">
@@ -207,10 +236,10 @@ const BibleStudyView = () => {
               <div className="flex rounded-xl border border-[#cddbd4] bg-white p-1" aria-label={isZh ? bibleStudyViewText.readingLanguage.zh : bibleStudyViewText.readingLanguage.en}>
                 {(['zh', 'en'] as const).map((item) => <button key={item} type="button" onClick={() => setReference({ lang: item })} className={['rounded-lg px-3 py-2 text-sm font-black transition', language === item ? 'bg-[#173f36] text-white shadow-sm' : 'text-[#63756d] hover:bg-[#edf5f1]'].join(' ')}>{item === 'zh' ? bibleStudyViewText.english.zh : bibleStudyViewText.english.en}</button>)}
               </div>
-              {availableVersions.length ? <label className="flex h-10 max-w-full items-center gap-2 rounded-xl border border-[#cddbd4] bg-white pl-3 text-sm font-bold text-[#40554e] focus-within:border-[#176b5a] focus-within:ring-2 focus-within:ring-[#176b5a]/15">
+              {!versionsPending && visibleVersions.length ? <label className="flex h-10 max-w-full items-center gap-2 rounded-xl border border-[#cddbd4] bg-white pl-3 text-sm font-bold text-[#40554e] focus-within:border-[#176b5a] focus-within:ring-2 focus-within:ring-[#176b5a]/15">
                 <span className="shrink-0 text-xs text-[#718079]">{language === 'zh' ? (isZh ? bibleStudyViewText.translation.zh : bibleStudyViewText.translation.en) : (isZh ? bibleStudyViewText.translationLabel.zh : bibleStudyViewText.translationLabel.en)}</span>
                 <select value={version?.id || ''} onChange={(event) => setReference({ version: event.target.value })} className="h-full min-w-0 max-w-[17rem] bg-transparent pr-3 text-sm font-bold text-[#18332d] outline-none" aria-label={language === 'zh' ? (isZh ? bibleStudyViewText.chooseChineseVersion.zh : bibleStudyViewText.chooseChineseVersion.en) : (isZh ? bibleStudyViewText.chooseEnglishVersion.zh : bibleStudyViewText.chooseEnglishVersion.en)}>
-                  {availableVersions.map((item) => <option key={item.id} value={item.id}>{formatVersionName(item)} ({item.localized_abbreviation || item.abbreviation})</option>)}
+                  {visibleVersions.map((item) => <option key={item.id} value={item.id}>{formatVersionName(item)} ({item.localized_abbreviation || item.abbreviation})</option>)}
                 </select>
               </label> : null}
             </div>
@@ -249,9 +278,15 @@ const BibleStudyView = () => {
           </div>
         </div>
 
-        {versionsLoading ? <div className="flex min-h-[24rem] items-center justify-center rounded-[1.5rem] border border-[#d8e1dc] bg-white text-sm font-bold text-[#60716a] shadow-[0_16px_38px_rgba(30,54,48,0.07)]"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-[#176b5a]" />{isZh ? bibleStudyViewText.loadingAvailableVersions.zh : bibleStudyViewText.loadingAvailableVersions.en}</div> : null}
-        {versionsError ? <div className="rounded-[1.5rem] border border-[#ead8c6] bg-[#fffbf5] p-6 text-center shadow-[0_16px_38px_rgba(30,54,48,0.07)]"><AlertCircle className="mx-auto h-8 w-8 text-[#b65c3e]" /><p className="mt-3 text-sm leading-6 text-[#725b4d]">{isZh ? bibleStudyViewText.chineseVersionsCouldNotBeLoadedRightNowPlease.zh : bibleStudyViewText.chineseVersionsCouldNotBeLoadedRightNowPlease.en}</p></div> : null}
-        {!versionsLoading && !versionsError && version ? <YouVersionBibleReader reference={reference} versionId={version.id} providerUrl={providerUrl} language={language} canGoPrevious={chapter > 1} canGoNext={chapter < selectedBook.chapters} onPrevious={() => setReference({ chapter: String(chapter - 1) })} onNext={() => setReference({ chapter: String(chapter + 1) })} /> : null}
+        {versionsPending ? <div className="flex min-h-[24rem] items-center justify-center rounded-[1.5rem] border border-[#d8e1dc] bg-white text-sm font-bold text-[#60716a] shadow-[0_16px_38px_rgba(30,54,48,0.07)]"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-[#176b5a]" />{isZh ? bibleStudyViewText.loadingAvailableVersions.zh : bibleStudyViewText.loadingAvailableVersions.en}</div> : null}
+        {visibleVersionsError ? <div role="alert" className="rounded-[1.5rem] border border-[#ead8c6] bg-[#fffbf5] p-6 text-center shadow-[0_16px_38px_rgba(30,54,48,0.07)]"><AlertCircle className="mx-auto h-8 w-8 text-[#b65c3e]" /><p className="mt-3 text-sm leading-6 text-[#725b4d]">{visibleVersionsError === 'not-configured'
+          ? (isZh ? bibleStudyViewText.inPageScriptureReadingIsNotAvailableHere.zh : bibleStudyViewText.inPageScriptureReadingIsNotAvailableHere.en)
+          : visibleVersionsError === 'rate-limited'
+          ? (isZh ? bibleStudyViewText.scriptureRequestsAreTemporarilyLimitedPleaseTryAgain.zh : bibleStudyViewText.scriptureRequestsAreTemporarilyLimitedPleaseTryAgain.en)
+          : visibleVersionsError === 'access-denied'
+            ? (isZh ? bibleStudyViewText.scriptureIsNotAvailableHereRightNow.zh : bibleStudyViewText.scriptureIsNotAvailableHereRightNow.en)
+            : (isZh ? bibleStudyViewText.bibleVersionsCouldNotBeLoadedRightNow.zh : bibleStudyViewText.bibleVersionsCouldNotBeLoadedRightNow.en)}</p><a href="https://www.bible.com/" target="_blank" rel="noreferrer" className="mt-4 inline-flex h-11 items-center rounded-xl bg-[#173f36] px-4 text-sm font-black text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]/35">{isZh ? bibleStudyViewText.readOnBibleCom.zh : bibleStudyViewText.readOnBibleCom.en}</a></div> : null}
+        {!versionsPending && !visibleVersionsError && version ? <YouVersionBibleReader reference={reference} versionId={version.id} providerUrl={providerUrl} language={language} canGoPrevious={chapter > 1} canGoNext={chapter < selectedBook.chapters} onPrevious={() => setReference({ chapter: String(chapter - 1) })} onNext={() => setReference({ chapter: String(chapter + 1) })} /> : null}
       </section>
     </AppPageShell>
   )

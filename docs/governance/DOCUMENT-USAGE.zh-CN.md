@@ -1,6 +1,6 @@
 # Docs 文件用途与待确认历史清单
 
-审查日期：2026-10-10。原有 196 个文件，保留 97 个（其中 1 个仅在指定源版本中），移入待确认区 99 个；另有 3 个新增审计文件和 1 个审查后新增文件。
+审查日期：2026-10-10。原有 196 个文件，保留 97 个（其中 0 个仅在指定源版本中），移入待确认区 99 个；另有 3 个新增审计文件和 4 个审查后新增文件。
 
 “Alife”列表示继续推进现有项目时仍有作用；“新 Church App”列表示生成、验证或交接新系统时仍有作用。保留可以是规则、运维、用户手册、生成工具或仍采用的参考；不等于每次任务都要读取。历史证据可按需要调查，但不会授予当前需求或开发权威。
 
@@ -10,7 +10,7 @@
 
 - 以 AGENTS、架构、领域契约和当前依赖为准；没有引用不等于没有用途。
 - 现行 Event 视觉规范仍采用的试点图片、说明 HTML、原型、模板及生成/验证工具保留。
-- 虚拟教会计划只存在于指定源版本和独立 PR #827，当前 main 没有该文档或对应功能；以固定提交链接保留来源，不复制为 main 的现行契约，不自动恢复旧 V3 任务。
+- 虚拟教会计划：PR #827 已将计划和对应实现纳入当前候选；仅最新收尾状态、用户确认的首版裁剪与必要验收边界具有当前范围权威，旧 V3 路线不得恢复为新增任务。固定源版本仅保留历史溯源，不证明当前候选或生产已验收。
 - FileAsset 设计仍保留供归整，其早期现状描述不能覆盖已存在的 FileAsset/私有文件实现。
 - Azure 新实例清单保留；Vue/Pinia、Next.js、旧 Static Web Apps 和 PostgreSQL 迁移提示移入待确认区。
 - Communication/VibeCoding 原为 Git 忽略的本地材料，移动后仍忽略；清单不公开其正文、凭据或诊断数据。
@@ -87,7 +87,7 @@
 | [sermon-metadata.md](../sermon-metadata.md) | 是 | 是 | 保留 | 现行架构、领域契约、状态、运维或设计入口；Alife 继续交付与功能等价的新 Church App 均需要。 |
 | [speed-layer_architecture.md](../speed-layer_architecture.md) | 是 | 是 | 保留 | 现行架构、领域契约、状态、运维或设计入口；Alife 继续交付与功能等价的新 Church App 均需要。 |
 | [sunday-bulletins.md](../sunday-bulletins.md) | 是 | 是 | 保留 | 现行架构、领域契约、状态、运维或设计入口；Alife 继续交付与功能等价的新 Church App 均需要。 |
-| [virtual-church-visual-upgrade-plan.zh-CN.md](https://github.com/appccalc-developers/Alife/blob/4416e4de6a01aee0d43446a1b7c1ee7dafcfcd31/docs/virtual-church-visual-upgrade-plan.zh-CN.md) | 是 | 是 | 保留源版本引用 | 仅存在于固定源版本和独立 PR #827，当前 main 无对应文档或运行功能；保留可追溯来源，不能作为 main 的现行契约或交付证据。 |
+| [virtual-church-visual-upgrade-plan.zh-CN.md](../virtual-church-visual-upgrade-plan.zh-CN.md) | 是 | 是 | 保留 | PR #827 已将计划和对应实现纳入当前候选；仅最新收尾状态、用户确认的首版裁剪与必要验收边界具有当前范围权威，旧 V3 路线不得恢复为新增任务。固定源版本仅保留历史溯源，不证明当前候选或生产已验收。 |
 
 ## docs/Communication
 
@@ -202,6 +202,14 @@
 | [alife-public-home.png](../../archive/pending-docs-review/2026-10-10/docs/assets/portfolio/alife-public-home.png) | 否 | 否 | 待确认历史 | 作品集文章配套截图；随文章保留历史价值，没有当前 UI 规范依赖。 |
 | [alife-ram-workflow.png](../../archive/pending-docs-review/2026-10-10/docs/assets/portfolio/alife-ram-workflow.png) | 否 | 否 | 待确认历史 | 作品集文章配套截图；随文章保留历史价值，没有当前 UI 规范依赖。 |
 | [alife-website-builder.png](../../archive/pending-docs-review/2026-10-10/docs/assets/portfolio/alife-website-builder.png) | 否 | 否 | 待确认历史 | 作品集文章配套截图；随文章保留历史价值，没有当前 UI 规范依赖。 |
+
+## docs/assets/virtual-church
+
+| 文件 | Alife | 新 Church App | 处理 | 依据 |
+| --- | --- | --- | --- | --- |
+| [footer-en-mobile.png](../assets/virtual-church/footer-en-mobile.png) | 是 | 否 | 保留 | PR #827 当前本地英文手机视口页脚入口验证截图；仅证明可观察布局，不代替真机、后端或生产验收。 |
+| [footer-zh-desktop.png](../assets/virtual-church/footer-zh-desktop.png) | 是 | 否 | 保留 | PR #827 当前本地中文桌面页脚入口验证截图；仅证明可观察布局，不代替真机、后端或生产验收。 |
+| [scene-zh.png](../assets/virtual-church/scene-zh.png) | 是 | 否 | 保留 | PR #827 当前本地中文 3D 场景就绪截图；静态截图不证明连续帧率、资源释放或生产验收。 |
 
 ## docs/codex
 

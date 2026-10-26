@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, type ReactElement } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactElement } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
@@ -20,6 +20,8 @@ import {
 import { buildOnboardingLocation, normalizeIdentityReturnPath } from '../../services/identityPathPolicy'
 import { PERSONAL_CENTER_PATH, PROFILE_SETTINGS_PATH } from './personalCenterRoutes'
 import { getLegacyGroupEntryPath } from '../navigation/groupSiteNavigation'
+import VirtualChurchRouteBoundary from './VirtualChurchRouteBoundary'
+import { isVirtualChurchStudyRoomReading, resolveVirtualChurchGuestReturn, virtualChurchGuestVisitEnabled } from './virtualChurchPublicAccess'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
 const AdminGroupView = lazy(() => import('../../views/AdminGroupView'))
@@ -73,6 +75,14 @@ const EventRegistrationWorkView = lazy(() => import('../../views/EventRegistrati
 const EventVenueCalendarView = lazy(() => import('../../views/EventVenueCalendarView'))
 const EventReportView = lazy(() => import('../../views/EventWorkView').then(module => ({ default: module.EventReportView })))
 const EventTaskView = lazy(() => import('../../views/EventTaskView'))
+const VirtualChurchView = lazy(() => import('../../views/VirtualChurchView'))
+const VirtualChurchStudyRoomView = lazy(() => import('../../views/VirtualChurchStudyRoomView'))
+const VirtualChurchMainHallView = lazy(() => import('../../views/VirtualChurchMainHallView'))
+
+const VirtualChurchRouteEntry = () => {
+  const [routeStartedAt] = useState(() => window.performance.now())
+  return <VirtualChurchView routeStartedAt={routeStartedAt} />
+}
 
 const AdminRoute = ({ children, permission }: { children: ReactElement; permission?: string }) => {
   const auth = useAuthStore()
@@ -171,6 +181,8 @@ const LegacyChurchToolRoute = ({ to }: { to: string }) => {
 const OnboardingRoute = ({ children }: { children: ReactElement }) => {
   const auth = useAuthStore()
   const location = useLocation()
+  const guestReturn = resolveVirtualChurchGuestReturn(location.search, virtualChurchGuestVisitEnabled())
+  if (guestReturn) return <Navigate to={guestReturn} replace />
 
   if (!auth.initialized) {
     return <AppRouteLoading />
@@ -196,6 +208,16 @@ const MemberRoute = ({ children }: { children: ReactElement }) => {
   return !auth.loading && !auth.isGuest
     ? children
     : <Navigate to={buildOnboardingLocation(`${location.pathname}${location.search}${location.hash}`)} replace />
+}
+
+const VirtualChurchPreviewRoute = ({ children }: { children: ReactElement }) =>
+  virtualChurchGuestVisitEnabled() ? children : <MemberRoute>{children}</MemberRoute>
+
+const VirtualChurchReadingRoute = ({ children }: { children: ReactElement }) => {
+  const location = useLocation()
+  return virtualChurchGuestVisitEnabled() && isVirtualChurchStudyRoomReading(location.search)
+    ? children
+    : <MemberRoute>{children}</MemberRoute>
 }
 
 const EntryRoute = () => {
@@ -331,11 +353,23 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route
             path="/study"
             element={
-              <MemberRoute>
+              <VirtualChurchReadingRoute>
                 <BibleStudyView />
-              </MemberRoute>
+              </VirtualChurchReadingRoute>
             }
           />
+          <Route
+            path="/virtual-church"
+            element={
+              <VirtualChurchPreviewRoute>
+                <VirtualChurchRouteBoundary>
+                  <VirtualChurchRouteEntry />
+                </VirtualChurchRouteBoundary>
+              </VirtualChurchPreviewRoute>
+            }
+          />
+          <Route path="/virtual-church/study-room" element={<VirtualChurchPreviewRoute><VirtualChurchRouteBoundary><VirtualChurchStudyRoomView /></VirtualChurchRouteBoundary></VirtualChurchPreviewRoute>} />
+          <Route path="/virtual-church/main-hall" element={<VirtualChurchPreviewRoute><VirtualChurchRouteBoundary><VirtualChurchMainHallView /></VirtualChurchRouteBoundary></VirtualChurchPreviewRoute>} />
           <Route path="/events/new" element={<EventCreationWizard />} />
           <Route path="/events" element={<EventDetailView />} />
           <Route path="/events/:eventId" element={<EventDetailView />} />

@@ -75,6 +75,15 @@ export { EventPlanningSession, EnrollmentSession, ReviewSession }
 
 const app = new Router()
 
+const staticAssetContentTypeMatchesPath = (pathname: string, contentType: string) => {
+  const mime = contentType.split(';', 1)[0].trim().toLowerCase()
+  const path = pathname.toLowerCase()
+  if (path.endsWith('.glb')) return mime === 'model/gltf-binary'
+  if (path.endsWith('.js')) return mime === 'text/javascript' || mime === 'application/javascript'
+  if (path.endsWith('.css')) return mime === 'text/css'
+  return mime !== 'text/html'
+}
+
 const serveStaticAssetWithoutSpaFallback = async (request: Request, env: Env) => {
   if (!env.ASSETS) {
     return new Response('Static asset service unavailable.', {
@@ -89,7 +98,10 @@ const serveStaticAssetWithoutSpaFallback = async (request: Request, env: Env) =>
 
   const response = await env.ASSETS.fetch(request)
   const contentType = response.headers.get('content-type') ?? ''
-  if (response.status !== 200 || !contentType.toLowerCase().startsWith('text/html')) {
+  if (response.status !== 404 && !(response.status === 200 && !staticAssetContentTypeMatchesPath(
+    new URL(request.url).pathname,
+    contentType,
+  ))) {
     return response
   }
 
@@ -105,6 +117,7 @@ const serveStaticAssetWithoutSpaFallback = async (request: Request, env: Env) =>
 
 // Outermost priority routing (bypasses middleware entirely)
 app.all('/assets/*', async (req, env) => serveStaticAssetWithoutSpaFallback(req, env))
+app.all('/virtual-church-assets/*', async (req, env) => serveStaticAssetWithoutSpaFallback(req, env))
 app.all('/images', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.all('/images/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.all('/proxy/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))

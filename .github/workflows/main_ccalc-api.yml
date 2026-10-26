@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - ".github/workflows/main_ccalc-api.yml"
+      - ".github/workflows/bible-reading-quality.yml"
       - "backend/**"
 
 permissions:
@@ -18,7 +19,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  reading-privacy:
+    uses: ./.github/workflows/bible-reading-quality.yml
+    permissions:
+      contents: read
+
   migrate-and-deploy:
+    needs: reading-privacy
     runs-on: ubuntu-latest
     env:
       AZURE_FUNCTIONAPP_NAME: fapi-ccalc

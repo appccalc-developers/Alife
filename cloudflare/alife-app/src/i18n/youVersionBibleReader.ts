@@ -1,5 +1,9 @@
 // Fixed bilingual copy for components/bible/YouVersionBibleReader.tsx.
 export const youVersionBibleReaderText = {
+  inPageScriptureReadingIsNotAvailableHere: { en: "In-page Scripture reading is not available here yet. You can read on Bible.com.", zh: "本站暂未提供内嵌经文阅读。你可以在 Bible.com 阅读。" },
+  scriptureRequestsAreTemporarilyLimitedPleaseTryAgain: { en: "Scripture requests are temporarily limited. Please try again later or continue on Bible.com.", zh: "经文服务目前请求过多，请稍后再试。你也可以继续在 Bible.com 阅读。" },
+  thisPassageIsNotAvailableHereRightNow: { en: "This passage is not available here right now. You can continue on Bible.com.", zh: "目前无法在这里提供这段经文。你可以继续在 Bible.com 阅读。" },
+  tryAgain: { en: "Try again", zh: "重试加载" },
     thisPassageCouldNotBeLoadedRightNowYou: { en: 'This passage could not be loaded right now. You can continue reading on Bible.com.', zh: '暂时无法加载这段经文。你可以继续在 Bible.com 阅读。' } as const,
     bibleReadingIsNotConfiguredYet: { en: 'Bible reading is not configured yet.', zh: '查经服务尚未完成设置。' } as const,
     loadingScripture: { en: 'Loading Scripture…', zh: '正在加载经文…' } as const,

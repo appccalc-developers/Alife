@@ -10,6 +10,9 @@ test('API files always select NetworkOnly, while public resources retain their c
   const config = loadSource('vite.config.ts', {
     vite: { defineConfig: x => x, loadEnv: () => ({}) }, '@vitejs/plugin-react': { default: () => ({}) },
     'vite-plugin-pwa': { VitePWA: x => { options = x; return {}; } },
+    'node:fs': require('node:fs'), 'node:path': require('node:path'), 'node:url': require('node:url'),
+    './scripts/virtualChurchReviewFault': loadSource('scripts/virtualChurchReviewFault.ts'),
+    './src/views/virtualChurchPwaContract': loadSource('src/views/virtualChurchPwaContract.ts'),
   }).default;
   config({ command: 'build', mode: 'production' });
   const origin = 'https://fixture.invalid';

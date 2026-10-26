@@ -11,6 +11,45 @@
   ],
   "files": [
     {
+      "originalPath": "docs/assets/virtual-church/footer-en-mobile.png",
+      "currentPath": "docs/assets/virtual-church/footer-en-mobile.png",
+      "action": "retain",
+      "role": "current-verification-evidence",
+      "alife": true,
+      "churchApp": false,
+      "reason": "PR #827 当前本地英文手机视口页脚入口验证截图；仅证明可观察布局，不代替真机、后端或生产验收。",
+      "inspection": "2026-10-26 本地浏览器 390px 英文页脚渲染核对",
+      "versionControl": "post-review-created",
+      "incomingReferences": ["docs/virtual-church-visual-upgrade-plan.zh-CN.md"],
+      "originalSha256": null
+    },
+    {
+      "originalPath": "docs/assets/virtual-church/footer-zh-desktop.png",
+      "currentPath": "docs/assets/virtual-church/footer-zh-desktop.png",
+      "action": "retain",
+      "role": "current-verification-evidence",
+      "alife": true,
+      "churchApp": false,
+      "reason": "PR #827 当前本地中文桌面页脚入口验证截图；仅证明可观察布局，不代替真机、后端或生产验收。",
+      "inspection": "2026-10-26 本地浏览器中文桌面页脚渲染核对",
+      "versionControl": "post-review-created",
+      "incomingReferences": ["docs/virtual-church-visual-upgrade-plan.zh-CN.md"],
+      "originalSha256": null
+    },
+    {
+      "originalPath": "docs/assets/virtual-church/scene-zh.png",
+      "currentPath": "docs/assets/virtual-church/scene-zh.png",
+      "action": "retain",
+      "role": "current-verification-evidence",
+      "alife": true,
+      "churchApp": false,
+      "reason": "PR #827 当前本地中文 3D 场景就绪截图；静态截图不证明连续帧率、资源释放或生产验收。",
+      "inspection": "2026-10-26 本地浏览器实际加载中文场景核对",
+      "versionControl": "post-review-created",
+      "incomingReferences": ["docs/virtual-church-visual-upgrade-plan.zh-CN.md"],
+      "originalSha256": null
+    },
+    {
       "originalPath": "docs/agent-guides/GITHUB-WORKFLOW.md",
       "currentPath": "docs/agent-guides/GITHUB-WORKFLOW.md",
       "action": "retain",
@@ -3138,11 +3177,11 @@
       "originalPath": "docs/virtual-church-visual-upgrade-plan.zh-CN.md",
       "currentPath": "docs/virtual-church-visual-upgrade-plan.zh-CN.md",
       "action": "retain",
-      "role": "pinned-source-only",
+      "role": "current-scoped-release-plan",
       "alife": true,
       "churchApp": true,
-      "reason": "仅存在于固定源版本和独立 PR #827，当前 main 无对应文档或运行功能；保留可追溯来源，不能作为 main 的现行契约或交付证据。",
-      "inspection": "main 文件可用性、PR #827 范围和固定提交原文/哈希核对",
+      "reason": "PR #827 已将计划和对应实现纳入当前候选；仅最新收尾状态、用户确认的首版裁剪与必要验收边界具有当前范围权威，旧 V3 路线不得恢复为新增任务。固定源版本仅保留历史溯源，不证明当前候选或生产已验收。",
+      "inspection": "2026-10-26 核对 PR #827 当前文件可用性、页脚入口与 CI/CD 范围；保留固定提交原文/哈希来源，当前验证另行记录",
       "versionControl": "tracked",
       "incomingReferences": [
         "docs/governance/scripts/audit-document-usage.mjs"

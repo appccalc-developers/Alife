@@ -1,0 +1,88 @@
+name: Virtual Church Quality
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/virtual-church-quality.yml"
+      - ".github/workflows/deploy-cloudflare-worker.yml"
+      - "cloudflare/alife-app/**"
+      - "cloudflare/speed-layer/**"
+      - "tools/virtual-church/**"
+      - "tools/blender/virtual_church/**"
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: virtual-church-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-worker:
+    name: Frontend, assets and Worker boundaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Exercise the opt-in guest build without changing deployment variables.
+      VITE_API_BASE_URL: ""
+      VITE_VIRTUAL_CHURCH_PUBLIC_ACCESS: enabled
+      VITE_VIRTUAL_CHURCH_VISUAL_DEFAULT: v3
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            cloudflare/alife-app/package-lock.json
+            cloudflare/speed-layer/package-lock.json
+
+      - name: Install locked frontend dependencies
+        working-directory: cloudflare/alife-app
+        run: npm ci
+
+      - name: Install locked Worker dependencies
+        working-directory: cloudflare/speed-layer
+        run: npm ci
+
+      - name: Test bilingual resources and shared navigation/cache behavior
+        working-directory: cloudflare/alife-app
+        run: |
+          npm run test:locale
+          npm run test:navigation-policy
+          npm run test:page-cache
+
+      - name: Test church, guest reading and route recovery contracts
+        working-directory: cloudflare/alife-app
+        run: >-
+          node --test --test-concurrency=4 --experimental-strip-types
+          tests/virtualChurch*.test.ts tests/virtualChurch*.test.mjs
+          tests/routeChunkRecovery.test.ts
+          tests/serviceWorkerControllerChange.test.ts
+          tests/bibleReadingProgressSync.test.ts
+          tests/bibleAttribution.test.ts
+          tests/bibleRequestFailure.test.ts
+
+      - name: Typecheck and build frontend
+        working-directory: cloudflare/alife-app
+        run: npm run build
+
+      - name: Verify production payload, chunks and immutable assets
+        working-directory: cloudflare/alife-app
+        run: |
+          npm run validate:3d:static-payload
+          npm run validate:3d:chunk-closure
+          npm run validate:3d:asset-release:dist
+
+      - name: Build Worker locally and test deployment/cache boundaries
+        working-directory: cloudflare/speed-layer
+        run: |
+          npm run build:worker
+          npm run test:built
+          npm run test:deploy-config

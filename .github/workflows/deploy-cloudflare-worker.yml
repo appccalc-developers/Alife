@@ -8,8 +8,11 @@ on:
     paths:
       - "README.html"
       - ".github/workflows/deploy-cloudflare-worker.yml"
+      - ".github/workflows/virtual-church-quality.yml"
       - "cloudflare/alife-app/**"
       - "cloudflare/speed-layer/**"
+      - "tools/virtual-church/**"
+      - "tools/blender/virtual_church/**"
 
 permissions:
   contents: read
@@ -19,7 +22,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  quality:
+    uses: ./.github/workflows/virtual-church-quality.yml
+    permissions:
+      contents: read
+
   deploy:
+    needs: quality
     runs-on: ubuntu-latest
 
     env:
@@ -53,9 +62,24 @@ jobs:
         working-directory: ./cloudflare/alife-app
         run: npm run generate:public-home-bootstrap
 
+      - name: Test 3D public access policy
+        working-directory: ./cloudflare/alife-app
+        run: node --test --experimental-strip-types tests/virtualChurchPublicAccess.test.ts
+
       - name: Build Frontend
         working-directory: ./cloudflare/alife-app
+        env:
+          # Publication is opt-in; unset repository variables retain the closed baseline.
+          VITE_VIRTUAL_CHURCH_PUBLIC_ACCESS: ${{ vars.VITE_VIRTUAL_CHURCH_PUBLIC_ACCESS || 'disabled' }}
+          VITE_VIRTUAL_CHURCH_VISUAL_DEFAULT: ${{ vars.VITE_VIRTUAL_CHURCH_VISUAL_DEFAULT || 'v2' }}
         run: npm run build
+
+      - name: Verify 3D production payload and cache boundaries
+        working-directory: ./cloudflare/alife-app
+        run: |
+          npm run validate:3d:static-payload
+          npm run validate:3d:chunk-closure
+          npm run validate:3d:asset-release:dist
 
       - name: Test frontend route chunk recovery
         working-directory: ./cloudflare/alife-app
@@ -93,7 +117,9 @@ jobs:
 
       - name: Test Worker speed layer
         working-directory: ./cloudflare/speed-layer
-        run: npm test
+        run: |
+          npm run build:worker
+          npm run test:built
 
       - name: Prepare Worker deployment config
         working-directory: ./cloudflare/speed-layer
@@ -201,4 +227,7 @@ jobs:
             esac
           done < <(find ../alife-app/dist/assets -type f \( -name '*.js' -o -name '*.css' \) | sort)
 
-          echo "Verified deployed frontend routes and all JavaScript/CSS assets."
+          node ../../tools/virtual-church/validate-static-asset-http-boundary.mjs \
+            --base-url=https://ccalc.live
+
+          echo "Verified deployed frontend routes, JavaScript/CSS assets, and 3D asset HTTP boundaries."

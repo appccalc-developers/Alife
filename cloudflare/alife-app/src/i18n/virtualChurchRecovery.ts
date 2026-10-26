@@ -1,0 +1,26 @@
+export const virtualChurchRecoveryCopy = {
+  zh: {
+    title: '虚拟教堂暂时无法打开',
+    offline: '当前离线，暂时无法取得更新后的教堂资源。现有缓存已保留；联网后再清理并重载。',
+    conflict: '页面代码更新时发生了加载冲突。我们已尝试刷新失效缓存；如果页面没有自动恢复，请重新加载。',
+    runtime: '加载 3D 场景时发生了运行时错误。教堂页面已安全停止，普通查经和小组功能不受影响。',
+    technicalDetails: '技术详情',
+    cleaning: '正在清理并重载…',
+    reconnect: '联网后重试',
+    cleanReload: '清理并重载',
+    reload: '重新加载',
+    home: '返回首页',
+  },
+  en: {
+    title: 'The virtual church could not open',
+    offline: 'Offline: existing caches are preserved. Reconnect, then clean and reload the church resources.',
+    conflict: 'The page code could not finish updating. Reload to recover the latest resources.',
+    runtime: 'The 3D scene stopped after a runtime error. Other Alife features remain available.',
+    technicalDetails: 'Technical details',
+    cleaning: 'Cleaning and reloading…',
+    reconnect: 'Reconnect to retry',
+    cleanReload: 'Clean reload',
+    reload: 'Reload',
+    home: 'Home',
+  },
+}

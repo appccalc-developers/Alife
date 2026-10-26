@@ -54,7 +54,8 @@ const server = http.createServer((req, res) => {
     const activated = await page.evaluate(() => caches.keys());
     assert.ok(activated.includes('another-app-fixture'));
     assert.ok(activated.some(name => name.includes('precache')));
-    // Assert migrated contents so empty cache containers do not affect privacy.
+    // The separate 3D activation listener may reopen an empty legacy shell cache
+    // from its earlier snapshot. Its contents, rather than its name, are the invariant.
     for (const name of ['alife-video-cache', 'alife-app-cache', 'alife-image-cache', 'alife-external-image-cache', 'alife-runtime-cache']) {
       if (activated.includes(name)) assert.equal(await page.evaluate(async name => (await (await caches.open(name)).keys()).length, name), 0, `${name} must contain no legacy entries`);
     }

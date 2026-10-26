@@ -56,7 +56,7 @@ function classify(path) {
   if (/^docs\/alife-ministry-guide\./.test(path)) return keep('user-guide', '现有使用/内容编制与新 Church App 用户手册的基础；身份说明与当前 Passkey 主路径对齐，细节仍服从领域契约。');
   if (path === 'docs/plan-newAzureSubscriptionSetup.prompt.md') return keep('operational-reference', '新 Church App 的 Azure 路线所需独立资源、OIDC、配置及验收清单；更新旧路径，不据此自动创建资源/迁移/部署。');
   if (path === 'docs/file-asset-design.md') return keep('needs-reconciliation', '包含文件归属/可见性/兼容设计，仍与新系统有关；现状段落早于 FileAsset 实现，已标记为设计参考，须对照当前源码归整，不能当作现状事实。');
-  if (path === 'docs/virtual-church-visual-upgrade-plan.zh-CN.md') return keep('current-scope-with-history', '当前首版范围、Definition of Done 和未完成发布事项仍有效；保留整个混合文件，旧 V3 历史已明确非当前任务，不能重新扩大范围。');
+  if (path === 'docs/virtual-church-visual-upgrade-plan.zh-CN.md') return keep('current-scoped-release-plan', '当前首版范围、用户确认裁剪和未完成发布事项仍有效；保留整个混合文件，旧 V3 历史已明确非当前任务，不能重新扩大范围。');
   if (path === 'docs/member-private-file-backfill.md') return keep('operational-reference', '现有 Alife 私有文件兼容与修复操作说明仍需保留；空白新实例不默认执行旧对象回填。', '当前 FileAsset/私有访问结构和操作说明核对', true, false);
   if (path.startsWith('docs/governance/')) return keep('governance', '项目目标、工作台账、验收和后续推进的当前治理来源。');
   if (path.startsWith('docs/agent-guides/')) return keep('agent-policy', 'Alife 发布操作规则；新项目可按授权适配，不复制仓库身份或授予权限。');
@@ -107,7 +107,8 @@ function render() {
   const archived = original.filter(row => row.action === 'pending-history');
   const added = registry.files.filter(row => row.versionControl === 'post-review-created');
   const audit = registry.files.filter(row => row.versionControl === 'audit-created');
-  const sourceOnly = retained.filter(row => row.sourceReference);
+  const sourceOnly = retained.filter(row => row.role === 'pinned-source-only');
+  const virtualChurchPlan = retained.find(row => row.originalPath === 'docs/virtual-church-visual-upgrade-plan.zh-CN.md');
   const lines = [
     '# Docs 文件用途与待确认历史清单', '',
     `审查日期：${registry.reviewedOn}。原有 ${original.length} 个文件，保留 ${retained.length} 个（其中 ${sourceOnly.length} 个仅在指定源版本中），移入待确认区 ${archived.length} 个；另有 ${audit.length} 个新增审计文件和 ${added.length} 个审查后新增文件。`, '',
@@ -116,7 +117,7 @@ function render() {
     '## 判断依据与注意事项', '',
     '- 以 AGENTS、架构、领域契约和当前依赖为准；没有引用不等于没有用途。',
     '- 现行 Event 视觉规范仍采用的试点图片、说明 HTML、原型、模板及生成/验证工具保留。',
-    '- 虚拟教会计划只存在于指定源版本和独立 PR #827，当前 main 没有该文档或对应功能；以固定提交链接保留来源，不复制为 main 的现行契约，不自动恢复旧 V3 任务。',
+    ...(virtualChurchPlan ? [`- 虚拟教会计划：${virtualChurchPlan.reason}`] : []),
     '- FileAsset 设计仍保留供归整，其早期现状描述不能覆盖已存在的 FileAsset/私有文件实现。',
     '- Azure 新实例清单保留；Vue/Pinia、Next.js、旧 Static Web Apps 和 PostgreSQL 迁移提示移入待确认区。',
     '- Communication/VibeCoding 原为 Git 忽略的本地材料，移动后仍忽略；清单不公开其正文、凭据或诊断数据。',
@@ -134,8 +135,8 @@ function render() {
     lines.push('', `## ${dir}`, '', '| 文件 | Alife | 新 Church App | 处理 | 依据 |', '| --- | --- | --- | --- | --- |');
     for (const row of registry.files.filter(row => dirname(row.originalPath) === dir)) {
       const label = row.originalPath.slice(dir.length + 1).replaceAll('|', '\\|');
-      const link = row.sourceReference?.url ?? slash(relative(dirname(reportPath), resolve(root, row.currentPath))).split('/').map(part => encodeURIComponent(part).replace(/[!'()*]/g, character => '%' + character.charCodeAt(0).toString(16).toUpperCase())).join('/');
-      const treatment = row.sourceReference ? '保留源版本引用' : row.action === 'retain' ? '保留' : '待确认历史';
+      const link = row.role === 'pinned-source-only' ? row.sourceReference.url : slash(relative(dirname(reportPath), resolve(root, row.currentPath))).split('/').map(part => encodeURIComponent(part).replace(/[!'()*]/g, character => '%' + character.charCodeAt(0).toString(16).toUpperCase())).join('/');
+      const treatment = row.role === 'pinned-source-only' ? '保留源版本引用' : row.action === 'retain' ? '保留' : '待确认历史';
       lines.push(`| [${label}](${link}) | ${row.alife ? '是' : '否'} | ${row.churchApp ? '是' : '否'} | ${treatment} | ${row.reason.replaceAll('|', '\\|')} |`);
     }
   }
@@ -146,20 +147,24 @@ function render() {
 function check() {
   const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
   const originals = new Set(), current = new Set();
-  let sourceOnly = 0, sourceHashes = 0, archivedHashes = 0, omittedIgnored = 0;
+  let sourceOnly = 0, sourceReferences = 0, sourceHashes = 0, archivedHashes = 0, omittedIgnored = 0;
   for (const row of registry.files) {
     if (originals.has(row.originalPath) || current.has(row.currentPath)) throw new Error(`Duplicate: ${row.originalPath}`);
     originals.add(row.originalPath); current.add(row.currentPath);
     const path = resolve(root, row.currentPath);
     if (!path.startsWith(root + '/') && !path.startsWith(root + '\\')) throw new Error('Path outside repository');
+    if (row.role === 'pinned-source-only' && !row.sourceReference) throw new Error(`Missing pinned-source reference: ${row.originalPath}`);
     if (row.sourceReference) {
+      sourceReferences++;
       const ref = row.sourceReference;
       if (row.action !== 'retain' || !/^[a-f0-9]{40}$/.test(ref.revision) || !/^[a-f0-9]{64}$/.test(ref.sha256) ||
           ref.revision !== registry.sourceRevision || ref.url !== `https://github.com/appccalc-developers/Alife/blob/${ref.revision}/${row.originalPath}`) {
         throw new Error(`Invalid pinned-source reference: ${row.originalPath}`);
       }
-      if (existsSync(path)) throw new Error(`Source-only document now exists locally; reconcile its classification: ${row.currentPath}`);
-      sourceOnly++;
+      if (row.role === 'pinned-source-only') {
+        if (existsSync(path)) throw new Error(`Source-only document now exists locally; reconcile its classification: ${row.currentPath}`);
+        sourceOnly++;
+      }
       let available = true;
       try { execFileSync('git', ['cat-file', '-e', ref.revision], { cwd: root, stdio: 'ignore' }); }
       catch { available = false; }
@@ -168,7 +173,7 @@ function check() {
         if (createHash('sha256').update(bytes).digest('hex') !== ref.sha256) throw new Error(`Pinned-source bytes changed: ${row.originalPath}`);
         sourceHashes++;
       }
-      continue;
+      if (row.role === 'pinned-source-only') continue;
     }
     if (!existsSync(path)) {
       if (row.versionControl === 'ignored-local') { omittedIgnored++; continue; }
@@ -193,7 +198,7 @@ function check() {
     const actual = new Set(execFileSync('git', ['-c', 'core.quotepath=false', 'check-ignore', '--stdin'], { cwd: root, input: ignored.map(row => row.currentPath).join('\n') + '\n', encoding: 'utf8' }).trim().split(/\r?\n/));
     for (const row of ignored) if (!actual.has(row.currentPath)) throw new Error(`Lost ignored status: ${row.currentPath}`);
   }
-  console.log(`All ${registry.files.length} records accounted for; ${archivedHashes} archived hashes verified; ${ignored.length} originally ignored paths protected (${omittedIgnored} local-only files absent); ${sourceOnly} pinned-source references checked (${sourceHashes} local source hashes verified).`);
+  console.log(`All ${registry.files.length} records accounted for; ${archivedHashes} archived hashes verified; ${ignored.length} originally ignored paths protected (${omittedIgnored} local-only files absent); ${sourceReferences} provenance references checked (${sourceOnly} source-only; ${sourceHashes} local source hashes verified).`);
 }
 
 if (process.argv.includes('--init')) initialize();

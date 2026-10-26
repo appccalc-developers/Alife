@@ -141,6 +141,7 @@ export type HomeCopy = {
   homepageEmpty: string
   homepageUnavailable: string
   footerLine: string
+  virtualChurchTourLabel: string
 }
 
 export const getCopy = (language: Language, churchDescription: string): HomeCopy => {
@@ -284,6 +285,7 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       homepageEmpty: '目前还没有可显示的公开主页。',
       homepageUnavailable: '主页暂时无法加载，请稍后再试。',
       footerLine: 'A warm digital doorway for faith, belonging, and service.',
+      virtualChurchTourLabel: '参观 3D 教堂',
     }
   }
 
@@ -426,5 +428,6 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
     homepageEmpty: 'No public homepage is available yet.',
     homepageUnavailable: 'The homepage is temporarily unavailable. Please try again later.',
     footerLine: 'A warm digital doorway for faith, belonging, and service.',
+    virtualChurchTourLabel: 'Explore the 3D church',
   }
 }

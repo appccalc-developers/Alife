@@ -6,7 +6,8 @@ const ts = require('typescript');
 // This avoids native Node's extensionless-import limitation without a dependency.
 exports.loadSource = (relativePath, dependencies = {}) => {
   const source = fs.readFileSync(path.resolve(__dirname, '../..', relativePath), 'utf8')
-    .replaceAll('import.meta.env', '({ DEV: true })');
+    .replaceAll('import.meta.env', '({ DEV: true })')
+    .replaceAll('import.meta.url', JSON.stringify(require('node:url').pathToFileURL(path.resolve(__dirname, '../..', relativePath)).href));
   const code = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;

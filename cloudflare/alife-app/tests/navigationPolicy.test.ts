@@ -82,6 +82,12 @@ test('workspace entry resumes the last route before falling back to the current 
   assert.equal(resolveWorkspaceEntryLocation('', 'group-id'), '/groups?view=overview')
   assert.equal(resolveWorkspaceEntryLocation('', ''), '/church')
   assert.equal(toWorkspaceLocation({ pathname: '/events/event-id', search: '?section=memories' }), '/events/event-id?section=memories')
+  assert.equal(toWorkspaceLocation({ pathname: '/virtual-church', search: '?profile3d=1' }), '')
+  assert.equal(toWorkspaceLocation({ pathname: '/virtual-church/study-room' }), '')
+  assert.equal(
+    resolveWorkspaceEntryLocation(toWorkspaceLocation({ pathname: '/virtual-church' }), 'group-id'),
+    '/groups?view=overview',
+  )
   assert.equal(toWorkspaceLocation({ pathname: '/' }), '')
 })
 
