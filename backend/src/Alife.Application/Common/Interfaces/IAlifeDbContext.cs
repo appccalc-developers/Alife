@@ -120,6 +120,7 @@ public interface IAlifeDbContext
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task StageGroupDissolutionAsync(Guid groupId, Guid actorId, CancellationToken cancellationToken = default);
     Task<IAlifeTransaction?> BeginSerializableTransactionAsync(CancellationToken cancellationToken = default);
+    Task<IAlifeTransaction?> BeginSerializableTransactionIfNotStartedAsync(CancellationToken cancellationToken = default);
     Task LockEventRegistrationAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task LockEventVenueAsync(Guid venueId, CancellationToken cancellationToken = default);
 }

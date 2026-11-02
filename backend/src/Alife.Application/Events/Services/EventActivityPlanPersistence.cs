@@ -8,13 +8,38 @@ namespace Alife.Application.Events.Services;
 /// <summary>Maps the relational activity plan to the unchanged questionnaire contract.</summary>
 public static class EventActivityPlanPersistence
 {
-    public static Task<EventActivityPlan?> LoadAsync(IAlifeDbContext db, Guid eventId, bool tracking, CancellationToken ct)
+    public static async Task<EventActivityPlan?> LoadAsync(IAlifeDbContext db, Guid eventId, bool tracking, CancellationToken ct)
     {
-        IQueryable<EventActivityPlan> query = db.EventActivityPlans
-            .Include(x => x.Projects).ThenInclude(x => x.Attributes)
-            .Include(x => x.Projects).ThenInclude(x => x.Answers)
-            .Include(x => x.Projects).ThenInclude(x => x.Defaults);
-        return (tracking ? query : query.AsNoTracking()).FirstOrDefaultAsync(x => x.EventId == eventId, ct);
+        await using var transaction = await db.BeginSerializableTransactionIfNotStartedAsync(ct);
+        var plan = await (tracking ? db.EventActivityPlans : db.EventActivityPlans.AsNoTracking())
+            .FirstOrDefaultAsync(x => x.EventId == eventId, ct);
+        if (plan is null)
+        {
+            if (transaction is not null) await transaction.CommitAsync(ct);
+            return null;
+        }
+
+        var projects = await (tracking ? db.EventActivityProjects : db.EventActivityProjects.AsNoTracking())
+            .Where(x => x.EventId == eventId).ToListAsync(ct);
+        var attributes = await (tracking ? db.EventActivityProjectAttributes : db.EventActivityProjectAttributes.AsNoTracking())
+            .Where(x => x.EventId == eventId).ToListAsync(ct);
+        var answers = await (tracking ? db.EventActivityProjectAnswers : db.EventActivityProjectAnswers.AsNoTracking())
+            .Where(x => x.EventId == eventId).ToListAsync(ct);
+        var defaults = await (tracking ? db.EventActivityProjectDefaults : db.EventActivityProjectDefaults.AsNoTracking())
+            .Where(x => x.EventId == eventId).ToListAsync(ct);
+
+        var attributesByProject = attributes.ToLookup(x => x.ActivityId, StringComparer.Ordinal);
+        var answersByProject = answers.ToLookup(x => x.ActivityId, StringComparer.Ordinal);
+        var defaultsByProject = defaults.ToDictionary(x => x.ActivityId, StringComparer.Ordinal);
+        foreach (var project in projects)
+        {
+            project.Attributes = attributesByProject[project.ActivityId].ToList();
+            project.Answers = answersByProject[project.ActivityId].ToList();
+            project.Defaults = defaultsByProject.GetValueOrDefault(project.ActivityId);
+        }
+        plan.Projects = projects;
+        if (transaction is not null) await transaction.CommitAsync(ct);
+        return plan;
     }
 
     public static ActivityPlanData ToData(EventActivityPlan row) => new(
