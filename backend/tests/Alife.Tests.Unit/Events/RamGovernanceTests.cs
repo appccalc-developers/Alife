@@ -281,10 +281,10 @@ public sealed partial class RamGovernanceTests
             var seedDraft=Draft(Policy());
             var answers=EventProjectQuestionCatalog.GeneralSwitchCodes.ToDictionary(code=>code,
                 _=>new PlannedActivityAnswer("no","human",true),StringComparer.Ordinal);
-            f.Db.EventActivityPlans.Add(new(){EventId=f.Event,DataJson=RamEvaluator.Serialize(new ActivityPlanData(
+            f.Db.EventActivityPlans.Add(EventActivityPlanPersistence.New(f.Event, new ActivityPlanData(
                 seedDraft.Activities.Select(a=>new PlannedActivity(a.Id,a.Attributes,a.Name,new(),Answers:answers)).ToArray(),
                 seedDraft.ParticipantCount,seedDraft.IsOuting,seedDraft.IsOvernight,seedDraft.IsHighRisk,
-                seedDraft.WeatherConfirmation,QuestionnaireVersion:2)),UpdatedUtc=DateTime.UtcNow});
+                seedDraft.WeatherConfirmation,QuestionnaireVersion:2), DateTime.UtcNow));
             await f.Db.SaveChangesAsync();return f;
         }
         public async Task Publish()

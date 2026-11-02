@@ -14,6 +14,10 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 		=> Database.IsRelational()
 			? new AlifeTransaction(await Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken))
 			: null;
+	public async Task<IAlifeTransaction?> BeginSerializableTransactionIfNotStartedAsync(CancellationToken cancellationToken = default)
+		=> Database.IsRelational() && Database.CurrentTransaction is null
+			? new AlifeTransaction(await Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken))
+			: null;
 
 	public DbSet<Group> Groups => Set<Group>();
     // Call only inside the caller's transaction, before reading capacity or the queue.

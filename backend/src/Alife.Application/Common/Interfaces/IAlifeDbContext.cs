@@ -59,6 +59,10 @@ public interface IAlifeDbContext
     DbSet<EventRoleAssignment> EventRoleAssignments { get; }
     DbSet<EventTeamMember> EventTeamMembers { get; }
     DbSet<EventActivityPlan> EventActivityPlans { get; }
+    DbSet<EventActivityProject> EventActivityProjects { get; }
+    DbSet<EventActivityProjectAttribute> EventActivityProjectAttributes { get; }
+    DbSet<EventActivityProjectAnswer> EventActivityProjectAnswers { get; }
+    DbSet<EventActivityProjectDefaults> EventActivityProjectDefaults { get; }
     DbSet<EventTask> EventTasks { get; }
     DbSet<EventTaskApprovalAction> EventTaskApprovalActions { get; }
     DbSet<EventTaskDependency> EventTaskDependencies { get; }
@@ -116,6 +120,7 @@ public interface IAlifeDbContext
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task StageGroupDissolutionAsync(Guid groupId, Guid actorId, CancellationToken cancellationToken = default);
     Task<IAlifeTransaction?> BeginSerializableTransactionAsync(CancellationToken cancellationToken = default);
+    Task<IAlifeTransaction?> BeginSerializableTransactionIfNotStartedAsync(CancellationToken cancellationToken = default);
     Task LockEventRegistrationAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task LockEventVenueAsync(Guid venueId, CancellationToken cancellationToken = default);
 }

@@ -215,27 +215,16 @@ public sealed class EventInstancePurgeSqlTests
     }
 
     [LocalEventPurgeSqlFact]
-    public async Task Malformed_activity_plan_error_uses_evidence_hash_instead_of_event_id()
+    public async Task Retired_purge_rejects_relational_activity_plan_schema()
     {
         await using var fixture = await DatabaseFixture.CreateAsync();
-        var seeded = await fixture.SeedEventAsync();
-        await using (var db = fixture.OpenDb())
-        {
-            db.EventActivityPlans.Add(new EventActivityPlan
-            {
-                EventId = seeded.EventId,
-                DataJson = "not-json",
-                UpdatedUtc = DateTime.UtcNow
-            });
-            await db.SaveChangesAsync();
-        }
+        await fixture.SeedEventAsync();
+        await fixture.ExecuteAsync("ALTER TABLE [dbo].[event_activity_plans] DROP COLUMN [data_json];");
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             fixture.Purge(fixture.Output("redaction"), EventInstancePurge.PurgeMode.Preview, "redaction").RunAsync());
 
-        Assert.Contains("evidence=", exception.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain(seeded.EventId.ToString("D"), exception.ToString(), StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("not-json", exception.ToString(), StringComparison.Ordinal);
+        Assert.Contains("relational", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [LocalEventPurgeSqlFact]
@@ -285,23 +274,25 @@ public sealed class EventInstancePurgeSqlTests
             var fixture = new DatabaseFixture();
             try
             {
-                var master = new SqlConnectionStringBuilder(ConnectionString("master"));
-                await using (var connection = new SqlConnection(master.ConnectionString))
+                // The purge tests exercise the pre-relational Event 2.0 schema.
+                // Build that schema explicitly: cloning alife_db becomes invalid
+                // as soon as RelationalActivityPlans is applied locally.
+                await using var db = fixture.OpenDb();
+                var migrator = db.GetService<IMigrator>();
+                await migrator.MigrateAsync("20260707074250_AddPagePublicationReviews");
+                await using (var connection = new SqlConnection(ConnectionString(fixture._database)))
                 {
                     await connection.OpenAsync();
-                    await using var command = new SqlCommand(
-                        $"DBCC CLONEDATABASE (N'alife_db', N'{fixture._database}') WITH VERIFY_CLONEDB; " +
-                        $"ALTER DATABASE [{fixture._database}] SET READ_WRITE WITH NO_WAIT;", connection)
-                    {
-                        CommandTimeout = 0
-                    };
+                    await using var command = new SqlCommand("""
+                        INSERT [dbo].[groups]
+                            ([id], [parent_group_id], [access_type], [is_church], [is_closed],
+                             [created_utc], [updated_utc], [description_json], [name_json])
+                        VALUES
+                            (NEWID(), NULL, 0, 1, 0, SYSUTCDATETIME(), SYSUTCDATETIME(), NULL, N'{}');
+                        """, connection);
                     await command.ExecuteNonQueryAsync();
                 }
-                await fixture.ExecuteAsync("""
-                    DELETE FROM [dbo].[__EFMigrationsHistory];
-                    INSERT INTO [dbo].[__EFMigrationsHistory] ([migration_id], [product_version])
-                    VALUES (N'20261012225333_Event2RemoveLegacyEventStorage', N'10.0.4');
-                    """);
+                await migrator.MigrateAsync("20261012225333_Event2RemoveLegacyEventStorage");
                 return fixture;
             }
             catch

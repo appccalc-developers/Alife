@@ -20,6 +20,7 @@ public partial class AlifeDbContext
                 .IsUnique().HasDatabaseName("ix_event_activity_module_configurations_project_level")
                 .HasFilter("[occurrence_id] IS NULL");
             b.HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne<EventActivityProject>().WithMany().HasForeignKey(x => new { x.EventId, x.ActivityId }).OnDelete(DeleteBehavior.Restrict);
             b.HasOne(x => x.Occurrence).WithMany().HasForeignKey(x => x.OccurrenceId).OnDelete(DeleteBehavior.Restrict);
             b.HasQueryFilter(x => !x.Event.IsDeleted);
         });

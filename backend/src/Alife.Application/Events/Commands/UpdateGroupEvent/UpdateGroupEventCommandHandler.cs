@@ -129,21 +129,15 @@ public sealed class UpdateGroupEventCommandHandler(
         if (await dbContext.EventOccurrences.CountAsync(x => x.EventId == groupEvent.Id && occurrenceIds.Contains(x.Id), cancellationToken) != occurrenceIds.Length)
             return AppResult<GroupEventSummaryDto>.Validation("The occurrence must belong to this Event.");
 
-        var activityRow = await dbContext.EventActivityPlans.FirstOrDefaultAsync(x => x.EventId == groupEvent.Id, cancellationToken);
-        ActivityPlanData? previousActivityPlan = null;
-        if (activityRow is not null)
-        {
-            try { previousActivityPlan = EventActivityPlanService.Parse(activityRow.DataJson); }
-            catch (JsonException) { return AppResult<GroupEventSummaryDto>.Conflict("The saved activity plan is invalid."); }
-        }
+        var activityRow = await EventActivityPlanPersistence.LoadAsync(dbContext, groupEvent.Id, true, cancellationToken);
+        ActivityPlanData? previousActivityPlan = activityRow is null ? null : EventActivityPlanPersistence.ToData(activityRow);
         var changedProjectIds = (previousActivityPlan?.Activities ?? []).Where(old =>
             !activityPlan.Activities.Any(current => current.Id == old.Id &&
                 current.OccurrenceId == old.OccurrenceId &&
                 current.RepeatForEachOccurrence == old.RepeatForEachOccurrence)).Select(x => x.Id).ToArray();
-        if (changedProjectIds.Length > 0 && await dbContext.EventActivityParticipations.AsNoTracking().AnyAsync(x =>
-                x.Offer.EventId == groupEvent.Id && changedProjectIds.Contains(x.Offer.ActivityId), cancellationToken))
+        if (await EventActivityPlanPersistence.HasReferencesAsync(dbContext, groupEvent.Id, changedProjectIds, cancellationToken))
             return AppResult<GroupEventSummaryDto>.Conflict(
-                "A project with participation history must remain for audit. Cancel and settle its registrations before replacing it.");
+                "A project with operational or historical references must remain. Clear draft links before replacing it. / 有运营或历史关联的项目须保留，请先解除草稿关联。");
         if (await EventActivityPlanConsistency.ConflictAsync(dbContext, groupEvent.Id, activityPlan, cancellationToken) is { } activityConflict)
             return AppResult<GroupEventSummaryDto>.Conflict(activityConflict);
 
@@ -211,23 +205,23 @@ public sealed class UpdateGroupEventCommandHandler(
         var now = DateTime.UtcNow;
         groupEvent.UpdatedUtc = now;
         var activityJson = RamEvaluator.Serialize(activityPlan);
-        var activityChanged = activityRow is null || !string.Equals(activityRow.DataJson, activityJson, StringComparison.Ordinal);
+        var activityChanged = activityRow is null || previousActivityPlan is null ||
+            ActivityAttributes.FactsJson(previousActivityPlan) != ActivityAttributes.FactsJson(activityPlan);
         if (activityRow is null)
         {
-            activityRow = new EventActivityPlan { EventId = groupEvent.Id };
+            activityRow = EventActivityPlanPersistence.New(groupEvent.Id, activityPlan, now);
             dbContext.EventActivityPlans.Add(activityRow);
         }
+        else if (activityChanged)
+            EventActivityPlanPersistence.Replace(dbContext, activityRow, activityPlan, now);
         if (activityChanged)
         {
-            var beforeJson = activityRow.DataJson;
-            activityRow.DataJson = activityJson;
-            activityRow.ConcurrencyToken = Guid.NewGuid();
-            activityRow.UpdatedUtc = now;
+            var beforeJson = previousActivityPlan is null ? "{}" : RamEvaluator.Serialize(previousActivityPlan);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 Id = Guid.NewGuid(), ActorMemberId = request.CurrentMemberId,
                 Action = "event.activityPlan.saveWithDetails", EntityType = "group_event", EntityId = groupEvent.Id,
-                BeforeJson = string.IsNullOrWhiteSpace(beforeJson) ? "{}" : beforeJson, AfterJson = activityJson,
+                BeforeJson = beforeJson, AfterJson = activityJson,
                 MetadataJson = JsonSerializer.Serialize(new { activityCount = activityPlan.Activities.Length }),
                 OccurredUtc = now
             });

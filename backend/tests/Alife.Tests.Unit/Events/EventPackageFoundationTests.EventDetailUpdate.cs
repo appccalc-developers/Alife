@@ -66,7 +66,7 @@ public sealed partial class EventPackageFoundationTests
         Assert.Equal(2, await db.EventPlanSnapshots.CountAsync());
         Assert.Single(await db.EventPlanSnapshots.Where(x => x.IsActive).ToListAsync());
         var activity = await db.EventActivityPlans.SingleAsync();
-        Assert.Equal(2, EventActivityPlanService.Parse(activity.DataJson).QuestionnaireVersion);
+        Assert.Equal(2, activity.QuestionnaireVersion);
         Assert.Equal("Updated title", (await db.GroupEvents.SingleAsync()).TitleEn);
     }
 

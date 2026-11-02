@@ -314,7 +314,7 @@ public sealed class EventActivityOperationsTests
                 EventCompositionTestData.CurrentRequest(selections: choices),
                 new EventCompositionContext("\"initial\"", HasAccountableOwner: true)).Value!;
             Db.EventPlanSnapshots.Add(new() { Id = Guid.NewGuid(), EventId = Event.Id, Version = 1, SourceFactSetId = Guid.NewGuid(), SchemaVersion = plan.SchemaVersion, ProposalHash = plan.ProposalHash, SnapshotJson = EventCompositionPersistence.SerializePlan(plan, []), ETag = EventCompositionPersistence.CreatePlanETag(1, plan.ProposalHash), IsActive = true, AcceptedByMemberId = Owner });
-            Db.EventActivityPlans.Add(new() { EventId = Event.Id, DataJson = RamEvaluator.Serialize(new ActivityPlanData([new("a", [], new("Meal", "聚餐"), new("", "")) { Answers = ProjectAnswers() }, new("b", ["hiking"], new("Walk", "徒步"), new("", "")) { Answers = ProjectAnswers() }], QuestionnaireVersion: 2)) });
+            Db.EventActivityPlans.Add(EventActivityPlanPersistence.New(Event.Id, new ActivityPlanData([new("a", [], new("Meal", "聚餐"), new("", "")) { Answers = ProjectAnswers() }, new("b", ["hiking"], new("Walk", "徒步"), new("", "")) { Answers = ProjectAnswers() }], QuestionnaireVersion: 2), DateTime.UtcNow));
             var text = new LocalizedTextDto("Terms", "条款"); Db.EventRegistrationPolicies.Add(new() { EventId = Event.Id, Version = 1, RulesJson = RamEvaluator.Serialize(new RegistrationRules(text, "public", null, text, 0, DateTime.UtcNow.AddDays(-1), Event.EndDate, true, "app", text, text, text, false, [])) });
             OwnerPerson = Person(Owner); OtherPerson = Person(Other); Role(Finance, "MONEY.FINANCE:finance.owner"); Role(Approver, "MONEY.FINANCE:finance.approver"); await Db.SaveChangesAsync();
         }
@@ -335,7 +335,7 @@ public sealed class EventActivityOperationsTests
             Db.EventChildConsentRecords.Add(new() { Id = Guid.NewGuid(), ChildRegistrationId = c.Id, GuardianRelationshipId = relationship.Id, PolicyVersionId = config.PolicyVersionId, Decision = EventGuardianConsentDecision.Granted, RecordedByMemberId = Other, RecordedUtc = DateTime.UtcNow });
         }
         public async Task ChangeActivity(string id, Func<PlannedActivity, PlannedActivity> change)
-        { var source = await Db.EventActivityPlans.SingleAsync(); var data = JsonSerializer.Deserialize<ActivityPlanData>(source.DataJson, RamEvaluator.Json)!; source.DataJson = RamEvaluator.Serialize(data with { Activities = data.Activities.Select(a => a.Id == id ? change(a) : a).ToArray() }); source.ConcurrencyToken = Guid.NewGuid(); await Db.SaveChangesAsync(); }
+        { var source = await EventActivityPlanPersistence.LoadAsync(Db, Event.Id, true, default); var data = EventActivityPlanPersistence.ToData(source!); EventActivityPlanPersistence.Replace(Db, source!, data with { Activities = data.Activities.Select(a => a.Id == id ? change(a) : a).ToArray() }, DateTime.UtcNow); await Db.SaveChangesAsync(); }
         public IReadOnlyDictionary<string, PlannedActivityAnswer> ProjectAnswers(PlannedActivityAnswer? minors = null) =>
             EventProjectQuestionCatalog.ProjectSwitchCodes.ToDictionary(
                 code => code,

@@ -53,8 +53,8 @@ public sealed class EventActivityPlanService(IAlifeDbContext db, IEventPackageIn
     }
     public static async Task<ActivityPlanSnapshot?> ReadAsync(IAlifeDbContext db, Guid eventId, CancellationToken ct)
     {
-        var row = await db.EventActivityPlans.AsNoTracking().FirstOrDefaultAsync(x => x.EventId == eventId, ct);
-        return row is null ? null : new(Parse(row.DataJson), row.ConcurrencyToken.ToString());
+        var row = await EventActivityPlanPersistence.LoadAsync(db, eventId, false, ct);
+        return row is null ? null : new(EventActivityPlanPersistence.ToData(row), row.ConcurrencyToken.ToString());
     }
     public static async Task<RamPolicyData?> PublishedPolicyAsync(IAlifeDbContext db, Guid groupId, CancellationToken ct)
     {
@@ -134,8 +134,8 @@ public sealed class EventActivityPlanService(IAlifeDbContext db, IEventPackageIn
         if (e is null) return AppResult<ActivityPlanView>.NotFound("Event not found.");
         if (!await EventWorkAccess.OwnerAsync(db,e,actor,ct)) return AppResult<ActivityPlanView>.Forbidden("Only the current Event owner may define activities.");
         if (await EventPreparationPolicy.IsFrozenAsync(db,eventId,ct)) return AppResult<ActivityPlanView>.Conflict(EventPreparationPolicy.FrozenMessage);
-        var row = await db.EventActivityPlans.FirstOrDefaultAsync(x => x.EventId == eventId,ct);
-        var previous = row is null ? null : Parse(row.DataJson);
+        var row = await EventActivityPlanPersistence.LoadAsync(db, eventId, true, ct);
+        var previous = row is null ? null : EventActivityPlanPersistence.ToData(row);
         if (Validate(request.Data) is { } error) return AppResult<ActivityPlanView>.Validation(error);
         var ids = request.Data.Activities.Where(a => a.OccurrenceId.HasValue).Select(a => a.OccurrenceId!.Value).Distinct().ToArray();
         if (await db.EventOccurrences.CountAsync(o => o.EventId == eventId && ids.Contains(o.Id),ct) != ids.Length) return AppResult<ActivityPlanView>.Validation("The occurrence must belong to this Event.");
@@ -146,27 +146,31 @@ public sealed class EventActivityPlanService(IAlifeDbContext db, IEventPackageIn
             !request.Data.Activities.Any(current => current.Id == old.Id &&
                 current.OccurrenceId == old.OccurrenceId &&
                 current.RepeatForEachOccurrence == old.RepeatForEachOccurrence)).Select(a => a.Id).ToArray();
-        if (changedProjectIds.Length > 0 && await db.EventActivityParticipations.AsNoTracking().AnyAsync(p =>
-                p.Offer.EventId == eventId && changedProjectIds.Contains(p.Offer.ActivityId), ct))
+        if (await EventActivityPlanPersistence.HasReferencesAsync(db, eventId, changedProjectIds, ct))
             return AppResult<ActivityPlanView>.Conflict(
-                "A project with participation history must remain for audit. Cancel and settle its registrations, then keep this project and create a new one for another occurrence. / 有参加记录的项目须保留供追溯；请先处理取消、通知及退款，若需其他场次请另建项目。");
+                "A project with operational or historical references must remain. Clear draft links or keep the project and create a new one for another occurrence. / 有运营或历史关联的项目须保留；请先解除草稿关联，或保留原项目并为其他场次另建项目。");
         if (await EventActivityPlanConsistency.ConflictAsync(db, eventId, request.Data, ct) is { } conflict)
             return AppResult<ActivityPlanView>.Conflict(conflict);
-        var json = RamEvaluator.Serialize(request.Data);
         // Attribute order carries no priority and must not invalidate unchanged facts.
-        if (row?.DataJson == json || row is not null && previous is not null && ActivityAttributes.FactsJson(previous) == ActivityAttributes.FactsJson(request.Data))
+        if (row is not null && previous is not null && ActivityAttributes.FactsJson(previous) == ActivityAttributes.FactsJson(request.Data))
             return await GetAsync(eventId,actor,ct);
-        var beforeJson = row?.DataJson;
-        if (row is null) { row = new() { EventId = eventId }; db.EventActivityPlans.Add(row); }
+        var beforeJson = previous is null ? null : RamEvaluator.Serialize(previous);
         e.UpdatedUtc = DateTime.UtcNow;
-        row.DataJson = json; row.ConcurrencyToken = Guid.NewGuid(); row.UpdatedUtc = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        if (row is null)
+        {
+            row = EventActivityPlanPersistence.New(eventId, request.Data, now);
+            db.EventActivityPlans.Add(row);
+        }
+        else EventActivityPlanPersistence.Replace(db, row, request.Data, now);
+        var json = RamEvaluator.Serialize(request.Data);
         db.AuditLogs.Add(new AuditLog
         {
             Id = Guid.NewGuid(), ActorMemberId = actor, Action = "event.activityPlan.save",
             EntityType = "group_event", EntityId = eventId,
             BeforeJson = beforeJson ?? "{}", AfterJson = json,
             MetadataJson = JsonSerializer.Serialize(new { activityCount = request.Data.Activities.Length }),
-            OccurredUtc = row.UpdatedUtc
+            OccurredUtc = now
         });
         await invalidation.InvalidateForModuleChangeAsync(e,actor,"TEAM.WORK","event.activities.changed","operational",ct);
         var ram = e.RamAssessment ?? await db.EventRamAssessments.FirstOrDefaultAsync(x=>x.EventId==eventId,ct);

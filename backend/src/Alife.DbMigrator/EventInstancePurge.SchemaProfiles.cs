@@ -143,6 +143,18 @@ internal sealed partial class EventInstancePurge
             ["dbo.group_events"] = "bde6c4d72e4be1f8e606e9a042ff3f96cf55222514213a7b759224254751a21b"
         });
 
+    // The existing local database followed an older column-allocation history.
+    // Its group_events has the same columns, types, nullability and FK mappings
+    // as a fresh Event 2.0 database; SQL Server column_id values after 11 are
+    // two higher because two former columns left gaps. Accept this exact shape
+    // for the explicitly local purge only, without relaxing production profiles.
+    private static readonly ReviewedSchemaProfile LocalEvent20SparseColumns = new(
+        "event-2.0-local-sparse-columns",
+        Overlay(Event20Shapes, additionsOrOverrides: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["dbo.group_events"] = "d6bd03cd45633a045f7d00d6f2e4210413814ae8935a01870783f4a4ff974ba3"
+        }));
+
     private static IReadOnlyDictionary<string, string> Overlay(
         IReadOnlyDictionary<string, string> source,
         IReadOnlyCollection<string>? removals = null,
@@ -155,8 +167,11 @@ internal sealed partial class EventInstancePurge
         return result;
     }
 
-    private static string MatchReviewedSchemaProfile(DatabaseMetadata metadata)
+    private static string MatchReviewedSchemaProfile(DatabaseMetadata metadata, bool allowLocalSparseColumns = false)
     {
+        var profiles = allowLocalSparseColumns
+            ? ReviewedSchemaProfiles.Append(LocalEvent20SparseColumns).ToArray()
+            : ReviewedSchemaProfiles;
         var liveTables = metadata.Tables.Values
             .Where(IsReviewedSchemaTable)
             .OrderBy(table => table.QualifiedName, StringComparer.Ordinal)
@@ -166,7 +181,7 @@ internal sealed partial class EventInstancePurge
             table => CalculateReviewedTableShapeHash(metadata, table),
             StringComparer.OrdinalIgnoreCase);
 
-        var matches = ReviewedSchemaProfiles.Where(profile =>
+        var matches = profiles.Where(profile =>
                 RequiredReviewedTables.All(required => liveShapes.ContainsKey(required)) &&
                 liveShapes.All(live => profile.TableShapes.TryGetValue(live.Key, out var expected) &&
                                        FixedTimeEquals(expected, live.Value)))
@@ -175,17 +190,28 @@ internal sealed partial class EventInstancePurge
         if (matches.Length != 0)
             return matches[0].Name;
 
-        var nearestMismatchCount = ReviewedSchemaProfiles
-            .Select(profile => liveShapes.Count(live =>
-                !profile.TableShapes.TryGetValue(live.Key, out var expected) ||
-                !FixedTimeEquals(expected, live.Value)) +
-                RequiredReviewedTables.Count(required => !liveShapes.ContainsKey(required)))
-            .DefaultIfEmpty(liveShapes.Count)
-            .Min();
+        var nearest = profiles
+            .Select(profile => new
+            {
+                profile.Name,
+                MismatchedTables = liveShapes.Where(live =>
+                        !profile.TableShapes.TryGetValue(live.Key, out var expected) ||
+                        !FixedTimeEquals(expected, live.Value))
+                    .Select(live => live.Key)
+                    .Concat(RequiredReviewedTables.Where(required => !liveShapes.ContainsKey(required)))
+                    .OrderBy(name => name, StringComparer.Ordinal)
+                    .ToArray()
+            })
+            .OrderBy(candidate => candidate.MismatchedTables.Length)
+            .First();
         var evidence = Sha256(string.Join("\n", liveShapes.OrderBy(pair => pair.Key, StringComparer.Ordinal)
             .Select(pair => pair.Key.ToLowerInvariant() + "=" + pair.Value)));
         throw new InvalidOperationException(
-            $"The live Event schema does not match a reviewed reset profile (mismatches={nearestMismatchCount}; schemaEvidence={evidence}).");
+            $"The live Event schema does not match a reviewed reset profile " +
+            $"(nearest={nearest.Name}; mismatches={nearest.MismatchedTables.Length}; " +
+            $"tables={string.Join(",", nearest.MismatchedTables)}; " +
+            $"shapes={string.Join(",", nearest.MismatchedTables.Select(name => liveShapes.TryGetValue(name, out var hash) ? hash : "missing"))}; " +
+            $"schemaEvidence={evidence}).");
     }
 
     private static bool IsReviewedSchemaTable(TableInfo table) =>
