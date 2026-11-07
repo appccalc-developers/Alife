@@ -1,5 +1,23 @@
 # Event details assistant contract v2
 
+## Conversation creation
+
+Creation offers an optional Anhe conversation surface alongside the existing form. Both edit the same member/group-scoped creation draft. The approved character is static 3D artwork. Template selection and final project/arrangement review remain explicit. Conversation does not book venues, approve safety decisions, create records or publish anything.
+
+Only after the user explicitly starts voice conversation, each finalized browser transcript is submitted automatically. Alife sends text, not audio; the browser may use an online recognition service, disclosed beside the control. Each turn calls the existing details session and `POST /api/events/creation-project-assistance` using existing Gemini configuration (two provider requests). Both validated responses must succeed against the latest draft before atomic adoption. Failure preserves the draft and transcript; pause/hidden page/mode or language changes/unmount stop recognition and playback and invalidate pending adoption. Optional speech synthesis completes before recognition resumes. Unsupported/denied recognition has text fallback. Existing details/form dictation continues to require explicit Send.
+
+The new stateless project route accepts `{ groupId, revision, language, timeZone, form, context?, message, history }`; its scope is fixed to `activityPlan`. Shared field validation and size/history limits apply. It rejects `eventId`, `scope` and unknown fields. Before every provider request, the Worker checks `GET /api/events/ram-authoring/access?groupId` at the configured backend, which enforces creation authority in the selected group. Only allowlisted draft fields enter AI context; backend records and group identity do not. Responses use `private, no-store` and `Vary: Cookie, Authorization`. Existing saved-Event assistance is unchanged.
+
+Adoption preserves stable project IDs, occurrence links and existing times; changed project answers and arrangement confirmations require fresh review. A one-level undo restores the previous draft while invalidating arrangement acceptance. Final review displays the project list and expected attendance, and requires an explicit human acceptance bound to the current draft signature in addition to existing creation validators and idempotency. Client conversation history and acceptance are component-memory state; the server details session retains its existing storage/close lifecycle; the draft retains the existing scoped storage behavior. Full runtime language switching preserves draft data and requires a new explicit microphone start.
+
+简体中文：新增「和安禾聊聊」创建方式，使用已认可人物。明确开启后，每句语音识别文字自动整理为活动资料和项目草稿；两份校验结果完整返回后才一起更新。可以暂停、纠正、撤销或改用文字。切换语言、模式或离开页面会停止语音并阻止旧回复覆盖草稿。最后仍须核对项目、必要安排与确认清单，再明确创建；不会自动发布。
+
+繁體中文：新增「和安禾聊聊」建立方式，使用已認可人物。明確開啟後，每句語音辨識文字自動整理為活動資料和項目草稿；兩份校驗結果完整回傳後才一起更新。可以暫停、更正、復原或改用文字。切換語言、模式或離開頁面會停止語音並阻止舊回覆覆蓋草稿。最後仍須核對項目、必要安排與確認清單，再明確建立；不會自動發布。
+
+Scope, acceptance and local evidence: [conversation creation](EVENT-CONVERSATION-CREATION.md). Live speech/provider quality and authenticated end-to-end integration require separate verification.
+
+## Details session
+
 The creation wizard uses `/api/events/details-session/{id}/message`, `/state` and `/close`. These use the existing Event Durable Object binding with an Event schema-epoch prefix, a `details-v2:` feature prefix and separate `event-details-v2` storage. Event 1.x object names and stored sessions are therefore unreachable after the Event 2.0 cutover. Retired Event 1.x planning, editing and enrollment routes are not supported. All current scenarios use shared assistant policy `1.0.0`; each supplies its own scenario definition and Gemini response schema.
 
 ## Input and output
