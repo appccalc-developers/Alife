@@ -321,6 +321,14 @@
       ],
       "evidence": [
         {
+          "date": "2026-11-07",
+          "source": "docs/events/IMPLEMENTATION-STATUS.md#conversation-creation--2026-11-07",
+          "environment": "Local current React/Vite, mocked browser speech/API, and current-source Worker handler",
+          "check": "Isolated PR source: production frontend/PWA build; 33 creation/conversation, 17 in-scope details/form, seven locale and three PWA cache cases; Worker group authority/privacy/failure test; rendered Chinese/English desktop/mobile voice-draft-confirmation workflow",
+          "outcome": "All scoped checks passed. Explicit voice opt-in, atomic draft adoption, correction/undo, failure/stale preservation and human confirmation reset verified. One simulated create navigated to setup. Evidence: C:/Data/Alife/Temp/event-conversation-implementation-20261107/. Follow-up page refinement passed type/locale and Chinese/English desktop/tablet/320px visual checks, draft navigation and human-confirmation checks; screenshots: C:/Data/Alife/Temp/event-conversation-polish-20261107/.",
+          "limitations": "No live speech/Gemini/backend persistence, real-policy full browser run, saved workspace certification or deployment. Isolated PR evidence and the fixed artwork precache build issue are recorded in EVENT-CONVERSATION-CREATION.md. Event-wide status stays partial."
+        },
+        {
           "date": "2026-10-12",
           "source": "Current Event 1.3 composition, project questionnaire, module and JSON contracts in the shared working tree",
           "environment": "Local Windows Node Event documentation generator and JSON parsing",
