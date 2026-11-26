@@ -402,6 +402,9 @@ export default defineConfig(({ command, mode }) => {
         // of the install-time precache and let the image runtime cache retain
         // only the covers a visitor actually views.
         globIgnores: [
+          // Optional conversation artwork loads on demand, without enlarging
+          // every PWA install or raising the global precache size limit.
+          'event-companion/**',
           'article-covers/generated/**',
           'project/**',
           '**/virtual-church-cache-maintenance.js',

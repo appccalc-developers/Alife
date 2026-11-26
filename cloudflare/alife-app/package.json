@@ -14,6 +14,7 @@
     "test:church-life": "node --test --experimental-strip-types tests/churchLife.test.ts",
     "test:locale": "node --test --experimental-strip-types tests/locale.test.ts tests/i18nResources.test.cjs",
     "test:bilingual": "node --test --experimental-strip-types tests/bilingualValidation.test.ts",
+    "test:event-conversation": "node --test --experimental-strip-types tests/eventConversationDraft.test.ts tests/eventCreationDraft.test.ts tests/eventCreationArrangements.test.ts tests/eventProjectQuestionnaire.test.ts",
     "test:page-bilingual": "node --test --experimental-strip-types tests/pageBilingualCompletion.test.ts",
     "test:page-cache": "node --test tests/pageCache.test.cjs tests/httpCache.test.cjs tests/pwaCache.test.cjs",
     "test:article-covers": "node --test --experimental-strip-types tests/articleCover.test.ts",

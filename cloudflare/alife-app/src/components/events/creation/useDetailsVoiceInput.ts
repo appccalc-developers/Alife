@@ -22,15 +22,16 @@ const getRecognition = () => {
   return browser.SpeechRecognition ?? browser.webkitSpeechRecognition ?? null
 }
 
-export function useDetailsVoiceInput({ value, onChange, enabled, language, maxLength }: {
+export function useDetailsVoiceInput({ value, onChange, enabled, language, maxLength, continuous = true, onComplete }: {
   value: string; onChange: (value: string) => void; enabled: boolean; language: string; maxLength: number
+  continuous?: boolean; onComplete?: (value: string) => void
 }) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [interim, setInterim] = useState(''), [error, setError] = useState('')
   const recognition = useRef<Recognition | null>(null)
   const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const latest = useRef({ value, onChange, enabled, language })
-  latest.current = { value, onChange, enabled, language }
+  const latest = useRef({ value, onChange, enabled, language, onComplete })
+  latest.current = { value, onChange, enabled, language, onComplete }
 
   const release = useCallback(() => {
     const current = recognition.current
@@ -73,7 +74,7 @@ export function useDetailsVoiceInput({ value, onChange, enabled, language, maxLe
       const current = new Constructor()
       recognition.current = current
       current.lang = language
-      current.continuous = true
+      current.continuous = continuous
       current.interimResults = true
       const finalIndices = new Set<number>()
       const isCurrent = () => recognition.current === current && latest.current.enabled && latest.current.language === language
@@ -99,7 +100,14 @@ export function useDetailsVoiceInput({ value, onChange, enabled, language, maxLe
         if (!isCurrent()) return
         setError(event.error); cancel()
       }
-      current.onend = () => { if (isCurrent()) cancel() }
+      current.onend = () => {
+        if (!isCurrent()) return
+        const completed = finalIndices.size ? latest.current.value : ''
+        cancel()
+        // Existing dictation never submits. Only the explicitly opted-in
+        // conversation surface supplies this callback; errors/cancel do not.
+        if (completed.trim()) latest.current.onComplete?.(completed)
+      }
       current.start()
     } catch (reason) {
       setError(reason instanceof DOMException && reason.name === 'NotAllowedError' ? 'not-allowed' : 'failed')

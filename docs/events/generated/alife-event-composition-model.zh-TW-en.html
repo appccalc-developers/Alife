@@ -2648,6 +2648,31 @@ public sealed record AcceptEventPlanRequest(
     "presentation": "shared responsive details workspace, conversation/voice, send-left/voice-right action row, completion and pending-field focus; activity-plan and registration assistants use approximately one and a half viewport heights with internal conversation scrolling; all registration bilingual fields use current-language-first disclosure",
     "activityFormat": "required fixed attributes arrays; existing actual activity IDs/occurrence links retained; no activity type or dynamic code-list input"
   },
+  "eventConversationCreation": {
+    "contractVersion": 1,
+    "documentation": "AI-DETAILS-ASSISTANT.md#conversation-creation",
+    "mode": "optional conversation surface sharing the existing group/member-scoped creation draft; form remains available",
+    "voice": "explicitly started browser recognition; finalized turns auto-submit only while opted in; pause, language/mode changes, hidden page and unmount stop listening/playback; existing dictation remains send-manually",
+    "projectPath": "/api/events/creation-project-assistance",
+    "projectRequest": [
+      "groupId",
+      "revision",
+      "language",
+      "timeZone",
+      "form",
+      "context",
+      "message",
+      "history"
+    ],
+    "projectScope": "activityPlan only; shared eventFormAssistant field schema and limits; eventId/scope/unknown fields rejected",
+    "authority": "backend GET /api/events/ram-authoring/access?groupId rechecks creation group authority before every provider call",
+    "adoption": "existing details session and project assistance must both succeed against the same current draft revision before one atomic update; changes invalidate human confirmation; one-level undo; no partial adoption",
+    "review": "existing template, project and arrangement gates; final details/projects review and explicit acceptance bound to current creation signature; existing idempotent create API; no auto-publication",
+    "privacy": "no backend records, group/member IDs or audio sent to project provider; existing session receives allowlisted details snapshot; client transcript/history remain component memory; server details session retains its existing lifecycle; draft uses existing scoped storage",
+    "cache": "private, no-store; Vary Cookie, Authorization",
+    "provider": "existing Gemini configuration; two bounded requests per conversation turn; no new provider",
+    "character": "approved static 3D-rendered Anhe artwork; no live rig or lip-sync"
+  },
   "enums": {
     "governanceMode": [
       "private",
@@ -8589,6 +8614,15 @@ public sealed record AcceptEventPlanRequest(
       "request": "eventId, tasks/registration/activityPlan scope, revision, language, IANA timeZone, allowlisted form, optional title/description context, message and bounded history; every activity carries required fixed attributes array and actual ID; no type or dynamic activityTypes catalogue input",
       "response": "validated form, adoptedFields, bilingual assistantReply and matching revision; never save",
       "auth": "Worker verifies current backend task manager/preparation edit, registration rule edit, or activity-plan edit authority",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/creation-project-assistance",
+      "request": "groupId UUID, revision, language, IANA timeZone, activityPlan allowlisted form, optional current title/description context, message and bounded history; no eventId or client-selectable scope",
+      "response": "validated form, adoptedFields, bilingual assistantReply and matching revision; never save",
+      "auth": "Worker rechecks current backend group creation authority through ram-authoring/access before AI; no authority response records enter provider input",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false
     },

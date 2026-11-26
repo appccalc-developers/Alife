@@ -11,6 +11,9 @@ import { parseRamDraft, type RamDraft } from '../types/ramGovernance'
 import { setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 import type { DetailsFocusRequest } from '../components/events/creation/DetailsWorkspace'
 import EventDetailsAssistant from '../components/events/creation/EventDetailsAssistant'
+import EventConversation from '../components/events/creation/EventConversation'
+import EventConversationReview from '../components/events/creation/EventConversationReview'
+import { eventConversationText } from '../i18n/eventConversation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
@@ -34,6 +37,10 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
   const zh = language === 'zh'
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>(1)
+  const [creationMode, setCreationMode] = useState<'conversation' | 'form'>('form')
+  const [conversationOpened, setConversationOpened] = useState(false)
+  const [conversationUsed, setConversationUsed] = useState(false)
+  const [conversationReviewed, setConversationReviewed] = useState('')
   const stepRegion = useRef<HTMLFieldSetElement>(null)
   const [questionDefinitions,setQuestionDefinitions]=useState<EventProjectQuestionDefinition[]>()
   useEffect(()=>{let live=true;void ramService.authoringContext({groupId}).then(context=>{if(live)setQuestionDefinitions(context.questionDefinitions)}).catch(()=>{});return()=>{live=false}},[groupId,memberId])
@@ -106,7 +113,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     if (!type || !archetype || !composition) { setError(zh ? eventCreationWizardText.chooseACategoryAndTemplate.zh : eventCreationWizardText.chooseACategoryAndTemplate.en); return }
     if (step === 1) { setStep(3); return }
     const issue = creationDraftIssue(draft, type, archetype, zh)
-    if (issue) { setError(issue.message); setDetailsFocusRequest(previous => ({ field: issue.field, version: (previous?.version ?? 0) + 1 })); setStep(3); return }
+    if (issue) { setCreationMode('form'); setError(issue.message); setDetailsFocusRequest(previous => ({ field: issue.field, version: (previous?.version ?? 0) + 1 })); setStep(3); return }
     if (step === 2) { setStep(3); return }
     if (step !== 3 || !currentPreview) return
     actionLock.current = true
@@ -118,9 +125,9 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
       if (!sequence.current.isCurrent(id) || latest.current.creationSignature !== signature) return
       setPreview({ proposal, signature: compositionSignature })
       setPreviewState('ready')
-      if (draft.activityPlan?.activities.some(activity => projectNeedsConfirmation(activity,questionDefinitions ?? []))) { setError(zh ? projectCopy.confirmBeforeCreate.zh : projectCopy.confirmBeforeCreate.en); setStep(3); return }
+      if (draft.activityPlan?.activities.some(activity => projectNeedsConfirmation(activity,questionDefinitions ?? []))) { setCreationMode('form'); setError(zh ? projectCopy.confirmBeforeCreate.zh : projectCopy.confirmBeforeCreate.en); setStep(3); return }
     const arrangementIssue = validateCreationArrangements(draft, type, proposal, zh)
-      if (arrangementIssue) { setError(arrangementIssue); return }
+      if (arrangementIssue) { setCreationMode('form'); setError(arrangementIssue); return }
       setReviewSignature(signature)
       setStep(4)
     } catch (reason) {
@@ -130,14 +137,15 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
 
   const accept = async () => {
     if (actionLock.current || !type || !archetype || !composition) return
+    if (conversationUsed && conversationReviewed !== creationSignature) return
     if (!currentPreview || !preview || reviewSignature !== creationSignature) {
       setError(zh ? eventCreationWizardText.thePlanChangedReturnToArrangementsAndReviewAgain.zh : eventCreationWizardText.thePlanChangedReturnToArrangementsAndReviewAgain.en); return
     }
     const issue = creationDraftIssue(draft, type, archetype, zh)
-    if (issue) { setError(issue.message); setDetailsFocusRequest(previous => ({ field: issue.field, version: (previous?.version ?? 0) + 1 })); setStep(3); return }
-    if (draft.activityPlan?.activities.some(activity => projectNeedsConfirmation(activity,questionDefinitions ?? []))) { setError(zh ? projectCopy.confirmBeforeCreate.zh : projectCopy.confirmBeforeCreate.en);setStep(3);return }
+    if (issue) { setCreationMode('form'); setError(issue.message); setDetailsFocusRequest(previous => ({ field: issue.field, version: (previous?.version ?? 0) + 1 })); setStep(3); return }
+    if (draft.activityPlan?.activities.some(activity => projectNeedsConfirmation(activity,questionDefinitions ?? []))) { setCreationMode('form'); setError(zh ? projectCopy.confirmBeforeCreate.zh : projectCopy.confirmBeforeCreate.en);setStep(3);return }
     const arrangementIssue = validateCreationArrangements(draft, type, preview.proposal, zh)
-    if (arrangementIssue) { setError(arrangementIssue); setStep(3); return }
+    if (arrangementIssue) { setCreationMode('form'); setError(arrangementIssue); setStep(3); return }
     const idempotencyKey = submission.current.begin(JSON.stringify([creationSignature, preview.proposal.proposalHash]))
     if (!idempotencyKey) return
     actionLock.current = true
@@ -168,23 +176,28 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
   const previewStatus = <div aria-live="polite" className="rounded-xl border border-[#2f4b42]/15 bg-white p-3 text-sm">{currentPreview ? (zh ? eventCreationWizardText.toolsUpdatedForTheCurrentArrangements.zh : eventCreationWizardText.toolsUpdatedForTheCurrentArrangements.en) : previewState === 'error' ? <><p role="alert">{previewError}</p><AppActionButton className="mt-2" onClick={() => setPreviewAttempt(value => value + 1)}>{zh ? eventCreationWizardText.retry.zh : eventCreationWizardText.retry.en}</AppActionButton></> : (zh ? eventCreationWizardText.updatingToolsFromEventArrangements.zh : eventCreationWizardText.updatingToolsFromEventArrangements.en)}</div>
 
 
-  return <AppPageShell title={zh ? eventCreationWizardText.eventWorkspaceCreateEvent.zh : eventCreationWizardText.eventWorkspaceCreateEvent.en} context={zh ? eventCreationWizardText.groupLifeEvents.zh : eventCreationWizardText.groupLifeEvents.en} backLink={{ to: `/groups/${encodeURIComponent(groupId)}?section=events`, label: zh ? eventCreationWizardText.backToEvents.zh : eventCreationWizardText.backToEvents.en }}>
-    <EventFlowRail current={step} zh={zh} disabled={busy || aiBusy || (step === 3 && !currentPreview)} onSelect={value => { if (value === 4 && step === 3) { void next(); return }; setError(''); setStep(value as Step) }} />
+  return <div className={creationMode === 'conversation' && step === 3 ? 'event-creation-conversation-page' : undefined}><AppPageShell title={zh ? eventCreationWizardText.eventWorkspaceCreateEvent.zh : eventCreationWizardText.eventWorkspaceCreateEvent.en} context={zh ? eventCreationWizardText.groupLifeEvents.zh : eventCreationWizardText.groupLifeEvents.en} backLink={{ to: `/groups/${encodeURIComponent(groupId)}?section=events`, label: zh ? eventCreationWizardText.backToEvents.zh : eventCreationWizardText.backToEvents.en }}>
+    <div className="event-creation-toolbar"><EventFlowRail current={step} zh={zh} disabled={busy || aiBusy || (step === 3 && !currentPreview)} onSelect={value => { if (value === 4 && step === 3) { void next(); return }; setError(''); setStep(value as Step) }} />
+      {catalogue === 'ready' && hydrated ? <>{step !== 4 ? <div className="event-conversation-modes" role="group" aria-label={eventConversationText.mode[zh ? 'zh' : 'en']}>{(['conversation', 'form'] as const).map(mode => <button type="button" key={mode} aria-pressed={creationMode === mode} disabled={busy || aiBusy} onClick={() => { setCreationMode(mode); if (mode === 'conversation') setConversationOpened(true) }}>{eventConversationText[mode][zh ? 'zh' : 'en']}</button>)}</div> : null}</> : null}
+    </div>
     {catalogue === 'loading' ? <p role="status">{zh ? eventCreationWizardText.loadingEventTemplates.zh : eventCreationWizardText.loadingEventTemplates.en}</p> : null}
     {catalogue === 'error' ? <AppEmptyState title={zh ? eventCreationWizardText.eventTemplatesUnavailable.zh : eventCreationWizardText.eventTemplatesUnavailable.en} description={catalogueError} actionLabel={zh ? eventCreationWizardText.retryLabel.zh : eventCreationWizardText.retryLabel.en} onAction={() => setCatalogueAttempt(value => value + 1)} /> : null}
     {error ? <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{error}</p> : null}
     {storageWarning ? <p role="status" className="text-sm text-amber-800">{zh ? eventCreationWizardText.localDraftRecoveryOrSavingIsUnavailableYouCan.zh : eventCreationWizardText.localDraftRecoveryOrSavingIsUnavailableYouCan.en}</p> : null}
     {catalogue === 'ready' && hydrated ? <>
+      {step === 1 && creationMode === 'conversation' ? <p className="text-sm text-[#66766f]">{eventConversationText.chooseTemplate[zh ? 'zh' : 'en']}</p> : null}
       <fieldset ref={stepRegion} tabIndex={-1} aria-label={labels[step - 1]} disabled={busy} className="min-w-0 scroll-mt-24 space-y-4 outline-none" aria-busy={busy}>
         {step === 1 ? <TemplateStep draft={draft} setDraft={setDraft} zh={zh} archetypes={archetypes} type={type} /> : null}
-        {type && archetype ? <div hidden={step !== 3}><ArrangementsStep questionDefinitions={questionDefinitions} detailsFocusRequest={detailsFocusRequest} detailsPanel={active => <DetailsWorkspace focusRequest={detailsFocusRequest} zh={zh} active={active && step === 3} form={<DetailsStep groupId={groupId} draft={draft} setDraft={setDraft} zh={zh} type={type} archetype={archetype} ai={null} />} assistant={visible => <EventDetailsAssistant draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} zh={zh} active={visible} onBusy={setAiBusy} />} />} ownerPanel={<p className="mt-1">{me?.displayName || (zh ? eventCreationWizardText.currentUser.zh : eventCreationWizardText.currentUser.en)}</p>} ramDirty={ramTouched} draft={draft} setDraft={setDraft} zh={zh} type={type} groupId={groupId} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} ramPanel={<div className="space-y-4"><p className="rounded-xl bg-[#e3f0eb] p-3 text-sm">{zh ? eventCreationWizardText.fillInRisksHereTheyAreSavedWithThe.zh : eventCreationWizardText.fillInRisksHereTheyAreSavedWithThe.en}</p><RamDraftEditor groupId={groupId} conditionsKey={JSON.stringify(draft)} onBusy={setAiBusy} draft={{...ramDraft,...(draft.activityPlan || emptyActivityPlan())}} update={change => { setRamDraft(value => ({ ...value, ...change })); setRamTouched(true); setDraft(previous => invalidateArrangementConfirmation(previous, 'SAFETY.RAM')) }} editable={!busy} dirty zh={zh} /></div>} /></div> : null}
-        {step === 4 && type && archetype && preview ? <ReviewStep draft={draft} zh={zh} type={type} archetype={archetype} proposal={preview.proposal} /> : null}
+        {conversationOpened && type && archetype ? <EventConversation key={`${type.code}:${archetype.code}`} draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} groupId={groupId} zh={zh} active={step === 3 && creationMode === 'conversation' && !busy} onBusy={setAiBusy} onAdopt={() => setConversationUsed(true)} onReview={() => setCreationMode('form')} /> : null}
+        {type && archetype ? <div hidden={step !== 3 || creationMode !== 'form'}><ArrangementsStep questionDefinitions={questionDefinitions} detailsFocusRequest={detailsFocusRequest} detailsPanel={active => <DetailsWorkspace focusRequest={detailsFocusRequest} zh={zh} active={active && step === 3 && creationMode === 'form'} form={<DetailsStep groupId={groupId} draft={draft} setDraft={setDraft} zh={zh} type={type} archetype={archetype} ai={null} />} assistant={visible => <EventDetailsAssistant draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} zh={zh} active={visible} onBusy={setAiBusy} />} />} ownerPanel={<p className="mt-1">{me?.displayName || (zh ? eventCreationWizardText.currentUser.zh : eventCreationWizardText.currentUser.en)}</p>} ramDirty={ramTouched} draft={draft} setDraft={setDraft} zh={zh} type={type} groupId={groupId} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} ramPanel={<div className="space-y-4"><p className="rounded-xl bg-[#e3f0eb] p-3 text-sm">{zh ? eventCreationWizardText.fillInRisksHereTheyAreSavedWithThe.zh : eventCreationWizardText.fillInRisksHereTheyAreSavedWithThe.en}</p><RamDraftEditor groupId={groupId} conditionsKey={JSON.stringify(draft)} onBusy={setAiBusy} draft={{...ramDraft,...(draft.activityPlan || emptyActivityPlan())}} update={change => { setRamDraft(value => ({ ...value, ...change })); setRamTouched(true); setDraft(previous => invalidateArrangementConfirmation(previous, 'SAFETY.RAM')) }} editable={!busy} dirty zh={zh} /></div>} /></div> : null}
+        {step === 4 && type && archetype && preview ? <>{conversationUsed ? <EventConversationReview draft={draft} zh={zh} /> : null}<ReviewStep draft={draft} zh={zh} type={type} archetype={archetype} proposal={preview.proposal} /></> : null}
       </fieldset>
       {step === 1 ? <AppActionButton variant="primary" disabled={busy || aiBusy} onClick={() => void next()}>{zh ? eventCreationWizardText.startArranging.zh : eventCreationWizardText.startArranging.en}</AppActionButton> : null}
-      {step === 4 ? <AppActionButton variant="primary" disabled={busy || !currentPreview || reviewSignature !== creationSignature} onClick={() => void accept()}>{zh ? eventCreationWizardText.confirmAndCreateEvent.zh : eventCreationWizardText.confirmAndCreateEvent.en}</AppActionButton> : null}
+      {step === 4 && conversationUsed ? <label className="flex min-h-12 items-start gap-3 rounded-xl border border-[#cbd5bf] bg-[#f4f6ed] p-4 text-sm"><input type="checkbox" className="mt-1 h-5 w-5" disabled={busy} checked={conversationReviewed === creationSignature} onChange={event => setConversationReviewed(event.target.checked ? creationSignature : '')} /><span>{eventConversationText.humanReview[zh ? 'zh' : 'en']}</span></label> : null}
+      {step === 4 ? <AppActionButton variant="primary" disabled={busy || !currentPreview || reviewSignature !== creationSignature || (conversationUsed && conversationReviewed !== creationSignature)} onClick={() => void accept()}>{zh ? eventCreationWizardText.confirmAndCreateEvent.zh : eventCreationWizardText.confirmAndCreateEvent.en}</AppActionButton> : null}
       <footer className="pb-24"><AppActionButton variant="ghost" onClick={() => { document.querySelector<HTMLElement>('nav[tabindex="-1"]')?.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }) }}>{zh ? eventCreationWizardText.backToTop.zh : eventCreationWizardText.backToTop.en}</AppActionButton></footer>
     </> : null}
-  </AppPageShell>
+  </AppPageShell></div>
 }
 
 export default function EventCreationWizard() {

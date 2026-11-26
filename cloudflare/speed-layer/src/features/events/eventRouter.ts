@@ -6,6 +6,7 @@ import { handleRamAssistance } from './ramAssistance'
 import { handleFormAssistance } from './formAssistance'
 
 const eventRouter = new Router()
+eventRouter.post('/api/events/creation-project-assistance', (request, env) => handleFormAssistance(request, env, true))
 eventRouter.post('/api/events/form-assistance', (request, env) => handleFormAssistance(request, env))
 eventRouter.post('/api/events/ram-guidance', (request, env) => handleRamGuidance(request, env))
 eventRouter.post('/api/events/ram-assistance', (request, env) => handleRamAssistance(request, env))

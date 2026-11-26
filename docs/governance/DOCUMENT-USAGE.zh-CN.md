@@ -390,3 +390,7 @@
 | [OPERATION-MATRIX.md](../workspaces/OPERATION-MATRIX.md) | 是 | 是 | 保留 | 现行架构、领域契约、状态、运维或设计入口；Alife 继续交付与功能等价的新 Church App 均需要。 |
 | [PERSONAL.md](../workspaces/PERSONAL.md) | 是 | 是 | 保留 | 现行架构、领域契约、状态、运维或设计入口；Alife 继续交付与功能等价的新 Church App 均需要。 |
 | [README.md](../workspaces/README.md) | 是 | 是 | 保留 | 现行架构、领域契约、状态、运维或设计入口；Alife 继续交付与功能等价的新 Church App 均需要。 |
+
+## 2026-11-07 对话创建实现
+
+- `docs/events/EVENT-CONVERSATION-CREATION.md`：本次已授权范围、执行计划与当前本地验收证据；Alife 维护与后续交接保留。业务规则归 AI-DETAILS-ASSISTANT 与 Event 契约，文档不代表真实服务或生产验收。
